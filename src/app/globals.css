@@ -1,0 +1,82 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Add this after @tailwind utilities; */
+.modal-grid-cols-2 > div {
+  @apply md:col-span-1;
+}
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 222.2 84% 4.9%;
+    --primary: 222.2 47.4% 11.2%;
+    --primary-foreground: 210 40% 98%;
+    --secondary: 210 40% 96.1%;
+    --secondary-foreground: 222.2 47.4% 11.2%;
+    --accent: 210 40% 96.1%;
+    --accent-foreground: 222.2 47.4% 11.2%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+    --ring: 222.2 84% 4.9%;
+    --radius: 0.5rem;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+/* 移除舊有的 class，統一使用 Tailwind */
+.form-input {
+  @apply block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6;
+}
+
+.btn {
+  @apply inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50;
+}
+
+.btn-primary {
+  @apply bg-primary text-primary-foreground hover:bg-primary/90;
+}
+
+/* 新增報價單表單的 Label 樣式 */
+.form-label-sm {
+  @apply block text-sm font-medium text-gray-600 mb-1;
+}
+
+/* 新增報價單表單的 Radio Button 樣式 */
+.form-radio {
+  @apply h-4 w-4 text-indigo-600 border-gray-300 focus:ring-indigo-500;
+}
+
+/* 新增 PDF 與列印專用樣式 */
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  #printable-quote, #printable-quote * {
+    visibility: visible;
+  }
+  #printable-quote {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+  }
+  .print\:hidden {
+    display: none !important;
+  }
+}
+
+.print-mode .no-print {
+    display: none !important;
+}
