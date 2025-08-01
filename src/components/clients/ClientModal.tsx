@@ -11,7 +11,7 @@ import { useEffect } from 'react'
 
 type Client = Database['public']['Tables']['clients']['Row']
 
-// 1. 更新 Zod schema，加入銀行資訊
+// 1. 更新 Zod schema，使其更清晰
 const clientSchema = z.object({
   name: z.string().min(1, '公司名稱為必填'),
   tin: z.string().optional().nullable(),
@@ -43,18 +43,43 @@ export function ClientModal({ isOpen, onClose, onSave, client }: ClientModalProp
     formState: { errors, isSubmitting },
   } = useForm<ClientFormData>({
     resolver: zodResolver(clientSchema),
+    // 設定預設值，確保所有欄位都是受控元件
+    defaultValues: {
+        name: '',
+        tin: '',
+        invoice_title: '',
+        contact_person: '',
+        phone: '',
+        address: '',
+        bank_info: {
+            bankName: '',
+            branchName: '',
+            accountNumber: '',
+        },
+    }
   })
 
   useEffect(() => {
     if (isOpen) {
         if (client) {
-            // 編輯模式：載入現有資料
-            reset({
-                ...client,
-                bank_info: (client.bank_info as any) || {}, // 確保 bank_info 是物件
-            })
+            // 【修正】編輯模式：在 reset 前，先將 null 清理為 ''
+            const clientForForm = {
+                name: client.name || '',
+                tin: client.tin || '',
+                invoice_title: client.invoice_title || '',
+                contact_person: client.contact_person || '',
+                phone: client.phone || '',
+                address: client.address || '',
+                // 巢狀的 bank_info 也需要同樣處理
+                bank_info: {
+                    bankName: (client.bank_info as any)?.bankName || '',
+                    branchName: (client.bank_info as any)?.branchName || '',
+                    accountNumber: (client.bank_info as any)?.accountNumber || '',
+                }
+            };
+            reset(clientForForm);
         } else {
-            // 新增模式：重設為空值
+            // 新增模式：重設為預設的空值
             reset({
                 name: '',
                 tin: '',
@@ -73,17 +98,19 @@ export function ClientModal({ isOpen, onClose, onSave, client }: ClientModalProp
   }, [client, reset, isOpen])
 
   const onSubmit = (data: ClientFormData) => {
-    // 將空字串轉為 null 以符合資料庫規範
+    // 在儲存前，將空字串轉回 null 以符合資料庫規範
     const sanitizedData: ClientFormData = {
         ...data,
         tin: data.tin || null,
         invoice_title: data.invoice_title || null,
         phone: data.phone || null,
-        bank_info: {
-            bankName: data.bank_info?.bankName || null,
-            branchName: data.bank_info?.branchName || null,
-            accountNumber: data.bank_info?.accountNumber || null,
-        }
+        bank_info: (data.bank_info && (data.bank_info.bankName || data.bank_info.branchName || data.bank_info.accountNumber)) 
+            ? {
+                bankName: data.bank_info?.bankName || null,
+                branchName: data.bank_info?.branchName || null,
+                accountNumber: data.bank_info?.accountNumber || null,
+              }
+            : null, // 如果銀行資訊全為空，就存 null
     };
     onSave(sanitizedData, client?.id)
   }
