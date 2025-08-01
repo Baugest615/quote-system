@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { ClientModal } from '@/components/clients/ClientModal'
 import { PlusCircle, Edit, Trash2, Search } from 'lucide-react'
+import { toast } from 'sonner';
 
 type Client = Database['public']['Tables']['clients']['Row']
 
@@ -56,19 +57,55 @@ export default function ClientsPage() {
   }
 
   const handleSaveClient = async (
-    clientData: Omit<Client, 'id' | 'created_at' | 'updated_at'>,
+    formData: {
+      name: string;
+      address: string;
+      contact_person: string;
+      phone?: string | null; // 接受 string, null, undefined
+      invoice_title?: string | null;
+      tin?: string | null;
+      bank_info?: {
+        bankName?: string | null;
+        branchName?: string | null;
+        accountNumber?: string | null;
+      } | null;
+    },
     id?: string
   ) => {
+    const dataToSave = {
+      ...formData,
+      phone: formData.phone || null,
+      invoice_title: formData.invoice_title || null,
+      tin: formData.tin || null,
+      bank_info: formData.bank_info ?? null,
+    };
+
     if (id) {
-      const { error } = await supabase.from('clients').update(clientData).eq('id', id)
-      if (error) alert('更新客戶失敗: ' + error.message)
+      // 更新客戶
+      const { error } = await supabase
+        .from('clients')
+        .update(dataToSave)
+        .eq('id', id);
+      if (error) {
+        toast.error(`Failed to update client: ${error.message}`);
+      } else {
+        toast.success('Client updated successfully!');
+      }
     } else {
-      const { error } = await supabase.from('clients').insert([clientData])
-      if (error) alert('新增客戶失敗: ' + error.message)
+      // 新增客戶
+      const { error } = await supabase
+        .from('clients')
+        .insert(dataToSave);
+      if (error) {
+        toast.error(`Failed to create client: ${error.message}`);
+      } else {
+        toast.success('Client created successfully!');
+      }
     }
-    await fetchClients()
-    handleCloseModal()
-  }
+
+    fetchClients();
+    handleCloseModal();
+  };
   
   const handleDeleteClient = async (id: string) => {
     if (window.confirm('確定要刪除這位客戶嗎？此操作無法復原。')) {
