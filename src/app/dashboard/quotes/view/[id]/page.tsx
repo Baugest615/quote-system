@@ -1,5 +1,3 @@
-// ✅ 完整改寫版，將 handleExportPDF 改為使用 html2pdf.js，並保留所有完整原始功能
-
 'use client'
 
 import { useState, useEffect, useCallback } from 'react';
@@ -9,10 +7,9 @@ import supabase from '@/lib/supabase/client';
 import { Database } from '@/types/database.types';
 import { Button } from '@/components/ui/button';
 import { Edit, Trash2, Printer, ArrowLeft } from 'lucide-react';
-import html2pdf from 'html2pdf.js';
+// REMOVED: import html2pdf from 'html2pdf.js'; // <- 移除這一行，改為動態載入
 
 // 類型定義
-
 type Quotation = Database['public']['Tables']['quotations']['Row'];
 type QuotationItem = Database['public']['Tables']['quotation_items']['Row'];
 type Client = Database['public']['Tables']['clients']['Row'];
@@ -59,7 +56,7 @@ export default function ViewQuotePage() {
     setLoading(false);
   }, [id]);
 
-  useEffect(() => { fetchQuote() }, [fetchQuote]);
+  useEffect(() => { fetchQuote(); }, [fetchQuote]);
 
   const handleDelete = async () => {
     if (window.confirm('確定要刪除這份報價單嗎？')) {
@@ -71,20 +68,68 @@ export default function ViewQuotePage() {
     }
   };
 
-  const handleExportPDF = () => {
+  const handleExportPDF = async () => {
     const element = document.getElementById('printable-quote');
     if (!element || !quote || isPrinting) return;
     setIsPrinting(true);
 
+    // 1. 動態載入 html2pdf.js，避免 SSR 錯誤
+    const { default: html2pdf } = await import('html2pdf.js');
+
+    // 2. 複製元素並移除 PDF 中不需要的樣式 (邊框、陰影)
+    const elementToPrint = element.cloneNode(true) as HTMLElement;
+    elementToPrint.classList.remove('border', 'shadow-md', 'rounded-lg');
+
+    // 3. 從複製的內容中移除既有的浮水印 img 標籤，因為我們要手動繪製
+    const existingWatermark = elementToPrint.querySelector('img[alt="watermark"]');
+    if (existingWatermark) {
+      existingWatermark.remove();
+    }
+    
     const opt = {
-      margin: 0.5,
+      margin: [0.25, 0.5, 0.25, 0.5], // 上下 0.75 吋, 左右 0.5 吋邊距
       filename: `報價單-${quote.clients?.name || '客戶'}-${quote.project_name}.pdf`,
-      image: { type: 'jpeg', quality: 0.95 },
-      html2canvas: { scale: 2 },
-      jsPDF: { unit: 'in', format: 'a4', orientation: 'portrait' }
+      image: { type: 'jpeg', quality: 0.98 },
+      html2canvas: {
+        scale: 2,
+        useCORS: true,
+        backgroundColor: '#ffffff',
+      },
+      jsPDF: { unit: 'in', format: 'a4', orientation: 'portrait' },
+      pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
     };
 
-    html2pdf().set(opt).from(element).save().finally(() => setIsPrinting(false));
+    // 4. 使用 promise API 來手動添加浮水印
+    const worker = html2pdf().set(opt).from(elementToPrint);
+
+    worker.toPdf().get('pdf').then(pdf => {
+      const totalPages = pdf.internal.getNumberOfPages();
+      const watermarkImgSrc = '/watermark-an.png'; // 確保此路徑在 public 資料夾下正確
+
+      for (let i = 1; i <= totalPages; i++) {
+        pdf.setPage(i);
+        
+        // 設定透明度
+        pdf.setGState(new (pdf as any).GState({opacity: 0.05}));
+        
+        const { width, height } = pdf.internal.pageSize;
+        const imgWidth = width * 0.7; // 浮水印寬度為頁面寬度的 70%
+        const imgHeight = height * 0.4; // 浮水印高度為頁面高度的 40% (可調整)
+        const x = (width - imgWidth) / 2; // 水平置中
+        const y = (height - imgHeight) / 2; // 垂直置中
+        
+        // 將浮水印圖片添加到當前頁面
+        pdf.addImage(watermarkImgSrc, 'PNG', x, y, imgWidth, imgHeight, undefined, 'FAST');
+        
+        // 重設透明度，以免影響頁面其他內容
+        pdf.setGState(new (pdf as any).GState({opacity: 1}));
+      }
+    }).save().catch(err => {
+      console.error("PDF export failed:", err);
+      alert("匯出 PDF 失敗。");
+    }).finally(() => {
+      setIsPrinting(false);
+    });
   };
 
   if (loading) return <div>讀取中...</div>;
@@ -114,21 +159,42 @@ export default function ViewQuotePage() {
         </div>
       </div>
 
-      <div id="printable-quote" className="bg-white p-8 md:p-12 rounded-lg shadow-md border">
-        <div className="text-center mb-8 pb-4 border-b">
-          <h1 className="text-2xl font-bold">安安娛樂有限公司委刊專案契約書</h1>
+       <div id="printable-quote" className="relative bg-white p-8 md:p-12 rounded-lg shadow-md border text-[13px] leading-relaxed">
+        {/* 網頁顯示用的浮水印層 */}
+        <img src="/watermark-an.png" alt="watermark" className="absolute inset-0 w-full h-full opacity-5 object-contain z-0" style={{ pointerEvents: 'none' }} />
+
+        {/* 刊頭與 LOGO 並排 */}
+        <div className="flex items-center justify-center mb-4 pb-2 border-b space-x-4">
+          <img src="/logo.png" alt="安安娛樂 LOGO" className="h-10 w-auto" />
+          <h1 className="text-xl font-bold">安安娛樂有限公司委刊專案契約書</h1>
         </div>
 
-        <div className="grid grid-cols-2 gap-x-8 gap-y-2 text-sm my-6">
-          <div><strong>專案名稱:</strong> {quote.project_name}</div>
-          <div><strong>委刊客戶:</strong> {quote.clients?.name || 'N/A'}</div>
-          <div><strong>客戶聯絡人:</strong> {quote.client_contact}</div>
-          <div><strong>統一編號:</strong> {quote.clients?.tin || 'N/A'}</div>
-          <div><strong>發票抬頭:</strong> {quote.clients?.invoice_title || 'N/A'}</div>
-          <div><strong>發票寄送地址:</strong> {quote.clients?.address || 'N/A'}</div>
-          <div><strong>付款方式:</strong> {quote.payment_method}</div>
-          <div className="no-print"><strong>狀態:</strong> {quote.status}</div>
-        </div>
+        <table className="w-full text-sm mb-8 border border-gray-300">
+          <tbody>
+            <tr className="border-b">
+              <td className="p-2 font-bold bg-gray-50 w-1/4">專案名稱：</td>
+              <td className="p-2" colSpan={3}>{quote.project_name}</td>
+            </tr>
+            <tr className="border-b">
+              <td className="p-2 font-bold bg-gray-50">委刊客戶：</td>
+              <td className="p-2">{quote.clients?.name || 'N/A'}</td>
+              <td className="p-2 font-bold bg-gray-50">客戶聯絡人：</td>
+              <td className="p-2">{quote.client_contact}</td>
+            </tr>
+            <tr className="border-b">
+              <td className="p-2 font-bold bg-gray-50">統一編號：</td>
+              <td className="p-2">{quote.clients?.tin || 'N/A'}</td>
+              <td className="p-2 font-bold bg-gray-50">付款方式：</td>
+              <td className="p-2">{quote.payment_method}</td>
+            </tr>
+            <tr className="border-b">
+              <td className="p-2 font-bold bg-gray-50">發票抬頭：</td>
+              <td className="p-2">{quote.clients?.invoice_title || 'N/A'}</td>
+              <td className="p-2 font-bold bg-gray-50">寄送地址：</td>
+              <td className="p-2">{quote.clients?.address || 'N/A'}</td>
+            </tr>
+          </tbody>
+        </table>
 
         <table className="w-full text-sm mb-8">
           <thead className="bg-gray-50">
@@ -155,41 +221,34 @@ export default function ViewQuotePage() {
           </tbody>
         </table>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8 border-t pt-6">
-          <div className="text-xs space-y-2">
-            <h4 className="font-bold text-sm mb-1">廣告費之支付約定：</h4>
-            <ol className="list-decimal list-inside space-y-1 text-gray-600">
-              <li>本次廣告行銷費用由委託公司負責繳付，所有費用代收百分之五的營業稅。</li>
-              <li>本公司應於執行到期日開立當月份發票予委刊客戶，委刊客戶應於收到發票時，按發票日期月結30日依發票所載之金額匯入本公司指定帳戶如下。所有報酬及因本服務契約書產生之相關費用均以本服務契約書內載明之幣值及約定付款日付款。</li>
-            </ol>
-            <div className="mt-2 p-2 bg-gray-100 rounded">
-              <p className="font-semibold">本公司銀行帳戶資料如下：</p>
-              <p>銀行名稱：{companyBankInfo.bankName}  分行名稱：{companyBankInfo.branchName}</p>
-              <p>銀行帳號：{companyBankInfo.accountNumber}</p>
-              <p>帳號名稱：{companyBankInfo.accountName}</p>
-            </div>
-          </div>
-          <div className="flex flex-col justify-end text-right space-y-2">
-            <div>項目合計未稅: NT$ {quote.subtotal_untaxed.toLocaleString()}</div>
-            <div>稅金 (5%): NT$ {quote.tax.toLocaleString()}</div>
-            <div className="text-lg font-bold border-t pt-2">合計含稅: NT$ {quote.grand_total_taxed.toLocaleString()}</div>
-            {quote.has_discount && quote.discounted_price && (
-              <div className="text-indigo-600 font-bold">專案優惠價: NT$ {quote.discounted_price.toLocaleString()}</div>
-            )}
-          </div>
+        <div className="flex flex-col justify-end text-right space-y-2 mb-8">
+          <div>項目合計未稅: NT$ {quote.subtotal_untaxed.toLocaleString()}</div>
+          <div>稅金 (5%): NT$ {quote.tax.toLocaleString()}</div>
+          <div className="text-lg font-bold border-t pt-2">合計含稅: NT$ {quote.grand_total_taxed.toLocaleString()}</div>
+          {quote.has_discount && quote.discounted_price && (
+            <div className="text-indigo-600 font-bold">專案優惠價: NT$ {quote.discounted_price.toLocaleString()}</div>
+          )}
         </div>
 
         {quote.terms && (
-          <div className="mb-6 text-xs space-y-4">
-            <h4 className="font-bold">合約條款：</h4>
-            <div className="whitespace-pre-wrap">{quote.terms}</div>
+          <div className="mb-6">
+            <h4 className="text-base font-bold mb-2">合約條款：</h4>
+            <div className="text-[11px] leading-[1.8] whitespace-pre-wrap">
+              {quote.terms}
+              {'\n\n'}【廣告費之支付約定】
+              {'\n'}1. 本次廣告行銷費用由委託公司負責繳付，所有費用代收百分之五的營業稅。
+              {'\n'}2. 本公司應於執行到期日開立當月份發票予委刊客戶，委刊客戶應於收到發票時，按發票日期月結30日依發票所載之金額匯入本公司指定帳戶如下。
+              {'\n'}銀行名稱：{companyBankInfo.bankName}  分行名稱：{companyBankInfo.branchName}
+              {'\n'}銀行帳號：{companyBankInfo.accountNumber}
+              {'\n'}帳號名稱：{companyBankInfo.accountName}
+            </div>
           </div>
         )}
 
         {quote.remarks && (
-          <div className="mb-6 text-xs space-y-4">
-            <h4 className="font-bold">專案備註：</h4>
-            <div className="whitespace-pre-wrap">{quote.remarks}</div>
+          <div className="mb-6">
+            <h4 className="text-base font-bold mb-2">專案備註：</h4>
+            <div className="text-[11px] leading-[1.8] whitespace-pre-wrap">{quote.remarks}</div>
           </div>
         )}
 
