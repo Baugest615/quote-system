@@ -7,7 +7,7 @@ import supabase from '@/lib/supabase/client'
 import { Database } from '@/types/database.types'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { FileModal } from '@/components/quotes/FileModal' // 引入新的檔案 Modal
+import { FileModal } from '@/components/quotes/FileModal'
 import { PlusCircle, Edit, Trash2, Search, UploadCloud } from 'lucide-react'
 
 // 類型定義
@@ -24,6 +24,7 @@ export default function QuotesPage() {
   const [selectedQuote, setSelectedQuote] = useState<QuotationWithClient | null>(null)
   const router = useRouter()
 
+  // 使用 useCallback 來穩定 fetchQuotations 函數
   const fetchQuotations = useCallback(async () => {
     setLoading(true)
     const { data, error } = await supabase
@@ -91,38 +92,59 @@ export default function QuotesPage() {
     setFileModalOpen(true);
   }
 
-  const getStatusChip = (status: Quotation['status']) => { /* ... (此函式不變) ... */ }
+  // 使用 useCallback 來穩定 handleFileModalUpdate 函數
+  const handleFileModalUpdate = useCallback(() => {
+    fetchQuotations(); // 重新載入資料以更新附件狀態
+  }, [fetchQuotations])
 
-  if (loading) return <div>讀取報價單中...</div>
+  // 使用 useCallback 來穩定 handleFileModalClose 函數  
+  const handleFileModalClose = useCallback(() => {
+    setFileModalOpen(false);
+    setSelectedQuote(null);
+  }, [])
+
+  if (loading) {
+    return <div className="p-6">載入中...</div>
+  }
 
   return (
     <>
-      <div className="bg-white rounded-lg shadow-md p-6">
-        <div className="flex justify-between items-center mb-6">
-          <h1 className="text-2xl font-bold">報價單列表</h1>
-          <div className="flex items-center space-x-4">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-              <Input type="text" placeholder="搜尋專案、客戶或單號..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-10 w-64"/>
-            </div>
-            <Link href="/dashboard/quotes/new" passHref>
-              <Button><PlusCircle className="mr-2 h-4 w-4" /> 新增報價單</Button>
-            </Link>
+      <div className="space-y-6">
+        <div className="flex justify-between items-center">
+          <h1 className="text-3xl font-bold">報價單管理</h1>
+          <Link href="/dashboard/quotes/new">
+            <Button>
+              <PlusCircle className="mr-2 h-4 w-4" /> 新增報價單
+            </Button>
+          </Link>
+        </div>
+
+        <div className="flex items-center space-x-2">
+          <div className="relative flex-1 max-w-md">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+            <Input
+              type="text"
+              placeholder="搜尋報價單 ID、專案名稱或客戶..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-10"
+            />
           </div>
         </div>
-        <div className="overflow-x-auto">
-          <table className="w-full text-left">
-            <thead>
-              <tr className="bg-gray-50 border-b">
-                <th className="p-4 font-medium text-sm">報價單號</th>
-                <th className="p-4 font-medium text-sm">專案名稱</th>
-                <th className="p-4 font-medium text-sm">客戶</th>
-                <th className="p-4 font-medium text-sm">總金額(含稅)</th>
-                <th className="p-4 font-medium text-sm w-32">狀態</th>
-                <th className="p-4 font-medium text-sm text-center">操作</th>
+
+        <div className="bg-white rounded-lg shadow overflow-hidden">
+          <table className="min-w-full divide-y divide-gray-200">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">專案名稱</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">客戶</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">金額</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">狀態</th>
+                <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">操作</th>
               </tr>
             </thead>
-            <tbody>
+            <tbody className="bg-white divide-y divide-gray-200">
               {filteredQuotations.map((quote) => {
                 const total = quote.has_discount ? quote.discounted_price : quote.grand_total_taxed
                 return (
@@ -159,16 +181,22 @@ export default function QuotesPage() {
               })}
             </tbody>
           </table>
+
+          {filteredQuotations.length === 0 && (
+            <div className="text-center py-12">
+              <p className="text-gray-500">
+                {searchTerm ? '沒有找到符合搜尋條件的報價單' : '尚無報價單資料'}
+              </p>
+            </div>
+          )}
         </div>
       </div>
+
       <FileModal 
         isOpen={fileModalOpen}
-        onClose={() => setFileModalOpen(false)}
+        onClose={handleFileModalClose}
         quote={selectedQuote}
-        onUpdate={() => {
-            setFileModalOpen(false);
-            fetchQuotations(); // 重新載入資料以更新附件狀態
-        }}
+        onUpdate={handleFileModalUpdate}
       />
     </>
   )

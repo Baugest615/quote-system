@@ -92,10 +92,10 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/your-username/quotation-management-system.git"
+    "url": "https://github.com/Baugest615/quote-system.git"
   },
   "bugs": {
-    "url": "https://github.com/your-username/quotation-management-system/issues"
+    "url": "https://github.com/Baugest615/quote-system/issues"
   },
-  "homepage": "https://github.com/your-username/quotation-management-system#readme"
+  "homepage": "https://github.com/Baugest615/quote-system#readme"
 }
