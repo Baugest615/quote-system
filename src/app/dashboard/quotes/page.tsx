@@ -155,7 +155,7 @@ export default function QuotesPage() {
                     <td className="p-4 text-sm">NT$ {total?.toLocaleString() || 0}</td>
                     <td className="p-4">
                         <select 
-                            value={quote.status}
+                            value={quote.status || ''}
                             onChange={(e) => handleStatusChange(quote.id, e.target.value)}
                             className="form-input text-xs"
                         >
