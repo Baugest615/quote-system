@@ -1,35 +1,61 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback, ReactNode } from 'react'
 import supabase from '@/lib/supabase/client'
 import { Database } from '@/types/database.types'
+import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
-import { ClientModal } from './ClientModal'
-import { PlusCircle, Edit, Trash2 } from 'lucide-react'
+import { Input } from '@/components/ui/input'
+// 【修正】從 'table' (小寫) 引入元件
+import {
+  Table,
+  TableHeader,
+  TableRow,
+  TableHead,
+  TableBody,
+  TableCell,
+} from '@/components/ui/table'
+import { ClientModal } from '@/components/clients/ClientModal'
+import { Edit, Trash2, Plus, Search } from 'lucide-react'
 
 type Client = Database['public']['Tables']['clients']['Row']
 
-export default function ClientsTable() {
+// 【修正】自訂 Column 定義，不再依賴 TableProps
+interface ColumnDef<T> {
+  header: string;
+  accessor: keyof T;
+  render?: (row: T) => ReactNode;
+}
+
+export function ClientsTable() {
   const [clients, setClients] = useState<Client[]>([])
   const [loading, setLoading] = useState(true)
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [selectedClient, setSelectedClient] = useState<Client | null>(null)
+  const [searchTerm, setSearchTerm] = useState('')
 
-  const fetchClients = async () => {
+  const fetchClients = useCallback(async () => {
     setLoading(true)
-    const { data, error } = await supabase.from('clients').select('*').order('created_at', { ascending: false });
+    let query = supabase.from('clients').select('*')
+
+    if (searchTerm) {
+      query = query.ilike('name', `%${searchTerm}%`)
+    }
+
+    const { data, error } = await query.order('created_at', { ascending: false })
+
     if (error) {
       console.error('Error fetching clients:', error)
-      alert('讀取客戶資料失敗')
+      toast.error('Failed to fetch clients')
     } else {
-      setClients(data)
+      setClients((data as Client[]) || [])
     }
     setLoading(false)
-  }
+  }, [searchTerm])
 
   useEffect(() => {
     fetchClients()
-  }, [])
+  }, [fetchClients])
 
   const handleOpenModal = (client: Client | null = null) => {
     setSelectedClient(client)
@@ -42,81 +68,126 @@ export default function ClientsTable() {
   }
 
   const handleSaveClient = async (
-    clientData: Omit<Client, 'id' | 'created_at' | 'updated_at' | 'bank_info'>,
+    formData: any, // 保持寬鬆以接收來自 Modal 的資料
     id?: string
   ) => {
+    const dataToSave = {
+      ...formData,
+      phone: formData.phone || null,
+      invoice_title: formData.invoice_title || null,
+      tin: formData.tin || null,
+      bank_info: formData.bank_info ?? null,
+    };
+
     if (id) {
-      // Update
-      const { error } = await supabase.from('clients').update(clientData).eq('id', id)
+      const { error } = await supabase.from('clients').update(dataToSave).eq('id', id)
       if (error) {
-        alert('更新客戶失敗: ' + error.message)
+        toast.error(`Failed to update client: ${error.message}`)
+      } else {
+        toast.success('Client updated successfully!')
       }
     } else {
-      // Create
-      const { error } = await supabase.from('clients').insert([clientData])
+      const { error } = await supabase.from('clients').insert(dataToSave)
       if (error) {
-        alert('新增客戶失敗: ' + error.message)
+        toast.error(`Failed to create client: ${error.message}`)
+      } else {
+        toast.success('Client created successfully!')
       }
     }
-    await fetchClients()
+
+    fetchClients()
     handleCloseModal()
   }
-  
+
   const handleDeleteClient = async (id: string) => {
-    if (window.confirm('確定要刪除這位客戶嗎？此操作無法復原。')) {
+    if (window.confirm('Are you sure you want to delete this client?')) {
       const { error } = await supabase.from('clients').delete().eq('id', id)
       if (error) {
-        alert('刪除客戶失敗: ' + error.message)
+        toast.error('Failed to delete client')
       } else {
-        await fetchClients()
+        toast.success('Client deleted successfully')
+        fetchClients()
       }
     }
   }
 
-
-  if (loading) {
-    return <div>讀取中...</div>
-  }
+  const columns: ColumnDef<Client>[] = [
+    { header: 'Name', accessor: 'name' },
+    { header: 'Contact Person', accessor: 'contact_person' },
+    { header: 'Phone', accessor: 'phone' },
+    {
+      header: 'Actions',
+      accessor: 'id',
+      render: (client: Client) => (
+        <div className="flex space-x-2">
+          <Button variant="ghost" size="sm" onClick={() => handleOpenModal(client)}>
+            <Edit className="mr-2 h-4 w-4" /> Edit
+          </Button>
+          <Button variant="ghost" size="sm" onClick={() => handleDeleteClient(client.id)}>
+            <Trash2 className="mr-2 h-4 w-4" /> Delete
+          </Button>
+        </div>
+      ),
+    },
+  ]
 
   return (
-    <div className="bg-white rounded-lg shadow-md p-6">
-      <div className="flex justify-between items-center mb-4">
-        <h1 className="text-2xl font-bold">客戶管理</h1>
+    <div className="space-y-4">
+      <div className="flex justify-between items-center">
+        <Input
+          placeholder="Search clients..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          className="max-w-sm"
+        />
         <Button onClick={() => handleOpenModal()}>
-          <PlusCircle className="mr-2 h-4 w-4" /> 新增客戶
+          <Plus className="mr-2 h-4 w-4" /> Add Client
         </Button>
       </div>
-      <div className="overflow-x-auto">
-        <table className="w-full text-left">
-          <thead>
-            <tr className="bg-gray-50 border-b">
-              <th className="p-4 font-medium">公司名稱</th>
-              <th className="p-4 font-medium">統一編號</th>
-              <th className="p-4 font-medium">聯絡人</th>
-              <th className="p-4 font-medium">電話</th>
-              <th className="p-4 font-medium text-center">操作</th>
-            </tr>
-          </thead>
-          <tbody>
-            {clients.map((client) => (
-              <tr key={client.id} className="border-b hover:bg-gray-50">
-                <td className="p-4">{client.name}</td>
-                <td className="p-4">{client.tin}</td>
-                <td className="p-4">{client.contact_person}</td>
-                <td className="p-4">{client.phone}</td>
-                <td className="p-4 text-center">
-                   <Button variant="ghost" size="icon" onClick={() => handleOpenModal(client)}>
-                    <Edit className="h-4 w-4" />
+      
+      {/* 【修正】使用 shadcn/ui 的標準方式來渲染表格 */}
+      <div className="rounded-md border">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              {columns.map((column) => (
+                <TableHead key={column.header}>{column.header}</TableHead>
+              ))}
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {loading ? (
+              <TableRow>
+                <TableCell colSpan={columns.length} className="h-24 text-center">
+                  Loading...
+                </TableCell>
+              </TableRow>
+            ) : clients.length > 0 ? (
+              clients.map((client) => (
+                <TableRow key={client.id}>
+                  {columns.map((column) => (
+                    <TableCell key={column.accessor as string}>
+                      {column.render ? column.render(client) : (client[column.accessor] as ReactNode) || 'N/A'}
+                    </TableCell>
+                  ))}
+                </TableRow>
+              ))
+            ) : (
+              // 【修正】處理空狀態 (EmptyState)
+              <TableRow>
+                <TableCell colSpan={columns.length} className="h-24 text-center">
+                  <h3 className="font-semibold">No Clients</h3>
+                  <p className="text-sm text-muted-foreground">Get started by adding a new client.</p>
+                  <Button className="mt-4" onClick={() => handleOpenModal()}>
+                    <Plus className="mr-2 h-4 w-4" /> Add Client
                   </Button>
-                  <Button variant="ghost" size="icon" className="text-red-500" onClick={() => handleDeleteClient(client.id)}>
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+                </TableCell>
+              </TableRow>
+            )}
+          </TableBody>
+        </Table>
       </div>
+
       <ClientModal
         isOpen={isModalOpen}
         onClose={handleCloseModal}

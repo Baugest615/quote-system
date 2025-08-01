@@ -1,127 +1,66 @@
-import { type ClassValue, clsx } from 'clsx'
-import { twMerge } from 'tailwind-merge'
+import { type ClassValue, clsx } from "clsx"
+import { twMerge } from "tailwind-merge"
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
-export function formatCurrency(amount: number, currency = 'TWD'): string {
-  return new Intl.NumberFormat('zh-TW', {
+/**
+ * 格式化數字為貨幣字串 (新台幣)
+ * @param amount 金額
+ * @returns 格式化後的字串, e.g., "NT$ 1,234"
+ */
+export function formatCurrency(amount: number | null | undefined): string {
+  if (amount === null || amount === undefined) {
+    return 'NT$ 0';
+  }
+  return amount.toLocaleString('zh-TW', {
     style: 'currency',
-    currency: currency,
+    currency: 'TWD',
     minimumFractionDigits: 0,
     maximumFractionDigits: 0,
-  }).format(amount)
+  });
 }
 
-export function formatDate(date: string | Date): string {
-  const d = new Date(date)
-  return d.toLocaleDateString('zh-TW', {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  })
-}
-
-export function formatDateTime(date: string | Date): string {
-  const d = new Date(date)
-  return d.toLocaleString('zh-TW', {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-  })
-}
-
-export function generateQuoteNumber(): string {
-  const now = new Date()
-  const year = now.getFullYear()
-  const month = String(now.getMonth() + 1).padStart(2, '0')
-  const day = String(now.getDate()).padStart(2, '0')
-  const random = Math.random().toString(36).substr(2, 4).toUpperCase()
-  
-  return `Q${year}${month}${day}-${random}`
-}
-
-export function debounce<T extends (...args: any[]) => any>(
-  func: T,
-  wait: number
-): (...args: Parameters<T>) => void {
-  let timeout: NodeJS.Timeout
-  return (...args: Parameters<T>) => {
-    clearTimeout(timeout)
-    timeout = setTimeout(() => func(...args), wait)
+/**
+ * 格式化日期字串或 Date 物件
+ * @param date 日期
+ * @returns 格式化後的字串, e.g., "2025/08/02"
+ */
+export function formatDate(date: string | Date | null | undefined): string {
+  if (!date) {
+    return 'N/A';
+  }
+  try {
+    return new Date(date).toLocaleDateString('zh-TW', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    });
+  } catch (error) {
+    return 'Invalid Date';
   }
 }
 
-export function downloadBlob(blob: Blob, filename: string) {
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = filename
-  document.body.appendChild(a)
-  a.click()
-  document.body.removeChild(a)
-  URL.revokeObjectURL(url)
-}
-
-// 驗證函數
-export function isValidEmail(email: string): boolean {
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-  return emailRegex.test(email)
-}
-
-export function isValidTaiwanPhone(phone: string): boolean {
-  // 台灣手機號碼格式：09XX-XXX-XXX 或 09XXXXXXXX
-  const mobileRegex = /^09\d{8}$|^09\d{2}-\d{3}-\d{3}$/
-  // 台灣市話格式：0X-XXXX-XXXX 或 0XXXXXXXXX
-  const landlineRegex = /^0\d{1,2}-\d{3,4}-\d{4}$|^0\d{8,9}$/
-  
-  const cleanPhone = phone.replace(/[-\s]/g, '')
-  return mobileRegex.test(cleanPhone) || landlineRegex.test(cleanPhone)
-}
-
-export function isValidTaiwanTaxId(taxId: string): boolean {
-  // 台灣統一編號格式：8位數字
-  const taxIdRegex = /^\d{8}$/
-  return taxIdRegex.test(taxId)
-}
-
-export function formatTaiwanPhone(phone: string): string {
-  const cleaned = phone.replace(/[-\s]/g, '')
-  if (cleaned.length === 10 && cleaned.startsWith('09')) {
-    // 手機號碼格式化為 09XX-XXX-XXX
-    return `${cleaned.slice(0, 4)}-${cleaned.slice(4, 7)}-${cleaned.slice(7)}`
-  } else if (cleaned.length >= 8 && cleaned.startsWith('0')) {
-    // 市話號碼保持原格式或添加適當分隔符
-    return cleaned
-  }
-  return phone
-}
-
+/**
+ * 將陣列資料匯出成 CSV 檔案並觸發下載
+ * @param data 要匯出的資料陣列
+ * @param fileName 下載的檔案名稱 (不需包含 .csv)
+ */
 export function exportToCSV(data: any[], fileName: string) {
-  // 檢查是否有資料
   if (!data || data.length === 0) {
-    alert("沒有可匯出的資料");
+    // 使用 alert 或 toast 通知使用者
+    alert("No data to export");
     return;
   }
 
-  // 將 null 或 undefined 的值轉換為空字串
   const replacer = (key: string, value: any) => value === null ? '' : value;
-  
-  // 取得表頭 (根據第一筆資料的 key)
   const header = Object.keys(data[0]);
-  
-  // 組成 CSV 字串
   const csv = [
-    // 1. 表頭行
-    header.join(','),
-    // 2. 資料行
+    header.join(','), // header row
     ...data.map(row => header.map(fieldName => JSON.stringify(row[fieldName], replacer)).join(','))
-  ].join('\r\n'); // 用換行符號分隔每一行
+  ].join('\r\n');
 
-  // 建立 Blob 物件並觸發下載
   const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
   const link = document.createElement("a");
   if (link.download !== undefined) {
@@ -134,4 +73,3 @@ export function exportToCSV(data: any[], fileName: string) {
     document.body.removeChild(link);
   }
 }
-
