@@ -16,7 +16,13 @@ type Client = Database['public']['Tables']['clients']['Row'];
 type Kol = Database['public']['Tables']['kols']['Row'];
 
 type FullQuotation = Quotation & {
+  id: number;
+  quote_number: string;
   clients: Client | null;
+  subtotal_untaxed: number | null;
+  tax: number | null;
+  grand_total_taxed: number | null;
+  valid_until: string | null; 
   quotation_items: (QuotationItem & {
     kols: Pick<Kol, 'name'> | null;
   })[];
@@ -102,7 +108,7 @@ export default function ViewQuotePage() {
     // 4. 使用 promise API 來手動添加浮水印
     const worker = html2pdf().set(opt).from(elementToPrint);
 
-    worker.toPdf().get('pdf').then(pdf => {
+    worker.toPdf().get('pdf').then((pdf:any) => {
       const totalPages = pdf.internal.getNumberOfPages();
       const watermarkImgSrc = '/watermark-an.png'; // 確保此路徑在 public 資料夾下正確
 
@@ -124,7 +130,7 @@ export default function ViewQuotePage() {
         // 重設透明度，以免影響頁面其他內容
         pdf.setGState(new (pdf as any).GState({opacity: 1}));
       }
-    }).save().catch(err => {
+    }).save().catch((err: Error) => {
       console.error("PDF export failed:", err);
       alert("匯出 PDF 失敗。");
     }).finally(() => {
@@ -222,9 +228,9 @@ export default function ViewQuotePage() {
         </table>
 
         <div className="flex flex-col justify-end text-right space-y-2 mb-8">
-          <div>項目合計未稅: NT$ {quote.subtotal_untaxed.toLocaleString()}</div>
-          <div>稅金 (5%): NT$ {quote.tax.toLocaleString()}</div>
-          <div className="text-lg font-bold border-t pt-2">合計含稅: NT$ {quote.grand_total_taxed.toLocaleString()}</div>
+          <div>項目合計未稅: NT$ {(quote.subtotal_untaxed || 0).toLocaleString()}</div>
+          <div>稅金 (5%): NT$ {(quote.tax || 0).toLocaleString()}</div>
+          <div className="text-lg font-bold border-t pt-2">合計含稅: NT$ {(quote.grand_total_taxed || 0).toLocaleString()}</div>
           {quote.has_discount && quote.discounted_price && (
             <div className="text-indigo-600 font-bold">專案優惠價: NT$ {quote.discounted_price.toLocaleString()}</div>
           )}
@@ -266,7 +272,7 @@ export default function ViewQuotePage() {
         </div>
 
         <div className="mt-6 text-right text-sm">
-          委刊日期：{new Date(quote.created_at).toLocaleDateString('zh-TW')}
+          委刊日期：Valid Until: {quote.valid_until ? new Date(quote.valid_until).toLocaleDateString('zh-TW') : 'N/A'}
         </div>
       </div>
     </div>

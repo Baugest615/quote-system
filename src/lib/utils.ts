@@ -134,3 +134,4 @@ export function exportToCSV(data: any[], fileName: string) {
     document.body.removeChild(link);
   }
 }
+
