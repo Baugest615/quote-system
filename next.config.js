@@ -17,7 +17,7 @@ const nextConfig = {
     domains: [
       'localhost',
       // 如果您使用 Supabase Storage 儲存圖片，請加入您的 Supabase 專案 URL
-      // 'your-project-id.supabase.co'
+      'https://qyadnxivvwetuipjkndc.supabase.co'
     ],
   },
   // 支援 Supabase 的環境變數
