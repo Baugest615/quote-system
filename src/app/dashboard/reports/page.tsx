@@ -1,4 +1,4 @@
-// src/app/dashboard/reports/page.tsx
+/* src/app/dashboard/reports/page.tsx*/
 'use client'
 
 import { useEffect, useState } from 'react'
@@ -7,17 +7,21 @@ import supabase from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Database } from '@/types/database.types'
 import { formatCurrency, formatDate, exportToCSV } from '@/lib/utils'
+import { toast } from 'sonner' // 【修正】加入了 toast 的 import
 
+// 定義從資料庫來的型別
 type Quotation = Database['public']['Tables']['quotations']['Row']
 type Client = Database['public']['Tables']['clients']['Row']
 type KOL = Database['public']['Tables']['kols']['Row']
 type QuotationItem = Database['public']['Tables']['quotation_items']['Row']
 
+// 組合型別，讓報價單包含客戶和項目詳情
 type QuotationWithDetails = Quotation & {
-  clients?: Client
+  clients?: Client | null // 客戶可能是 null
   quotation_items: QuotationItem[]
 }
 
+// 定義報表資料的結構
 interface ReportData {
   totalQuotations: number
   totalRevenue: number
@@ -50,31 +54,24 @@ export default function ReportsPage() {
     try {
       setLoading(true)
       
-      // 獲取報價單資料
       const { data: quotationsData, error: quotationsError } = await supabase
         .from('quotations')
-        .select(`
-          *,
-          clients(id, name),
-          quotation_items(*)
-        `)
+        .select(`*, clients(id, name), quotation_items(*)`)
         .gte('created_at', dateRange.start)
         .lte('created_at', dateRange.end + 'T23:59:59')
         .order('created_at', { ascending: false })
 
       if (quotationsError) throw quotationsError
 
-      // 獲取 KOL 資料
       const { data: kolsData, error: kolsError } = await supabase
         .from('kols')
-        .select('id, name')
+        .select('*')
 
       if (kolsError) throw kolsError
 
-      setQuotations(quotationsData as QuotationWithDetails[] || [])
+      setQuotations((quotationsData as QuotationWithDetails[]) || [])
       setKols(kolsData || [])
       
-      // 處理報表資料
       if (quotationsData) {
         generateReportData(quotationsData as QuotationWithDetails[], kolsData || [])
       }
@@ -82,40 +79,44 @@ export default function ReportsPage() {
     } catch (error: any) {
       console.error('Error fetching data:', error)
       setError(error.message)
+      toast.error("Failed to fetch report data.") // 【修正】使用 toast
     } finally {
       setLoading(false)
     }
   }
 
   const generateReportData = (quotations: QuotationWithDetails[], kols: KOL[]) => {
-    // 基本統計
     const totalQuotations = quotations.length
     const totalRevenue = quotations.reduce((sum, q) => {
-      const amount = q.has_discount ? (q.discounted_price || 0) : q.grand_total_taxed
+      // 【修正】處理 null，提供預設值 0
+      const amount = q.has_discount ? (q.discounted_price || 0) : (q.grand_total_taxed || 0)
       return sum + amount
     }, 0)
     const avgQuotationValue = totalQuotations > 0 ? totalRevenue / totalQuotations : 0
     
-    // 轉換率（已簽約 / 總數）
     const signedQuotations = quotations.filter(q => q.status === '已簽約').length
     const conversionRate = totalQuotations > 0 ? (signedQuotations / totalQuotations) * 100 : 0
 
-    // 狀態分佈
     const statusBreakdown = quotations.reduce((acc, q) => {
-      acc[q.status] = (acc[q.status] || 0) + 1
+      // 【修正】檢查 status 是否為 null
+      if (q.status) {
+        acc[q.status] = (acc[q.status] || 0) + 1
+      }
       return acc
     }, {} as Record<string, number>)
 
-    // 月度營收
     const monthlyData = quotations.reduce((acc, q) => {
-      const month = new Date(q.created_at).toLocaleDateString('zh-TW', { year: 'numeric', month: '2-digit' })
-      const amount = q.has_discount ? (q.discounted_price || 0) : q.grand_total_taxed
-      
-      if (!acc[month]) {
-        acc[month] = { revenue: 0, count: 0 }
+      // 【修正】檢查 created_at 是否為 null
+      if (q.created_at) {
+        const month = new Date(q.created_at).toLocaleDateString('zh-TW', { year: 'numeric', month: '2-digit' })
+        const amount = q.has_discount ? (q.discounted_price || 0) : (q.grand_total_taxed || 0)
+        
+        if (!acc[month]) {
+          acc[month] = { revenue: 0, count: 0 }
+        }
+        acc[month].revenue += amount
+        acc[month].count += 1
       }
-      acc[month].revenue += amount
-      acc[month].count += 1
       return acc
     }, {} as Record<string, { revenue: number; count: number }>)
 
@@ -123,12 +124,11 @@ export default function ReportsPage() {
       .map(([month, data]) => ({ month, ...data }))
       .sort((a, b) => a.month.localeCompare(b.month))
 
-    // 客戶排行
     const clientData = quotations.reduce((acc, q) => {
-      if (!q.clients) return acc
+      if (!q.clients || !q.clients.name) return acc
       
       const clientName = q.clients.name
-      const amount = q.has_discount ? (q.discounted_price || 0) : q.grand_total_taxed
+      const amount = q.has_discount ? (q.discounted_price || 0) : (q.grand_total_taxed || 0)
       
       if (!acc[clientName]) {
         acc[clientName] = { revenue: 0, quotations: 0 }
@@ -143,16 +143,16 @@ export default function ReportsPage() {
       .sort((a, b) => b.revenue - a.revenue)
       .slice(0, 10)
 
-    // KOL 排行
     const kolData = quotations.reduce((acc, q) => {
       q.quotation_items.forEach(item => {
         if (!item.kol_id) return
         
         const kol = kols.find(k => k.id === item.kol_id)
-        if (!kol) return
+        if (!kol || !kol.name) return
         
         const kolName = kol.name
-        const amount = item.quantity * item.price
+        // 【修正】處理 null，提供預設值 0
+        const amount = (item.quantity || 0) * (item.price || 0)
         
         if (!acc[kolName]) {
           acc[kolName] = { revenue: 0, quotations: 0 }
@@ -168,17 +168,19 @@ export default function ReportsPage() {
       .sort((a, b) => b.revenue - a.revenue)
       .slice(0, 10)
 
-    // 服務類型分佈
     const serviceData = quotations.reduce((acc, q) => {
       q.quotation_items.forEach(item => {
-        const service = item.service
-        const amount = item.quantity * item.price
-        
-        if (!acc[service]) {
-          acc[service] = { revenue: 0, count: 0 }
+        // 【修正】檢查 service 是否為 null
+        if (item.service) {
+          const service = item.service
+          const amount = (item.quantity || 0) * (item.price || 0)
+          
+          if (!acc[service]) {
+            acc[service] = { revenue: 0, count: 0 }
+          }
+          acc[service].revenue += amount
+          acc[service].count += 1
         }
-        acc[service].revenue += amount
-        acc[service].count += 1
       })
       return acc
     }, {} as Record<string, { revenue: number; count: number }>)
@@ -202,22 +204,26 @@ export default function ReportsPage() {
   }
 
   const handleExportCSV = () => {
-    if (!quotations.length) return
+    if (!quotations.length) {
+        toast.info("No data to export.");
+        return;
+    }
 
     const exportData = quotations.map(q => ({
       報價單編號: q.id,
-      專案名稱: q.project_name,
+      專案名稱: q.project_name || '',
       客戶名稱: q.clients?.name || '未指定',
       聯絡人: q.client_contact || '',
-      狀態: q.status,
-      小計未稅: q.subtotal_untaxed,
-      稅金: q.tax,
-      合計含稅: q.grand_total_taxed,
+      狀態: q.status || '',
+      小計未稅: q.subtotal_untaxed || 0,
+      稅金: q.tax || 0,
+      合計含稅: q.grand_total_taxed || 0,
       有無優惠: q.has_discount ? '有' : '無',
-      優惠價: q.discounted_price || '',
-      付款方式: q.payment_method,
-      建立日期: formatDate(q.created_at),
-      更新日期: formatDate(q.updated_at)
+      優惠價: q.discounted_price || 0,
+      付款方式: q.payment_method || '',
+      // 【修正】檢查日期是否為 null
+      建立日期: q.created_at ? formatDate(q.created_at) : '',
+      更新日期: q.updated_at ? formatDate(q.updated_at) : ''
     }))
 
     exportToCSV(exportData, `報價單報表_${dateRange.start}_${dateRange.end}`)
@@ -255,7 +261,7 @@ export default function ReportsPage() {
                 className="bg-green-600 hover:bg-green-700"
                 disabled={!quotations.length}
               >
-                📊 匯出 CSV
+                � 匯出 CSV
               </Button>
             </div>
           </div>
