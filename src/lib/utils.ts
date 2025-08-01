@@ -99,3 +99,38 @@ export function formatTaiwanPhone(phone: string): string {
   }
   return phone
 }
+
+export function exportToCSV(data: any[], fileName: string) {
+  // 檢查是否有資料
+  if (!data || data.length === 0) {
+    alert("沒有可匯出的資料");
+    return;
+  }
+
+  // 將 null 或 undefined 的值轉換為空字串
+  const replacer = (key: string, value: any) => value === null ? '' : value;
+  
+  // 取得表頭 (根據第一筆資料的 key)
+  const header = Object.keys(data[0]);
+  
+  // 組成 CSV 字串
+  const csv = [
+    // 1. 表頭行
+    header.join(','),
+    // 2. 資料行
+    ...data.map(row => header.map(fieldName => JSON.stringify(row[fieldName], replacer)).join(','))
+  ].join('\r\n'); // 用換行符號分隔每一行
+
+  // 建立 Blob 物件並觸發下載
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const link = document.createElement("a");
+  if (link.download !== undefined) {
+    const url = URL.createObjectURL(blob);
+    link.setAttribute("href", url);
+    link.setAttribute("download", `${fileName}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  }
+}
