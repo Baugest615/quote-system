@@ -1,6 +1,6 @@
 'use client'
 
-import { useForm, useFieldArray, Controller } from 'react-hook-form'
+import { useForm, useFieldArray, Controller, SubmitHandler } from 'react-hook-form'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import supabase from '@/lib/supabase/client'
@@ -22,15 +22,24 @@ type Quotation = Database['public']['Tables']['quotations']['Row']
 type QuotationItem = Database['public']['Tables']['quotation_items']['Row']
 type KolWithServices = Kol & { kol_services: (KolService & { service_types: ServiceType })[] }
 
+// --- 表單項目型別 ---
+interface FormItem {
+  id?: string
+  quotation_id?: string | null
+  category?: string | null
+  kol_id?: string | null
+  service: string
+  quantity: number
+  price: number
+  remark?: string | null
+  created_at?: string | null
+}
+
 // --- Zod Validation Schema ---
 const quoteSchema = z.object({
   project_name: z.string().min(1, '專案名稱為必填項目'),
   client_id: z.string().nullable(),
   client_contact: z.string().nullable(),
-  // Read-only fields, no need to validate
-  // client_tin: z.string().nullable(),
-  // invoice_title: z.string().nullable(),
-  // invoice_address: z.string().nullable(),
   payment_method: z.enum(['電匯', 'ATM轉帳']),
   has_discount: z.boolean(),
   discounted_price: z.number().nullable(),
@@ -38,23 +47,48 @@ const quoteSchema = z.object({
   remarks: z.string().nullable(),
   items: z.array(z.object({
       id: z.string().optional(),
-      quotation_id: z.string().optional(),
-      category: z.string().nullable(),
-      kol_id: z.string().nullable(),
-      service: z.string(),
-      quantity: z.number().min(1),
-      price: z.number(),
-      remark: z.string().nullable(),
-      created_at: z.string().optional(),
+      quotation_id: z.string().nullable().optional(),
+      category: z.string().nullable().optional(),
+      kol_id: z.string().nullable().optional(),
+      service: z.string().min(1, '執行內容為必填'),
+      quantity: z.number().min(1, '數量必須大於0'),
+      price: z.number().min(0, '價格不能為負數'),
+      remark: z.string().nullable().optional(),
+      created_at: z.string().nullable().optional(),
   })).min(1, "請至少新增一個報價項目"),
 });
-
 
 type QuoteFormData = z.infer<typeof quoteSchema>
 
 // --- Component Props ---
 interface QuoteFormProps {
   initialData?: Quotation & { quotation_items: QuotationItem[] }
+}
+
+// --- Helper function to transform initial data ---
+const transformInitialItems = (items?: QuotationItem[]): FormItem[] => {
+  if (!items || items.length === 0) {
+    return [{ 
+      category: null, 
+      kol_id: null, 
+      service: '', 
+      quantity: 1, 
+      price: 0, 
+      remark: null 
+    }]
+  }
+  
+  return items.map((item): FormItem => ({
+    id: item.id,
+    quotation_id: item.quotation_id,
+    category: item.category,
+    kol_id: item.kol_id,
+    service: item.service,
+    quantity: item.quantity || 1,
+    price: item.price,
+    remark: item.remark,
+    created_at: item.created_at,
+  }))
 }
 
 const staticTerms = {
@@ -77,7 +111,7 @@ export default function QuoteForm({ initialData }: QuoteFormProps) {
     setValue,
     formState: { errors, isSubmitting },
   } = useForm<QuoteFormData>({
-    resolver: zodResolver(quoteSchema), // <-- Use Zod for validation
+    resolver: zodResolver(quoteSchema),
     defaultValues: {
       project_name: initialData?.project_name || '',
       client_id: initialData?.client_id || null,
@@ -87,7 +121,7 @@ export default function QuoteForm({ initialData }: QuoteFormProps) {
       discounted_price: initialData?.discounted_price || null,
       terms: initialData?.terms || staticTerms.standard,
       remarks: initialData?.remarks || '',
-      items: initialData?.quotation_items?.length ? initialData.quotation_items : [{ category: '', kol_id: null, service: '', quantity: 1, price: 0, remark: '' }],
+      items: transformInitialItems(initialData?.quotation_items),
     },
   })
 
@@ -114,7 +148,6 @@ export default function QuoteForm({ initialData }: QuoteFormProps) {
     fetchData()
   }, [])
   
-  // This useEffect now also updates the clientInfo state
   useEffect(() => {
     const selectedClient = clients.find(c => c.id === watchClientId)
     if (selectedClient) {
@@ -147,9 +180,8 @@ export default function QuoteForm({ initialData }: QuoteFormProps) {
   const tax = Math.round(subTotalUntaxed * 0.05)
   const grandTotalTaxed = subTotalUntaxed + tax
 
-  const onSubmit = async (data: QuoteFormData) => {
-    // --- CORRECTED DATA STRUCTURE FOR SUBMISSION ---
-    // This object ONLY contains fields that exist in the 'quotations' table.
+  // 明確指定 SubmitHandler 型別
+  const onSubmit: SubmitHandler<QuoteFormData> = async (data) => {
     const quoteDataToSave = {
       project_name: data.project_name,
       client_id: data.client_id || null,
@@ -219,36 +251,147 @@ export default function QuoteForm({ initialData }: QuoteFormProps) {
             <FileSignature className="mr-2 h-5 w-5 text-indigo-500" />專案與客戶資訊
         </h2>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4">
-            <div><label className="form-label-sm">專案名稱</label><Input {...register('project_name')} placeholder="專案名稱" />{errors.project_name && <p className="text-red-500 text-xs mt-1">{errors.project_name.message}</p>}</div>
-            <div><label className="form-label-sm">委刊客戶</label><select {...register('client_id')} className="form-input"><option value="">-- 選擇客戶 --</option>{clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select></div>
-            <div><label className="form-label-sm">客戶聯絡人</label><Input {...register('client_contact')} placeholder="客戶聯絡人" /></div>
-            <div><label className="form-label-sm">統一編號</label><Input value={clientInfo.tin} readOnly className="bg-gray-100" /></div>
-            <div><label className="form-label-sm">發票抬頭</label><Input value={clientInfo.invoiceTitle} readOnly className="bg-gray-100" /></div>
-            <div><label className="form-label-sm">發票寄送地址</label><Input value={clientInfo.address} readOnly className="bg-gray-100" /></div>
-            <div><label className="form-label-sm">付款方式</label><div className="flex items-center space-x-4 mt-2"><label className="flex items-center"><input type="radio" {...register('payment_method')} value="電匯" className="form-radio" /> <span className="ml-2 text-sm">電匯</span></label><label className="flex items-center"><input type="radio" {...register('payment_method')} value="ATM轉帳" className="form-radio" /> <span className="ml-2 text-sm">ATM轉帳</span></label></div></div>
+            <div>
+              <label className="form-label-sm">專案名稱</label>
+              <Input {...register('project_name')} placeholder="專案名稱" />
+              {errors.project_name && <p className="text-red-500 text-xs mt-1">{errors.project_name.message}</p>}
+            </div>
+            <div>
+              <label className="form-label-sm">委刊客戶</label>
+              <select {...register('client_id')} className="form-input">
+                <option value="">-- 選擇客戶 --</option>
+                {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="form-label-sm">客戶聯絡人</label>
+              <Input {...register('client_contact')} placeholder="客戶聯絡人" />
+            </div>
+            <div>
+              <label className="form-label-sm">統一編號</label>
+              <Input value={clientInfo.tin} readOnly className="bg-gray-100" />
+            </div>
+            <div>
+              <label className="form-label-sm">發票抬頭</label>
+              <Input value={clientInfo.invoiceTitle} readOnly className="bg-gray-100" />
+            </div>
+            <div>
+              <label className="form-label-sm">發票寄送地址</label>
+              <Input value={clientInfo.address} readOnly className="bg-gray-100" />
+            </div>
+            <div>
+              <label className="form-label-sm">付款方式</label>
+              <div className="flex items-center space-x-4 mt-2">
+                <label className="flex items-center">
+                  <input type="radio" {...register('payment_method')} value="電匯" className="form-radio" />
+                  <span className="ml-2 text-sm">電匯</span>
+                </label>
+                <label className="flex items-center">
+                  <input type="radio" {...register('payment_method')} value="ATM轉帳" className="form-radio" />
+                  <span className="ml-2 text-sm">ATM轉帳</span>
+                </label>
+              </div>
+            </div>
         </div>
       </div>
       
-      {/* Other form sections remain the same */}
       <div className="bg-white p-6 rounded-lg shadow">
         <div className="flex justify-between items-center mb-4">
-            <h2 className="text-lg font-semibold text-gray-800 flex items-center"><FileSignature className="mr-2 h-5 w-5 text-indigo-500" />報價項目</h2>
-            <Button type="button" onClick={() => append({ category: '', kol_id: null, service: '', quantity: 1, price: 0, remark: '' })}><PlusCircle className="mr-2 h-4 w-4" /> 新增項目</Button>
+            <h2 className="text-lg font-semibold text-gray-800 flex items-center">
+              <FileSignature className="mr-2 h-5 w-5 text-indigo-500" />報價項目
+            </h2>
+            <Button 
+              type="button" 
+              onClick={() => append({ 
+                category: null, 
+                kol_id: null, 
+                service: '', 
+                quantity: 1, 
+                price: 0, 
+                remark: null 
+              })}
+            >
+              <PlusCircle className="mr-2 h-4 w-4" /> 新增項目
+            </Button>
         </div>
         {errors.items && <p className="text-red-500 text-sm mb-2">{errors.items.message}</p>}
         <div className="overflow-x-auto">
             <table className="w-full text-sm">
-                <thead><tr className="bg-gray-50"><th className="p-2 text-left font-medium text-gray-600">類別</th><th className="p-2 text-left font-medium text-gray-600">KOL</th><th className="p-2 w-1/3 text-left font-medium text-gray-600">執行內容</th><th className="p-2 text-left font-medium text-gray-600">數量</th><th className="p-2 text-left font-medium text-gray-600">價格</th><th className="p-2 text-left font-medium text-gray-600">備註</th><th className="p-2 text-center font-medium text-gray-600">操作</th></tr></thead>
+                <thead>
+                  <tr className="bg-gray-50">
+                    <th className="p-2 text-left font-medium text-gray-600">類別</th>
+                    <th className="p-2 text-left font-medium text-gray-600">KOL</th>
+                    <th className="p-2 w-1/3 text-left font-medium text-gray-600">執行內容</th>
+                    <th className="p-2 text-left font-medium text-gray-600">數量</th>
+                    <th className="p-2 text-left font-medium text-gray-600">價格</th>
+                    <th className="p-2 text-left font-medium text-gray-600">備註</th>
+                    <th className="p-2 text-center font-medium text-gray-600">操作</th>
+                  </tr>
+                </thead>
                 <tbody>
                     {fields.map((field, index) => (
                         <tr key={field.id} className="align-top border-b">
-                            <td className="p-1"><select {...register(`items.${index}.category`)} className="form-input"><option value="">-- 類別 --</option>{quoteCategories.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}</select></td>
-                            <td className="p-1"><Controller control={control} name={`items.${index}.kol_id`} render={({ field: { onChange, value } }) => (<select value={value || ''} onChange={(e) => handleKolChange(index, e.target.value)} className="form-input"><option value="">-- 自訂項目 --</option>{kols.map(k => <option key={k.id} value={k.id}>{k.name}</option>)}</select>)} /></td>
-                            <td className="p-1"><Input {...register(`items.${index}.service`)} placeholder="執行內容" /></td>
-                            <td className="p-1"><Input type="number" {...register(`items.${index}.quantity`, { valueAsNumber: true })} defaultValue={1} /></td>
-                            <td className="p-1"><Input type="number" {...register(`items.${index}.price`, { valueAsNumber: true })} placeholder="價格" /></td>
-                            <td className="p-1"><Input {...register(`items.${index}.remark`)} placeholder="備註" /></td>
-                            <td className="p-1 text-center"><Button type="button" variant="ghost" size="icon" onClick={() => remove(index)}><Trash2 className="h-4 w-4 text-red-500" /></Button></td>
+                            <td className="p-1">
+                              <select {...register(`items.${index}.category`)} className="form-input">
+                                <option value="">-- 類別 --</option>
+                                {quoteCategories.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
+                              </select>
+                            </td>
+                            <td className="p-1">
+                              <Controller 
+                                control={control} 
+                                name={`items.${index}.kol_id`} 
+                                render={({ field: { onChange, value } }) => (
+                                  <select 
+                                    value={value || ''} 
+                                    onChange={(e) => handleKolChange(index, e.target.value)} 
+                                    className="form-input"
+                                  >
+                                    <option value="">-- 自訂項目 --</option>
+                                    {kols.map(k => <option key={k.id} value={k.id}>{k.name}</option>)}
+                                  </select>
+                                )} 
+                              />
+                            </td>
+                            <td className="p-1">
+                              <Input {...register(`items.${index}.service`)} placeholder="執行內容" />
+                              {errors.items?.[index]?.service && (
+                                <p className="text-red-500 text-xs mt-1">{errors.items[index]?.service?.message}</p>
+                              )}
+                            </td>
+                            <td className="p-1">
+                              <Input 
+                                type="number" 
+                                {...register(`items.${index}.quantity`, { valueAsNumber: true })} 
+                                defaultValue={1} 
+                              />
+                              {errors.items?.[index]?.quantity && (
+                                <p className="text-red-500 text-xs mt-1">{errors.items[index]?.quantity?.message}</p>
+                              )}
+                            </td>
+                            <td className="p-1">
+                              <Input 
+                                type="number" 
+                                {...register(`items.${index}.price`, { valueAsNumber: true })} 
+                                placeholder="價格" 
+                              />
+                              {errors.items?.[index]?.price && (
+                                <p className="text-red-500 text-xs mt-1">{errors.items[index]?.price?.message}</p>
+                              )}
+                            </td>
+                            <td className="p-1">
+                              <Input {...register(`items.${index}.remark`)} placeholder="備註" />
+                            </td>
+                            <td className="p-1 text-center">
+                              <Button 
+                                type="button" 
+                                variant="ghost" 
+                                size="icon" 
+                                onClick={() => remove(index)}
+                              >
+                                <Trash2 className="h-4 w-4 text-red-500" />
+                              </Button>
+                            </td>
                         </tr>
                     ))}
                 </tbody>
@@ -256,12 +399,23 @@ export default function QuoteForm({ initialData }: QuoteFormProps) {
         </div>
     </div>
     <div className="bg-white p-6 rounded-lg shadow">
-        <h2 className="text-lg font-semibold text-gray-800 mb-4 flex items-center"><Calculator className="mr-2 h-5 w-5 text-indigo-500" />金額計算</h2>
+        <h2 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
+          <Calculator className="mr-2 h-5 w-5 text-indigo-500" />金額計算
+        </h2>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-start">
             <div className="bg-gray-50 p-4 rounded-lg space-y-2">
-                <div className="flex justify-between text-sm"><p>項目合計未稅:</p> <p>NT$ {subTotalUntaxed.toLocaleString()}</p></div>
-                <div className="flex justify-between text-sm"><p>稅金 (5%):</p> <p>NT$ {tax.toLocaleString()}</p></div>
-                <div className="flex justify-between font-bold text-lg border-t pt-2 mt-2"><p>合計含稅:</p> <p>NT$ {grandTotalTaxed.toLocaleString()}</p></div>
+                <div className="flex justify-between text-sm">
+                  <p>項目合計未稅:</p> 
+                  <p>NT$ {subTotalUntaxed.toLocaleString()}</p>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <p>稅金 (5%):</p> 
+                  <p>NT$ {tax.toLocaleString()}</p>
+                </div>
+                <div className="flex justify-between font-bold text-lg border-t pt-2 mt-2">
+                  <p>合計含稅:</p> 
+                  <p>NT$ {grandTotalTaxed.toLocaleString()}</p>
+                </div>
             </div>
             <div>
                 <label className="form-label-sm">有無專案優惠價</label>
@@ -271,30 +425,65 @@ export default function QuoteForm({ initialData }: QuoteFormProps) {
                     render={({ field }) => (
                         <div className="flex items-center space-x-4 mt-2">
                             <label className="flex items-center">
-                                <input type="radio" {...field} onChange={() => field.onChange(false)} checked={field.value === false} value="false" className="form-radio" />
+                                <input 
+                                  type="radio" 
+                                  {...field} 
+                                  onChange={() => field.onChange(false)} 
+                                  checked={field.value === false} 
+                                  value="false" 
+                                  className="form-radio" 
+                                />
                                 <span className="ml-2 text-sm">無</span>
                             </label>
                             <label className="flex items-center">
-                                <input type="radio" {...field} onChange={() => field.onChange(true)} checked={field.value === true} value="true" className="form-radio" />
+                                <input 
+                                  type="radio" 
+                                  {...field} 
+                                  onChange={() => field.onChange(true)} 
+                                  checked={field.value === true} 
+                                  value="true" 
+                                  className="form-radio" 
+                                />
                                 <span className="ml-2 text-sm">有</span>
                             </label>
                         </div>
                     )}
                 />
-                {watchHasDiscount && (<div className="mt-4"><Input type="number" {...register('discounted_price', { valueAsNumber: true })} placeholder="請輸入專案優惠價(含稅)" /></div>)}
+                {watchHasDiscount && (
+                  <div className="mt-4">
+                    <Input 
+                      type="number" 
+                      {...register('discounted_price', { valueAsNumber: true })} 
+                      placeholder="請輸入專案優惠價(含稅)" 
+                    />
+                  </div>
+                )}
             </div>
         </div>
     </div>
     <div className="bg-white p-6 rounded-lg shadow">
-        <h2 className="text-lg font-semibold text-gray-800 mb-4 flex items-center"><Book className="mr-2 h-5 w-5 text-indigo-500" />條款與備註</h2>
+        <h2 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
+          <Book className="mr-2 h-5 w-5 text-indigo-500" />條款與備註
+        </h2>
         <div className="space-y-4">
-            <div><label className="form-label-sm">合約條款範本</label><select className="form-input" onChange={e => setValue('terms', staticTerms[e.target.value as keyof typeof staticTerms])}><option value="standard">標準KOL合作條款</option><option value="event">線下活動出席條款</option></select></div>
+            <div>
+              <label className="form-label-sm">合約條款範本</label>
+              <select 
+                className="form-input" 
+                onChange={e => setValue('terms', staticTerms[e.target.value as keyof typeof staticTerms])}
+              >
+                <option value="standard">標準KOL合作條款</option>
+                <option value="event">線下活動出席條款</option>
+              </select>
+            </div>
             <Textarea {...register('terms')} rows={10} />
             <Textarea {...register('remarks')} placeholder="專案備註..." />
         </div>
     </div>
     <div className="flex justify-end">
-        <Button type="submit" size="lg" disabled={isSubmitting}>{isSubmitting ? '儲存中...' : (initialData ? '更新報價單' : '建立報價單')}</Button>
+        <Button type="submit" size="lg" disabled={isSubmitting}>
+          {isSubmitting ? '儲存中...' : (initialData ? '更新報價單' : '建立報價單')}
+        </Button>
     </div>
     </form>
   )

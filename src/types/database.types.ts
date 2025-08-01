@@ -161,7 +161,7 @@ export type Database = {
           id: string
           kol_id: string | null
           price: number
-          quantity: number | null
+          quantity: number
           quotation_id: string | null
           remark: string | null
           service: string
@@ -172,7 +172,7 @@ export type Database = {
           id?: string
           kol_id?: string | null
           price?: number
-          quantity?: number | null
+          quantity?: number
           quotation_id?: string | null
           remark?: string | null
           service: string
@@ -183,7 +183,7 @@ export type Database = {
           id?: string
           kol_id?: string | null
           price?: number
-          quantity?: number | null
+          quantity?: number
           quotation_id?: string | null
           remark?: string | null
           service?: string
