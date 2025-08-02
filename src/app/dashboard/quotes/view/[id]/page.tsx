@@ -272,7 +272,7 @@ export default function ViewQuotePage() {
         </div>
 
         <div className="mt-6 text-right text-sm">
-          委刊日期：Valid Until: {quote.valid_until ? new Date(quote.valid_until).toLocaleDateString('zh-TW') : 'N/A'}
+          委刊日期：{quote.created_at ? new Date(quote.created_at).toLocaleDateString('zh-TW') : new Date().toLocaleDateString('zh-TW')}
         </div>
       </div>
     </div>
