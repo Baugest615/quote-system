@@ -190,8 +190,20 @@ export default function ViewQuotePage() {
             <tr className="border-b">
               <td className="p-2 font-bold bg-gray-50">統一編號：</td>
               <td className="p-2">{quote.clients?.tin || 'N/A'}</td>
-              <td className="p-2 font-bold bg-gray-50">付款方式：</td>
-              <td className="p-2">{quote.payment_method}</td>
+              <td className="p-2 font-bold bg-gray-50">電子郵件：</td>
+              <td className="p-2">
+                {quote.clients?.email ? (
+                  <a 
+                    href={`mailto:${quote.clients.email}`} 
+                    className="text-blue-600 hover:text-blue-800 hover:underline"
+                    title="點擊發送郵件"
+                  >
+                    {quote.clients.email}
+                  </a>
+                ) : (
+                  'N/A'
+                )}
+              </td>
             </tr>
             <tr className="border-b">
               <td className="p-2 font-bold bg-gray-50">發票抬頭：</td>

@@ -20,6 +20,7 @@ export type Database = {
           bank_info: Json | null
           contact_person: string | null
           created_at: string | null
+          email: string | null  // 🆕 新增電子郵件欄位
           id: string
           invoice_title: string | null
           name: string
@@ -32,6 +33,7 @@ export type Database = {
           bank_info?: Json | null
           contact_person?: string | null
           created_at?: string | null
+          email: string | null  // 🆕 新增電子郵件欄位
           id?: string
           invoice_title?: string | null
           name: string
@@ -44,6 +46,7 @@ export type Database = {
           bank_info?: Json | null
           contact_person?: string | null
           created_at?: string | null
+          email: string | null  // 🆕 新增電子郵件欄位
           id?: string
           invoice_title?: string | null
           name?: string

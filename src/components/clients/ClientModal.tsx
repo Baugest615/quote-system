@@ -11,13 +11,18 @@ import { useEffect } from 'react'
 
 type Client = Database['public']['Tables']['clients']['Row']
 
-// 1. 更新 Zod schema，使其更清晰
+// 🆕 更新 Zod schema，新增 email 欄位驗證
 const clientSchema = z.object({
   name: z.string().min(1, '公司名稱為必填'),
   tin: z.string().optional().nullable(),
   invoice_title: z.string().optional().nullable(),
   contact_person: z.string().min(1, '窗口姓名為必填'),
   phone: z.string().optional().nullable(),
+  email: z.union([
+    z.string().email('請輸入有效的電子郵件格式'),
+    z.literal(''),
+    z.null()
+  ]).optional(), // 🆕 修正：使用 union 來處理多種型別
   address: z.string().min(1, '公司地址為必填'),
   bank_info: z.object({
     bankName: z.string().optional().nullable(),
@@ -31,7 +36,20 @@ type ClientFormData = z.infer<typeof clientSchema>
 interface ClientModalProps {
   isOpen: boolean
   onClose: () => void
-  onSave: (clientData: ClientFormData, id?: string) => void
+  onSave: (clientData: {
+    name: string;
+    contact_person: string;
+    address: string;
+    tin?: string | null | undefined;
+    invoice_title?: string | null | undefined;
+    phone?: string | null | undefined;
+    email?: string | null | undefined;
+    bank_info?: {
+      bankName: string | null;
+      branchName: string | null;
+      accountNumber: string | null;
+    } | null | undefined;
+  }, id?: string) => void
   client: Client | null
 }
 
@@ -43,13 +61,14 @@ export function ClientModal({ isOpen, onClose, onSave, client }: ClientModalProp
     formState: { errors, isSubmitting },
   } = useForm<ClientFormData>({
     resolver: zodResolver(clientSchema),
-    // 設定預設值，確保所有欄位都是受控元件
+    // 🆕 更新預設值，包含 email 欄位
     defaultValues: {
         name: '',
         tin: '',
         invoice_title: '',
         contact_person: '',
         phone: '',
+        email: '',  // 🆕 新增 email 預設值
         address: '',
         bank_info: {
             bankName: '',
@@ -62,15 +81,15 @@ export function ClientModal({ isOpen, onClose, onSave, client }: ClientModalProp
   useEffect(() => {
     if (isOpen) {
         if (client) {
-            // 【修正】編輯模式：在 reset 前，先將 null 清理為 ''
+            // 🆕 編輯模式：包含 email 欄位
             const clientForForm = {
                 name: client.name || '',
                 tin: client.tin || '',
                 invoice_title: client.invoice_title || '',
                 contact_person: client.contact_person || '',
                 phone: client.phone || '',
+                email: client.email || '',  // 🆕 新增 email 處理
                 address: client.address || '',
-                // 巢狀的 bank_info 也需要同樣處理
                 bank_info: {
                     bankName: (client.bank_info as any)?.bankName || '',
                     branchName: (client.bank_info as any)?.branchName || '',
@@ -79,13 +98,14 @@ export function ClientModal({ isOpen, onClose, onSave, client }: ClientModalProp
             };
             reset(clientForForm);
         } else {
-            // 新增模式：重設為預設的空值
+            // 🆕 新增模式：包含 email 預設值
             reset({
                 name: '',
                 tin: '',
                 invoice_title: '',
                 contact_person: '',
                 phone: '',
+                email: '',  // 🆕 新增 email 預設值
                 address: '',
                 bank_info: {
                     bankName: '',
@@ -98,19 +118,22 @@ export function ClientModal({ isOpen, onClose, onSave, client }: ClientModalProp
   }, [client, reset, isOpen])
 
   const onSubmit = (data: ClientFormData) => {
-    // 在儲存前，將空字串轉回 null 以符合資料庫規範
-    const sanitizedData: ClientFormData = {
-        ...data,
+    // 🆕 在儲存前，處理所有可選欄位，確保型別正確
+    const sanitizedData = {
+        name: data.name,
+        contact_person: data.contact_person,
+        address: data.address,
         tin: data.tin || null,
         invoice_title: data.invoice_title || null,
         phone: data.phone || null,
+        email: data.email || null,  // 🆕 新增 email 處理
         bank_info: (data.bank_info && (data.bank_info.bankName || data.bank_info.branchName || data.bank_info.accountNumber)) 
             ? {
                 bankName: data.bank_info?.bankName || null,
                 branchName: data.bank_info?.branchName || null,
                 accountNumber: data.bank_info?.accountNumber || null,
               }
-            : null, // 如果銀行資訊全為空，就存 null
+            : null,
     };
     onSave(sanitizedData, client?.id)
   }
@@ -128,7 +151,7 @@ export function ClientModal({ isOpen, onClose, onSave, client }: ClientModalProp
               <Input {...register('name')} className="mt-1" />
               {errors.name && <p className="text-red-500 text-xs mt-1">{errors.name.message}</p>}
             </div>
-             <div>
+            <div>
               <label className="block text-sm font-medium">窗口姓名 (必填)</label>
               <Input {...register('contact_person')} className="mt-1" />
               {errors.contact_person && <p className="text-red-500 text-xs mt-1">{errors.contact_person.message}</p>}
@@ -137,7 +160,18 @@ export function ClientModal({ isOpen, onClose, onSave, client }: ClientModalProp
               <label className="block text-sm font-medium">公司電話</label>
               <Input {...register('phone')} className="mt-1" />
             </div>
-             <div>
+            {/* 🆕 新增電子郵件欄位 */}
+            <div>
+              <label className="block text-sm font-medium">電子郵件</label>
+              <Input 
+                type="email"
+                {...register('email')} 
+                className="mt-1" 
+                placeholder="example@company.com"
+              />
+              {errors.email && <p className="text-red-500 text-xs mt-1">{errors.email.message}</p>}
+            </div>
+            <div className="md:col-span-2">
               <label className="block text-sm font-medium">公司地址 (必填)</label>
               <Input {...register('address')} className="mt-1" />
               {errors.address && <p className="text-red-500 text-xs mt-1">{errors.address.message}</p>}
@@ -166,26 +200,25 @@ export function ClientModal({ isOpen, onClose, onSave, client }: ClientModalProp
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
             <div>
               <label className="block text-sm font-medium">銀行名稱</label>
-              <Input {...register('bank_info.bankName')} placeholder="例如: 國泰世華銀行" className="mt-1" />
+              <Input {...register('bank_info.bankName')} className="mt-1" />
             </div>
             <div>
               <label className="block text-sm font-medium">分行名稱</label>
-              <Input {...register('bank_info.branchName')} placeholder="例如: 文山分行" className="mt-1" />
+              <Input {...register('bank_info.branchName')} className="mt-1" />
             </div>
-          </div>
-          <div className="pt-2">
-            <label className="block text-sm font-medium">帳戶帳號</label>
-            <Input {...register('bank_info.accountNumber')} className="mt-1" />
+            <div className="md:col-span-2">
+              <label className="block text-sm font-medium">銀行帳號</label>
+              <Input {...register('bank_info.accountNumber')} className="mt-1" />
+            </div>
           </div>
         </div>
 
-        {/* 操作按鈕 */}
-        <div className="flex justify-end space-x-2 pt-6 border-t mt-6">
+        <div className="flex justify-end space-x-2 pt-4">
           <Button type="button" variant="outline" onClick={onClose}>
             取消
           </Button>
           <Button type="submit" disabled={isSubmitting}>
-            {isSubmitting ? '儲存中...' : '儲存'}
+            {isSubmitting ? '儲存中...' : (client ? '更新' : '新增')}
           </Button>
         </div>
       </form>

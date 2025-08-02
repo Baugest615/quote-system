@@ -311,9 +311,13 @@ export default function QuoteForm({ initialData }: QuoteFormProps) {
   const watchItems = watch('items')
   const watchClientId = watch('client_id')
   const watchHasDiscount = watch('has_discount')
-  
-  // Create state for read-only client fields
-  const [clientInfo, setClientInfo] = useState({ tin: '', invoiceTitle: '', address: '' });
+
+  const [clientInfo, setClientInfo] = useState({ 
+    tin: '', 
+    invoiceTitle: '', 
+    address: '',
+    email: ''  // 🆕 新增 email 欄位
+  });
 
   useEffect(() => {
     async function fetchData() {
@@ -334,14 +338,22 @@ export default function QuoteForm({ initialData }: QuoteFormProps) {
     const selectedClient = clients.find(c => c.id === watchClientId)
     if (selectedClient) {
       setValue('client_contact', selectedClient.contact_person)
+      // 🆕 更新 setClientInfo，包含 email 欄位
       setClientInfo({
         tin: selectedClient.tin || '',
         invoiceTitle: selectedClient.invoice_title || '',
-        address: selectedClient.address || ''
+        address: selectedClient.address || '',
+        email: selectedClient.email || ''  // 🆕 新增 email 設定
       });
     } else {
       setValue('client_contact', '')
-      setClientInfo({ tin: '', invoiceTitle: '', address: '' });
+      // 🆕 重置時也要清空 email
+      setClientInfo({ 
+        tin: '', 
+        invoiceTitle: '', 
+        address: '',
+        email: ''  // 🆕 新增 email 重置
+      });
     }
   }, [watchClientId, clients, setValue])
 
@@ -469,6 +481,15 @@ export default function QuoteForm({ initialData }: QuoteFormProps) {
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">聯絡人</label>
             <Input {...register('client_contact')} placeholder="聯絡人姓名" />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">電子郵件</label>
+            <Input 
+              value={clientInfo.email} 
+              readOnly 
+              className="bg-gray-100" 
+              placeholder="選擇客戶後自動填入" 
+            />
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">統一編號</label>

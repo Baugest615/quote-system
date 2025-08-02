@@ -1,14 +1,13 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { useRouter } from 'next/navigation'
 import supabase from '@/lib/supabase/client'
 import { Database } from '@/types/database.types'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { ClientModal } from '@/components/clients/ClientModal'
 import { PlusCircle, Edit, Trash2, Search } from 'lucide-react'
-import { toast } from 'sonner';
+import { toast } from 'sonner'
 
 type Client = Database['public']['Tables']['clients']['Row']
 
@@ -16,19 +15,23 @@ export default function ClientsPage() {
   const [clients, setClients] = useState<Client[]>([])
   const [filteredClients, setFilteredClients] = useState<Client[]>([])
   const [loading, setLoading] = useState(true)
+  const [searchTerm, setSearchTerm] = useState('')
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [selectedClient, setSelectedClient] = useState<Client | null>(null)
-  const [searchTerm, setSearchTerm] = useState('')
 
   const fetchClients = useCallback(async () => {
     setLoading(true)
-    const { data, error } = await supabase.from('clients').select('*').order('created_at', { ascending: false });
+    const { data, error } = await supabase
+      .from('clients')
+      .select('*')
+      .order('created_at', { ascending: false })
+
     if (error) {
       console.error('Error fetching clients:', error)
-      alert('讀取客戶資料失敗')
+      toast.error('載入客戶資料失敗')
     } else {
-      setClients(data)
-      setFilteredClients(data)
+      setClients(data || [])
+      setFilteredClients(data || [])
     }
     setLoading(false)
   }, [])
@@ -38,16 +41,16 @@ export default function ClientsPage() {
   }, [fetchClients])
 
   useEffect(() => {
-    const lowercasedFilter = searchTerm.toLowerCase();
-    const filteredData = clients.filter(client => 
-      client.name.toLowerCase().includes(lowercasedFilter) ||
-      (client.contact_person && client.contact_person.toLowerCase().includes(lowercasedFilter))
-    );
-    setFilteredClients(filteredData);
-  }, [searchTerm, clients]);
+    const filtered = clients.filter((client) =>
+      client.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (client.contact_person && client.contact_person.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      (client.email && client.email.toLowerCase().includes(searchTerm.toLowerCase())) // 🆕 新增 email 搜尋
+    )
+    setFilteredClients(filtered)
+  }, [clients, searchTerm])
 
-  const handleOpenModal = (client: Client | null = null) => {
-    setSelectedClient(client)
+  const handleOpenModal = (client?: Client) => {
+    setSelectedClient(client || null)
     setIsModalOpen(true)
   }
 
@@ -56,25 +59,28 @@ export default function ClientsPage() {
     setSelectedClient(null)
   }
 
+  // 🆕 更新 handleSaveClient 函式，處理 email 欄位
   const handleSaveClient = async (
     formData: {
       name: string;
-      address: string;
       contact_person: string;
-      phone?: string | null; // 接受 string, null, undefined
-      invoice_title?: string | null;
-      tin?: string | null;
+      address: string;
+      tin?: string | null | undefined;
+      invoice_title?: string | null | undefined;
+      phone?: string | null | undefined;
+      email?: string | null | undefined;  // 🆕 修正：使用 optional 型別以符合 ClientModal
       bank_info?: {
-        bankName?: string | null;
-        branchName?: string | null;
-        accountNumber?: string | null;
-      } | null;
+        bankName: string | null;
+        branchName: string | null;
+        accountNumber: string | null;
+      } | null | undefined;
     },
     id?: string
   ) => {
     const dataToSave = {
       ...formData,
       phone: formData.phone || null,
+      email: formData.email || null,  // 🆕 新增 email 處理
       invoice_title: formData.invoice_title || null,
       tin: formData.tin || null,
       bank_info: formData.bank_info ?? null,
@@ -126,7 +132,7 @@ export default function ClientsPage() {
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
             <Input 
                 type="text"
-                placeholder="搜尋客戶名稱或聯絡人..."
+                placeholder="搜尋客戶名稱、聯絡人或電子郵件..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="pl-10 w-64"
@@ -145,6 +151,7 @@ export default function ClientsPage() {
               <th className="p-4 font-medium text-sm">統一編號</th>
               <th className="p-4 font-medium text-sm">聯絡人</th>
               <th className="p-4 font-medium text-sm">電話</th>
+              <th className="p-4 font-medium text-sm">電子郵件</th>  {/* 🆕 新增電子郵件欄位標題 */}
               <th className="p-4 font-medium text-sm text-center">操作</th>
             </tr>
           </thead>
@@ -155,6 +162,20 @@ export default function ClientsPage() {
                 <td className="p-4 text-sm">{client.tin}</td>
                 <td className="p-4 text-sm">{client.contact_person}</td>
                 <td className="p-4 text-sm">{client.phone}</td>
+                {/* 🆕 新增電子郵件欄位顯示 */}
+                <td className="p-4 text-sm">
+                  {client.email ? (
+                    <a 
+                      href={`mailto:${client.email}`} 
+                      className="text-blue-600 hover:text-blue-800 hover:underline"
+                      title="點擊發送郵件"
+                    >
+                      {client.email}
+                    </a>
+                  ) : (
+                    <span className="text-gray-400">未設定</span>
+                  )}
+                </td>
                 <td className="p-4 text-center space-x-1">
                    <Button variant="outline" size="sm" onClick={() => handleOpenModal(client)}>
                     <Edit className="mr-1 h-3 w-3" /> 編輯
