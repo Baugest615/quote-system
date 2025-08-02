@@ -1,3 +1,5 @@
+// 更新的 src/types/database.types.ts - 新增請款相關表類型
+
 export type Json =
   | string
   | number
@@ -7,8 +9,6 @@ export type Json =
   | Json[]
 
 export type Database = {
-  // Allows to automatically instanciate createClient with right options
-  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
     PostgrestVersion: "12.2.12 (cd3cf9e)"
   }
@@ -20,7 +20,7 @@ export type Database = {
           bank_info: Json | null
           contact_person: string | null
           created_at: string | null
-          email: string | null  // 🆕 新增電子郵件欄位
+          email: string | null
           id: string
           invoice_title: string | null
           name: string
@@ -33,7 +33,7 @@ export type Database = {
           bank_info?: Json | null
           contact_person?: string | null
           created_at?: string | null
-          email: string | null  // 🆕 新增電子郵件欄位
+          email?: string | null
           id?: string
           invoice_title?: string | null
           name: string
@@ -46,7 +46,7 @@ export type Database = {
           bank_info?: Json | null
           contact_person?: string | null
           created_at?: string | null
-          email: string | null  // 🆕 新增電子郵件欄位
+          email?: string | null
           id?: string
           invoice_title?: string | null
           name?: string
@@ -333,14 +333,230 @@ export type Database = {
         }
         Relationships: []
       }
+      // 🆕 新增：請款申請表
+      payment_requests: {
+        Row: {
+          id: string
+          quotation_item_id: string
+          request_date: string | null
+          verification_status: 'pending' | 'approved' | 'rejected'
+          merge_type: 'company' | 'account' | null
+          merge_group_id: string | null
+          is_merge_leader: boolean
+          merge_color: string | null
+          attachment_file_path: string | null
+          invoice_number: string | null
+          approved_by: string | null
+          approved_at: string | null
+          rejected_by: string | null
+          rejected_at: string | null
+          rejection_reason: string | null
+          created_at: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          id?: string
+          quotation_item_id: string
+          request_date?: string | null
+          verification_status?: 'pending' | 'approved' | 'rejected'
+          merge_type?: 'company' | 'account' | null
+          merge_group_id?: string | null
+          is_merge_leader?: boolean
+          merge_color?: string | null
+          attachment_file_path?: string | null
+          invoice_number?: string | null
+          approved_by?: string | null
+          approved_at?: string | null
+          rejected_by?: string | null
+          rejected_at?: string | null
+          rejection_reason?: string | null
+          created_at?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          id?: string
+          quotation_item_id?: string
+          request_date?: string | null
+          verification_status?: 'pending' | 'approved' | 'rejected'
+          merge_type?: 'company' | 'account' | null
+          merge_group_id?: string | null
+          is_merge_leader?: boolean
+          merge_color?: string | null
+          attachment_file_path?: string | null
+          invoice_number?: string | null
+          approved_by?: string | null
+          approved_at?: string | null
+          rejected_by?: string | null
+          rejected_at?: string | null
+          rejection_reason?: string | null
+          created_at?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payment_requests_quotation_item_id_fkey"
+            columns: ["quotation_item_id"]
+            isOneToOne: false
+            referencedRelation: "quotation_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_requests_approved_by_fkey"
+            columns: ["approved_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_requests_rejected_by_fkey"
+            columns: ["rejected_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      // 🆕 新增：請款確認主表
+      payment_confirmations: {
+        Row: {
+          id: string
+          confirmation_date: string
+          total_amount: number
+          total_items: number
+          created_by: string
+          created_at: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          id?: string
+          confirmation_date?: string
+          total_amount?: number
+          total_items?: number
+          created_by: string
+          created_at?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          id?: string
+          confirmation_date?: string
+          total_amount?: number
+          total_items?: number
+          created_by?: string
+          created_at?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payment_confirmations_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      // 🆕 新增：請款確認項目關聯表
+      payment_confirmation_items: {
+        Row: {
+          id: string
+          payment_confirmation_id: string
+          payment_request_id: string
+          amount_at_confirmation: number
+          kol_name_at_confirmation: string
+          project_name_at_confirmation: string
+          service_at_confirmation: string
+          created_at: string | null
+        }
+        Insert: {
+          id?: string
+          payment_confirmation_id: string
+          payment_request_id: string
+          amount_at_confirmation: number
+          kol_name_at_confirmation: string
+          project_name_at_confirmation: string
+          service_at_confirmation: string
+          created_at?: string | null
+        }
+        Update: {
+          id?: string
+          payment_confirmation_id?: string
+          payment_request_id?: string
+          amount_at_confirmation?: number
+          kol_name_at_confirmation?: string
+          project_name_at_confirmation?: string
+          service_at_confirmation?: string
+          created_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payment_confirmation_items_payment_confirmation_id_fkey"
+            columns: ["payment_confirmation_id"]
+            isOneToOne: false
+            referencedRelation: "payment_confirmations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_confirmation_items_payment_request_id_fkey"
+            columns: ["payment_request_id"]
+            isOneToOne: false
+            referencedRelation: "payment_requests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
-      [_ in never]: never
+      // 🆕 新增：請款申請詳細視圖
+      payment_requests_with_details: {
+        Row: {
+          id: string
+          quotation_item_id: string
+          request_date: string | null
+          verification_status: 'pending' | 'approved' | 'rejected'
+          merge_type: 'company' | 'account' | null
+          merge_group_id: string | null
+          is_merge_leader: boolean
+          merge_color: string | null
+          attachment_file_path: string | null
+          invoice_number: string | null
+          approved_by: string | null
+          approved_at: string | null
+          rejected_by: string | null
+          rejected_at: string | null
+          rejection_reason: string | null
+          service: string
+          quantity: number
+          price: number
+          category: string | null
+          remark: string | null
+          project_name: string
+          quotation_status: Database["public"]["Enums"]["quotation_status"] | null
+          kol_name: string | null
+          kol_real_name: string | null
+          kol_bank_info: Json | null
+          client_name: string | null
+          created_at: string | null
+          updated_at: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       get_user_role: {
         Args: { user_id: string }
         Returns: string
+      }
+      // 🆕 新增：取得合併群組項目函數
+      get_merge_group_items: {
+        Args: { group_id: string }
+        Returns: {
+          payment_request_id: string
+          quotation_item_id: string
+          kol_name: string | null
+          project_name: string
+          service: string
+          total_amount: number
+        }[]
       }
     }
     Enums: {
