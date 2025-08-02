@@ -1,4 +1,4 @@
-// src/app/layout.tsx - 修復版本
+// src/app/layout.tsx
 import type { Metadata } from 'next'
 import { Inter } from 'next/font/google'
 import './globals.css'
@@ -10,8 +10,6 @@ export const metadata: Metadata = {
   description: '現代化的報價管理系統，支援客戶管理、KOL管理、報價單生成等功能',
   icons: {
     icon: '/favicon.ico',
-    shortcut: '/favicon.ico',
-    apple: '/favicon.ico',
   },
 }
 

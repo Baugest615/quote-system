@@ -1,119 +1,128 @@
-// src/hooks/useAuthGuard.ts - 頁面級認證保護
-'use client'
+// middleware.ts
+import { createServerClient, type CookieOptions } from '@supabase/ssr'
+import { NextResponse, type NextRequest } from 'next/server'
 
-import { useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
-import supabase from '@/lib/supabase/client'
-import { User } from '@supabase/supabase-js'
+export async function middleware(request: NextRequest) {
+  const { pathname } = request.nextUrl
 
-interface AuthGuardOptions {
-  requireAuth?: boolean
-  redirectTo?: string
-  allowedRoles?: string[]
-}
+  // 🔧 明確排除靜態檔案和特殊路徑
+  const shouldSkip = 
+    pathname.startsWith('/api') ||
+    pathname.startsWith('/_next') ||
+    pathname === '/favicon.ico' ||
+    pathname.includes('.') // 所有包含點的路徑（通常是靜態檔案）
 
-export const config = {
-  matcher: [
-    '/((?!api|_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
-  ],
-}
+  if (shouldSkip) {
+    return NextResponse.next()
+  }
 
-export function useAuthGuard(options: AuthGuardOptions = {}) {
-  const {
-    requireAuth = true,
-    redirectTo = '/auth/login',
-    allowedRoles = []
-  } = options
+  // 檢查環境變數是否存在
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
-  const [user, setUser] = useState<User | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [authorized, setAuthorized] = useState(false)
-  const router = useRouter()
+  if (!supabaseUrl || !supabaseAnonKey) {
+    console.error('Missing Supabase environment variables')
+    return NextResponse.redirect(new URL('/auth/login', request.url))
+  }
 
-  useEffect(() => {
-    let mounted = true
+  let response = NextResponse.next({
+    request: {
+      headers: request.headers,
+    },
+  })
 
-    const checkAuth = async () => {
-      try {
-        const { data: { session }, error } = await supabase.auth.getSession()
-        
-        if (!mounted) return
-
-        if (error) {
-          console.error('Auth error:', error)
-          if (requireAuth) {
-            router.push(redirectTo)
-            return
-          }
-        }
-
-        const currentUser = session?.user || null
-        setUser(currentUser)
-
-        // 檢查是否需要認證
-        if (requireAuth && !currentUser) {
-          router.push(redirectTo)
-          return
-        }
-
-        // 檢查角色權限（如果指定了）
-        if (currentUser && allowedRoles.length > 0) {
-          try {
-            const { data: profile } = await supabase
-              .from('users')
-              .select('role')
-              .eq('id', currentUser.id)
-              .single()
-
-            if (!profile || !allowedRoles.includes(profile.role)) {
-              router.push('/dashboard?error=permission_denied')
-              return
-            }
-          } catch (roleError) {
-            console.error('Role check error:', roleError)
-            // 如果角色檢查失敗，允許繼續（但記錄錯誤）
-          }
-        }
-
-        setAuthorized(true)
-      } catch (error) {
-        console.error('Auth guard error:', error)
-        if (requireAuth && mounted) {
-          router.push(redirectTo)
-        }
-      } finally {
-        if (mounted) {
-          setLoading(false)
-        }
-      }
-    }
-
-    checkAuth()
-
-    // 監聽認證狀態變化
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        if (!mounted) return
-
-        const currentUser = session?.user || null
-        setUser(currentUser)
-
-        if (event === 'SIGNED_OUT' && requireAuth) {
-          router.push(redirectTo)
-        }
+  try {
+    const supabase = createServerClient(
+      supabaseUrl,
+      supabaseAnonKey,
+      {
+        cookies: {
+          get(name: string) {
+            return request.cookies.get(name)?.value
+          },
+          set(name: string, value: string, options: CookieOptions) {
+            request.cookies.set({
+              name,
+              value,
+              ...options,
+            })
+            response = NextResponse.next({
+              request: {
+                headers: request.headers,
+              },
+            })
+            response.cookies.set({
+              name,
+              value,
+              ...options,
+            })
+          },
+          remove(name: string, options: CookieOptions) {
+            request.cookies.set({
+              name,
+              value: '',
+              ...options,
+            })
+            response = NextResponse.next({
+              request: {
+                headers: request.headers,
+              },
+            })
+            response.cookies.set({
+              name,
+              value: '',
+              ...options,
+            })
+          },
+        },
       }
     )
 
-    return () => {
-      mounted = false
-      subscription.unsubscribe()
-    }
-  }, [requireAuth, redirectTo, allowedRoles, router])
+    // 檢查是否為受保護的路由
+    const protectedRoutes = ['/dashboard']
+    const authRoutes = ['/auth/login']
 
-  return {
-    user,
-    loading,
-    authorized,
-    isAuthenticated: !!user
+    if (protectedRoutes.some(route => pathname.startsWith(route))) {
+      try {
+        const { data: { user } } = await supabase.auth.getUser()
+
+        if (!user) {
+          return NextResponse.redirect(new URL('/auth/login', request.url))
+        }
+
+        return response
+      } catch (error) {
+        console.error('Auth error in protected route:', error)
+        return NextResponse.redirect(new URL('/auth/login', request.url))
+      }
+    }
+
+    // 如果已登入的用戶訪問登入頁面，重定向到 dashboard
+    if (authRoutes.some(route => pathname.startsWith(route))) {
+      try {
+        const { data: { user } } = await supabase.auth.getUser()
+
+        if (user) {
+          return NextResponse.redirect(new URL('/dashboard', request.url))
+        }
+      } catch (error) {
+        console.error('Auth check error:', error)
+      }
+    }
+
+    return response
+
+  } catch (error) {
+    console.error('Middleware error:', error)
+    return NextResponse.redirect(new URL('/auth/login', request.url))
   }
+}
+
+// 🔧 使用更簡單的 matcher，只匹配我們真正需要保護的路由
+export const config = {
+  matcher: [
+    '/dashboard/:path*',
+    '/auth/:path*',
+    '/',
+  ],
 }

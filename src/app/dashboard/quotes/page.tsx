@@ -596,11 +596,6 @@ export default function QuotesPage() {
                           <CheckCircle className="mr-1 h-3 w-3" /> 檢視
                         </Button>
                       </Link>
-                      <Link href={`/dashboard/quotes/edit/${quote.id}`}>
-                        <Button variant="outline" size="sm">
-                          <Edit className="mr-1 h-3 w-3" /> 編輯
-                        </Button>
-                      </Link>
                       <Button 
                         variant="destructive" 
                         size="sm" 

@@ -21,6 +21,7 @@ type QuoteCategory = Database['public']['Tables']['quote_categories']['Row']
 type Quotation = Database['public']['Tables']['quotations']['Row']
 type QuotationItem = Database['public']['Tables']['quotation_items']['Row']
 type KolWithServices = Kol & { kol_services: (KolService & { service_types: ServiceType })[] }
+type QuotationStatus = '草稿' | '待簽約' | '已簽約' | '已歸檔'
 
 // --- 表單項目型別 ---
 interface FormItem {
@@ -41,6 +42,7 @@ const quoteSchema = z.object({
   client_id: z.string().nullable(),
   client_contact: z.string().nullable(),
   payment_method: z.enum(['電匯', 'ATM轉帳']),
+  status: z.enum(['草稿', '待簽約', '已簽約', '已歸檔']).optional(), // 🆕 新增
   has_discount: z.boolean(),
   discounted_price: z.number().nullable(),
   terms: z.string().nullable(),
@@ -299,6 +301,7 @@ export default function QuoteForm({ initialData }: QuoteFormProps) {
       client_id: initialData?.client_id || null,
       client_contact: initialData?.client_contact || null,
       payment_method: initialData?.payment_method || '電匯',
+      status: initialData?.status || '草稿', // 🆕 新增
       has_discount: initialData?.has_discount || false,
       discounted_price: initialData?.discounted_price || null,
       terms: initialData?.terms || staticTerms.standard,
@@ -365,6 +368,25 @@ export default function QuoteForm({ initialData }: QuoteFormProps) {
     setValue(`items.${itemIndex}.price`, 0);
   }
 
+  // 🆕 新增檢查附件的函數
+  const hasAttachment = (attachments: any): boolean => {
+    return attachments && Array.isArray(attachments) && attachments.length > 0
+  }
+
+  // 🆕 修正後的狀態變更處理函數
+  const handleStatusChange = (newStatus: QuotationStatus) => {
+    // 如果要設為「已簽約」，檢查是否有附件
+    if (newStatus === '已簽約') {
+      const currentAttachments = initialData?.attachments
+      if (!hasAttachment(currentAttachments)) {
+          alert('請上傳雙方用印的委刊報價單')
+          return // 阻止狀態變更
+      }
+    }
+      // 如果檢查通過或不是「已簽約」，則正常變更狀態
+      setValue('status', newStatus)
+  }
+
   // 新增：處理服務項目選擇變更的函數
   const handleServiceChange = (itemIndex: number, serviceValue: string, kolId: string) => {
     setValue(`items.${itemIndex}.service`, serviceValue);
@@ -396,12 +418,12 @@ export default function QuoteForm({ initialData }: QuoteFormProps) {
       client_id: data.client_id || null,
       client_contact: data.client_contact || null,
       payment_method: data.payment_method,
+      status: data.status || '草稿', // 🆕 新增
       subtotal_untaxed: subTotalUntaxed,
       tax: tax,
       grand_total_taxed: grandTotalTaxed,
       has_discount: data.has_discount,
       discounted_price: data.has_discount ? data.discounted_price : null,
-      status: initialData?.status || '草稿',
       terms: data.terms || null,
       remarks: data.remarks || null,
       attachments: initialData?.attachments || null,
@@ -482,7 +504,7 @@ export default function QuoteForm({ initialData }: QuoteFormProps) {
             <label className="block text-sm font-medium text-gray-700 mb-1">聯絡人</label>
             <Input {...register('client_contact')} placeholder="聯絡人姓名" />
           </div>
-          <div>
+          <div>{/* 🆕 新增電子郵件欄位 */}
             <label className="block text-sm font-medium text-gray-700 mb-1">電子郵件</label>
             <Input 
               value={clientInfo.email} 
@@ -494,6 +516,36 @@ export default function QuoteForm({ initialData }: QuoteFormProps) {
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">統一編號</label>
             <Input value={clientInfo.tin} readOnly className="bg-gray-100" placeholder="選擇客戶後自動填入" />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">狀態</label>
+            <Controller
+              control={control}
+              name="status"
+              render={({ field: { value } }) => (
+                <div className="space-y-2">
+                  <select 
+                    value={value || '草稿'} 
+                    onChange={(e) => handleStatusChange(e.target.value as QuotationStatus)} // 🆕 型別斷言
+                    className="form-input w-full"
+                  >
+                    <option value="草稿">草稿</option>
+                    <option value="待簽約">待簽約</option>
+                    <option value="已簽約">已簽約</option>
+                    <option value="已歸檔">已歸檔</option>
+                  </select>
+                  {/* 🆕 附件提示 */}
+                  {!hasAttachment(initialData?.attachments) && (
+                    <p className="text-xs text-amber-600 flex items-center">
+                      <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                      </svg>
+                      需上傳雙方用印的委刊報價單才能設為「已簽約」
+                    </p>
+                  )}
+                </div>
+              )}
+            />
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">發票抬頭</label>
