@@ -100,8 +100,7 @@ export default function PendingPaymentsPage() {
           quotations: item.quotations ? JSON.parse(JSON.stringify(item.quotations)) : null,
           kols: item.kols ? JSON.parse(JSON.stringify(item.kols)) : null,
           merge_type: null, merge_group_id: null, is_merge_leader: false, merge_color: '',
-          rejection_reason: null,
-          //【DEFINITIVE FIX】Ensure the value is always a boolean.
+          rejection_reason: null, 
           is_selected: Boolean(item.is_selected),
           invoice_number_input: null,
           attachments: [], payment_request_id: null
@@ -116,7 +115,6 @@ export default function PendingPaymentsPage() {
             rejection_reason: req.rejection_reason,
             attachments: req.attachment_file_path ? JSON.parse(req.attachment_file_path) : [],
             invoice_number_input: req.invoice_number,
-            //【DEFINITIVE FIX】Ensure the value is always a boolean.
             is_selected: Boolean(req.is_selected),
             merge_type: req.merge_type as 'account' | null,
             merge_group_id: req.merge_group_id,
@@ -156,9 +154,7 @@ export default function PendingPaymentsPage() {
       setLoading(false);
     }
   }, []);
-
   useEffect(() => { fetchPendingItems() }, [fetchPendingItems]);
-  
   const filteredItems = useMemo(() => {
     return items.filter(item =>
       (item.quotations?.project_name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -167,7 +163,6 @@ export default function PendingPaymentsPage() {
       (item.quotations?.clients?.name || '').toLowerCase().includes(searchTerm.toLowerCase())
     )
   }, [searchTerm, items]);
-
   const clearRejectionReason = async (paymentRequestId: string) => {
     const { error } = await supabase
       .from('payment_requests')
@@ -223,10 +218,14 @@ export default function PendingPaymentsPage() {
     }
   }
 
-  const handleInvoiceNumberChange = (itemId: string, newInvoiceNumber: string) => {
+  //【DEFINITIVE FIX】Added database synchronization to the function.
+  const handleInvoiceNumberChange = async (itemId: string, newInvoiceNumber: string) => {
     const updatedItem = items.find(i => i.id === itemId);
     if (!updatedItem) return;
+  
+    // 1. Update local state for immediate UI feedback.
     setItems(prevItems => prevItems.map(item => {
+      // If in a merge group, update the invoice number for all items in the group.
       if (updatedItem.merge_group_id && item.merge_group_id === updatedItem.merge_group_id) {
         return { ...item, invoice_number_input: newInvoiceNumber };
       }
@@ -235,6 +234,33 @@ export default function PendingPaymentsPage() {
       }
       return item;
     }));
+  
+    // 2. Check if this item is a rejected item (i.e., has a record in payment_requests).
+    if (updatedItem.payment_request_id) {
+      try {
+        // Find the leader item, because the invoice number for a merged group is stored on the leader.
+        const leaderItem = updatedItem.merge_group_id
+          ? items.find(i => i.merge_group_id === updatedItem.merge_group_id && i.is_merge_leader)
+          : updatedItem;
+  
+        if (leaderItem?.payment_request_id) {
+          // 3. Update the latest invoice number back to the database.
+          // Use `|| null` to ensure that an empty string is stored as null.
+          const { error } = await supabase
+            .from('payment_requests')
+            .update({ invoice_number: newInvoiceNumber.trim() || null })
+            .eq('id', leaderItem.payment_request_id);
+  
+          if (error) throw error;
+  
+          toast.success('發票號碼已同步至資料庫。');
+        }
+      } catch (error: any) {
+        toast.error('同步發票號碼至資料庫失敗: ' + error.message);
+        // If it fails, reload the data to restore the state.
+        fetchPendingItems();
+      }
+    }
   }
 
   const handleUnmergeWithBetterUX = async (groupId: string) => {
@@ -274,7 +300,6 @@ export default function PendingPaymentsPage() {
       toast.success(`已解除合併`);
     } catch (error: any) { toast.error("解除合併失敗: " + error.message); }
   }
-
   const handleConfirmUpload = async () => {
     const selectedItems = items.filter(item => item.is_selected);
     if (selectedItems.length === 0) { toast.error('請選擇要申請付款的項目'); return; }
@@ -308,11 +333,11 @@ export default function PendingPaymentsPage() {
     if (item.merge_group_id) {
       const leaderItem = items.find(i => i.merge_group_id === item.merge_group_id && i.is_merge_leader) || item;
       const hasAttachments = leaderItem.attachments && leaderItem.attachments.length > 0;
-      const hasInvoiceNumber = leaderItem.invoice_number_input && leaderItem.invoice_number_input.trim().length > 0;
+      const hasInvoiceNumber = !!(leaderItem.invoice_number_input && leaderItem.invoice_number_input.trim().length > 0);
       return hasAttachments || hasInvoiceNumber;
     } else {
       const hasAttachments = item.attachments && item.attachments.length > 0;
-      const hasInvoiceNumber = item.invoice_number_input && item.invoice_number_input.trim().length > 0;
+      const hasInvoiceNumber = !!(item.invoice_number_input && item.invoice_number_input.trim().length > 0);
       return hasAttachments || hasInvoiceNumber;
     }
   }
@@ -327,7 +352,6 @@ export default function PendingPaymentsPage() {
       return i;
     }));
   }
-  
   const openFileModal = (item: PendingPaymentItem) => { setSelectedItemForFile(item); setFileModalOpen(true); }
   const handleFileModalClose = () => { setFileModalOpen(false); setSelectedItemForFile(null); }
   const handleMergeTypeChange = () => { setSelectedMergeType(prev => prev ? null : 'account'); setSelectedForMerge([]); }
@@ -360,6 +384,7 @@ export default function PendingPaymentsPage() {
   }
   const shouldShowControls = (item: PendingPaymentItem) => !item.merge_group_id || item.is_merge_leader;
 
+  // JSX 部分維持不變
   if (loading) return <div className="flex items-center justify-center h-full"><div className="animate-spin rounded-full h-16 w-16 border-b-2 border-indigo-600"></div></div>
   return (
     <div className="space-y-6">
