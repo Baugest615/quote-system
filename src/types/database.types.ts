@@ -339,7 +339,7 @@ export type Database = {
           id: string
           quotation_item_id: string
           request_date: string | null
-          verification_status: 'pending' | 'approved' | 'rejected'
+          verification_status: 'pending' | 'approved' | 'rejected' | 'confirmed'
           merge_type: 'company' | 'account' | null
           merge_group_id: string | null
           is_merge_leader: boolean
@@ -358,7 +358,7 @@ export type Database = {
           id?: string
           quotation_item_id: string
           request_date?: string | null
-          verification_status?: 'pending' | 'approved' | 'rejected'
+          verification_status?: 'pending' | 'approved' | 'rejected' | 'confirmed'
           merge_type?: 'company' | 'account' | null
           merge_group_id?: string | null
           is_merge_leader?: boolean
@@ -377,7 +377,7 @@ export type Database = {
           id?: string
           quotation_item_id?: string
           request_date?: string | null
-          verification_status?: 'pending' | 'approved' | 'rejected'
+          verification_status?: 'pending' | 'approved' | 'rejected' | 'confirmed'
           merge_type?: 'company' | 'account' | null
           merge_group_id?: string | null
           is_merge_leader?: boolean
@@ -512,7 +512,7 @@ export type Database = {
           id: string
           quotation_item_id: string
           request_date: string | null
-          verification_status: 'pending' | 'approved' | 'rejected'
+          verification_status: 'pending' | 'approved' | 'rejected' | 'confirmed'
           merge_type: 'company' | 'account' | null
           merge_group_id: string | null
           is_merge_leader: boolean

@@ -17,7 +17,8 @@ import {
   ChevronRight,
   CreditCard,
   Receipt,
-  Wallet
+  Wallet,
+  CheckCircle  // 🆕 新增
 } from 'lucide-react'
 import supabase from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
@@ -76,7 +77,9 @@ export default function Sidebar({ className }: SidebarProps) {
       name: '請款管理',
       href: '#',
       icon: Wallet,
-      current: pathname.startsWith('/dashboard/pending-payments') || pathname.startsWith('/dashboard/payment-requests'),
+      current: pathname.startsWith('/dashboard/pending-payments') || 
+              pathname.startsWith('/dashboard/payment-requests') ||
+              pathname.startsWith('/dashboard/confirmed-payments'),
       isGroup: true,
       children: [
         {
@@ -92,6 +95,14 @@ export default function Sidebar({ className }: SidebarProps) {
           icon: CreditCard,
           current: pathname === '/dashboard/payment-requests',
           description: '審核和確認請款申請'
+        },
+        // 🆕 新增：已確認請款清單
+        {
+          name: '已確認請款清單',
+          href: '/dashboard/confirmed-payments',
+          icon: CheckCircle,
+          current: pathname === '/dashboard/confirmed-payments',
+          description: '檢視和管理已確認的請款清單'
         }
       ]
     },
