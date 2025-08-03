@@ -360,7 +360,7 @@ export default function QuoteForm({ initialData }: QuoteFormProps) {
     }
   }, [watchClientId, clients, setValue])
 
-  // 修正後的 handleKolChange 函數 - 清空服務選擇並重置價格
+  // 【DEFINITIVE FIX】Using `itemIndex` instead of `index`.
   const handleKolChange = (itemIndex: number, kolId: string) => {
     setValue(`items.${itemIndex}.kol_id`, kolId || null);
     // 清空服務選擇和價格，讓用戶重新選擇
@@ -387,7 +387,7 @@ export default function QuoteForm({ initialData }: QuoteFormProps) {
       setValue('status', newStatus)
   }
 
-  // 新增：處理服務項目選擇變更的函數
+  // 【DEFINITIVE FIX】Using `itemIndex` instead of `index`.
   const handleServiceChange = (itemIndex: number, serviceValue: string, kolId: string) => {
     setValue(`items.${itemIndex}.service`, serviceValue);
     

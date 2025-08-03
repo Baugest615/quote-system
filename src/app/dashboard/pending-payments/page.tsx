@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input'
 import { PendingPaymentFileModal } from '@/components/pending-payments/PendingPaymentFileModal'
 import {
   Search, Paperclip, Receipt, Trash2, AlertCircle,
-  FileText, Users, Unlink, X
+  FileText, Users, Unlink, X, CheckCircle //【NEW】Import CheckCircle icon
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { Database } from '@/types/database.types'
@@ -39,6 +39,13 @@ interface PendingPaymentItem extends QuotationItemWithDetails {
 }
 
 const MERGE_COLORS = ['bg-red-100', 'bg-blue-100', 'bg-green-100', 'bg-yellow-100', 'bg-purple-100', 'bg-pink-100']
+
+const isValidInvoiceFormat = (invoiceNumber: string | null | undefined): boolean => {
+  if (!invoiceNumber) return false;
+  const invoiceRegex = /^[A-Za-z]{2}-\d{8}$/;
+  return invoiceRegex.test(invoiceNumber);
+};
+
 
 // 駁回原因顯示元件 (維持不變)
 const RejectionReasonDisplay = ({ item, onClear, onUnmerge }: {
@@ -218,14 +225,11 @@ export default function PendingPaymentsPage() {
     }
   }
 
-  //【DEFINITIVE FIX】Added database synchronization to the function.
   const handleInvoiceNumberChange = async (itemId: string, newInvoiceNumber: string) => {
     const updatedItem = items.find(i => i.id === itemId);
     if (!updatedItem) return;
   
-    // 1. Update local state for immediate UI feedback.
     setItems(prevItems => prevItems.map(item => {
-      // If in a merge group, update the invoice number for all items in the group.
       if (updatedItem.merge_group_id && item.merge_group_id === updatedItem.merge_group_id) {
         return { ...item, invoice_number_input: newInvoiceNumber };
       }
@@ -235,17 +239,13 @@ export default function PendingPaymentsPage() {
       return item;
     }));
   
-    // 2. Check if this item is a rejected item (i.e., has a record in payment_requests).
     if (updatedItem.payment_request_id) {
       try {
-        // Find the leader item, because the invoice number for a merged group is stored on the leader.
         const leaderItem = updatedItem.merge_group_id
           ? items.find(i => i.merge_group_id === updatedItem.merge_group_id && i.is_merge_leader)
           : updatedItem;
   
         if (leaderItem?.payment_request_id) {
-          // 3. Update the latest invoice number back to the database.
-          // Use `|| null` to ensure that an empty string is stored as null.
           const { error } = await supabase
             .from('payment_requests')
             .update({ invoice_number: newInvoiceNumber.trim() || null })
@@ -257,7 +257,6 @@ export default function PendingPaymentsPage() {
         }
       } catch (error: any) {
         toast.error('同步發票號碼至資料庫失敗: ' + error.message);
-        // If it fails, reload the data to restore the state.
         fetchPendingItems();
       }
     }
@@ -333,19 +332,19 @@ export default function PendingPaymentsPage() {
     if (item.merge_group_id) {
       const leaderItem = items.find(i => i.merge_group_id === item.merge_group_id && i.is_merge_leader) || item;
       const hasAttachments = leaderItem.attachments && leaderItem.attachments.length > 0;
-      const hasInvoiceNumber = !!(leaderItem.invoice_number_input && leaderItem.invoice_number_input.trim().length > 0);
-      return hasAttachments || hasInvoiceNumber;
+      const hasValidInvoice = isValidInvoiceFormat(leaderItem.invoice_number_input);
+      return hasAttachments || hasValidInvoice;
     } else {
       const hasAttachments = item.attachments && item.attachments.length > 0;
-      const hasInvoiceNumber = !!(item.invoice_number_input && item.invoice_number_input.trim().length > 0);
-      return hasAttachments || hasInvoiceNumber;
+      const hasValidInvoice = isValidInvoiceFormat(item.invoice_number_input);
+      return hasAttachments || hasValidInvoice;
     }
   }
 
   const handlePaymentSelection = (itemId: string, isSelected: boolean) => {
     const item = items.find(i => i.id === itemId);
     if (!item) return;
-    if (isSelected && !canSelectForPayment(item)) { toast.error('申請付款請檢附文件或填入發票號碼'); return; }
+    if (isSelected && !canSelectForPayment(item)) { toast.error('申請付款請檢附文件或填入正確格式的發票號碼'); return; }
     setItems(prev => prev.map(i => {
       if (item.merge_group_id && i.merge_group_id === item.merge_group_id) { return { ...i, is_selected: isSelected }; }
       if (i.id === itemId) { return { ...i, is_selected: isSelected }; }
@@ -384,7 +383,6 @@ export default function PendingPaymentsPage() {
   }
   const shouldShowControls = (item: PendingPaymentItem) => !item.merge_group_id || item.is_merge_leader;
 
-  // JSX 部分維持不變
   if (loading) return <div className="flex items-center justify-center h-full"><div className="animate-spin rounded-full h-16 w-16 border-b-2 border-indigo-600"></div></div>
   return (
     <div className="space-y-6">
@@ -416,8 +414,31 @@ export default function PendingPaymentsPage() {
                     <td className="px-4 py-4 align-top"><div className="font-medium text-gray-900 text-sm">{item.quotations?.project_name || 'N/A'}</div><RejectionReasonDisplay item={item} onClear={() => clearRejectionReason(item.payment_request_id!)} onUnmerge={handleUnmergeWithBetterUX}/></td>
                     <td className="px-4 py-4 align-top text-sm">{item.kols?.name || '自訂項目'}</td><td className="px-4 py-4 align-top text-sm">{item.service}</td><td className="px-4 py-4 align-top text-sm font-medium">NT$ {((item.price || 0) * (item.quantity || 1)).toLocaleString()}</td>
                     <td className="px-4 py-4 align-top text-sm">{selectedMergeType && canMergeWith(item) && !item.merge_group_id && (<label className="flex items-center"><input type="checkbox" checked={selectedForMerge.includes(item.id)} onChange={(e) => handleMergeSelection(item.id, e.target.checked)} className="mr-1" /><span className="text-xs">選擇合併</span></label>)}{item.merge_group_id && (<div className="text-xs"><span className="bg-blue-100 px-2 py-1 rounded">合併申請{item.is_merge_leader && ' (主)'}</span>{item.is_merge_leader && (<Button variant="ghost" size="sm" onClick={() => handleUnmergeWithBetterUX(item.merge_group_id!)} className="ml-1 h-6 w-6 p-0 text-orange-500 hover:text-orange-700" title="解除合併"><Trash2 className="h-3 w-3" /></Button>)}</div>)}</td>
-                    <td className="px-4 py-4 align-top">{shouldShowControls(item) && (<div className="space-y-2"><Button variant="outline" size="sm" onClick={() => openFileModal(item)} className="flex items-center w-full justify-center"><Paperclip className="h-3 w-3 mr-1" />{displayItem.attachments?.length > 0 ? `${displayItem.attachments.length} 個檔案` : '上傳/管理檔案'}</Button><Input placeholder="發票號碼 (可選)" value={displayItem.invoice_number_input || ''} onChange={(e) => handleInvoiceNumberChange(item.id, e.target.value)} className="w-full text-xs"/></div>)}</td>
-                    <td className="px-4 py-4 align-top text-center">{shouldShowControls(item) && (<input type="checkbox" checked={item.is_selected} onChange={(e) => handlePaymentSelection(item.id, e.target.checked)} disabled={!canSelectForPayment(item)} className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded" title={!canSelectForPayment(item) ? '需檢附文件或發票號碼' : '申請付款'}/>)}</td>
+                    <td className="px-4 py-4 align-top">{shouldShowControls(item) && (
+                      <div>
+                        <div className="space-y-2">
+                          <Button variant="outline" size="sm" onClick={() => openFileModal(item)} className="flex items-center w-full justify-center"><Paperclip className="h-3 w-3 mr-1" />{displayItem.attachments?.length > 0 ? `${displayItem.attachments.length} 個檔案` : '上傳/管理檔案'}</Button>
+                          <Input 
+                              placeholder="發票號碼(AB-12345678)" 
+                              value={displayItem.invoice_number_input || ''} 
+                              onChange={(e) => handleInvoiceNumberChange(item.id, e.target.value)} 
+                              className={`w-full text-xs ${
+                                  displayItem.invoice_number_input && !isValidInvoiceFormat(displayItem.invoice_number_input)
+                                  ? 'border-red-500 focus:border-red-500 focus:ring-red-500' 
+                                  : ''
+                              }`}
+                          />
+                        </div>
+                        {/* 【DEFINITIVE FIX】Added conditional rendering for the checkmark icon */}
+                        {canSelectForPayment(item) && (
+                          <div className="flex items-center text-green-600 mt-2 text-xs font-medium">
+                            <CheckCircle className="h-4 w-4 mr-1" />
+                            <span>檢核資料已備妥</span>
+                          </div>
+                        )}
+                      </div>
+                    )}</td>
+                    <td className="px-4 py-4 align-top text-center">{shouldShowControls(item) && (<input type="checkbox" checked={item.is_selected} onChange={(e) => handlePaymentSelection(item.id, e.target.checked)} disabled={!canSelectForPayment(item)} className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded" title={!canSelectForPayment(item) ? '需檢附文件或正確格式的發票號碼' : '申請付款'}/>)}</td>
                   </tr>
                 )
               })}
