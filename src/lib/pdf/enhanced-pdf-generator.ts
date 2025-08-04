@@ -1,7 +1,6 @@
 // src/lib/pdf/enhanced-pdf-generator.ts
 import { SealStampConfig } from '@/components/pdf/SealStampManager';
 
-// ... (Interface and other parts of the class remain the same) ...
 export interface PDFExportOptions {
   filename: string;
   elementId: string;
@@ -30,24 +29,21 @@ export class EnhancedPDFGenerator {
       size: { width: 0.7, height: 0.4 },
     },
     pageOptions: {
-      margin: [0.25, 0.5, 0.25, 0.5],
+      margin: [0.2, 0.3, 0.2, 0.3],
       format: 'a4',
-      orientation: 'portrait',
+      orientation: 'portrait', // 改回直式
     },
   };
-  
-  // A helper function to rotate an image using an in-memory canvas
+
   private async getRotatedImage(imageSrc: string, rotation: number): Promise<string> {
     return new Promise((resolve, reject) => {
       const img = new Image();
-      // Allow loading images from other origins (like Supabase Storage)
       img.crossOrigin = "Anonymous";
       img.onload = () => {
         const canvas = document.createElement('canvas');
         const ctx = canvas.getContext('2d');
         if (!ctx) return reject('Could not get canvas context');
 
-        // Calculate the new canvas dimensions to fit the rotated image
         const rads = (rotation * Math.PI) / 180;
         const sin = Math.abs(Math.sin(rads));
         const cos = Math.abs(Math.cos(rads));
@@ -57,7 +53,6 @@ export class EnhancedPDFGenerator {
         canvas.width = newWidth;
         canvas.height = newHeight;
 
-        // Translate to the center, rotate, and then draw the image
         ctx.translate(newWidth / 2, newHeight / 2);
         ctx.rotate(rads);
         ctx.drawImage(img, -img.width / 2, -img.height / 2);
@@ -78,12 +73,11 @@ export class EnhancedPDFGenerator {
       const { default: html2pdf } = await import('html2pdf.js');
       const elementToPrint = this.prepareElementForPrint(element);
 
-      // 【關鍵修正】如果需要旋轉，先準備好旋轉後的圖片
       let finalStampImage = config.sealStamp?.stampImage;
       if (config.sealStamp?.enabled && config.sealStamp.rotation !== 0) {
         finalStampImage = await this.getRotatedImage(config.sealStamp.stampImage, config.sealStamp.rotation);
       }
-      
+
       const worker = html2pdf().set({
         margin: config.pageOptions!.margin,
         filename: config.filename,
@@ -99,7 +93,6 @@ export class EnhancedPDFGenerator {
           await this.addWatermark(pdf, totalPages, config.watermark);
         }
         if (config.sealStamp?.enabled && finalStampImage) {
-           // 傳入處理過的圖片
           await this.addSealStamp(pdf, totalPages, config.sealStamp, finalStampImage);
         }
       }).save();
@@ -116,7 +109,7 @@ export class EnhancedPDFGenerator {
     if (existingWatermark) existingWatermark.remove();
     return elementToPrint;
   }
-  
+
   private async addWatermark(pdf: any, totalPages: number, watermarkConfig: NonNullable<PDFExportOptions['watermark']>): Promise<void> {
       for (let i = 1; i <= totalPages; i++) {
         pdf.setPage(i);
@@ -159,7 +152,7 @@ export class EnhancedPDFGenerator {
             pdf.addImage(stampImage, 'PNG', x_topLeft, y_topLeft_bottom, stampSize, stampSize, `seal-bottom-${i}`);
           }
         }
-        
+
         pdf.setGState(new pdf.GState({ opacity: 1 }));
       } catch (e) {
         console.error(`在第 ${i} 頁添加騎縫章時發生錯誤:`, e);

@@ -11,7 +11,6 @@ import { useEffect } from 'react'
 
 type Client = Database['public']['Tables']['clients']['Row']
 
-// 🆕 更新 Zod schema，新增 email 欄位驗證
 const clientSchema = z.object({
   name: z.string().min(1, '公司名稱為必填'),
   tin: z.string().optional().nullable(),
@@ -22,7 +21,7 @@ const clientSchema = z.object({
     z.string().email('請輸入有效的電子郵件格式'),
     z.literal(''),
     z.null()
-  ]).optional(), // 🆕 修正：使用 union 來處理多種型別
+  ]).optional(),
   address: z.string().min(1, '公司地址為必填'),
   bank_info: z.object({
     bankName: z.string().optional().nullable(),
@@ -61,14 +60,13 @@ export function ClientModal({ isOpen, onClose, onSave, client }: ClientModalProp
     formState: { errors, isSubmitting },
   } = useForm<ClientFormData>({
     resolver: zodResolver(clientSchema),
-    // 🆕 更新預設值，包含 email 欄位
     defaultValues: {
         name: '',
         tin: '',
         invoice_title: '',
         contact_person: '',
         phone: '',
-        email: '',  // 🆕 新增 email 預設值
+        email: '',
         address: '',
         bank_info: {
             bankName: '',
@@ -81,14 +79,13 @@ export function ClientModal({ isOpen, onClose, onSave, client }: ClientModalProp
   useEffect(() => {
     if (isOpen) {
         if (client) {
-            // 🆕 編輯模式：包含 email 欄位
             const clientForForm = {
                 name: client.name || '',
                 tin: client.tin || '',
                 invoice_title: client.invoice_title || '',
                 contact_person: client.contact_person || '',
                 phone: client.phone || '',
-                email: client.email || '',  // 🆕 新增 email 處理
+                email: client.email || '',
                 address: client.address || '',
                 bank_info: {
                     bankName: (client.bank_info as any)?.bankName || '',
@@ -98,14 +95,13 @@ export function ClientModal({ isOpen, onClose, onSave, client }: ClientModalProp
             };
             reset(clientForForm);
         } else {
-            // 🆕 新增模式：包含 email 預設值
             reset({
                 name: '',
                 tin: '',
                 invoice_title: '',
                 contact_person: '',
                 phone: '',
-                email: '',  // 🆕 新增 email 預設值
+                email: '',
                 address: '',
                 bank_info: {
                     bankName: '',
@@ -118,7 +114,6 @@ export function ClientModal({ isOpen, onClose, onSave, client }: ClientModalProp
   }, [client, reset, isOpen])
 
   const onSubmit = (data: ClientFormData) => {
-    // 🆕 在儲存前，處理所有可選欄位，確保型別正確
     const sanitizedData = {
         name: data.name,
         contact_person: data.contact_person,
@@ -126,8 +121,8 @@ export function ClientModal({ isOpen, onClose, onSave, client }: ClientModalProp
         tin: data.tin || null,
         invoice_title: data.invoice_title || null,
         phone: data.phone || null,
-        email: data.email || null,  // 🆕 新增 email 處理
-        bank_info: (data.bank_info && (data.bank_info.bankName || data.bank_info.branchName || data.bank_info.accountNumber)) 
+        email: data.email || null,
+        bank_info: (data.bank_info && (data.bank_info.bankName || data.bank_info.branchName || data.bank_info.accountNumber))
             ? {
                 bankName: data.bank_info?.bankName || null,
                 branchName: data.bank_info?.branchName || null,
@@ -141,8 +136,7 @@ export function ClientModal({ isOpen, onClose, onSave, client }: ClientModalProp
   return (
     <Modal isOpen={isOpen} onClose={onClose} title={client ? '編輯客戶資料' : '新增客戶'}>
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-6 max-h-[80vh] overflow-y-auto p-1">
-        
-        {/* 公司與聯絡人資訊 */}
+
         <div className="space-y-4">
           <h4 className="text-md font-semibold text-gray-700 border-b pb-2">公司與聯絡人資訊</h4>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
@@ -160,13 +154,12 @@ export function ClientModal({ isOpen, onClose, onSave, client }: ClientModalProp
               <label className="block text-sm font-medium">公司電話</label>
               <Input {...register('phone')} className="mt-1" />
             </div>
-            {/* 🆕 新增電子郵件欄位 */}
             <div>
               <label className="block text-sm font-medium">電子郵件</label>
-              <Input 
+              <Input
                 type="email"
-                {...register('email')} 
-                className="mt-1" 
+                {...register('email')}
+                className="mt-1"
                 placeholder="example@company.com"
               />
               {errors.email && <p className="text-red-500 text-xs mt-1">{errors.email.message}</p>}
@@ -179,7 +172,6 @@ export function ClientModal({ isOpen, onClose, onSave, client }: ClientModalProp
           </div>
         </div>
 
-        {/* 發票資訊 */}
         <div className="space-y-4">
           <h4 className="text-md font-semibold text-gray-700 border-b pb-2">發票資訊</h4>
            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
@@ -194,7 +186,6 @@ export function ClientModal({ isOpen, onClose, onSave, client }: ClientModalProp
           </div>
         </div>
 
-        {/* 銀行匯款資訊 */}
         <div className="space-y-4">
           <h4 className="text-md font-semibold text-gray-700 border-b pb-2">銀行匯款資訊</h4>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">

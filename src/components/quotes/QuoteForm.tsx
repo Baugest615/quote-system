@@ -42,7 +42,7 @@ const quoteSchema = z.object({
   client_id: z.string().nullable(),
   client_contact: z.string().nullable(),
   payment_method: z.enum(['電匯', 'ATM轉帳']),
-  status: z.enum(['草稿', '待簽約', '已簽約', '已歸檔']).optional(), // 🆕 新增
+  status: z.enum(['草稿', '待簽約', '已簽約', '已歸檔']).optional(),
   has_discount: z.boolean(),
   discounted_price: z.number().nullable(),
   terms: z.string().nullable(),
@@ -82,7 +82,6 @@ function KolSearchInput({ value, onChange, kols, placeholder }: KolSearchInputPr
   const inputRef = useRef<HTMLInputElement>(null)
   const dropdownRef = useRef<HTMLDivElement>(null)
 
-  // 當 value 變化時更新選中的 KOL
   useEffect(() => {
     const kol = kols.find(k => k.id === value)
     setSelectedKol(kol || null)
@@ -93,35 +92,27 @@ function KolSearchInput({ value, onChange, kols, placeholder }: KolSearchInputPr
     }
   }, [value, kols])
 
-  // 優化過濾邏輯：當有搜尋條件時才過濾，無條件時返回空陣列
-  const filteredKols = searchTerm.trim().length >= 1 
+  const filteredKols = searchTerm.trim().length >= 1
     ? kols.filter(kol =>
         kol.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         (kol.real_name && kol.real_name.toLowerCase().includes(searchTerm.toLowerCase()))
       )
     : []
 
-  // 處理輸入變化 - 確保即時搜尋
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const term = e.target.value
     setSearchTerm(term)
-    
-    // 立即開啟下拉選單，即使是空字串也顯示提示
     setIsOpen(true)
-    
-    // 如果清空輸入，也清空選擇
     if (term.trim().length === 0) {
       setSelectedKol(null)
       onChange('')
     }
   }
 
-  // 處理輸入框聚焦 - 立即顯示相關內容
   const handleInputFocus = () => {
     setIsOpen(true)
   }
 
-  // 處理 KOL 選擇
   const handleKolSelect = (kol: KolWithServices) => {
     setSelectedKol(kol)
     setSearchTerm(kol.name)
@@ -129,7 +120,6 @@ function KolSearchInput({ value, onChange, kols, placeholder }: KolSearchInputPr
     onChange(kol.id)
   }
 
-  // 清空選擇
   const handleClear = () => {
     setSelectedKol(null)
     setSearchTerm('')
@@ -138,11 +128,10 @@ function KolSearchInput({ value, onChange, kols, placeholder }: KolSearchInputPr
     inputRef.current?.focus()
   }
 
-  // 點擊外部關閉下拉選單
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (
-        dropdownRef.current && 
+        dropdownRef.current &&
         !dropdownRef.current.contains(event.target as Node) &&
         !inputRef.current?.contains(event.target as Node)
       ) {
@@ -181,12 +170,11 @@ function KolSearchInput({ value, onChange, kols, placeholder }: KolSearchInputPr
         </div>
       </div>
 
-      {/* 搜尋下拉選單 - 使用超高 z-index 確保不被遮擋 */}
       {isOpen && (
         <div
           ref={dropdownRef}
           className="fixed z-[99999] bg-white border border-gray-300 rounded-md shadow-xl"
-          style={{ 
+          style={{
             minWidth: '320px',
             boxShadow: '0 10px 25px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)',
             maxHeight: filteredKols.length > 8 ? '400px' : 'auto',
@@ -197,7 +185,6 @@ function KolSearchInput({ value, onChange, kols, placeholder }: KolSearchInputPr
           }}
         >
           {searchTerm.trim().length === 0 ? (
-            // 當沒有輸入時顯示提示
             <div className="p-4 text-sm text-gray-500 text-center">
               <div className="flex items-center justify-center mb-2">
                 <Search className="h-4 w-4 mr-2" />
@@ -208,7 +195,6 @@ function KolSearchInput({ value, onChange, kols, placeholder }: KolSearchInputPr
               </div>
             </div>
           ) : filteredKols.length > 0 ? (
-            // 有搜尋結果時顯示列表
             <div className="divide-y divide-gray-100">
               {filteredKols.map((kol, index) => (
                 <button
@@ -235,7 +221,6 @@ function KolSearchInput({ value, onChange, kols, placeholder }: KolSearchInputPr
               )}
             </div>
           ) : (
-            // 沒有找到結果時顯示
             <div className="p-4 text-sm text-gray-500 text-center">
               找不到包含 "<span className="font-medium">{searchTerm}</span>" 的 KOL
               <div className="text-xs text-gray-400 mt-1">
@@ -249,19 +234,18 @@ function KolSearchInput({ value, onChange, kols, placeholder }: KolSearchInputPr
   )
 }
 
-// --- Helper function to transform initial data ---
 const transformInitialItems = (items?: QuotationItem[]): FormItem[] => {
   if (!items || items.length === 0) {
-    return [{ 
-      category: null, 
-      kol_id: null, 
-      service: '', 
-      quantity: 1, 
-      price: 0, 
-      remark: null 
+    return [{
+      category: null,
+      kol_id: null,
+      service: '',
+      quantity: 1,
+      price: 0,
+      remark: null
     }]
   }
-  
+
   return items.map((item): FormItem => ({
     id: item.id,
     quotation_id: item.quotation_id,
@@ -301,7 +285,7 @@ export default function QuoteForm({ initialData }: QuoteFormProps) {
       client_id: initialData?.client_id || null,
       client_contact: initialData?.client_contact || null,
       payment_method: initialData?.payment_method || '電匯',
-      status: initialData?.status || '草稿', // 🆕 新增
+      status: initialData?.status || '草稿',
       has_discount: initialData?.has_discount || false,
       discounted_price: initialData?.discounted_price || null,
       terms: initialData?.terms || staticTerms.standard,
@@ -315,11 +299,11 @@ export default function QuoteForm({ initialData }: QuoteFormProps) {
   const watchClientId = watch('client_id')
   const watchHasDiscount = watch('has_discount')
 
-  const [clientInfo, setClientInfo] = useState({ 
-    tin: '', 
-    invoiceTitle: '', 
+  const [clientInfo, setClientInfo] = useState({
+    tin: '',
+    invoiceTitle: '',
     address: '',
-    email: ''  // 🆕 新增 email 欄位
+    email: ''
   });
 
   useEffect(() => {
@@ -336,62 +320,52 @@ export default function QuoteForm({ initialData }: QuoteFormProps) {
     }
     fetchData()
   }, [])
-  
+
   useEffect(() => {
     const selectedClient = clients.find(c => c.id === watchClientId)
     if (selectedClient) {
       setValue('client_contact', selectedClient.contact_person)
-      // 🆕 更新 setClientInfo，包含 email 欄位
       setClientInfo({
         tin: selectedClient.tin || '',
         invoiceTitle: selectedClient.invoice_title || '',
         address: selectedClient.address || '',
-        email: selectedClient.email || ''  // 🆕 新增 email 設定
+        email: selectedClient.email || ''
       });
     } else {
       setValue('client_contact', '')
-      // 🆕 重置時也要清空 email
-      setClientInfo({ 
-        tin: '', 
-        invoiceTitle: '', 
+      setClientInfo({
+        tin: '',
+        invoiceTitle: '',
         address: '',
-        email: ''  // 🆕 新增 email 重置
+        email: ''
       });
     }
   }, [watchClientId, clients, setValue])
 
-  // 【DEFINITIVE FIX】Using `itemIndex` instead of `index`.
   const handleKolChange = (itemIndex: number, kolId: string) => {
     setValue(`items.${itemIndex}.kol_id`, kolId || null);
-    // 清空服務選擇和價格，讓用戶重新選擇
     setValue(`items.${itemIndex}.service`, '');
     setValue(`items.${itemIndex}.price`, 0);
   }
 
-  // 🆕 新增檢查附件的函數
   const hasAttachment = (attachments: any): boolean => {
     return attachments && Array.isArray(attachments) && attachments.length > 0
   }
 
-  // 🆕 修正後的狀態變更處理函數
   const handleStatusChange = (newStatus: QuotationStatus) => {
-    // 如果要設為「已簽約」，檢查是否有附件
     if (newStatus === '已簽約') {
       const currentAttachments = initialData?.attachments
       if (!hasAttachment(currentAttachments)) {
           alert('請上傳雙方用印的委刊報價單')
-          return // 阻止狀態變更
+          return
       }
     }
-      // 如果檢查通過或不是「已簽約」，則正常變更狀態
       setValue('status', newStatus)
   }
 
-  // 【DEFINITIVE FIX】Using `itemIndex` instead of `index`.
   const handleServiceChange = (itemIndex: number, serviceValue: string, kolId: string) => {
     setValue(`items.${itemIndex}.service`, serviceValue);
-    
-    // 找到對應的 KOL 和服務項目，更新價格
+
     const selectedKol = kols.find(k => k.id === kolId);
     if (selectedKol && serviceValue) {
       const selectedService = selectedKol.kol_services.find(s => s.service_types.name === serviceValue);
@@ -401,7 +375,6 @@ export default function QuoteForm({ initialData }: QuoteFormProps) {
     }
   }
 
-  // 新增：取得指定 KOL 的服務項目列表
   const getKolServices = (kolId: string) => {
     const kol = kols.find(k => k.id === kolId);
     return kol?.kol_services || [];
@@ -411,14 +384,13 @@ export default function QuoteForm({ initialData }: QuoteFormProps) {
   const tax = Math.round(subTotalUntaxed * 0.05)
   const grandTotalTaxed = subTotalUntaxed + tax
 
-  // 明確指定 SubmitHandler 型別
   const onSubmit: SubmitHandler<QuoteFormData> = async (data) => {
     const quoteDataToSave = {
       project_name: data.project_name,
       client_id: data.client_id || null,
       client_contact: data.client_contact || null,
       payment_method: data.payment_method,
-      status: data.status || '草稿', // 🆕 新增
+      status: data.status || '草稿',
       subtotal_untaxed: subTotalUntaxed,
       tax: tax,
       grand_total_taxed: grandTotalTaxed,
@@ -463,7 +435,7 @@ export default function QuoteForm({ initialData }: QuoteFormProps) {
         const { error: itemsError } = await supabase.from('quotation_items').insert(itemsToInsert)
         if (itemsError) throw itemsError
       }
-      
+
       alert('報價單已儲存！')
       router.push('/dashboard/quotes')
       router.refresh();
@@ -504,13 +476,13 @@ export default function QuoteForm({ initialData }: QuoteFormProps) {
             <label className="block text-sm font-medium text-gray-700 mb-1">聯絡人</label>
             <Input {...register('client_contact')} placeholder="聯絡人姓名" />
           </div>
-          <div>{/* 🆕 新增電子郵件欄位 */}
+          <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">電子郵件</label>
-            <Input 
-              value={clientInfo.email} 
-              readOnly 
-              className="bg-gray-100" 
-              placeholder="選擇客戶後自動填入" 
+            <Input
+              value={clientInfo.email}
+              readOnly
+              className="bg-gray-100"
+              placeholder="選擇客戶後自動填入"
             />
           </div>
           <div>
@@ -524,9 +496,9 @@ export default function QuoteForm({ initialData }: QuoteFormProps) {
               name="status"
               render={({ field: { value } }) => (
                 <div className="space-y-2">
-                  <select 
-                    value={value || '草稿'} 
-                    onChange={(e) => handleStatusChange(e.target.value as QuotationStatus)} // 🆕 型別斷言
+                  <select
+                    value={value || '草稿'}
+                    onChange={(e) => handleStatusChange(e.target.value as QuotationStatus)}
                     className="form-input w-full"
                   >
                     <option value="草稿">草稿</option>
@@ -534,7 +506,6 @@ export default function QuoteForm({ initialData }: QuoteFormProps) {
                     <option value="已簽約">已簽約</option>
                     <option value="已歸檔">已歸檔</option>
                   </select>
-                  {/* 🆕 附件提示 */}
                   {!hasAttachment(initialData?.attachments) && (
                     <p className="text-xs text-amber-600 flex items-center">
                       <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
@@ -570,21 +541,21 @@ export default function QuoteForm({ initialData }: QuoteFormProps) {
               </div>
             </div>
         </div>
-      
+
       <div className="bg-white p-6 rounded-lg shadow">
         <div className="flex justify-between items-center mb-4">
             <h2 className="text-lg font-semibold text-gray-800 flex items-center">
               <FileSignature className="mr-2 h-5 w-5 text-indigo-500" />報價項目
             </h2>
-            <Button 
-              type="button" 
-              onClick={() => append({ 
-                category: null, 
-                kol_id: null, 
-                service: '', 
-                quantity: 1, 
-                price: 0, 
-                remark: null 
+            <Button
+              type="button"
+              onClick={() => append({
+                category: null,
+                kol_id: null,
+                service: '',
+                quantity: 1,
+                price: 0,
+                remark: null
               })}
             >
               <PlusCircle className="mr-2 h-4 w-4" /> 新增項目
@@ -600,7 +571,7 @@ export default function QuoteForm({ initialData }: QuoteFormProps) {
                     <th className="p-2 w-[220px] text-left font-medium text-gray-600">執行內容</th>
                     <th className="p-2 w-[80px] text-left font-medium text-gray-600">數量</th>
                     <th className="p-2 w-[120px] text-left font-medium text-gray-600">價格</th>
-                    <th className="p-2 w-[150px] text-left font-medium text-gray-600">備註</th>
+                    <th className="p-2 w-[150px] text-left font-medium text-gray-600">執行時間</th>
                     <th className="p-2 w-[80px] text-center font-medium text-gray-600">操作</th>
                   </tr>
                 </thead>
@@ -622,14 +593,13 @@ export default function QuoteForm({ initialData }: QuoteFormProps) {
                               />
                             </td>
                             <td className="p-3 align-top">
-                              {/* 修正後的執行內容欄位 - 根據選擇的KOL動態顯示服務項目 */}
                               <Controller
                                 control={control}
                                 name={`items.${index}.service`}
                                 render={({ field: { onChange, value } }) => {
                                   const currentKolId = watchItems[index]?.kol_id;
                                   const kolServices = currentKolId ? getKolServices(currentKolId) : [];
-                                  
+
                                   return (
                                     <>
                                       {currentKolId && kolServices.length > 0 ? (
@@ -650,10 +620,10 @@ export default function QuoteForm({ initialData }: QuoteFormProps) {
                                           ))}
                                         </select>
                                       ) : (
-                                        <Input 
-                                          value={value || ''} 
-                                          onChange={onChange} 
-                                          placeholder="執行內容" 
+                                        <Input
+                                          value={value || ''}
+                                          onChange={onChange}
+                                          placeholder="執行內容"
                                         />
                                       )}
                                     </>
@@ -665,27 +635,27 @@ export default function QuoteForm({ initialData }: QuoteFormProps) {
                               )}
                             </td>
                             <td className="p-3 align-top">
-                              <Input 
-                                type="number" 
-                                {...register(`items.${index}.quantity`, { valueAsNumber: true })} 
-                                defaultValue={1} 
+                              <Input
+                                type="number"
+                                {...register(`items.${index}.quantity`, { valueAsNumber: true })}
+                                defaultValue={1}
                               />
                               {errors.items?.[index]?.quantity && (
                                 <p className="text-red-500 text-xs mt-1">{errors.items[index]?.quantity?.message}</p>
                               )}
                             </td>
                             <td className="p-3 align-top">
-                              <Input 
-                                type="number" 
-                                {...register(`items.${index}.price`, { valueAsNumber: true })} 
-                                placeholder="價格" 
+                              <Input
+                                type="number"
+                                {...register(`items.${index}.price`, { valueAsNumber: true })}
+                                placeholder="價格"
                               />
                               {errors.items?.[index]?.price && (
                                 <p className="text-red-500 text-xs mt-1">{errors.items[index]?.price?.message}</p>
                               )}
                             </td>
                             <td className="p-3 align-top">
-                              <Input {...register(`items.${index}.remark`)} placeholder="備註" />
+                              <Input {...register(`items.${index}.remark`)} placeholder="執行時間" />
                             </td>
                             <td className="p-3 text-center align-top">
                               <Button type="button" variant="ghost" size="sm" onClick={() => remove(index)}>
@@ -716,7 +686,7 @@ export default function QuoteForm({ initialData }: QuoteFormProps) {
             <span>合計（含稅）:</span>
             <span>NT$ {grandTotalTaxed.toLocaleString()}</span>
           </div>
-          
+
           <div className="mt-4">
             <label className="flex items-center space-x-2">
               <input type="checkbox" {...register('has_discount')} className="form-checkbox" />
@@ -724,10 +694,10 @@ export default function QuoteForm({ initialData }: QuoteFormProps) {
             </label>
             {watchHasDiscount && (
               <div className="mt-2">
-                <Input 
-                  type="number" 
-                  {...register('discounted_price', { valueAsNumber: true })} 
-                  placeholder="優惠後價格" 
+                <Input
+                  type="number"
+                  {...register('discounted_price', { valueAsNumber: true })}
+                  placeholder="優惠後價格"
                   className="w-48"
                 />
               </div>
@@ -746,7 +716,7 @@ export default function QuoteForm({ initialData }: QuoteFormProps) {
             <Textarea {...register('terms')} rows={10} placeholder="合約條款內容" />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">備註</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">執行時間</label>
             <Textarea {...register('remarks')} rows={3} placeholder="其他備註事項" />
           </div>
         </div>

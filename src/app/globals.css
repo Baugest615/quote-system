@@ -112,6 +112,9 @@
   .print\:hidden {
     display: none !important;
   }
+  .break-inside-avoid {
+    break-inside: avoid;
+  }
 }
 
 .print-mode .no-print {

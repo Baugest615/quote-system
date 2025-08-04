@@ -44,7 +44,7 @@ export default function ClientsPage() {
     const filtered = clients.filter((client) =>
       client.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       (client.contact_person && client.contact_person.toLowerCase().includes(searchTerm.toLowerCase())) ||
-      (client.email && client.email.toLowerCase().includes(searchTerm.toLowerCase())) // 🆕 新增 email 搜尋
+      (client.email && client.email.toLowerCase().includes(searchTerm.toLowerCase()))
     )
     setFilteredClients(filtered)
   }, [clients, searchTerm])
@@ -59,7 +59,6 @@ export default function ClientsPage() {
     setSelectedClient(null)
   }
 
-  // 🆕 更新 handleSaveClient 函式，處理 email 欄位
   const handleSaveClient = async (
     formData: {
       name: string;
@@ -68,7 +67,7 @@ export default function ClientsPage() {
       tin?: string | null | undefined;
       invoice_title?: string | null | undefined;
       phone?: string | null | undefined;
-      email?: string | null | undefined;  // 🆕 修正：使用 optional 型別以符合 ClientModal
+      email?: string | null | undefined;
       bank_info?: {
         bankName: string | null;
         branchName: string | null;
@@ -80,14 +79,13 @@ export default function ClientsPage() {
     const dataToSave = {
       ...formData,
       phone: formData.phone || null,
-      email: formData.email || null,  // 🆕 新增 email 處理
+      email: formData.email || null,
       invoice_title: formData.invoice_title || null,
       tin: formData.tin || null,
       bank_info: formData.bank_info ?? null,
     };
 
     if (id) {
-      // 更新客戶
       const { error } = await supabase
         .from('clients')
         .update(dataToSave)
@@ -98,7 +96,6 @@ export default function ClientsPage() {
         toast.success('Client updated successfully!');
       }
     } else {
-      // 新增客戶
       const { error } = await supabase
         .from('clients')
         .insert(dataToSave);
@@ -112,7 +109,7 @@ export default function ClientsPage() {
     fetchClients();
     handleCloseModal();
   };
-  
+
   const handleDeleteClient = async (id: string) => {
     if (window.confirm('確定要刪除這位客戶嗎？此操作無法復原。')) {
       const { error } = await supabase.from('clients').delete().eq('id', id)
@@ -130,7 +127,7 @@ export default function ClientsPage() {
         <div className="flex items-center space-x-4">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-            <Input 
+            <Input
                 type="text"
                 placeholder="搜尋客戶名稱、聯絡人或電子郵件..."
                 value={searchTerm}
@@ -151,7 +148,7 @@ export default function ClientsPage() {
               <th className="p-4 font-medium text-sm">統一編號</th>
               <th className="p-4 font-medium text-sm">聯絡人</th>
               <th className="p-4 font-medium text-sm">電話</th>
-              <th className="p-4 font-medium text-sm">電子郵件</th>  {/* 🆕 新增電子郵件欄位標題 */}
+              <th className="p-4 font-medium text-sm">電子郵件</th>
               <th className="p-4 font-medium text-sm text-center">操作</th>
             </tr>
           </thead>
@@ -162,11 +159,10 @@ export default function ClientsPage() {
                 <td className="p-4 text-sm">{client.tin}</td>
                 <td className="p-4 text-sm">{client.contact_person}</td>
                 <td className="p-4 text-sm">{client.phone}</td>
-                {/* 🆕 新增電子郵件欄位顯示 */}
                 <td className="p-4 text-sm">
                   {client.email ? (
-                    <a 
-                      href={`mailto:${client.email}`} 
+                    <a
+                      href={`mailto:${client.email}`}
                       className="text-blue-600 hover:text-blue-800 hover:underline"
                       title="點擊發送郵件"
                     >

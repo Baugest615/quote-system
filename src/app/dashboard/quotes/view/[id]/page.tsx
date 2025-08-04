@@ -71,7 +71,7 @@ export default function ViewQuotePage() {
     setLoading(false);
   }, [id]);
 
-  useEffect(() => { 
+  useEffect(() => {
     fetchQuote();
     const savedConfig = localStorage.getItem(`sealStampConfig_${id}`);
     if (savedConfig) {
@@ -118,6 +118,11 @@ export default function ViewQuotePage() {
   if (loading) return <div>讀取中...</div>;
   if (!quote) return <div>找不到報價單資料。</div>;
 
+  // 將合約條款拆分為 "合約約定" 和 "保密協議"
+  const termsParts = quote.terms ? quote.terms.split('保密協議：') : [''];
+  const contractAgreement = termsParts[0].replace('合約約定：', '').trim();
+  const confidentialityAgreement = termsParts.length > 1 ? termsParts[1].trim() : '';
+
   return (
     <div className="space-y-6">
       {/* 操作按鈕區域 */}
@@ -129,8 +134,8 @@ export default function ViewQuotePage() {
           <h1 className="text-3xl font-bold">檢視報價單</h1>
         </div>
         <div className="flex space-x-2">
-          <Button 
-            variant="outline" 
+          <Button
+            variant="outline"
             disabled={isProcessing}
             onClick={() => setShowStampSettings(true)}
             className={sealStampConfig.enabled ? 'border-indigo-500 text-indigo-600' : ''}
@@ -148,21 +153,21 @@ export default function ViewQuotePage() {
           </Button>
         </div>
       </div>
-      
+
       {/* 騎縫章設定 Modal */}
-      <Modal 
-        isOpen={showStampSettings} 
+      <Modal
+        isOpen={showStampSettings}
         onClose={() => setShowStampSettings(false)}
         title="騎縫章設定"
         maxWidth="sm:max-w-2xl"
       >
-        <SealStampManager 
+        <SealStampManager
           config={sealStampConfig}
           onChange={handleSealStampConfigChange}
         />
       </Modal>
 
-      {/* 報價單內容 (保持不變) */}
+      {/* 報價單內容 */}
       <div id="printable-quote" className="relative bg-white p-8 md:p-12 rounded-lg shadow-md border text-[13px] leading-relaxed">
         <img src="/watermark-an.png" alt="watermark" className="absolute inset-0 w-full h-full opacity-5 object-contain z-0 pdf-watermark" />
         <div className="flex items-center justify-center mb-4 pb-2 border-b space-x-4">
@@ -174,19 +179,54 @@ export default function ViewQuotePage() {
                 <tr className="border-b"><td className="p-2 font-bold bg-gray-50 w-1/4">專案名稱：</td><td className="p-2" colSpan={3}>{quote.project_name}</td></tr>
                 <tr className="border-b"><td className="p-2 font-bold bg-gray-50">委刊客戶：</td><td className="p-2">{quote.clients?.name || 'N/A'}</td><td className="p-2 font-bold bg-gray-50">客戶聯絡人：</td><td className="p-2">{quote.client_contact}</td></tr>
                 <tr className="border-b"><td className="p-2 font-bold bg-gray-50">統一編號：</td><td className="p-2">{quote.clients?.tin || 'N/A'}</td><td className="p-2 font-bold bg-gray-50">電話：</td><td className="p-2">{quote.clients?.phone || 'N/A'}</td></tr>
-                <tr className="border-b"><td className="p-2 font-bold bg-gray-50">地址：</td><td className="p-2" colSpan={3}>{quote.clients?.address || 'N/A'}</td></tr>
+                <tr className="border-b"><td className="p-2 font-bold bg-gray-50">地址：</td><td className="p-2">{quote.clients?.address || 'N/A'}</td><td className="p-2 font-bold bg-gray-50">電子郵件：</td><td className="p-2">{quote.clients?.email || 'N/A'}</td></tr>
             </tbody>
         </table>
         <table className="w-full border border-gray-300 mb-6 text-xs">
-            <thead><tr className="bg-gray-50"><th className="border p-2 text-left">分類</th><th className="border p-2 text-left">KOL</th><th className="border p-2 text-left">服務內容</th><th className="border p-2 text-center">數量</th><th className="border p-2 text-right">單價</th><th className="border p-2 text-right">小計</th></tr></thead>
-            <tbody>{quote.quotation_items.map((item, index) => (<tr key={index}><td className="border p-2">{item.category || 'N/A'}</td><td className="border p-2">{item.kols?.name || 'N/A'}</td><td className="border p-2">{item.service}</td><td className="border p-2 text-center">{item.quantity}</td><td className="border p-2 text-right">${item.price.toLocaleString()}</td><td className="border p-2 text-right">${(item.price * item.quantity).toLocaleString()}</td></tr>))}</tbody>
+            <thead><tr className="bg-gray-50"><th className="border p-2 text-center">分類</th><th className="border p-2 text-center">KOL</th><th className="border p-2 text-center">服務內容</th><th className="border p-2 text-center">數量</th><th className="border p-2 text-center">價格</th><th className="border p-2 text-center">執行時間</th></tr></thead>
+            <tbody>{quote.quotation_items.map((item, index) => (<tr key={index}><td className="border p-2 text-center">{item.category || 'N/A'}</td><td className="border p-2 text-center">{item.kols?.name || 'N/A'}</td><td className="border p-2 text-center">{item.service}</td><td className="border p-2 text-center">{item.quantity}</td><td className="border p-2 text-right">${item.price}</td><td className="border p-2">{item.remark || ''}</td></tr>))}</tbody>
         </table>
-        <div className="flex justify-between mb-8 gap-8">
-            <div className="w-2/3"><div className="border p-4"><h3 className="text-sm font-bold mb-3 bg-gray-50 p-2 -m-4 mb-3 border-b">【廣告費之支付約定】</h3><div className="text-xs leading-relaxed space-y-2"><p><strong>1.</strong> 本次廣告行銷費用由委託公司負責繳付，所有費用代收百分之五的營業稅。</p><p><strong>2.</strong> 本公司應於執行到期日開立當月份發票予委刊客戶，委刊客戶應於收到發票時，按發票日期月結30日依發票所載之金額匯入本公司指定帳戶如下。</p><div className="mt-3 bg-gray-50 p-3 rounded border"><div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs"><div><strong>銀行名稱：</strong>{companyBankInfo.bankName}</div><div><strong>分行名稱：</strong>{companyBankInfo.branchName}</div><div><strong>銀行帳號：</strong>{companyBankInfo.accountNumber}</div><div><strong>帳號名稱：</strong>{companyBankInfo.accountName}</div></div></div></div></div></div>
-            <div className="w-1/3"><table className="w-full border text-sm"><tbody><tr><td className="border p-2 font-bold bg-gray-50">未稅小計</td><td className="border p-2 text-right">${quote.subtotal_untaxed?.toLocaleString() || '0'}</td></tr><tr><td className="border p-2 font-bold bg-gray-50">營業稅 (5%)</td><td className="border p-2 text-right">${quote.tax?.toLocaleString() || '0'}</td></tr><tr><td className="border p-2 font-bold bg-red-50">含稅總計</td><td className="border p-2 text-right font-bold text-red-600">${quote.grand_total_taxed?.toLocaleString() || '0'}</td></tr></tbody></table></div>
+        <div className="break-inside-avoid">
+            <div className="flex justify-between mb-8 gap-8">
+                <div className="w-2/3"><div className="border p-4 h-full"><h3 className="text-sm font-bold mb-3 bg-gray-50 p-2 -m-4 mb-3 border-b">【廣告費之支付約定】</h3><div className="text-[10px] leading-normal space-y-2"><p><strong>1.</strong> 本次廣告行銷費用由委託公司負責繳付，所有費用代收百分之五的營業稅。銀⾏⼿續費由⽀付⽅負擔。</p><p><strong>2.</strong> 本公司應於執行到期日開立當月份發票予委刊客戶，委刊客戶應於收到發票時，按發票日期月結30日依發票所載之金額匯入本公司指定帳戶如下。</p><p><strong>3.</strong> 所有報酬及因本服務契約書產⽣之相關費⽤均以本服務契約書內載明之幣值及約定付款⽇付款。 
+</p>
+                <div className="mt-3 bg-gray-50 p-3 rounded border text-xs">
+                    <table className="w-full">
+                        <tbody>
+                            <tr>
+                                <td className="py-1 pr-4"><strong>銀行名稱：</strong>{companyBankInfo.bankName}</td>
+                                <td><strong>銀行帳號：</strong>{companyBankInfo.accountNumber}</td>
+                            </tr>
+                            <tr>
+                                <td className="py-1 pr-4"><strong>分行名稱：</strong>{companyBankInfo.branchName}</td>
+                                <td><strong>帳戶名稱：</strong>{companyBankInfo.accountName}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                </div></div></div>
+                <div className="w-1/3"><table className="w-full border text-sm h-full"><tbody><tr><td className="border p-2 font-bold bg-gray-50">未稅小計</td><td className="border p-2 text-right">${quote.subtotal_untaxed?.toLocaleString() || '0'}</td></tr><tr><td className="border p-2 font-bold bg-gray-50">營業稅 (5%)</td><td className="border p-2 text-right">${quote.tax?.toLocaleString() || '0'}</td></tr><tr><td className="border p-2 font-bold bg-red-50">含稅總計</td><td className="border p-2 text-right font-bold text-red-600">${quote.grand_total_taxed?.toLocaleString() || '0'}</td></tr>{quote.has_discount && <tr><td className="border p-2 font-bold bg-blue-50">優惠價</td><td className="border p-2 text-right font-bold text-blue-600">${quote.discounted_price?.toLocaleString() || '0'}</td></tr>}</tbody></table></div>
+            </div>
         </div>
-        <div className="text-xs space-y-4 whitespace-pre-wrap">{quote.terms}</div>
-        <div className="grid grid-cols-2 gap-8 mt-12"><div className="text-center"><div className="border-t pt-2"><p className="text-sm font-bold">委刊方簽名</p><p className="text-xs text-gray-500 mt-1">日期：_____________</p></div></div><div className="text-center"><div className="border-t pt-2"><p className="text-sm font-bold">受刊方簽名</p><p className="text-xs text-gray-500 mt-1">日期：_____________</p></div></div></div>
+        <div className="text-xs space-y-4 whitespace-pre-wrap">
+            <div className="border p-4"><h3 className="text-sm font-bold mb-3 bg-gray-50 p-2 -m-4 mb-3 border-b">【合約約定】</h3><p className="text-[10px] leading-normal">{contractAgreement}</p></div>
+            <div className="border p-4"><h3 className="text-sm font-bold mb-3 bg-gray-50 p-2 -m-4 mb-3 border-b">【保密協議】</h3><p className="text-[10px] leading-normal">{confidentialityAgreement}</p></div>
+            {quote.remarks && <div className="border p-4"><h3 className="text-sm font-bold mb-3 bg-gray-50 p-2 -m-4 mb-3 border-b">【補充協議】</h3><p className="text-[10px] leading-normal">{quote.remarks}</p></div>}
+        </div>
+        <div className="grid grid-cols-2 gap-8 mt-12">
+            <div className="text-center">
+                <div className="border p-4 h-32 flex flex-col justify-between">
+                    <p className="text-sm font-bold">委刊方簽章</p>
+                    <p className="text-xs text-gray-500 mt-1">日期：_____________</p>
+                </div>
+            </div>
+            <div className="text-center">
+                <div className="border p-4 h-32 flex flex-col justify-between">
+                    <p className="text-sm font-bold">受刊方簽章</p>
+                    <p className="text-xs text-gray-500 mt-1">日期：_____________</p>
+                </div>
+            </div>
+        </div>
       </div>
     </div>
   );

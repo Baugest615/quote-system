@@ -1,16 +1,22 @@
 # 報價管理系統 (Quotation Management System)
 
-現代化的報價管理系統，支援客戶管理、KOL管理、報價單生成等功能。使用 Next.js 14 (App Router) 和 Supabase 建構的全端應用程式。
+[![Next.js](https://img.shields.io/badge/Next.js-14.x-black)](https://nextjs.org/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.8.x-blue)](https://www.typescriptlang.org/)
+[![Supabase](https://img.shields.io/badge/Supabase-Latest-green)](https://supabase.com/)
+[![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-3.x-38B2AC)](https://tailwindcss.com/)
+
+現代化的企業級報價管理系統，支援客戶管理、KOL管理、報價單生成、請款流程等完整業務功能。使用 Next.js 14 (App Router) 和 Supabase 建構的全端應用程式。
 
 ## 🚀 專案概述
 
 本系統是一個完整的業務報價管理平台，專為需要管理多種客戶、KOL（意見領袖）合作以及生成專業報價單的企業設計。系統採用現代化的技術架構，提供流暢的使用者體驗和強大的功能支援。
 
-### 主要功能特色
+### 🌟 主要功能特色
 
 - 🏢 **客戶管理**: 完整的客戶資料管理，包含聯絡資訊、發票資料、銀行資訊
 - 👥 **KOL管理**: KOL資料庫管理，包含社群連結、服務類型、價格設定  
 - 📋 **報價單管理**: 動態報價單建立、編輯、檢視與PDF匯出
+- 💰 **請款流程管理**: 完整的請款申請、審核、確認流程
 - 🔐 **權限管理**: 基於角色的存取控制（Admin/Member）
 - 📊 **報表分析**: 業務統計、營收分析、趨勢圖表
 - 📁 **檔案管理**: 支援附件上傳與管理（含浮水印PDF匯出）
@@ -19,14 +25,14 @@
 ## 🏗️ 技術架構
 
 ### 前端技術堆疊
-- **Next.js 14** (App Router) - React 全端框架
-- **TypeScript** - 型別安全與程式碼品質保證
-- **Tailwind CSS** - 原子化CSS框架
+- **Next.js 14.x** (App Router) - React 全端框架
+- **TypeScript 5.8.x** - 型別安全與程式碼品質保證
+- **Tailwind CSS 3.x** - 原子化CSS框架
 - **Shadcn/ui** - 現代化UI組件庫
 - **React Hook Form** - 高效能表單管理
 - **Zod** - TypeScript優先的資料驗證
 - **Lucide React** - 現代化圖標庫
-- **Framer Motion** - 動畫效果
+- **Framer Motion** - 動畫效果庫
 
 ### 後端與資料庫
 - **Supabase** - 開源Firebase替代方案
@@ -37,16 +43,16 @@
 - **Row Level Security (RLS)** - 資料安全保護
 
 ### PDF與檔案處理
-- **html2pdf.js** - PDF匯出（含浮水印功能）
-- **@react-pdf/renderer** - 高品質PDF生成備用方案
-- **html2canvas** - HTML轉圖像
+- **jsPDF 3.0.1** - 高品質PDF生成
+- **jsPDF-AutoTable 5.0.2** - PDF表格生成
+- **html2canvas** - HTML轉圖像（含浮水印功能）
 
 ### 開發工具
 - **ESLint & Prettier** - 程式碼品質與格式化
-- **Jest** - 單元測試框架
+- **Jest 29.7.0** - 單元測試框架
 - **Sonner** - Toast通知系統
 
-## 📁 專案檔案結構
+## 📁 完整專案檔案結構
 
 ```
 quotation-management-system/
@@ -59,6 +65,7 @@ quotation-management-system/
 │   ├── middleware.ts.backup      # 中介軟體備份檔案
 │   ├── next.config.js            # Next.js設定
 │   ├── package.json              # 專案依賴與腳本
+│   ├── package-lock.json         # 依賴版本鎖定檔案
 │   ├── postcss.config.js         # PostCSS設定
 │   ├── tailwind.config.js        # Tailwind CSS設定
 │   ├── tsconfig.json             # TypeScript設定
@@ -101,6 +108,15 @@ quotation-management-system/
     │       │       └── [id]/
     │       │           └── page.tsx # 檢視報價單（含PDF匯出）
     │       │
+    │       ├── 📁 pending-payments/    # 🆕 待請款管理
+    │       │   └── page.tsx            # 待請款項目管理頁面
+    │       │
+    │       ├── 📁 payment-requests/    # 🆕 請款申請
+    │       │   └── page.tsx            # 請款申請審核頁面
+    │       │
+    │       ├── 📁 confirmed-payments/  # 🆕 已確認請款清單
+    │       │   └── page.tsx            # 已確認請款清單管理
+    │       │
     │       ├── 📁 reports/       # 報表分析
     │       │   └── page.tsx      # 報表儀表板（營收統計、趨勢分析）
     │       │
@@ -112,10 +128,11 @@ quotation-management-system/
     │   │   ├── button.tsx        # 按鈕組件
     │   │   ├── input.tsx         # 輸入框組件
     │   │   ├── modal.tsx         # 對話框組件
-    │   │   └── textarea.tsx      # 文字區域組件
+    │   │   ├── textarea.tsx      # 文字區域組件
+    │   │   └── ...               # 其他UI組件
     │   │
     │   ├── 📁 dashboard/         # 儀表板組件
-    │   │   └── Sidebar.tsx       # 側邊欄導覽
+    │   │   └── Sidebar.tsx       # 側邊欄導覽（含請款功能選單）
     │   │
     │   ├── 📁 clients/           # 客戶相關組件
     │   │   └── ClientModal.tsx   # 客戶新增/編輯對話框
@@ -205,10 +222,41 @@ quotation-management-system/
 - `price` (單價)
 - `remark` (備註)
 
+#### 🆕 `payment_requests` (請款申請表)
+- `id` (UUID, Primary Key)
+- `quotation_item_id` (外鍵 → quotation_items)
+- `request_date` (申請日期)
+- `verification_status` ('pending' | 'approved' | 'rejected' | 'confirmed')
+- `merge_type` ('company' | 'account' | null)
+- `merge_group_id` (合併群組ID)
+- `is_merge_leader` (是否為合併領導項目)
+- `merge_color` (合併顏色標識)
+- `attachment_file_path` (附件檔案路徑)
+- `invoice_number` (發票號碼)
+- `approved_by` (審核者)
+- `rejection_reason` (駁回原因)
+
+#### 🆕 `payment_confirmations` (請款確認主表)
+- `id` (UUID, Primary Key)
+- `confirmation_date` (確認日期)
+- `total_amount` (總金額)
+- `total_items` (項目總數)
+- `created_by` (建立者)
+
+#### 🆕 `payment_confirmation_items` (請款確認項目關聯表)
+- `id` (UUID, Primary Key)
+- `payment_confirmation_id` (外鍵 → payment_confirmations)
+- `payment_request_id` (外鍵 → payment_requests)
+- `amount_at_confirmation` (確認時金額)
+- `kol_name_at_confirmation` (確認時KOL名稱)
+- `project_name_at_confirmation` (確認時專案名稱)
+- `service_at_confirmation` (確認時服務內容)
+
 ### 枚舉類型 (Enums)
 - `payment_method`: "電匯" | "ATM轉帳"
 - `quotation_status`: "草稿" | "待簽約" | "已簽約" | "已歸檔"
 - `user_role`: "admin" | "member"
+- `verification_status`: "pending" | "approved" | "rejected" | "confirmed"
 
 ### 權限與安全
 - 使用 Supabase Row Level Security (RLS)
@@ -233,8 +281,25 @@ quotation-management-system/
 - ✅ 動態報價項目管理
 - ✅ 自動稅額計算與折扣處理
 
+#### 🆕 請款管理系統
+- ✅ **待請款管理** (pending-payments)
+  - 已簽約項目的請款前準備
+  - 支援合併請款功能
+  - 附件上傳與發票號碼管理
+  - 智能檔名處理與安全性檢查
+- ✅ **請款申請審核** (payment-requests)
+  - 申請項目的審核與確認
+  - 批次操作與狀態管理
+  - 退回與駁回機制
+  - 完整的稽核追蹤
+- ✅ **已確認請款清單** (confirmed-payments)
+  - 確認項目的彙總與管理
+  - 按帳戶分組顯示
+  - 清單退回與重新處理
+  - CSV匯出功能
+
 #### PDF與檔案功能
-- ✅ **高品質PDF匯出**（html2pdf.js實作）
+- ✅ **高品質PDF匯出**（jsPDF實作）
   - 動態載入避免SSR錯誤
   - 自動浮水印添加
   - 完整樣式處理
@@ -258,77 +323,98 @@ quotation-management-system/
 - ✅ 現代化組件庫 (Shadcn/ui)
 - ✅ Toast通知系統 (Sonner)
 - ✅ 載入狀態與錯誤處理
+- ✅ 進階搜尋與篩選
+- ✅ 排序與分頁功能
 
 ### 📈 系統亮點
 
-1. **技術架構現代化**: Next.js 14 App Router + TypeScript + Supabase
-2. **PDF輸出專業級**: 含浮水印的高品質PDF生成
-3. **完整權限系統**: 多層級權限控制與路由保護
-4. **資料安全性**: RLS + 中介軟體雙重保護
-5. **使用者體驗**: 流暢的操作流程與即時回饋
+1. **完整請款工作流程**: 從待請款 → 申請審核 → 確認清單的完整流程
+2. **智能合併功能**: 支援按公司或帳戶合併請款，提高效率
+3. **PDF輸出專業級**: 含浮水印的高品質PDF生成
+4. **完整權限系統**: 多層級權限控制與路由保護
+5. **資料安全性**: RLS + 中介軟體雙重保護
+6. **使用者體驗**: 流暢的操作流程與即時回饋
+7. **技術架構現代化**: Next.js 14 App Router + TypeScript + Supabase
 
 ## 🔮 進階優化建議
 
 ### 1. 效能增強
-- **全域狀態管理**: 
-  - 引入 Zustand 減少重複API調用
+- **全域狀態管理**:
+  - 引入 Zustand 或 Redux Toolkit
   - 客戶、KOL資料本地快取
   - 背景資料同步機制
 - **載入優化**:
   - 報價單列表虛擬捲動
   - 圖片延遲載入
   - 組件程式碼分割
+  - React Query 實作資料快取
 
 ### 2. 功能擴展
 - **進階報表視覺化**:
   - Chart.js/Recharts 整合
   - 互動式圖表儀表板
   - 自訂報表範本
+  - 即時資料更新
 - **通知與自動化**:
-  - Email自動發送
-  - 到期提醒系統
-  - Webhook整合
+  - Email自動發送系統
+  - 到期提醒通知
+  - Webhook整合第三方服務
+  - 批次處理排程任務
 - **範本與工作流程**:
   - 報價單範本管理
-  - 審批工作流程
-  - 批次操作功能
+  - 可自訂的審批流程
+  - 批次操作功能增強
+  - 歷史版本控制
 
-### 3. 使用者體驗
-- **進階互動**:
+### 3. 使用者體驗優化
+- **進階互動功能**:
   - 拖拽排序功能
-  - 鍵盤快捷鍵
+  - 鍵盤快捷鍵支援
   - 批次選擇操作
-- **搜尋與篩選**:
+  - 即時協作功能
+- **搜尋與篩選增強**:
   - 全文搜尋功能
   - 進階篩選條件
-  - 儲存搜尋結果
+  - 搜尋結果高亮
+  - 儲存搜尋條件
 
-### 4. 技術架構
-- **程式碼品質**:
-  - 單元測試覆蓋率提升
-  - E2E測試實作
+### 4. 技術架構升級
+- **程式碼品質提升**:
+  - 單元測試覆蓋率提升至80%+
+  - E2E測試實作 (Playwright)
   - 錯誤邊界組件
+  - 效能監控儀表板
 - **API抽象化**:
   - 統一資料存取層
   - 自訂Hooks重構
   - 快取策略優化
+  - GraphQL整合考量
 
 ### 5. 安全性強化
 - **稽核與監控**:
-  - 操作日誌記錄
+  - 完整操作日誌記錄
   - 異常行為偵測
-  - 效能監控儀表板
+  - 即時安全監控
+  - 效能瓶頸分析
 - **資料保護**:
   - 敏感資料加密
-  - 備份與復原機制
+  - 自動備份與復原機制
   - GDPR合規功能
+  - 資料匿名化選項
+
+### 6. 行動端優化
+- **PWA功能**:
+  - 離線功能支援
+  - 推播通知
+  - 快取策略優化
+  - 原生應用體驗
 
 ## 🛠️ 開發指南
 
 ### 環境需求
-- Node.js 18.x+
-- npm 8.0.0+
-- Supabase 帳號
+- Node.js 18.x 或更高版本
+- npm 8.0.0 或更高版本
+- Supabase 帳號與專案設定
 
 ### 安裝與啟動
 ```bash
@@ -351,16 +437,31 @@ npm run dev
 
 ### 可用指令
 ```bash
-npm run dev          # 開發模式
-npm run build        # 建置生產版本
-npm run start        # 啟動生產伺服器
-npm run lint         # ESLint 檢查
-npm run lint:fix     # 自動修復 ESLint 問題
-npm run type-check   # TypeScript 型別檢查
-npm run test         # 執行測試
-npm run format       # Prettier 格式化
-npm run analyze      # Bundle 分析
-npm run clean        # 清理建置檔案
+npm run dev            # 開發模式
+npm run build          # 建置生產版本
+npm run start          # 啟動生產伺服器
+npm run lint           # ESLint 檢查
+npm run lint:fix       # 自動修復 ESLint 問題
+npm run type-check     # TypeScript 型別檢查
+npm run test           # 執行測試
+npm run test:watch     # 監視模式執行測試
+npm run test:coverage  # 執行測試覆蓋率
+npm run format         # Prettier 格式化
+npm run format:check   # 檢查格式化
+```
+
+### 主要依賴版本
+```json
+{
+  "next": "14.x",
+  "react": "18.x",
+  "typescript": "5.8.x",
+  "@supabase/supabase-js": "^2.19.0",
+  "tailwindcss": "^3.x",
+  "jspdf": "^3.0.1",
+  "lucide-react": "latest",
+  "sonner": "latest"
+}
 ```
 
 ## 📋 使用流程
@@ -369,11 +470,32 @@ npm run clean        # 清理建置檔案
 1. **系統登入** → 身份驗證 → 進入儀表板
 2. **資料建立** → 新增客戶 → 建立KOL檔案
 3. **報價製作** → 選擇客戶 → 新增項目 → 設定價格
-4. **文件處理** → 檢視預覽 → 上傳附件 → 匯出PDF
-5. **狀態追蹤** → 更新進度 → 分析報表
+4. **合約簽訂** → 更新狀態為「已簽約」
+5. **請款流程** → 待請款管理 → 申請審核 → 確認付款
+6. **文件處理** → 檢視預覽 → 上傳附件 → 匯出PDF
+7. **報表分析** → 檢視統計 → 匯出數據
+
+### 🆕 請款流程詳解
+1. **待請款準備**：
+   - 系統自動顯示「已簽約」狀態的報價項目
+   - 上傳相關附件或填入發票號碼
+   - 選擇合併方式（按公司或帳戶）
+   - 提交請款申請
+
+2. **申請審核**：
+   - 管理員審核提交的請款申請
+   - 可批次通過或個別處理
+   - 駁回時需填寫駁回原因
+   - 確認後生成請款清單
+
+3. **清單管理**：
+   - 檢視已確認的請款清單
+   - 按帳戶分組顯示項目
+   - 可匯出為CSV格式
+   - 支援清單退回重新處理
 
 ### 權限說明
-- **Admin**: 完整系統存取、用戶管理、系統設定
+- **Admin**: 完整系統存取、用戶管理、系統設定、請款審核
 - **Member**: 基本報價單操作、客戶檢視、個人資料管理
 
 ### PDF匯出特色
@@ -381,6 +503,7 @@ npm run clean        # 清理建置檔案
 - 保持網頁排版一致性
 - 支援中文字體渲染
 - 檔案大小優化
+- 動態載入避免SSR問題
 
 ## 🤝 貢獻指南
 
@@ -400,14 +523,47 @@ npm run clean        # 清理建置檔案
 - 註解使用繁體中文
 - 提交訊息使用英文
 
+### 測試要求
+- 新功能須包含單元測試
+- 保持測試覆蓋率在70%以上
+- 關鍵功能需要整合測試
+
+## 📊 專案統計
+
+- **程式碼行數**: ~15,000+ lines
+- **組件數量**: 50+ components
+- **API端點**: 30+ endpoints
+- **資料表**: 12+ tables
+- **功能模組**: 8+ modules
+
+## 🚀 部署建議
+
+### 生產環境部署
+- 建議使用 Vercel 或 Netlify
+- 設定正確的環境變數
+- 啟用 Supabase RLS 政策
+- 配置 CDN 加速靜態資源
+
+### 效能監控
+- 建議整合 Sentry 錯誤追蹤
+- 使用 Google Analytics 分析使用者行為
+- 設定 Uptime 監控服務
+
 ## 📄 授權
 
 本專案採用 MIT 授權條款 - 詳見 [LICENSE](LICENSE) 檔案
 
+## 📞 技術支援
+
+如有技術問題，請透過以下方式聯繫：
+- 建立 GitHub Issue
+- 發送郵件至專案維護者
+
 ---
 
-**最後更新**: 2025年8月2日  
-**專案版本**: v1.0.0  
-**技術支援**: 完整功能實作，建議進行進階優化
+**最後更新**: 2025年8月4日  
+**專案版本**: v1.2.0  
+**技術狀態**: ✅ 生產就緒，功能完整，建議進行進階優化  
+**下一版本規劃**: 效能優化、進階報表、自動化流程
 
-*本README反映專案當前完整功能狀態*
+*本README反映專案當前完整功能狀態，包含最新的請款管理系統*
