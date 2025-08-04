@@ -233,6 +233,224 @@ function KolSearchInput({ value, onChange, kols, placeholder }: KolSearchInputPr
     </div>
   )
 }
+// --- Category Search Input ---
+interface CategorySearchInputProps {
+    value: string | null;
+    onChange: (value: string | null) => void;
+    categories: QuoteCategory[];
+    placeholder?: string;
+}
+
+function CategorySearchInput({ value, onChange, categories, placeholder }: CategorySearchInputProps) {
+    const [isOpen, setIsOpen] = useState(false);
+    const [searchTerm, setSearchTerm] = useState('');
+    const inputRef = useRef<HTMLInputElement>(null);
+    const dropdownRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        setSearchTerm(value || '');
+    }, [value]);
+
+    const filteredCategories = searchTerm.trim().length > 0
+        ? categories.filter(cat => cat.name.toLowerCase().includes(searchTerm.toLowerCase()))
+        : categories;
+
+    const handleSelect = (name: string) => {
+        setSearchTerm(name);
+        onChange(name);
+        setIsOpen(false);
+    };
+
+    const handleClear = () => {
+        setSearchTerm('');
+        onChange(null);
+        setIsOpen(false);
+        inputRef.current?.focus();
+    };
+
+    useEffect(() => {
+        function handleClickOutside(event: MouseEvent) {
+            if (
+                dropdownRef.current && !dropdownRef.current.contains(event.target as Node) &&
+                inputRef.current && !inputRef.current.contains(event.target as Node)
+            ) {
+                setIsOpen(false);
+            }
+        }
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
+
+    return (
+        <div className="relative w-full">
+            <div className="relative">
+                <Input
+                    ref={inputRef}
+                    type="text"
+                    value={searchTerm}
+                    onChange={(e) => {
+                        setSearchTerm(e.target.value);
+                        onChange(e.target.value);
+                        setIsOpen(true);
+                    }}
+                    onFocus={() => setIsOpen(true)}
+                    placeholder={placeholder || "搜尋或輸入類別..."}
+                    className="w-full pr-8"
+                />
+                <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center space-x-1">
+                    {searchTerm && (
+                        <button type="button" onClick={handleClear} className="text-gray-400 hover:text-gray-600">
+                            <X className="h-4 w-4" />
+                        </button>
+                    )}
+                    <Search className="h-4 w-4 text-gray-400" />
+                </div>
+            </div>
+
+            {isOpen && (
+                 <div
+                    ref={dropdownRef}
+                    className="fixed z-[99999] bg-white border border-gray-300 rounded-md shadow-xl"
+                    style={{
+                        minWidth: '200px',
+                        maxHeight: '400px',
+                        overflowY: 'auto',
+                        left: inputRef.current?.getBoundingClientRect().left || 0,
+                        top: (inputRef.current?.getBoundingClientRect().bottom || 0) + 4,
+                        width: inputRef.current?.getBoundingClientRect().width || 200
+                    }}
+                 >
+                    {filteredCategories.length > 0 ? (
+                        filteredCategories.map(cat => (
+                            <div
+                                key={cat.id}
+                                onClick={() => handleSelect(cat.name)}
+                                className="px-3 py-2 text-sm cursor-pointer hover:bg-gray-100"
+                            >
+                                {cat.name}
+                            </div>
+                        ))
+                    ) : (
+                        <div className="px-3 py-2 text-sm text-gray-500">無相符結果</div>
+                    )}
+                </div>
+            )}
+        </div>
+    );
+}
+
+// --- Service Search Input ---
+interface ServiceSearchInputProps {
+    value: string;
+    onChange: (value: string) => void;
+    onPriceChange: (price: number) => void;
+    kolServices: (KolService & { service_types: ServiceType })[];
+    placeholder?: string;
+}
+
+function ServiceSearchInput({ value, onChange, onPriceChange, kolServices, placeholder }: ServiceSearchInputProps) {
+    const [isOpen, setIsOpen] = useState(false);
+    const [searchTerm, setSearchTerm] = useState('');
+    const inputRef = useRef<HTMLInputElement>(null);
+    const dropdownRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        setSearchTerm(value || '');
+    }, [value]);
+
+    const filteredServices = searchTerm.trim().length > 0
+        ? kolServices.filter(s => s.service_types.name.toLowerCase().includes(searchTerm.toLowerCase()))
+        : kolServices;
+
+    const handleSelect = (service: (KolService & { service_types: ServiceType })) => {
+        setSearchTerm(service.service_types.name);
+        onChange(service.service_types.name);
+        onPriceChange(service.price);
+        setIsOpen(false);
+    };
+    
+    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const term = e.target.value;
+        setSearchTerm(term);
+        onChange(term);
+        setIsOpen(true);
+    };
+
+    const handleClear = () => {
+        setSearchTerm('');
+        onChange('');
+        onPriceChange(0);
+        setIsOpen(false);
+        inputRef.current?.focus();
+    };
+
+    useEffect(() => {
+        function handleClickOutside(event: MouseEvent) {
+             if (
+                dropdownRef.current && !dropdownRef.current.contains(event.target as Node) &&
+                inputRef.current && !inputRef.current.contains(event.target as Node)
+            ) {
+                setIsOpen(false);
+            }
+        }
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
+    return (
+        <div className="relative w-full">
+            <div className="relative">
+                <Input
+                    ref={inputRef}
+                    type="text"
+                    value={searchTerm}
+                    onChange={handleInputChange}
+                    onFocus={() => setIsOpen(true)}
+                    placeholder={placeholder || "搜尋服務或手動輸入..."}
+                    className="w-full pr-8"
+                />
+                 <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center space-x-1">
+                    {searchTerm && (
+                        <button type="button" onClick={handleClear} className="text-gray-400 hover:text-gray-600">
+                            <X className="h-4 w-4" />
+                        </button>
+                    )}
+                    <Search className="h-4 w-4 text-gray-400" />
+                </div>
+            </div>
+
+            {isOpen && (kolServices.length > 0 || searchTerm) && (
+                 <div
+                    ref={dropdownRef}
+                    className="fixed z-[99999] bg-white border border-gray-300 rounded-md shadow-xl"
+                    style={{
+                        minWidth: '220px',
+                        maxHeight: '400px',
+                        overflowY: 'auto',
+                        left: inputRef.current?.getBoundingClientRect().left || 0,
+                        top: (inputRef.current?.getBoundingClientRect().bottom || 0) + 4,
+                        width: inputRef.current?.getBoundingClientRect().width || 220
+                    }}
+                 >
+                    {filteredServices.length > 0 ? (
+                        filteredServices.map(service => (
+                            <div
+                                key={service.id}
+                                onClick={() => handleSelect(service)}
+                                className="px-3 py-2 text-sm cursor-pointer hover:bg-gray-100"
+                            >
+                                {service.service_types.name}
+                            </div>
+                        ))
+                    ) : (
+                        <div className="px-3 py-2 text-sm text-gray-500">無相符服務，將使用手動輸入值</div>
+                    )}
+                </div>
+            )}
+        </div>
+    );
+}
 
 const transformInitialItems = (items?: QuotationItem[]): FormItem[] => {
   if (!items || items.length === 0) {
@@ -363,19 +581,8 @@ export default function QuoteForm({ initialData }: QuoteFormProps) {
       setValue('status', newStatus)
   }
 
-  const handleServiceChange = (itemIndex: number, serviceValue: string, kolId: string) => {
-    setValue(`items.${itemIndex}.service`, serviceValue);
-
-    const selectedKol = kols.find(k => k.id === kolId);
-    if (selectedKol && serviceValue) {
-      const selectedService = selectedKol.kol_services.find(s => s.service_types.name === serviceValue);
-      if (selectedService) {
-        setValue(`items.${itemIndex}.price`, selectedService.price);
-      }
-    }
-  }
-
-  const getKolServices = (kolId: string) => {
+  const getKolServices = (kolId: string | null | undefined) => {
+    if (!kolId) return [];
     const kol = kols.find(k => k.id === kolId);
     return kol?.kol_services || [];
   }
@@ -578,13 +785,20 @@ export default function QuoteForm({ initialData }: QuoteFormProps) {
                 <tbody>
                     {fields.map((field, index) => (
                         <tr key={field.id} className="align-top border-b" style={{ minHeight: '120px' }}>
-                            <td className="p-3 align-top">
-                              <select {...register(`items.${index}.category`)} className="form-input">
-                                <option value="">-- 類別 --</option>
-                                {quoteCategories.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
-                              </select>
+                           <td className="p-3 align-top" style={{ position: 'relative', zIndex: fields.length - index + 2 }}>
+                                <Controller
+                                    control={control}
+                                    name={`items.${index}.category`}
+                                    render={({ field: { onChange, value } }) => (
+                                        <CategorySearchInput
+                                            value={value}
+                                            onChange={onChange}
+                                            categories={quoteCategories}
+                                        />
+                                    )}
+                                />
                             </td>
-                            <td className="p-3 align-top" style={{ position: 'relative', zIndex: index === 0 ? 10 : 'auto' }}>
+                            <td className="p-3 align-top" style={{ position: 'relative', zIndex: fields.length - index + 1 }}>
                               <KolSearchInput
                                 value={watchItems[index]?.kol_id || ''}
                                 onChange={(kolId) => handleKolChange(index, kolId)}
@@ -592,47 +806,22 @@ export default function QuoteForm({ initialData }: QuoteFormProps) {
                                 placeholder="搜尋或選擇 KOL"
                               />
                             </td>
-                            <td className="p-3 align-top">
-                              <Controller
-                                control={control}
-                                name={`items.${index}.service`}
-                                render={({ field: { onChange, value } }) => {
-                                  const currentKolId = watchItems[index]?.kol_id;
-                                  const kolServices = currentKolId ? getKolServices(currentKolId) : [];
-
-                                  return (
-                                    <>
-                                      {currentKolId && kolServices.length > 0 ? (
-                                        <select
-                                          value={value || ''}
-                                          onChange={(e) => {
-                                            const serviceValue = e.target.value;
-                                            onChange(serviceValue);
-                                            handleServiceChange(index, serviceValue, currentKolId);
-                                          }}
-                                          className="form-input"
-                                        >
-                                          <option value="">-- 選擇服務項目 --</option>
-                                          {kolServices.map(service => (
-                                            <option key={service.id} value={service.service_types.name}>
-                                              {service.service_types.name}
-                                            </option>
-                                          ))}
-                                        </select>
-                                      ) : (
-                                        <Input
-                                          value={value || ''}
-                                          onChange={onChange}
-                                          placeholder="執行內容"
+                           <td className="p-3 align-top" style={{ position: 'relative', zIndex: fields.length - index }}>
+                                <Controller
+                                    control={control}
+                                    name={`items.${index}.service`}
+                                    render={({ field: { onChange, value } }) => (
+                                        <ServiceSearchInput
+                                            value={value}
+                                            onChange={onChange}
+                                            onPriceChange={(price) => setValue(`items.${index}.price`, price)}
+                                            kolServices={getKolServices(watchItems[index]?.kol_id)}
                                         />
-                                      )}
-                                    </>
-                                  );
-                                }}
-                              />
-                              {errors.items?.[index]?.service && (
-                                <p className="text-red-500 text-xs mt-1">{errors.items[index]?.service?.message}</p>
-                              )}
+                                    )}
+                                />
+                                {errors.items?.[index]?.service && (
+                                    <p className="text-red-500 text-xs mt-1">{errors.items[index]?.service?.message}</p>
+                                )}
                             </td>
                             <td className="p-3 align-top">
                               <Input
