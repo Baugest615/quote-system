@@ -15,7 +15,7 @@ export interface SealStampTemplate {
   };
 }
 
-// 預設騎縫章範本
+// ... (SEAL_STAMP_TEMPLATES and other functions remain the same) ...
 export const SEAL_STAMP_TEMPLATES: SealStampTemplate[] = [
   {
     id: 'company-seal',
@@ -71,7 +71,6 @@ export const SEAL_STAMP_TEMPLATES: SealStampTemplate[] = [
   }
 ];
 
-// 生成騎縫章 SVG
 export function generateSealStampSVG(
   text: string, 
   options: {
@@ -103,7 +102,6 @@ export function generateSealStampSVG(
         </style>
       </defs>
       
-      <!-- 背景圓形 -->
       <circle 
         cx="${width/2}" 
         cy="${height/2}" 
@@ -113,7 +111,6 @@ export function generateSealStampSVG(
         stroke-width="3"
       />
       
-      <!-- 主要文字 -->
       <text 
         x="${width/2}" 
         y="${height/2}" 
@@ -124,7 +121,6 @@ export function generateSealStampSVG(
         ${text}
       </text>
       
-      <!-- 裝飾邊框 -->
       <circle 
         cx="${width/2}" 
         cy="${height/2}" 
@@ -137,7 +133,6 @@ export function generateSealStampSVG(
   `;
 }
 
-// 將 SVG 轉換為 PNG
 export async function svgToPng(svgString: string, scale: number = 2): Promise<string> {
   return new Promise((resolve, reject) => {
     const canvas = document.createElement('canvas');
@@ -172,7 +167,6 @@ export async function svgToPng(svgString: string, scale: number = 2): Promise<st
   });
 }
 
-// 創建自訂騎縫章
 export async function createCustomSealStamp(
   companyName: string,
   stampType: 'circular' | 'rectangular' | 'bridge'
@@ -208,7 +202,6 @@ export async function createCustomSealStamp(
           <rect x="2" y="2" width="36" height="196" fill="transparent" stroke="#cc0000" stroke-width="3"/>
           <rect x="6" y="6" width="28" height="188" fill="none" stroke="#cc0000" stroke-width="1"/>
           
-          <!-- 垂直文字效果 -->
           ${companyName.split('').map((char, index) => `
             <text x="20" y="${30 + index * 25}" font-size="16" font-weight="bold" fill="#cc0000" 
                   text-anchor="middle" font-family="Microsoft JhengHei, 微軟正黑體, Arial, sans-serif">
@@ -226,7 +219,6 @@ export async function createCustomSealStamp(
   return svgToPng(svgContent);
 }
 
-// 騎縫章位置計算
 export function calculateSealStampPosition(
   pageSize: { width: number; height: number },
   stampConfig: {
@@ -244,69 +236,39 @@ export function calculateSealStampPosition(
 
   let x: number, y: number;
 
-  // 水平位置
   if (position === 'right') {
     x = width - (size / 2) + offsetX;
   } else {
     x = -(size / 2) + offsetX;
   }
 
-  // 垂直位置
   if (overlayPages && totalPages > 1) {
-    // 跨頁重疊效果：讓印章在不同頁面略有偏移，形成連續感
     const pageOffset = (height / totalPages) * (pageNumber - 1);
     y = (height / 2) + offsetY - pageOffset * 0.15;
   } else {
-    // 每頁相同位置
     y = (height / 2) + offsetY;
   }
 
   return { x, y };
 }
 
-// 驗證騎縫章配置
 export function validateSealStampConfig(config: any): string[] {
   const errors: string[] = [];
-
-  if (!config.stampImage) {
-    errors.push('請選擇印章圖片');
-  }
-
-  if (config.size < 0.5 || config.size > 3.0) {
-    errors.push('印章大小必須在 0.5 到 3.0 英吋之間');
-  }
-
-  if (config.opacity < 0.1 || config.opacity > 1.0) {
-    errors.push('透明度必須在 10% 到 100% 之間');
-  }
-
-  if (config.rotation < -90 || config.rotation > 90) {
-    errors.push('旋轉角度必須在 -90° 到 90° 之間');
-  }
-
+  if (!config.stampImage) errors.push('請選擇印章圖片');
+  if (config.size < 0.5 || config.size > 3.0) errors.push('印章大小必須在 0.5 到 3.0 英吋之間');
+  if (config.opacity < 0.1 || config.opacity > 1.0) errors.push('透明度必須在 10% 到 100% 之間');
+  if (config.rotation < -90 || config.rotation > 90) errors.push('旋轉角度必須在 -90° 到 90° 之間');
   return errors;
 }
 
-// 匯出騎縫章設定
 export function exportSealStampConfig(config: any): string {
-  const exportData = {
-    version: '1.0',
-    timestamp: new Date().toISOString(),
-    config: config
-  };
-
-  return JSON.stringify(exportData, null, 2);
+  return JSON.stringify({ version: '1.0', timestamp: new Date().toISOString(), config }, null, 2);
 }
 
-// 匯入騎縫章設定
 export function importSealStampConfig(jsonString: string): any {
   try {
     const importData = JSON.parse(jsonString);
-    
-    if (!importData.config) {
-      throw new Error('無效的設定檔格式');
-    }
-
+    if (!importData.config) throw new Error('無效的設定檔格式');
     return importData.config;
   } catch (error) {
     throw new Error('設定檔解析失敗：' + (error as Error).message);
@@ -315,36 +277,19 @@ export function importSealStampConfig(jsonString: string): any {
 
 // 上傳印章圖片到 Supabase
 export async function uploadSealStampImage(
-  file: File,
+  file: File, // 【關鍵修正】明確指定 file 的類型為 File
   supabaseClient: any
 ): Promise<string> {
-  // 檔案驗證
-  if (!file.type.startsWith('image/')) {
-    throw new Error('只能上傳圖片檔案');
-  }
+  if (!file.type.startsWith('image/')) throw new Error('只能上傳圖片檔案');
+  if (file.size > 5 * 1024 * 1024) throw new Error('檔案大小不得超過 5MB');
 
-  if (file.size > 5 * 1024 * 1024) { // 5MB
-    throw new Error('檔案大小不得超過 5MB');
-  }
-
-  // 生成唯一檔名
   const fileExt = file.name.split('.').pop();
   const fileName = `seal-stamps/${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
 
-  // 上傳檔案
-  const { data, error } = await supabaseClient.storage
-    .from('attachments')
-    .upload(fileName, file);
+  const { data, error } = await supabaseClient.storage.from('attachments').upload(fileName, file);
+  if (error) throw new Error('上傳失敗：' + error.message);
 
-  if (error) {
-    throw new Error('上傳失敗：' + error.message);
-  }
-
-  // 獲取公開 URL
-  const { data: { publicUrl } } = supabaseClient.storage
-    .from('attachments')
-    .getPublicUrl(data.path);
-
+  const { data: { publicUrl } } = supabaseClient.storage.from('attachments').getPublicUrl(data.path);
   return publicUrl;
 }
 
@@ -357,26 +302,18 @@ export async function cleanupOldSealStamps(
   cutoffDate.setDate(cutoffDate.getDate() - daysOld);
 
   try {
-    const { data: files, error } = await supabaseClient.storage
-      .from('attachments')
-      .list('seal-stamps');
-
+    const { data: files, error } = await supabaseClient.storage.from('attachments').list('seal-stamps');
     if (error) throw error;
 
-    const oldFiles = files?.filter(file => {
+    const oldFiles = files?.filter((file: any) => { // 【關鍵修正】明確指定 file 的類型為 any
       const fileDate = new Date(file.created_at);
       return fileDate < cutoffDate;
     });
 
     if (oldFiles && oldFiles.length > 0) {
-      const filePaths = oldFiles.map(file => `seal-stamps/${file.name}`);
-      
-      const { error: deleteError } = await supabaseClient.storage
-        .from('attachments')
-        .remove(filePaths);
-
+      const filePaths = oldFiles.map((file: any) => `seal-stamps/${file.name}`); // 【關鍵修正】明確指定 file 的類型為 any
+      const { error: deleteError } = await supabaseClient.storage.from('attachments').remove(filePaths);
       if (deleteError) throw deleteError;
-      
       console.log(`清理了 ${oldFiles.length} 個舊的印章檔案`);
     }
   } catch (error) {

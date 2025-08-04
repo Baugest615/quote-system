@@ -117,3 +117,7 @@
 .print-mode .no-print {
     display: none !important;
 }
+
+.pdf-watermark {
+  pointer-events: none;
+}
