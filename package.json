@@ -1,6 +1,6 @@
 {
   "name": "quotation-management-system",
-  "version": "1.0.0",
+  "version": "1.2.1",
   "description": "現代化的報價管理系統，支援客戶管理、KOL管理、報價單生成等功能",
   "private": true,
   "scripts": {
