@@ -1,4 +1,4 @@
-// src/app/dashboard/quotes/view/[id]/page.tsx - 優化版
+// src/app/dashboard/quotes/view/[id]/page.tsx - 最終動態版
 'use client'
 
 import { useState, useEffect, useCallback } from 'react';
@@ -7,10 +7,11 @@ import Link from 'next/link';
 import supabase from '@/lib/supabase/client';
 import { Database } from '@/types/database.types';
 import { Button } from '@/components/ui/button';
-import { Edit, Trash2, Printer, ArrowLeft, Stamp } from 'lucide-react';
+import { Edit, Trash2, Printer, ArrowLeft, Stamp, UserCheck } from 'lucide-react';
 import { Modal } from '@/components/ui/modal';
-import { pdfGenerator } from '@/lib/pdf/enhanced-pdf-generator'; // 匯入新的生成器
-import { SealStampManager, SealStampConfig } from '@/components/pdf/SealStampManager'; // 匯入設定元件和類型
+import { pdfGenerator } from '@/lib/pdf/enhanced-pdf-generator';
+import { SealStampConfig, SealStampManager } from '@/components/pdf/SealStampManager';
+import { ElectronicSealManager } from '@/components/pdf/ElectronicSealManager';
 
 type Quotation = Database['public']['Tables']['quotations']['Row'];
 type QuotationItem = Database['public']['Tables']['quotation_items']['Row'];
@@ -43,6 +44,18 @@ const defaultSealStampConfig: SealStampConfig = {
   overlayPages: true,
 };
 
+const defaultElectronicSealConfig: SealStampConfig = {
+  enabled: false,
+  stampImage: '/seals/approved-seal.png',
+  position: 'left',
+  offsetX: 0,
+  offsetY: 0,
+  size: 1.0,
+  opacity: 0.9,
+  rotation: 0,
+  overlayPages: false,
+};
+
 export default function ViewQuotePage() {
   const params = useParams();
   const router = useRouter();
@@ -52,6 +65,8 @@ export default function ViewQuotePage() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [showStampSettings, setShowStampSettings] = useState(false);
   const [sealStampConfig, setSealStampConfig] = useState<SealStampConfig>(defaultSealStampConfig);
+  const [showElectronicSealSettings, setShowElectronicSealSettings] = useState(false);
+  const [electronicSealConfig, setElectronicSealConfig] = useState<SealStampConfig>(defaultElectronicSealConfig);
 
   const fetchQuote = useCallback(async () => {
     if (!id) return;
@@ -73,17 +88,28 @@ export default function ViewQuotePage() {
 
   useEffect(() => {
     fetchQuote();
-    const savedConfig = localStorage.getItem(`sealStampConfig_${id}`);
-    if (savedConfig) {
+    const savedSealConfig = localStorage.getItem(`sealStampConfig_${id}`);
+    if (savedSealConfig) {
       try {
-        setSealStampConfig(JSON.parse(savedConfig));
+        setSealStampConfig(JSON.parse(savedSealConfig));
       } catch (e) { console.warn("Failed to load seal stamp config.") }
+    }
+    const savedElectronicConfig = localStorage.getItem(`electronicSealConfig_${id}`);
+    if (savedElectronicConfig) {
+      try {
+        setElectronicSealConfig(JSON.parse(savedElectronicConfig));
+      } catch (e) { console.warn("Failed to load electronic seal config.") }
     }
   }, [fetchQuote, id]);
 
   const handleSealStampConfigChange = useCallback((config: SealStampConfig) => {
     setSealStampConfig(config);
     localStorage.setItem(`sealStampConfig_${id}`, JSON.stringify(config));
+  }, [id]);
+
+  const handleElectronicSealConfigChange = useCallback((config: SealStampConfig) => {
+    setElectronicSealConfig(config);
+    localStorage.setItem(`electronicSealConfig_${id}`, JSON.stringify(config));
   }, [id]);
 
   const handleDelete = async () => {
@@ -107,6 +133,7 @@ export default function ViewQuotePage() {
         filename: `報價單-${quote.clients?.name || '客戶'}-${quote.project_name}.pdf`,
         elementId: 'printable-quote',
         sealStamp: sealStampConfig,
+        // 【已移除】不再需要傳遞 electronicSeal
       });
     } catch (error: any) {
       alert(error.message);
@@ -114,11 +141,18 @@ export default function ViewQuotePage() {
       setIsProcessing(false);
     }
   };
+  
+  // 【新增】動態計算印章樣式
+  const sealImageStyle: React.CSSProperties = {
+      width: `${electronicSealConfig.size}in`,
+      height: `${electronicSealConfig.size}in`,
+      opacity: electronicSealConfig.opacity,
+      transform: `translate(${electronicSealConfig.offsetX}in, ${electronicSealConfig.offsetY}in) rotate(${electronicSealConfig.rotation}deg)`,
+  };
 
   if (loading) return <div>讀取中...</div>;
   if (!quote) return <div>找不到報價單資料。</div>;
 
-  // 將合約條款拆分為 "合約約定" 和 "保密協議"
   const termsParts = quote.terms ? quote.terms.split('保密協議：') : [''];
   const contractAgreement = termsParts[0].replace('合約約定：', '').trim();
   const confidentialityAgreement = termsParts.length > 1 ? termsParts[1].trim() : '';
@@ -134,6 +168,14 @@ export default function ViewQuotePage() {
           <h1 className="text-3xl font-bold">檢視報價單</h1>
         </div>
         <div className="flex space-x-2">
+          <Button
+            variant="outline"
+            disabled={isProcessing}
+            onClick={() => setShowElectronicSealSettings(true)}
+            className={electronicSealConfig.enabled ? 'border-green-500 text-green-600' : ''}
+          >
+            <UserCheck className="mr-2 h-4 w-4" /> 電子用印
+          </Button>
           <Button
             variant="outline"
             disabled={isProcessing}
@@ -153,6 +195,19 @@ export default function ViewQuotePage() {
           </Button>
         </div>
       </div>
+
+      {/* 電子用印設定 Modal */}
+      <Modal
+        isOpen={showElectronicSealSettings}
+        onClose={() => setShowElectronicSealSettings(false)}
+        title="電子用印設定"
+        maxWidth="sm:max-w-2xl"
+      >
+        <ElectronicSealManager
+          config={electronicSealConfig}
+          onChange={handleElectronicSealConfigChange}
+        />
+      </Modal>
 
       {/* 騎縫章設定 Modal */}
       <Modal
@@ -239,17 +294,26 @@ export default function ViewQuotePage() {
             <div className="border p-4"><h3 className="text-sm font-bold mb-3 bg-gray-50 p-2 -m-4 mb-3 border-b">【保密協議】</h3><p className="text-[10px] leading-normal">{confidentialityAgreement}</p></div>
             {quote.remarks && <div className="border p-4"><h3 className="text-sm font-bold mb-3 bg-gray-50 p-2 -m-4 mb-3 border-b">【補充協議】</h3><p className="text-[10px] leading-normal">{quote.remarks}</p></div>}
         </div>
-        <div className="grid grid-cols-2 gap-8 mt-12">
-            <div className="text-center">
-                <div className="border p-4 h-32 flex flex-col justify-between">
+        
+        <div className="mt-12 flex justify-between items-start gap-8 break-inside-avoid">
+            {/* 【關鍵修正】使用新的 CSS class 並動態渲染印章 */}
+            <div className="text-center w-[48%]">
+                <div className="signature-box">
                     <p className="text-sm font-bold">委刊方簽章</p>
-                    <p className="text-xs text-gray-500 mt-1">日期：_____________</p>
+                    {electronicSealConfig.enabled && (
+                        <div className="seal-image-container">
+                            <img 
+                                src={electronicSealConfig.stampImage} 
+                                alt="Electronic Seal" 
+                                style={sealImageStyle}
+                            />
+                        </div>
+                    )}
                 </div>
             </div>
-            <div className="text-center">
-                <div className="border p-4 h-32 flex flex-col justify-between">
+            <div className="text-center w-[48%]">
+                <div className="signature-box">
                     <p className="text-sm font-bold">受刊方簽章</p>
-                    <p className="text-xs text-gray-500 mt-1">日期：_____________</p>
                 </div>
             </div>
         </div>
