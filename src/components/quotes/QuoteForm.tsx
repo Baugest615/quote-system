@@ -67,6 +67,50 @@ interface QuoteFormProps {
   initialData?: Quotation & { quotation_items: QuotationItem[] }
 }
 
+// --- Dynamic Dropdown Component ---
+interface DynamicDropdownProps {
+  isOpen: boolean
+  children: React.ReactNode
+  inputRef: React.RefObject<HTMLInputElement>
+  className?: string
+}
+
+function DynamicDropdown({ isOpen, children, inputRef, className = '' }: DynamicDropdownProps) {
+  const [position, setPosition] = useState({ left: 0, top: 0, width: 200 })
+  const dropdownRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (isOpen && inputRef.current) {
+      const rect = inputRef.current.getBoundingClientRect()
+      setPosition({
+        left: rect.left,
+        top: rect.bottom + 4,
+        width: Math.max(200, rect.width)
+      })
+    }
+  }, [isOpen, inputRef])
+
+  useEffect(() => {
+    if (dropdownRef.current && isOpen) {
+      const dropdown = dropdownRef.current
+      dropdown.style.left = `${position.left}px`
+      dropdown.style.top = `${position.top}px`
+      dropdown.style.width = `${position.width}px`
+    }
+  }, [position, isOpen])
+
+  if (!isOpen) return null
+
+  return (
+    <div
+      ref={dropdownRef}
+      className={`dropdown-fixed ${className}`}
+    >
+      {children}
+    </div>
+  )
+}
+
 // --- KOL 搜尋選擇器組件 ---
 interface KolSearchInputProps {
   value: string
@@ -170,69 +214,60 @@ function KolSearchInput({ value, onChange, kols, placeholder }: KolSearchInputPr
         </div>
       </div>
 
-      {isOpen && (
-        <div
-          ref={dropdownRef}
-          className="fixed z-[99999] bg-white border border-gray-300 rounded-md shadow-xl"
-          style={{
-            minWidth: '320px',
-            boxShadow: '0 10px 25px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)',
-            maxHeight: filteredKols.length > 8 ? '400px' : 'auto',
-            overflowY: filteredKols.length > 8 ? 'auto' : 'visible',
-            left: inputRef.current?.getBoundingClientRect().left || 0,
-            top: (inputRef.current?.getBoundingClientRect().bottom || 0) + 4,
-            width: Math.max(320, inputRef.current?.getBoundingClientRect().width || 320)
-          }}
-        >
-          {searchTerm.trim().length === 0 ? (
-            <div className="p-4 text-sm text-gray-500 text-center">
-              <div className="flex items-center justify-center mb-2">
-                <Search className="h-4 w-4 mr-2" />
-                <span>開始輸入即可搜尋 KOL</span>
-              </div>
-              <div className="text-xs text-gray-400">
-                支援搜尋 KOL 名稱或真實姓名
-              </div>
+      <DynamicDropdown
+        isOpen={isOpen}
+        inputRef={inputRef}
+        className={`dropdown-wide ${filteredKols.length > 8 ? 'dropdown-scrollable' : ''}`}
+      >
+        {searchTerm.trim().length === 0 ? (
+          <div className="p-4 text-sm text-gray-500 text-center">
+            <div className="flex items-center justify-center mb-2">
+              <Search className="h-4 w-4 mr-2" />
+              <span>開始輸入即可搜尋 KOL</span>
             </div>
-          ) : filteredKols.length > 0 ? (
-            <div className="divide-y divide-gray-100">
-              {filteredKols.map((kol, index) => (
-                <button
-                  key={kol.id}
-                  type="button"
-                  onClick={() => handleKolSelect(kol)}
-                  className="w-full px-4 py-3 text-left hover:bg-blue-50 focus:bg-blue-50 focus:outline-none transition-colors"
-                >
-                  <div className="flex flex-col">
-                    <span className="font-medium text-sm text-gray-900">{kol.name}</span>
-                    {kol.real_name && (
-                      <span className="text-xs text-gray-500 mt-0.5">{kol.real_name}</span>
-                    )}
-                    <span className="text-xs text-blue-600 mt-1">
-                      {kol.kol_services.length} 個服務項目
-                    </span>
-                  </div>
-                </button>
-              ))}
-              {filteredKols.length > 8 && (
-                <div className="px-4 py-2 text-xs text-gray-500 bg-gray-50 text-center border-t border-gray-200">
-                  共 {filteredKols.length} 個結果 • 可向上滾動查看更多
+            <div className="text-xs text-gray-400">
+              支援搜尋 KOL 名稱或真實姓名
+            </div>
+          </div>
+        ) : filteredKols.length > 0 ? (
+          <div className="divide-y divide-gray-100">
+            {filteredKols.map((kol, index) => (
+              <button
+                key={kol.id}
+                type="button"
+                onClick={() => handleKolSelect(kol)}
+                className="w-full px-4 py-3 text-left hover:bg-blue-50 focus:bg-blue-50 focus:outline-none transition-colors"
+              >
+                <div className="flex flex-col">
+                  <span className="font-medium text-sm text-gray-900">{kol.name}</span>
+                  {kol.real_name && (
+                    <span className="text-xs text-gray-500 mt-0.5">{kol.real_name}</span>
+                  )}
+                  <span className="text-xs text-blue-600 mt-1">
+                    {kol.kol_services.length} 個服務項目
+                  </span>
                 </div>
-              )}
-            </div>
-          ) : (
-            <div className="p-4 text-sm text-gray-500 text-center">
-              找不到包含 "<span className="font-medium">{searchTerm}</span>" 的 KOL
-              <div className="text-xs text-gray-400 mt-1">
-                請嘗試其他關鍵字
+              </button>
+            ))}
+            {filteredKols.length > 8 && (
+              <div className="px-4 py-2 text-xs text-gray-500 bg-gray-50 text-center border-t border-gray-200">
+                共 {filteredKols.length} 個結果 • 可向上滾動查看更多
               </div>
+            )}
+          </div>
+        ) : (
+          <div className="p-4 text-sm text-gray-500 text-center">
+            找不到包含 "<span className="font-medium">{searchTerm}</span>" 的 KOL
+            <div className="text-xs text-gray-400 mt-1">
+              請嘗試其他關鍵字
             </div>
-          )}
-        </div>
-      )}
+          </div>
+        )}
+      </DynamicDropdown>
     </div>
   )
 }
+
 // --- Category Search Input ---
 interface CategorySearchInputProps {
     value: string | null;
@@ -281,7 +316,6 @@ function CategorySearchInput({ value, onChange, categories, placeholder }: Categ
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, []);
 
-
     return (
         <div className="relative w-full">
             <div className="relative">
@@ -300,42 +334,38 @@ function CategorySearchInput({ value, onChange, categories, placeholder }: Categ
                 />
                 <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center space-x-1">
                     {searchTerm && (
-                        <button type="button" onClick={handleClear} className="text-gray-400 hover:text-gray-600">
-                            <X className="h-4 w-4" />
+                        <button
+                          type="button"
+                          onClick={handleClear}
+                          className="text-gray-400 hover:text-gray-600"
+                          title="清除已選取"
+                        >
+                          <X className="h-4 w-4" />
                         </button>
                     )}
                     <Search className="h-4 w-4 text-gray-400" />
                 </div>
             </div>
 
-            {isOpen && (
-                 <div
-                    ref={dropdownRef}
-                    className="fixed z-[99999] bg-white border border-gray-300 rounded-md shadow-xl"
-                    style={{
-                        minWidth: '200px',
-                        maxHeight: '400px',
-                        overflowY: 'auto',
-                        left: inputRef.current?.getBoundingClientRect().left || 0,
-                        top: (inputRef.current?.getBoundingClientRect().bottom || 0) + 4,
-                        width: inputRef.current?.getBoundingClientRect().width || 200
-                    }}
-                 >
-                    {filteredCategories.length > 0 ? (
-                        filteredCategories.map(cat => (
-                            <div
-                                key={cat.id}
-                                onClick={() => handleSelect(cat.name)}
-                                className="px-3 py-2 text-sm cursor-pointer hover:bg-gray-100"
-                            >
-                                {cat.name}
-                            </div>
-                        ))
-                    ) : (
-                        <div className="px-3 py-2 text-sm text-gray-500">無相符結果</div>
-                    )}
-                </div>
-            )}
+            <DynamicDropdown
+                isOpen={isOpen}
+                inputRef={inputRef}
+                className="dropdown-standard dropdown-scrollable"
+            >
+                {filteredCategories.length > 0 ? (
+                    filteredCategories.map(cat => (
+                        <div
+                            key={cat.id}
+                            onClick={() => handleSelect(cat.name)}
+                            className="px-3 py-2 text-sm cursor-pointer hover:bg-gray-100"
+                        >
+                            {cat.name}
+                        </div>
+                    ))
+                ) : (
+                    <div className="px-3 py-2 text-sm text-gray-500">無相符結果</div>
+                )}
+            </DynamicDropdown>
         </div>
     );
 }
@@ -412,27 +442,25 @@ function ServiceSearchInput({ value, onChange, onPriceChange, kolServices, place
                 />
                  <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center space-x-1">
                     {searchTerm && (
-                        <button type="button" onClick={handleClear} className="text-gray-400 hover:text-gray-600">
-                            <X className="h-4 w-4" />
+                        <button
+                          type="button"
+                          onClick={handleClear}
+                          className="text-gray-400 hover:text-gray-600"
+                          title="清除已選取"
+                        >
+                          <X className="h-4 w-4" />
                         </button>
                     )}
                     <Search className="h-4 w-4 text-gray-400" />
                 </div>
             </div>
 
-            {isOpen && (kolServices.length > 0 || searchTerm) && (
-                 <div
-                    ref={dropdownRef}
-                    className="fixed z-[99999] bg-white border border-gray-300 rounded-md shadow-xl"
-                    style={{
-                        minWidth: '220px',
-                        maxHeight: '400px',
-                        overflowY: 'auto',
-                        left: inputRef.current?.getBoundingClientRect().left || 0,
-                        top: (inputRef.current?.getBoundingClientRect().bottom || 0) + 4,
-                        width: inputRef.current?.getBoundingClientRect().width || 220
-                    }}
-                 >
+            {(kolServices.length > 0 || searchTerm) && (
+                <DynamicDropdown
+                    isOpen={isOpen}
+                    inputRef={inputRef}
+                    className="dropdown-medium dropdown-scrollable"
+                >
                     {filteredServices.length > 0 ? (
                         filteredServices.map(service => (
                             <div
@@ -446,7 +474,7 @@ function ServiceSearchInput({ value, onChange, onPriceChange, kolServices, place
                     ) : (
                         <div className="px-3 py-2 text-sm text-gray-500">無相符服務，將使用手動輸入值</div>
                     )}
-                </div>
+                </DynamicDropdown>
             )}
         </div>
     );
@@ -667,14 +695,29 @@ export default function QuoteForm({ initialData }: QuoteFormProps) {
             {errors.project_name && <p className="text-red-500 text-sm mt-1">{errors.project_name.message}</p>}
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">選擇客戶</label>
+            <label
+              htmlFor="client-select"
+              className="block text-sm font-medium text-gray-700 mb-1"
+            >
+              選擇客戶
+            </label>
             <Controller
               control={control}
               name="client_id"
               render={({ field: { onChange, value } }) => (
-                <select value={value || ''} onChange={onChange} className="form-input">
+                <select
+                  id="client-select"
+                  value={value || ''}
+                  onChange={onChange}
+                  className="form-input"
+                  aria-label="選擇客戶"
+                >
                   <option value="">-- 選擇客戶 --</option>
-                  {clients.map(client => <option key={client.id} value={client.id}>{client.name}</option>)}
+                  {clients.map(client => (
+                    <option key={client.id} value={client.id}>
+                      {client.name}
+                    </option>
+                  ))}
                 </select>
               )}
             />
@@ -697,13 +740,14 @@ export default function QuoteForm({ initialData }: QuoteFormProps) {
             <Input value={clientInfo.tin} readOnly className="bg-gray-100" placeholder="選擇客戶後自動填入" />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">狀態</label>
+            <label htmlFor="status-select" className="block text-sm font-medium text-gray-700 mb-1">狀態</label>
             <Controller
               control={control}
               name="status"
-              render={({ field: { value } }) => (
+              render={({ field: {  value, onChange } }) => (
                 <div className="space-y-2">
                   <select
+                    id="status-select"
                     value={value || '草稿'}
                     onChange={(e) => handleStatusChange(e.target.value as QuotationStatus)}
                     className="form-input w-full"
@@ -784,21 +828,21 @@ export default function QuoteForm({ initialData }: QuoteFormProps) {
                 </thead>
                 <tbody>
                     {fields.map((field, index) => (
-                        <tr key={field.id} className="align-top border-b" style={{ minHeight: '120px' }}>
-                           <td className="p-3 align-top" style={{ position: 'relative', zIndex: fields.length - index + 2 }}>
+                        <tr key={field.id} className="align-top border-b table-row-min-height">
+                           <td className={`p-3 align-top ${index === 0 ? 'cell-z-high' : index === 1 ? 'cell-z-medium' : index === 2 ? 'cell-z-low' : 'cell-z-lower'}`}>
                                 <Controller
                                     control={control}
                                     name={`items.${index}.category`}
                                     render={({ field: { onChange, value } }) => (
                                         <CategorySearchInput
-                                            value={value}
+                                            value={value ?? null}
                                             onChange={onChange}
                                             categories={quoteCategories}
                                         />
                                     )}
                                 />
                             </td>
-                            <td className="p-3 align-top" style={{ position: 'relative', zIndex: fields.length - index + 1 }}>
+                            <td className={`p-3 align-top ${index === 0 ? 'cell-z-medium' : index === 1 ? 'cell-z-low' : 'cell-z-lower'}`}>
                               <KolSearchInput
                                 value={watchItems[index]?.kol_id || ''}
                                 onChange={(kolId) => handleKolChange(index, kolId)}
@@ -806,7 +850,7 @@ export default function QuoteForm({ initialData }: QuoteFormProps) {
                                 placeholder="搜尋或選擇 KOL"
                               />
                             </td>
-                           <td className="p-3 align-top" style={{ position: 'relative', zIndex: fields.length - index }}>
+                           <td className={`p-3 align-top ${index === 0 ? 'cell-z-low' : 'cell-z-lower'}`}>
                                 <Controller
                                     control={control}
                                     name={`items.${index}.service`}

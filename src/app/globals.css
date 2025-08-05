@@ -124,3 +124,58 @@
 .pdf-watermark {
   pointer-events: none;
 }
+/* QuoteForm 下拉選單和表格樣式 - 新增到 globals.css 文件中 */
+
+/* 下拉選單定位樣式 */
+.dropdown-fixed {
+  @apply fixed z-[99999] bg-white border border-gray-300 rounded-md shadow-xl;
+  box-shadow: 0 10px 25px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+}
+
+.dropdown-scrollable {
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.dropdown-wide {
+  min-width: 320px;
+}
+
+.dropdown-medium {
+  min-width: 220px;
+}
+
+.dropdown-standard {
+  min-width: 200px;
+}
+
+/* 表格行樣式 */
+.table-row-min-height {
+  min-height: 120px;
+}
+
+/* 表格單元格定位樣式 - 使用不同的 z-index 層級 */
+.cell-z-high {
+  @apply relative;
+  z-index: 10;
+}
+
+.cell-z-medium {
+  @apply relative;
+  z-index: 9;
+}
+
+.cell-z-low {
+  @apply relative;
+  z-index: 8;
+}
+
+.cell-z-lower {
+  @apply relative;
+  z-index: 7;
+}
+
+/* 複選框樣式 */
+.form-checkbox {
+  @apply h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500;
+}

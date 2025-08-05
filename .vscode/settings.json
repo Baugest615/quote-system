@@ -1,0 +1,33 @@
+{
+  "css.validate": false,
+  "scss.validate": false,
+  "less.validate": false,
+  "css.lint.unknownAtRules": "ignore",
+  "css.lint.invalidProperties": "ignore",
+  "css.lint.unknownProperties": "ignore",
+  "postcss.validate": false,
+  "files.associations": {
+    "*.css": "postcss"
+  },
+  "tailwindCSS.includeLanguages": {
+    "css": "css",
+    "postcss": "postcss",
+    "html": "html",
+    "javascript": "javascript",
+    "typescript": "typescript",
+    "javascriptreact": "javascriptreact",
+    "typescriptreact": "typescriptreact"
+  },
+  "problems.decorations.enabled": true,
+  "problems.showCurrentInStatus": true,
+  "[css]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode",
+    "editor.suggest.insertMode": "replace"
+  },
+  "[postcss]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "editor.codeActionsOnSave": {
+    "source.fixAll.eslint": "explicit"
+  }
+}
