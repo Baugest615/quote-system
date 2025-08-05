@@ -101,7 +101,6 @@ export default function ConfirmedPaymentsPage() {
 
   useEffect(() => { fetchConfirmedPayments() }, [fetchConfirmedPayments])
   useEffect(() => {
-    // ... 搜尋功能不變 ...
     const filtered = confirmedPayments.filter((confirmation) => {
       const searchLower = searchTerm.toLowerCase()
       const confirmationDate = confirmation.confirmation_date
@@ -116,7 +115,6 @@ export default function ConfirmedPaymentsPage() {
   }, [confirmedPayments, searchTerm])
 
   const handleSort = (field: 'date' | 'amount' | 'items') => {
-    // ... 排序功能不變 ...
     const direction = sortField === field && sortDirection === 'asc' ? 'desc' : 'asc'
     setSortField(field); setSortDirection(direction)
     const sorted = [...filteredPayments].sort((a, b) => {
@@ -134,13 +132,11 @@ export default function ConfirmedPaymentsPage() {
   }
 
   const toggleExpansion = (index: number) => {
-    // ... 切換展開狀態不變 ...
     setFilteredPayments(prev => prev.map((confirmation, i) => 
       i === index ? { ...confirmation, isExpanded: !confirmation.isExpanded } : confirmation
     ))
   }
 
-  // ✨ 再次修正與確認：退回操作
   const revertConfirmedPayment = async (confirmation: PaymentConfirmationWithItems) => {
     const confirmationId = confirmation.id;
     const itemsToRevert = confirmation.payment_confirmation_items;
@@ -153,24 +149,20 @@ export default function ConfirmedPaymentsPage() {
     if (!window.confirm(`確定要將此清單中的 ${itemsToRevert.length} 筆項目退回到「請款申請」頁面嗎？`)) return;
 
     try {
-      // 1. 取得所有需要退回的 payment_request_id
       const requestIdsToRevert = itemsToRevert.map(item => item.payment_request_id);
 
-      // 2. 刪除關聯的 payment_confirmation_items 記錄 (必須先刪除子表)
       const { error: itemsError } = await supabase
         .from('payment_confirmation_items')
         .delete()
         .eq('payment_confirmation_id', confirmationId);
       if (itemsError) throw new Error(`刪除確認項目失敗: ${itemsError.message}`);
       
-      // 3. 刪除 payment_confirmations 主記錄
       const { error: confirmationError } = await supabase
         .from('payment_confirmations')
         .delete()
         .eq('id', confirmationId);
       if (confirmationError) throw new Error(`刪除確認主記錄失敗: ${confirmationError.message}`);
       
-      // 4. 將這些 payment_requests 的狀態更新回 'pending' (最後執行，避免外鍵約束問題)
       const { error: updateError } = await supabase
         .from('payment_requests')
         .update({ verification_status: 'pending' })
@@ -178,18 +170,16 @@ export default function ConfirmedPaymentsPage() {
       if (updateError) throw new Error(`退回項目狀態失敗: ${updateError.message}`);
       
       toast.success('清單已退回，相關項目已回到「請款申請」頁面。');
-      await fetchConfirmedPayments(); // 重新載入資料
+      await fetchConfirmedPayments();
 
     } catch (error: any) {
       console.error('退回請款清單失敗:', error);
       toast.error('操作失敗: ' + error.message);
-      // 如果失敗，最好也刷新一下頁面以顯示當前最新狀態
       await fetchConfirmedPayments();
     }
   }
 
   const groupItemsByAccount = (confirmationItems: any[]): AccountGroup[] => {
-    // ... 分組功能不變 ...
     const groups = new Map<string, AccountGroup>()
     confirmationItems.forEach(item => {
       const key = item.kol_name_at_confirmation
@@ -215,10 +205,9 @@ export default function ConfirmedPaymentsPage() {
   }
   
   const exportToCSV = (confirmation: PaymentConfirmationWithItems) => {
-    // ... CSV 導出功能不變 ...
     const accountGroups = groupItemsByAccount(confirmation.payment_confirmation_items)
     const csvData: (string|number)[][] = []
-    csvData.push(['確認日期', '戶名', '銀行資訊', '專案名稱', 'KOL', '服務項目', '金額'])
+    csvData.push(['確認日期', '戶名', '銀行資訊', '專案名稱', 'KOL', '服務項目', '成本金額']) // 更新標頭
     accountGroups.forEach(group => {
       const bankInfo = `${group.bankName} ${group.branchName} | ${group.accountNumber}`
       group.items.forEach(item => {
@@ -237,7 +226,6 @@ export default function ConfirmedPaymentsPage() {
     toast.success('CSV檔案已下載')
   }
 
-  // ... (return JSX 不變) ...
     if (loading) {
         return (
             <div className="flex items-center justify-center h-full">
@@ -266,7 +254,7 @@ export default function ConfirmedPaymentsPage() {
                 </div>
                 <div className="flex items-center space-x-4 text-sm text-gray-500">
                     <div className="flex items-center space-x-1"><FileText className="h-4 w-4" /><span>共 {filteredPayments.length} 份清單</span></div>
-                    <div className="flex items-center space-x-1"><DollarSign className="h-4 w-4" /><span>總金額 NT$ {filteredPayments.reduce((sum, conf) => sum + (conf.total_amount || 0), 0).toLocaleString()}</span></div>
+                    <div className="flex items-center space-x-1"><DollarSign className="h-4 w-4" /><span>總成本 NT$ {filteredPayments.reduce((sum, conf) => sum + (conf.total_amount || 0), 0).toLocaleString()}</span></div>
                 </div>
             </div>
             <div className="flex space-x-2">
@@ -286,7 +274,7 @@ export default function ConfirmedPaymentsPage() {
                                         <FileText className="h-5 w-5 text-blue-500" />
                                         <div>
                                             <div className="font-medium text-gray-900">請款清單 - {confirmation.confirmation_date}</div>
-                                            <div className="text-sm text-gray-500">{confirmation.total_items} 筆項目 | {accountGroups.length} 個戶名 | 總金額 NT$ {(confirmation.total_amount || 0).toLocaleString()}</div>
+                                            <div className="text-sm text-gray-500">{confirmation.total_items} 筆項目 | {accountGroups.length} 個戶名 | 總成本 NT$ {(confirmation.total_amount || 0).toLocaleString()}</div>
                                         </div>
                                     </div>
                                     <div className="flex items-center space-x-2">
@@ -300,10 +288,10 @@ export default function ConfirmedPaymentsPage() {
                                             <div className="space-y-4">
                                                 {accountGroups.map((group, groupIndex) => (
                                                     <div key={groupIndex} className="border rounded-lg overflow-hidden">
-                                                        <div className="bg-blue-50 border-b"><div className="flex items-center justify-between p-4"><div className="flex items-center space-x-3"><Building2 className="h-6 w-6 text-blue-600" /><div><div className="font-semibold text-lg text-gray-900">{group.accountName}</div><div className="text-sm text-gray-600 mt-1">{group.bankName} {group.branchName && `${group.branchName} |`} {group.accountNumber}</div></div></div><div className="text-right"><div className="font-semibold text-xl text-blue-600">NT$ {group.totalAmount.toLocaleString()}</div><div className="text-sm text-gray-500">{group.items.length} 筆項目</div></div></div></div>
+                                                        <div className="bg-blue-50 border-b"><div className="flex items-center justify-between p-4"><div className="flex items-center space-x-3"><Building2 className="h-6 w-6 text-blue-600" /><div><div className="font-semibold text-lg text-gray-900">{group.accountName}</div><div className="text-sm text-gray-600 mt-1">{group.bankName} {group.branchName && `${group.branchName} |`} {group.accountNumber}</div></div></div><div className="text-right"><div className="font-semibold text-xl text-blue-600">NT$ {group.totalAmount.toLocaleString()}</div><div className="text-sm text-gray-500">{group.items.length} 筆項目總成本</div></div></div></div>
                                                         <div className="overflow-x-auto">
                                                             <table className="min-w-full">
-                                                                <thead className="bg-gray-50"><tr><th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">專案名稱</th><th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">KOL</th><th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">服務項目</th><th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">數量</th><th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">金額</th></tr></thead>
+                                                                <thead className="bg-gray-50"><tr><th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">專案名稱</th><th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">KOL</th><th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">服務項目</th><th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">數量</th><th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">成本金額</th></tr></thead>
                                                                 <tbody className="bg-white divide-y divide-gray-200">
                                                                     {group.items.map((item) => (
                                                                         <tr key={item.id} className="text-sm hover:bg-gray-50"><td className="px-4 py-3 text-gray-900">{item.project_name}</td><td className="px-4 py-3 text-gray-700">{item.kol_name}</td><td className="px-4 py-3 text-gray-700">{item.service}</td><td className="px-4 py-3 text-gray-700">{item.quantity}</td><td className="px-4 py-3 text-right font-medium text-gray-900">NT$ {(item.price || 0).toLocaleString()}</td></tr>

@@ -294,6 +294,7 @@ export type Database = {
           rejected_by: string | null
           rejected_at: string | null
           rejection_reason: string | null
+          cost_amount: number | null // 【NEW】新增成本金額欄位
           created_at: string | null
           updated_at: string | null
         }
@@ -313,6 +314,7 @@ export type Database = {
           rejected_by?: string | null
           rejected_at?: string | null
           rejection_reason?: string | null
+          cost_amount: number | null // 【NEW】新增成本金額欄位
           created_at?: string | null
           updated_at?: string | null
         }
@@ -332,6 +334,7 @@ export type Database = {
           rejected_by?: string | null
           rejected_at?: string | null
           rejection_reason?: string | null
+          cost_amount: number | null // 【NEW】新增成本金額欄位
           created_at?: string | null
           updated_at?: string | null
         }
@@ -567,6 +570,7 @@ export type Database = {
           service: string
           quantity: number
           price: number
+          cost_amount: number | null // 【NEW】新增成本金額欄位
           category: string | null
           remark: string | null
           project_name: string

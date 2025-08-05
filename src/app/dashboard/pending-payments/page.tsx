@@ -7,12 +7,12 @@ import { Input } from '@/components/ui/input'
 import { PendingPaymentFileModal } from '@/components/pending-payments/PendingPaymentFileModal'
 import {
   Search, Paperclip, Receipt, Trash2, AlertCircle,
-  FileText, Users, Unlink, X, CheckCircle //【NEW】Import CheckCircle icon
+  FileText, Users, Unlink, X, CheckCircle
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { Database } from '@/types/database.types'
 
-// --- 類型定義 (維持不變) ---
+// --- 類型定義 ---
 interface PendingPaymentAttachment {
   name: string;
   url: string;
@@ -26,6 +26,7 @@ type QuotationItemWithDetails = (Database['public']['Tables']['quotation_items']
   } | null
   kols: Pick<Database['public']['Tables']['kols']['Row'], 'id' | 'name' | 'real_name' | 'bank_info'> | null
 });
+// 狀態類型，新增 cost_amount_input
 interface PendingPaymentItem extends QuotationItemWithDetails {
   merge_type: 'account' | null
   merge_group_id: string | null
@@ -36,6 +37,7 @@ interface PendingPaymentItem extends QuotationItemWithDetails {
   invoice_number_input: string | null
   attachments: PendingPaymentAttachment[]
   payment_request_id: string | null
+  cost_amount_input: number // 用於綁定輸入框
 }
 
 const MERGE_COLORS = ['bg-red-100', 'bg-blue-100', 'bg-green-100', 'bg-yellow-100', 'bg-purple-100', 'bg-pink-100']
@@ -46,8 +48,6 @@ const isValidInvoiceFormat = (invoiceNumber: string | null | undefined): boolean
   return invoiceRegex.test(invoiceNumber);
 };
 
-
-// 駁回原因顯示元件 (維持不變)
 const RejectionReasonDisplay = ({ item, onClear, onUnmerge }: {
   item: PendingPaymentItem
   onClear: (paymentRequestId: string) => void
@@ -108,9 +108,10 @@ export default function PendingPaymentsPage() {
           kols: item.kols ? JSON.parse(JSON.stringify(item.kols)) : null,
           merge_type: null, merge_group_id: null, is_merge_leader: false, merge_color: '',
           rejection_reason: null, 
-          is_selected: Boolean(item.is_selected),
+          is_selected: false,
           invoice_number_input: null,
-          attachments: [], payment_request_id: null
+          attachments: [], payment_request_id: null,
+          cost_amount_input: (item.price || 0) * (item.quantity || 1)
         });
       });
 
@@ -122,11 +123,12 @@ export default function PendingPaymentsPage() {
             rejection_reason: req.rejection_reason,
             attachments: req.attachment_file_path ? JSON.parse(req.attachment_file_path) : [],
             invoice_number_input: req.invoice_number,
-            is_selected: Boolean(req.is_selected),
+            is_selected: false,
             merge_type: req.merge_type as 'account' | null,
             merge_group_id: req.merge_group_id,
             is_merge_leader: req.is_merge_leader,
             merge_color: req.merge_color || '',
+            cost_amount_input: req.cost_amount ?? ((req.quotation_items.price || 0) * (req.quotation_items.quantity || 1))
           });
         }
       });
@@ -161,6 +163,16 @@ export default function PendingPaymentsPage() {
       setLoading(false);
     }
   }, []);
+
+  const handleCostAmountChange = (itemId: string, newCost: string) => {
+    const costValue = newCost === '' ? 0 : parseFloat(newCost);
+    if (!isNaN(costValue)) {
+      setItems(prev => prev.map(item => 
+        item.id === itemId ? { ...item, cost_amount_input: costValue } : item
+      ));
+    }
+  };
+
   useEffect(() => { fetchPendingItems() }, [fetchPendingItems]);
   const filteredItems = useMemo(() => {
     return items.filter(item =>
@@ -299,23 +311,43 @@ export default function PendingPaymentsPage() {
       toast.success(`已解除合併`);
     } catch (error: any) { toast.error("解除合併失敗: " + error.message); }
   }
+
   const handleConfirmUpload = async () => {
     const selectedItems = items.filter(item => item.is_selected);
     if (selectedItems.length === 0) { toast.error('請選擇要申請付款的項目'); return; }
+
+    const invalidCostItem = selectedItems.find(item => item.cost_amount_input <= 0);
+    if (invalidCostItem) {
+      toast.error(`項目 "${invalidCostItem.service}" 的成本金額必須大於 0`);
+      return;
+    }
+    
     setLoading(true);
     try {
       const operations = selectedItems.map(item => {
         const leaderItem = item.merge_group_id ? items.find(i => i.merge_group_id === item.merge_group_id && i.is_merge_leader) || item : item;
         const requestData = {
-          quotation_item_id: item.id, request_date: new Date().toISOString(), verification_status: 'pending' as const,
-          merge_type: item.merge_type, merge_group_id: item.merge_group_id, is_merge_leader: item.is_merge_leader, merge_color: item.merge_color,
+          quotation_item_id: item.id,
+          request_date: new Date().toISOString(),
+          verification_status: 'pending' as const,
+          cost_amount: item.cost_amount_input,
+          merge_type: item.merge_type,
+          merge_group_id: item.merge_group_id,
+          is_merge_leader: item.is_merge_leader,
+          merge_color: item.merge_color,
           attachment_file_path: leaderItem.attachments.length > 0 ? JSON.stringify(leaderItem.attachments) : null,
           invoice_number: leaderItem.invoice_number_input?.trim() || null,
-          rejection_reason: null, rejected_by: null, rejected_at: null,
+          rejection_reason: null,
+          rejected_by: null,
+          rejected_at: null,
         };
-        if (item.payment_request_id) { return supabase.from('payment_requests').update(requestData).eq('id', item.payment_request_id); } 
-        else { return supabase.from('payment_requests').insert(requestData); }
+        if (item.payment_request_id) {
+          return supabase.from('payment_requests').update(requestData).eq('id', item.payment_request_id);
+        } else {
+          return supabase.from('payment_requests').insert(requestData);
+        }
       });
+
       const results = await Promise.all(operations);
       const hasError = results.some(res => res.error);
       if (hasError) {
@@ -324,8 +356,11 @@ export default function PendingPaymentsPage() {
       }
       toast.success(`✅ 已成功提交 ${selectedItems.length} 筆請款申請`);
       fetchPendingItems();
-    } catch (error: any) { toast.error(error.message || '提交請款申請失敗');
-    } finally { setLoading(false); }
+    } catch (error: any) { 
+      toast.error(error.message || '提交請款申請失敗');
+    } finally { 
+      setLoading(false); 
+    }
   }
 
   const canSelectForPayment = (item: PendingPaymentItem): boolean => {
@@ -403,7 +438,13 @@ export default function PendingPaymentsPage() {
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">專案名稱</th><th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">KOL</th><th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">合作項目</th><th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">金額</th><th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">合併</th><th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-64">檢核文件</th><th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider w-24">申請付款</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">專案名稱</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">KOL</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">合作項目</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">成本金額</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">合併</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-64">檢核文件</th>
+                <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider w-24">申請付款</th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
@@ -412,7 +453,16 @@ export default function PendingPaymentsPage() {
                 return (
                   <tr key={item.id} className={`hover:bg-gray-50 ${item.merge_color}`}>
                     <td className="px-4 py-4 align-top"><div className="font-medium text-gray-900 text-sm">{item.quotations?.project_name || 'N/A'}</div><RejectionReasonDisplay item={item} onClear={() => clearRejectionReason(item.payment_request_id!)} onUnmerge={handleUnmergeWithBetterUX}/></td>
-                    <td className="px-4 py-4 align-top text-sm">{item.kols?.name || '自訂項目'}</td><td className="px-4 py-4 align-top text-sm">{item.service}</td><td className="px-4 py-4 align-top text-sm font-medium">NT$ {((item.price || 0) * (item.quantity || 1)).toLocaleString()}</td>
+                    <td className="px-4 py-4 align-top text-sm">{item.kols?.name || '自訂項目'}</td><td className="px-4 py-4 align-top text-sm">{item.service}</td>
+                    <td className="px-4 py-4 align-top text-sm font-medium">
+                      <Input
+                        type="number"
+                        value={item.cost_amount_input || ''}
+                        onChange={(e) => handleCostAmountChange(item.id, e.target.value)}
+                        className="w-28 text-right"
+                        placeholder="請輸入成本"
+                      />
+                    </td>
                     <td className="px-4 py-4 align-top text-sm">{selectedMergeType && canMergeWith(item) && !item.merge_group_id && (<label className="flex items-center"><input type="checkbox" checked={selectedForMerge.includes(item.id)} onChange={(e) => handleMergeSelection(item.id, e.target.checked)} className="mr-1" /><span className="text-xs">選擇合併</span></label>)}{item.merge_group_id && (<div className="text-xs"><span className="bg-blue-100 px-2 py-1 rounded">合併申請{item.is_merge_leader && ' (主)'}</span>{item.is_merge_leader && (<Button variant="ghost" size="sm" onClick={() => handleUnmergeWithBetterUX(item.merge_group_id!)} className="ml-1 h-6 w-6 p-0 text-orange-500 hover:text-orange-700" title="解除合併"><Trash2 className="h-3 w-3" /></Button>)}</div>)}</td>
                     <td className="px-4 py-4 align-top">{shouldShowControls(item) && (
                       <div>
@@ -429,7 +479,6 @@ export default function PendingPaymentsPage() {
                               }`}
                           />
                         </div>
-                        {/* 【DEFINITIVE FIX】Added conditional rendering for the checkmark icon */}
                         {canSelectForPayment(item) && (
                           <div className="flex items-center text-green-600 mt-2 text-xs font-medium">
                             <CheckCircle className="h-4 w-4 mr-1" />

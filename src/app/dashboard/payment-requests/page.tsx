@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback, Fragment } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import supabase from '@/lib/supabase/client'
 import { Database } from '@/types/database.types'
 import { Button } from '@/components/ui/button'
@@ -12,7 +12,7 @@ import {
 import { toast } from 'sonner'
 import { Modal } from '@/components/ui/modal'
 
-// --- 類型定義 (維持不變) ---
+// --- 類型定義 ---
 interface ParsedAttachment {
   name: string;
   url: string;
@@ -26,7 +26,7 @@ interface PaymentRequestItem extends PaymentRequestDetails {
   parsed_attachments?: ParsedAttachment[];
 }
 
-// --- 檔案檢視 Modal (維持不變) ---
+// --- 檔案檢視 Modal ---
 const FileViewerModal = ({ isOpen, onClose, request }: {
   isOpen: boolean
   onClose: () => void
@@ -34,6 +34,7 @@ const FileViewerModal = ({ isOpen, onClose, request }: {
 }) => {
   if (!request) return null;
   const [downloadError, setDownloadError] = useState<string | null>(null);
+
   const formatFileSize = (bytes: number): string => {
     if (bytes === 0) return '0 Bytes';
     const k = 1024;
@@ -41,6 +42,7 @@ const FileViewerModal = ({ isOpen, onClose, request }: {
     const i = Math.floor(Math.log(bytes) / Math.log(k));
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   };
+
   const handleFileAction = async (path: string, download = false) => {
     setDownloadError(null);
     try {
@@ -62,6 +64,7 @@ const FileViewerModal = ({ isOpen, onClose, request }: {
       toast.error(`檔案操作失敗: ${error.message}`);
     }
   };
+
   return (
     <Modal isOpen={isOpen} onClose={onClose} title={`檢視附件 - ${request.project_name}`}>
       <div className="space-y-4">
@@ -216,7 +219,7 @@ export default function PaymentRequestsPage() {
     if (invalidItems.length > 0) { toast.error('部分項目缺少必要資訊，請檢查資料完整性'); return }
     try {
       const { data: { user }, error: userError } = await supabase.auth.getUser(); if (userError || !user) throw new Error('無法獲取使用者資訊')
-      const totalAmount = approvedItems.reduce((sum, item) => sum + (item.price || 0) * (item.quantity || 1), 0)
+      const totalAmount = approvedItems.reduce((sum, item) => sum + (item.cost_amount || 0), 0)
       await handlePaymentConfirmationWithTransaction(approvedItems, totalAmount, user.id)
     } catch (error: any) { toast.error('請款確認失敗: ' + error.message) }
   }
@@ -229,8 +232,10 @@ export default function PaymentRequestsPage() {
       if (confirmationError) throw confirmationError; confirmationId = newConfirmation.id
       const itemsToInsert = approvedItems.map(item => ({
         payment_confirmation_id: confirmationId!, payment_request_id: item.id,
-        amount_at_confirmation: (item.price || 0) * (item.quantity || 1), kol_name_at_confirmation: item.kol_name || '未知KOL',
-        project_name_at_confirmation: item.project_name || '未知專案', service_at_confirmation: item.service || '未知服務'
+        amount_at_confirmation: item.cost_amount || 0,
+        kol_name_at_confirmation: item.kol_name || '未知KOL',
+        project_name_at_confirmation: item.project_name || '未知專案', 
+        service_at_confirmation: item.service || '未知服務'
       }));
       const { error: itemError } = await supabase.from('payment_confirmation_items').insert(itemsToInsert); if (itemError) throw itemError;
       const approvedItemIds = approvedItems.map(item => item.id);
@@ -266,7 +271,12 @@ export default function PaymentRequestsPage() {
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                   <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">專案名稱</th><th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">KOL名稱</th><th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">合作項目</th><th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">金額</th><th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">檢核文件</th><th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">檢核</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">專案名稱</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">KOL名稱</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">合作項目</th>
+                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">成本金額</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">檢核文件</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">檢核</th>
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
@@ -275,9 +285,8 @@ export default function PaymentRequestsPage() {
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{item.project_name || '-'}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.kol_name || '-'}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.service || '-'}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-right">NT$ {((item.price || 0) * (item.quantity || 1)).toLocaleString()}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-right">NT$ {(item.cost_amount || 0).toLocaleString()}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {/* 🔥 **修正點 1：只有主導項 (leader) 才顯示附件和發票資訊** */}
                         {shouldShowControls(item) && (
                           <div className="flex flex-col space-y-1 text-xs">
                             {item.invoice_number && (<span className="text-blue-600 flex items-center"><Receipt className="h-3 w-3 mr-1" /> 發票: {item.invoice_number}</span>)}
