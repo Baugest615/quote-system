@@ -170,21 +170,47 @@ export default function ViewQuotePage() {
       {/* 報價單內容 */}
       <div id="printable-quote" className="relative bg-white p-8 md:p-12 rounded-lg shadow-md border text-[13px] leading-relaxed">
         <img src="/watermark-an.png" alt="watermark" className="absolute inset-0 w-full h-full opacity-5 object-contain z-0 pdf-watermark" />
-        <div className="flex items-center justify-center mb-4 pb-2 border-b space-x-4">
+        <div className="text-center mb-4 pb-2 border-b">
             <img src="/logo.png" alt="安安娛樂 LOGO" className="h-10 w-auto" />
             <h1 className="text-xl font-bold">安安娛樂有限公司委刊專案契約書</h1>
         </div>
+
         <table className="w-full text-sm mb-8 border border-gray-300">
-            <tbody>
-                <tr className="border-b"><td className="p-2 font-bold bg-gray-50 w-1/4">專案名稱：</td><td className="p-2" colSpan={3}>{quote.project_name}</td></tr>
-                <tr className="border-b"><td className="p-2 font-bold bg-gray-50">委刊客戶：</td><td className="p-2">{quote.clients?.name || 'N/A'}</td><td className="p-2 font-bold bg-gray-50">客戶聯絡人：</td><td className="p-2">{quote.client_contact}</td></tr>
-                <tr className="border-b"><td className="p-2 font-bold bg-gray-50">統一編號：</td><td className="p-2">{quote.clients?.tin || 'N/A'}</td><td className="p-2 font-bold bg-gray-50">電話：</td><td className="p-2">{quote.clients?.phone || 'N/A'}</td></tr>
-                <tr className="border-b"><td className="p-2 font-bold bg-gray-50">地址：</td><td className="p-2">{quote.clients?.address || 'N/A'}</td><td className="p-2 font-bold bg-gray-50">電子郵件：</td><td className="p-2">{quote.clients?.email || 'N/A'}</td></tr>
-            </tbody>
+          <tbody>
+            <tr className="border-b">
+              <td className="p-2 font-bold bg-gray-50 whitespace-nowrap w-[120px]">專案名稱：</td>
+              <td className="p-2 col-span-3" colSpan={3}>
+                <div className="flex justify-between items-center">
+                  <span>{quote.project_name}</span>
+                  <span className="text-sm text-gray-600 whitespace-nowrap">
+                    開立時間：{quote.created_at ? new Date(quote.created_at).toLocaleDateString() : 'N/A'}
+                  </span>
+                </div>
+              </td>
+            </tr>
+            <tr className="border-b">
+              <td className="p-2 font-bold bg-gray-50 whitespace-nowrap w-[120px]">委刊客戶：</td>
+              <td className="p-2">{quote.clients?.name || 'N/A'}</td>
+              <td className="p-2 font-bold bg-gray-50 whitespace-nowrap w-[120px]">客戶聯絡人：</td>
+              <td className="p-2">{quote.client_contact}</td>
+            </tr>
+            <tr className="border-b">
+              <td className="p-2 font-bold bg-gray-50 whitespace-nowrap w-[120px]">統一編號：</td>
+              <td className="p-2">{quote.clients?.tin || 'N/A'}</td>
+              <td className="p-2 font-bold bg-gray-50 whitespace-nowrap w-[120px]">電話：</td>
+              <td className="p-2">{quote.clients?.phone || 'N/A'}</td>
+            </tr>
+            <tr className="border-b">
+              <td className="p-2 font-bold bg-gray-50 whitespace-nowrap w-[120px]">地址：</td>
+              <td className="p-2">{quote.clients?.address || 'N/A'}</td>
+              <td className="p-2 font-bold bg-gray-50 whitespace-nowrap w-[120px]">電子郵件：</td>
+              <td className="p-2">{quote.clients?.email || 'N/A'}</td>
+            </tr>
+          </tbody>
         </table>
         <table className="w-full border border-gray-300 mb-6 text-xs">
             <thead><tr className="bg-gray-50"><th className="border p-2 text-center">分類</th><th className="border p-2 text-center">KOL</th><th className="border p-2 text-center">服務內容</th><th className="border p-2 text-center">數量</th><th className="border p-2 text-center">價格</th><th className="border p-2 text-center">執行時間</th></tr></thead>
-            <tbody>{quote.quotation_items.map((item, index) => (<tr key={index}><td className="border p-2 text-center">{item.category || 'N/A'}</td><td className="border p-2 text-center">{item.kols?.name || 'N/A'}</td><td className="border p-2 text-center">{item.service}</td><td className="border p-2 text-center">{item.quantity}</td><td className="border p-2 text-right">${item.price}</td><td className="border p-2">{item.remark || ''}</td></tr>))}</tbody>
+            <tbody>{quote.quotation_items.map((item, index) => (<tr key={index}><td className="border p-2 text-center">{item.category || 'N/A'}</td><td className="border p-2 text-center">{item.kols?.name || 'N/A'}</td><td className="border p-2 text-center">{item.service}</td><td className="border p-2 text-center">{item.quantity}</td><td className="border p-2 text-right">${item.price?.toLocaleString() || '0'}</td><td className="border p-2 text-center">{item.remark || ''}</td></tr>))}</tbody>
         </table>
         <div className="break-inside-avoid">
             <div className="flex justify-between mb-8 gap-8">
