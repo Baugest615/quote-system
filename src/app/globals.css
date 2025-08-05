@@ -179,3 +179,12 @@
 .form-checkbox {
   @apply h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500;
 }
+
+/* 【新增】PDF 簽章區塊樣式 */
+.signature-box {
+  @apply relative border p-4 h-32 flex flex-col justify-between;
+}
+
+.seal-image-container {
+  @apply absolute inset-0 flex items-center justify-center pointer-events-none;
+}

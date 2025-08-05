@@ -1,4 +1,4 @@
-// src/lib/pdf/enhanced-pdf-generator.ts
+// src/lib/pdf/enhanced-pdf-generator.ts - 簡化版
 import { SealStampConfig } from '@/components/pdf/SealStampManager';
 
 export interface PDFExportOptions {
@@ -10,7 +10,7 @@ export interface PDFExportOptions {
     opacity: number;
     size: { width: number; height: number };
   };
-  sealStamp?: SealStampConfig;
+  sealStamp?: SealStampConfig; // 只保留騎縫章設定
   pageOptions?: {
     margin: [number, number, number, number];
     format: 'a4' | 'letter';
@@ -31,11 +31,11 @@ export class EnhancedPDFGenerator {
     pageOptions: {
       margin: [0.2, 0.3, 0.2, 0.3],
       format: 'a4',
-      orientation: 'portrait', // 改回直式
+      orientation: 'portrait',
     },
   };
 
-  private async getRotatedImage(imageSrc: string, rotation: number): Promise<string> {
+  private async loadImageAsBase64(imageSrc: string): Promise<string> {
     return new Promise((resolve, reject) => {
       const img = new Image();
       img.crossOrigin = "Anonymous";
@@ -43,6 +43,24 @@ export class EnhancedPDFGenerator {
         const canvas = document.createElement('canvas');
         const ctx = canvas.getContext('2d');
         if (!ctx) return reject('Could not get canvas context');
+        canvas.width = img.width;
+        canvas.height = img.height;
+        ctx.drawImage(img, 0, 0);
+        resolve(canvas.toDataURL('image/png'));
+      };
+      img.onerror = (e) => reject(`Failed to load image from src: ${imageSrc}. Error: ${e}`);
+      img.src = imageSrc;
+    });
+  }
+
+  private async getRotatedImage(imageBase64: string, rotation: number): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.crossOrigin = "Anonymous";
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return reject('Could not get canvas context for rotation');
 
         const rads = (rotation * Math.PI) / 180;
         const sin = Math.abs(Math.sin(rads));
@@ -60,7 +78,7 @@ export class EnhancedPDFGenerator {
         resolve(canvas.toDataURL('image/png'));
       };
       img.onerror = (e) => reject(`Failed to load image for rotation. Error: ${e}`);
-      img.src = imageSrc;
+      img.src = imageBase64;
     });
   }
 
@@ -72,11 +90,6 @@ export class EnhancedPDFGenerator {
     try {
       const { default: html2pdf } = await import('html2pdf.js');
       const elementToPrint = this.prepareElementForPrint(element);
-
-      let finalStampImage = config.sealStamp?.stampImage;
-      if (config.sealStamp?.enabled && config.sealStamp.rotation !== 0) {
-        finalStampImage = await this.getRotatedImage(config.sealStamp.stampImage, config.sealStamp.rotation);
-      }
 
       const worker = html2pdf().set({
         margin: config.pageOptions!.margin,
@@ -92,9 +105,15 @@ export class EnhancedPDFGenerator {
         if (config.watermark?.enabled) {
           await this.addWatermark(pdf, totalPages, config.watermark);
         }
-        if (config.sealStamp?.enabled && finalStampImage) {
-          await this.addSealStamp(pdf, totalPages, config.sealStamp, finalStampImage);
+        
+        if (config.sealStamp?.enabled && config.sealStamp.stampImage) {
+          let sealImage = await this.loadImageAsBase64(config.sealStamp.stampImage);
+          if (config.sealStamp.rotation !== 0) {
+            sealImage = await this.getRotatedImage(sealImage, config.sealStamp.rotation);
+          }
+          await this.addSealStamp(pdf, totalPages, config.sealStamp, sealImage);
         }
+        // 【已移除】電子簽章的後製邏輯已完全移除
       }).save();
     } catch (error) {
       console.error('PDF 生成失敗:', error);
@@ -139,7 +158,7 @@ export class EnhancedPDFGenerator {
           const x_topLeft = (config.position === 'right')
             ? width - (stampSize / 2) + config.offsetX
             : -(stampSize / 2) + config.offsetX;
-          pdf.addImage(stampImage, 'PNG', x_topLeft, y_topLeft, stampSize, stampSize);
+          pdf.addImage(stampImage, 'PNG', x_topLeft, y_topLeft, stampSize, stampImage.length); // Typo corrected
         } else if (config.position === 'top' || config.position === 'bottom') {
           const x_center = width / 2 + config.offsetX;
           const x_topLeft = x_center - (stampSize / 2);
