@@ -1,246 +1,208 @@
 'use client'
 
-import { useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { cn } from '@/lib/utils'
-import { Button } from '@/components/ui/button'
 import { 
-  LayoutDashboard, 
+  BarChart3, 
   Users, 
   Star, 
   FileText, 
-  BarChart3, 
-  Settings, 
+  TrendingUp, 
+  Clock, 
+  CheckCircle, 
+  FileCheck, 
+  Settings,
   LogOut,
-  ChevronLeft,
-  ChevronRight,
-  CreditCard,
-  Receipt,
-  Wallet,
-  CheckCircle  // 🆕 新增
+  Shield,
+  User
 } from 'lucide-react'
+import { usePermission } from '@/lib/permissions'
 import supabase from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
+import { toast } from 'sonner'
 
-interface SidebarProps {
-  className?: string
-}
-
-export default function Sidebar({ className }: SidebarProps) {
-  const [collapsed, setCollapsed] = useState(false)
+export default function Sidebar() {
   const pathname = usePathname()
   const router = useRouter()
+  const { 
+    userRole, 
+    loading, 
+    getAllowedPages, 
+    getRoleDisplayName,
+    checkPageAccess 
+  } = usePermission()
 
+  // 處理登出
   const handleLogout = async () => {
-    await supabase.auth.signOut()
-    router.push('/auth/login')
-  }
-
-  const toggleCollapsed = () => {
-    setCollapsed(!collapsed)
-  }
-
-  const navigation = [
-    {
-      name: '儀表板',
-      href: '/dashboard',
-      icon: LayoutDashboard,
-      current: pathname === '/dashboard'
-    },
-    {
-      name: '客戶管理',
-      href: '/dashboard/clients',
-      icon: Users,
-      current: pathname === '/dashboard/clients'
-    },
-    {
-      name: 'KOL管理',
-      href: '/dashboard/kols',
-      icon: Star,
-      current: pathname === '/dashboard/kols'
-    },
-    {
-      name: '報價單',
-      href: '/dashboard/quotes',
-      icon: FileText,
-      current: pathname.startsWith('/dashboard/quotes')
-    },
-    {
-      name: '報表分析',
-      href: '/dashboard/reports',
-      icon: BarChart3,
-      current: pathname === '/dashboard/reports'
-    },
-    // 🆕 新增請款功能區塊
-    {
-      name: '請款管理',
-      href: '#',
-      icon: Wallet,
-      current: pathname.startsWith('/dashboard/pending-payments') || 
-              pathname.startsWith('/dashboard/payment-requests') ||
-              pathname.startsWith('/dashboard/confirmed-payments'),
-      isGroup: true,
-      children: [
-        {
-          name: '待請款管理',
-          href: '/dashboard/pending-payments',
-          icon: Receipt,
-          current: pathname === '/dashboard/pending-payments',
-          description: '管理已簽約項目的請款申請'
-        },
-        {
-          name: '請款申請',
-          href: '/dashboard/payment-requests',
-          icon: CreditCard,
-          current: pathname === '/dashboard/payment-requests',
-          description: '審核和確認請款申請'
-        },
-        // 🆕 新增：已確認請款清單
-        {
-          name: '已確認請款清單',
-          href: '/dashboard/confirmed-payments',
-          icon: CheckCircle,
-          current: pathname === '/dashboard/confirmed-payments',
-          description: '檢視和管理已確認的請款清單'
-        }
-      ]
-    },
-    {
-      name: '系統設定',
-      href: '/dashboard/settings',
-      icon: Settings,
-      current: pathname === '/dashboard/settings'
+    try {
+      const { error } = await supabase.auth.signOut()
+      
+      if (error) {
+        toast.error('登出失敗：' + error.message)
+        return
+      }
+      
+      toast.success('已成功登出')
+      router.push('/auth/login')
+      router.refresh()
+    } catch (error) {
+      console.error('Logout error:', error)
+      toast.error('登出時發生錯誤')
     }
-  ]
+  }
+
+  // 選單項目圖示映射
+  const iconMap = {
+    BarChart3,
+    Users,
+    Star,
+    FileText,
+    TrendingUp,
+    Clock,
+    CheckCircle,
+    FileCheck,
+    Settings,
+  }
+
+  if (loading) {
+    return (
+      <div className="w-64 bg-white shadow-sm border-r border-gray-200">
+        <div className="p-6">
+          <div className="animate-pulse">
+            <div className="h-8 bg-gray-200 rounded mb-6"></div>
+            <div className="space-y-3">
+              {[...Array(8)].map((_, i) => (
+                <div key={i} className="h-10 bg-gray-200 rounded"></div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  if (!userRole) {
+    return (
+      <div className="w-64 bg-white shadow-sm border-r border-gray-200">
+        <div className="p-6">
+          <div className="text-center text-gray-500">
+            <User className="w-12 h-12 mx-auto mb-4 text-gray-300" />
+            <p>請重新登入</p>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // 取得用戶可存取的頁面
+  const allowedPages = getAllowedPages()
 
   return (
-    <div className={cn(
-      "flex flex-col h-full bg-white border-r border-gray-200 transition-all duration-300",
-      collapsed ? "w-16" : "w-64",
-      className
-    )}>
-      {/* Logo區域 */}
-      <div className="flex items-center justify-between h-16 px-4 border-b border-gray-200">
-        {!collapsed && (
-          <h1 className="text-xl font-bold text-gray-900">
-            KOL 管理系統
-          </h1>
-        )}
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={toggleCollapsed}
-          className="p-2"
-        >
-          {collapsed ? (
-            <ChevronRight className="h-4 w-4" />
-          ) : (
-            <ChevronLeft className="h-4 w-4" />
-          )}
-        </Button>
+    <div className="w-64 bg-white shadow-sm border-r border-gray-200 flex flex-col h-full">
+      {/* Logo 和用戶資訊 */}
+      <div className="p-6 border-b border-gray-200">
+        <div className="flex items-center gap-3 mb-4">
+          <div className="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center">
+            <FileText className="w-6 h-6 text-white" />
+          </div>
+          <div>
+            <h1 className="text-xl font-bold text-gray-900">報價系統</h1>
+            <p className="text-sm text-gray-500">Quote Management</p>
+          </div>
+        </div>
+        
+        {/* 用戶角色標籤 */}
+        <div className="flex items-center gap-2 p-2 bg-gray-50 rounded-lg">
+          <Shield className="w-4 h-4 text-blue-600" />
+          <span className="text-sm font-medium text-gray-700">
+            {getRoleDisplayName()}
+          </span>
+          <div className={`w-2 h-2 rounded-full ${
+            userRole === 'Admin' ? 'bg-red-500' :
+            userRole === 'Editor' ? 'bg-yellow-500' : 'bg-green-500'
+          }`} />
+        </div>
       </div>
 
-      {/* 導航區域 */}
-      <nav className="flex-1 px-4 py-4 space-y-2 overflow-y-auto">
-        {navigation.map((item) => {
-          if (item.isGroup && item.children) {
-            // 群組項目（請款管理）
-            return (
-              <div key={item.name} className="space-y-1">
-                {/* 群組標題 */}
-                <div className={cn(
-                  "flex items-center px-3 py-2 text-sm font-medium rounded-md",
-                  item.current
-                    ? "bg-indigo-100 text-indigo-700"
-                    : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
-                )}>
-                  <item.icon className={cn(
-                    "flex-shrink-0 h-5 w-5",
-                    collapsed ? "mx-auto" : "mr-3"
-                  )} />
-                  {!collapsed && (
-                    <>
-                      <span className="flex-1">{item.name}</span>
-                    </>
-                  )}
-                </div>
-                
-                {/* 子項目 */}
-                {!collapsed && (
-                  <div className="ml-6 space-y-1">
-                    {item.children.map((child) => (
-                      <Link
-                        key={child.name}
-                        href={child.href}
-                        className={cn(
-                          "group flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors",
-                          child.current
-                            ? "bg-indigo-100 text-indigo-700"
-                            : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
-                        )}
-                        title={collapsed ? child.name : undefined}
-                      >
-                        <child.icon className={cn(
-                          "flex-shrink-0 h-4 w-4",
-                          "mr-3"
-                        )} />
-                        <div className="flex-1">
-                          <div className="font-medium">{child.name}</div>
-                          {child.description && (
-                            <div className="text-xs text-gray-500 mt-0.5">
-                              {child.description}
-                            </div>
-                          )}
-                        </div>
-                      </Link>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )
-          }
-
-          // 一般項目
+      {/* 導覽選單 */}
+      <nav className="flex-1 p-4 space-y-1">
+        {allowedPages.map((page) => {
+          const Icon = iconMap[page.icon as keyof typeof iconMap] || FileText
+          const isActive = pathname === page.route || pathname.startsWith(page.route + '/')
+          
           return (
             <Link
-              key={item.name}
-              href={item.href}
-              className={cn(
-                "group flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors",
-                item.current
-                  ? "bg-indigo-100 text-indigo-700"
-                  : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
-              )}
-              title={collapsed ? item.name : undefined}
+              key={page.key}
+              href={page.route}
+              className={`
+                flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors
+                ${isActive 
+                  ? 'bg-blue-50 text-blue-700 border border-blue-200' 
+                  : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'
+                }
+              `}
             >
-              <item.icon className={cn(
-                "flex-shrink-0 h-5 w-5",
-                collapsed ? "mx-auto" : "mr-3"
-              )} />
-              {!collapsed && <span>{item.name}</span>}
+              <Icon className={`w-5 h-5 ${isActive ? 'text-blue-600' : 'text-gray-500'}`} />
+              <span>{page.name}</span>
+              
+              {/* 權限限制標識 */}
+              {(page.key === 'payment_requests' || page.key === 'confirmed_payments') && (
+                <div className="ml-auto">
+                  <div className="w-2 h-2 bg-yellow-400 rounded-full" title="編輯者以上權限" />
+                </div>
+              )}
             </Link>
           )
         })}
       </nav>
 
-      {/* 登出按鈕 */}
-      <div className="p-4 border-t border-gray-200">
-        <Button
+      {/* 底部操作區 */}
+      <div className="p-4 border-t border-gray-200 space-y-2">
+        {/* 系統設定 */}
+        {checkPageAccess('settings') && (
+          <Link
+            href="/dashboard/settings"
+            className={`
+              flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors
+              ${pathname === '/dashboard/settings'
+                ? 'bg-blue-50 text-blue-700 border border-blue-200' 
+                : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'
+              }
+            `}
+          >
+            <Settings className={`w-5 h-5 ${
+              pathname === '/dashboard/settings' ? 'text-blue-600' : 'text-gray-500'
+            }`} />
+            <span>系統設定</span>
+          </Link>
+        )}
+        
+        {/* 登出按鈕 */}
+        <button
           onClick={handleLogout}
-          variant="ghost"
-          className={cn(
-            "w-full justify-start text-gray-600 hover:text-gray-900 hover:bg-gray-50",
-            collapsed && "justify-center"
-          )}
-          title={collapsed ? "登出" : undefined}
+          className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-gray-700 hover:bg-red-50 hover:text-red-700 transition-colors"
         >
-          <LogOut className={cn(
-            "h-5 w-5",
-            collapsed ? "mx-auto" : "mr-3"
-          )} />
-          {!collapsed && <span>登出</span>}
-        </Button>
+          <LogOut className="w-5 h-5 text-gray-500 hover:text-red-500" />
+          <span>登出</span>
+        </button>
+      </div>
+
+      {/* 權限說明 */}
+      <div className="p-4 bg-gray-50 border-t border-gray-200">
+        <div className="text-xs text-gray-500 space-y-1">
+          <div className="flex items-center gap-2">
+            <div className="w-2 h-2 bg-red-500 rounded-full"></div>
+            <span>管理員 - 完整權限</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="w-2 h-2 bg-yellow-500 rounded-full"></div>
+            <span>編輯者 - 審核權限</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+            <span>成員 - 基本操作</span>
+          </div>
+        </div>
       </div>
     </div>
   )
