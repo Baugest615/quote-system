@@ -59,6 +59,7 @@ export default function ClientsPage() {
     setSelectedClient(null)
   }
 
+  // 步驟 3: 統一儲存成功訊息
   const handleSaveClient = async (
     formData: {
       name: string;
@@ -91,18 +92,18 @@ export default function ClientsPage() {
         .update(dataToSave)
         .eq('id', id);
       if (error) {
-        toast.error(`Failed to update client: ${error.message}`);
+        toast.error(`更新客戶失敗: ${error.message}`);
       } else {
-        toast.success('Client updated successfully!');
+        toast.success('儲存成功！');
       }
     } else {
       const { error } = await supabase
         .from('clients')
         .insert(dataToSave);
       if (error) {
-        toast.error(`Failed to create client: ${error.message}`);
+        toast.error(`新增客戶失敗: ${error.message}`);
       } else {
-        toast.success('Client created successfully!');
+        toast.success('儲存成功！');
       }
     }
 
@@ -113,8 +114,12 @@ export default function ClientsPage() {
   const handleDeleteClient = async (id: string) => {
     if (window.confirm('確定要刪除這位客戶嗎？此操作無法復原。')) {
       const { error } = await supabase.from('clients').delete().eq('id', id)
-      if (error) alert('刪除客戶失敗: ' + error.message)
-      else await fetchClients()
+      if (error) {
+        toast.error('刪除客戶失敗: ' + error.message)
+      } else {
+        toast.success('客戶已刪除');
+        await fetchClients()
+      }
     }
   }
 

@@ -188,3 +188,26 @@
 .seal-image-container {
   @apply absolute inset-0 flex items-center justify-center pointer-events-none;
 }
+
+/* 新增 PDF 與列印專用樣式 */
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  #printable-quote, #printable-quote * {
+    visibility: visible;
+  }
+  #printable-quote {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+  }
+  .print\:hidden {
+    display: none !important;
+  }
+  /* 【確保此樣式存在】 */
+  .break-inside-avoid {
+    break-inside: avoid;
+  }
+}

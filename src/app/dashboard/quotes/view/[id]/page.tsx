@@ -1,4 +1,4 @@
-// src/app/dashboard/quotes/view/[id]/page.tsx - 最終動態版
+// src/app/dashboard/quotes/view/[id]/page.tsx - 最終 Table 佈局修正版
 'use client'
 
 import { useState, useEffect, useCallback } from 'react';
@@ -12,6 +12,7 @@ import { Modal } from '@/components/ui/modal';
 import { pdfGenerator } from '@/lib/pdf/enhanced-pdf-generator';
 import { SealStampConfig, SealStampManager } from '@/components/pdf/SealStampManager';
 import { ElectronicSealManager } from '@/components/pdf/ElectronicSealManager';
+import { usePermission } from '@/lib/permissions'; // 步驟 1：引入 usePermission Hook
 
 type Quotation = Database['public']['Tables']['quotations']['Row'];
 type QuotationItem = Database['public']['Tables']['quotation_items']['Row'];
@@ -60,6 +61,7 @@ export default function ViewQuotePage() {
   const params = useParams();
   const router = useRouter();
   const id = params.id as string;
+  const { hasRole } = usePermission(); // 步驟 2：在組件中調用 Hook
   const [quote, setQuote] = useState<FullQuotation | null>(null);
   const [loading, setLoading] = useState(true);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -133,7 +135,6 @@ export default function ViewQuotePage() {
         filename: `報價單-${quote.clients?.name || '客戶'}-${quote.project_name}.pdf`,
         elementId: 'printable-quote',
         sealStamp: sealStampConfig,
-        // 【已移除】不再需要傳遞 electronicSeal
       });
     } catch (error: any) {
       alert(error.message);
@@ -142,7 +143,6 @@ export default function ViewQuotePage() {
     }
   };
   
-  // 【新增】動態計算印章樣式
   const sealImageStyle: React.CSSProperties = {
       width: `${electronicSealConfig.size}in`,
       height: `${electronicSealConfig.size}in`,
@@ -168,22 +168,27 @@ export default function ViewQuotePage() {
           <h1 className="text-3xl font-bold">檢視報價單</h1>
         </div>
         <div className="flex space-x-2">
-          <Button
-            variant="outline"
-            disabled={isProcessing}
-            onClick={() => setShowElectronicSealSettings(true)}
-            className={electronicSealConfig.enabled ? 'border-green-500 text-green-600' : ''}
-          >
-            <UserCheck className="mr-2 h-4 w-4" /> 電子用印
-          </Button>
-          <Button
-            variant="outline"
-            disabled={isProcessing}
-            onClick={() => setShowStampSettings(true)}
-            className={sealStampConfig.enabled ? 'border-indigo-500 text-indigo-600' : ''}
-          >
-            <Stamp className="mr-2 h-4 w-4" /> 騎縫章設定
-          </Button>
+          {/* 步驟 3：使用 hasRole 進行條件渲染 */}
+          {hasRole('Editor') && (
+            <>
+              <Button
+                variant="outline"
+                disabled={isProcessing}
+                onClick={() => setShowElectronicSealSettings(true)}
+                className={electronicSealConfig.enabled ? 'border-green-500 text-green-600' : ''}
+              >
+                <UserCheck className="mr-2 h-4 w-4" /> 電子用印
+              </Button>
+              <Button
+                variant="outline"
+                disabled={isProcessing}
+                onClick={() => setShowStampSettings(true)}
+                className={sealStampConfig.enabled ? 'border-indigo-500 text-indigo-600' : ''}
+              >
+                <Stamp className="mr-2 h-4 w-4" /> 騎縫章設定
+              </Button>
+            </>
+          )}
           <Link href={`/dashboard/quotes/edit/${id}`}>
             <Button variant="outline" disabled={isProcessing}><Edit className="mr-2 h-4 w-4" /> 編輯</Button>
           </Link>
@@ -196,33 +201,14 @@ export default function ViewQuotePage() {
         </div>
       </div>
 
-      {/* 電子用印設定 Modal */}
-      <Modal
-        isOpen={showElectronicSealSettings}
-        onClose={() => setShowElectronicSealSettings(false)}
-        title="電子用印設定"
-        maxWidth="sm:max-w-2xl"
-      >
-        <ElectronicSealManager
-          config={electronicSealConfig}
-          onChange={handleElectronicSealConfigChange}
-        />
+      <Modal isOpen={showElectronicSealSettings} onClose={() => setShowElectronicSealSettings(false)} title="電子用印設定" maxWidth="sm:max-w-2xl">
+        <ElectronicSealManager config={electronicSealConfig} onChange={handleElectronicSealConfigChange} />
       </Modal>
 
-      {/* 騎縫章設定 Modal */}
-      <Modal
-        isOpen={showStampSettings}
-        onClose={() => setShowStampSettings(false)}
-        title="騎縫章設定"
-        maxWidth="sm:max-w-2xl"
-      >
-        <SealStampManager
-          config={sealStampConfig}
-          onChange={handleSealStampConfigChange}
-        />
+      <Modal isOpen={showStampSettings} onClose={() => setShowStampSettings(false)} title="騎縫章設定" maxWidth="sm:max-w-2xl">
+        <SealStampManager config={sealStampConfig} onChange={handleSealStampConfigChange} />
       </Modal>
 
-      {/* 報價單內容 */}
       <div id="printable-quote" className="relative bg-white p-8 md:p-12 rounded-lg shadow-md border text-[13px] leading-relaxed">
         <img src="/watermark-an.png" alt="watermark" className="absolute inset-0 w-full h-full opacity-5 object-contain z-0 pdf-watermark" />
         <div className="text-center mb-4 pb-2 border-b">
@@ -263,50 +249,80 @@ export default function ViewQuotePage() {
             </tr>
           </tbody>
         </table>
+        
         <table className="w-full border border-gray-300 mb-6 text-xs">
-            <thead><tr className="bg-gray-50"><th className="border p-2 text-center">分類</th><th className="border p-2 text-center">KOL</th><th className="border p-2 text-center">服務內容</th><th className="border p-2 text-center">數量</th><th className="border p-2 text-center">價格</th><th className="border p-2 text-center">執行時間</th></tr></thead>
-            <tbody>{quote.quotation_items.map((item, index) => (<tr key={index}><td className="border p-2 text-center">{item.category || 'N/A'}</td><td className="border p-2 text-center">{item.kols?.name || 'N/A'}</td><td className="border p-2 text-center">{item.service}</td><td className="border p-2 text-center">{item.quantity}</td><td className="border p-2 text-right">${item.price?.toLocaleString() || '0'}</td><td className="border p-2 text-center">{item.remark || ''}</td></tr>))}</tbody>
+            <thead>
+                <tr className="bg-gray-50">
+                    <th className="border p-2 text-center">分類</th><th className="border p-2 text-center">KOL</th><th className="border p-2 text-center">服務內容</th>
+                    <th className="border p-2 text-center">数量</th><th className="border p-2 text-center">價格</th><th className="border p-2 text-center">執行時間</th>
+                </tr>
+            </thead>
+            <tbody>
+                {quote.quotation_items.map((item, index) => (
+                    <tr key={index} className="break-inside-avoid">
+                        <td className="border p-2 text-center">{item.category || 'N/A'}</td><td className="border p-2 text-center">{item.kols?.name || 'N/A'}</td>
+                        <td className="border p-2 text-center">{item.service}</td><td className="border p-2 text-center">{item.quantity}</td>
+                        <td className="border p-2 text-right">${item.price?.toLocaleString() || '0'}</td><td className="border p-2 text-center">{item.remark || ''}</td>
+                    </tr>
+                ))}
+            </tbody>
         </table>
-        <div className="break-inside-avoid">
-            <div className="flex justify-between mb-8 gap-8">
-                <div className="w-2/3"><div className="border p-4 h-full"><h3 className="text-sm font-bold mb-3 bg-gray-50 p-2 -m-4 mb-3 border-b">【廣告費之支付約定】</h3><div className="text-[10px] leading-normal space-y-2"><p><strong>1.</strong> 本次廣告行銷費用由委託公司負責繳付，所有費用代收百分之五的營業稅。銀⾏⼿續費由⽀付⽅負擔。</p><p><strong>2.</strong> 本公司應於執行到期日開立當月份發票予委刊客戶，委刊客戶應於收到發票時，按發票日期月結30日依發票所載之金額匯入本公司指定帳戶如下。</p><p><strong>3.</strong> 所有報酬及因本服務契約書產⽣之相關費⽤均以本服務契約書內載明之幣值及約定付款⽇付款。 
-</p>
-                <div className="mt-3 bg-gray-50 p-3 rounded border text-xs">
-                    <table className="w-full">
-                        <tbody>
-                            <tr>
-                                <td className="py-1 pr-4"><strong>銀行名稱：</strong>{companyBankInfo.bankName}</td>
-                                <td><strong>銀行帳號：</strong>{companyBankInfo.accountNumber}</td>
-                            </tr>
-                            <tr>
-                                <td className="py-1 pr-4"><strong>分行名稱：</strong>{companyBankInfo.branchName}</td>
-                                <td><strong>帳戶名稱：</strong>{companyBankInfo.accountName}</td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-                </div></div></div>
-                <div className="w-1/3"><table className="w-full border text-sm h-full"><tbody><tr><td className="border p-2 font-bold bg-gray-50">未稅小計</td><td className="border p-2 text-right">${quote.subtotal_untaxed?.toLocaleString() || '0'}</td></tr><tr><td className="border p-2 font-bold bg-gray-50">營業稅 (5%)</td><td className="border p-2 text-right">${quote.tax?.toLocaleString() || '0'}</td></tr><tr><td className="border p-2 font-bold bg-red-50">含稅總計</td><td className="border p-2 text-right font-bold text-red-600">${quote.grand_total_taxed?.toLocaleString() || '0'}</td></tr>{quote.has_discount && <tr><td className="border p-2 font-bold bg-blue-50">優惠價</td><td className="border p-2 text-right font-bold text-blue-600">${quote.discounted_price?.toLocaleString() || '0'}</td></tr>}</tbody></table></div>
-            </div>
-        </div>
+
+        {/* 【關鍵修正】將支付約定與金額計算區塊改為使用 table 佈局 */}
+        <table className="w-full mb-8 break-inside-avoid">
+            <tbody>
+                <tr>
+                    <td className="w-2/3 pr-8 align-top">
+                        <div className="border p-4 h-full">
+                            <h3 className="text-sm font-bold mb-3 bg-gray-50 p-2 -m-4 mb-3 border-b">【廣告費之支付約定】</h3>
+                            <div className="text-[10px] leading-normal space-y-2">
+                                <p><strong>1.</strong> 本次廣告行銷費用由委託公司負責繳付，所有費用代收百分之五的營業稅。銀⾏⼿續費由⽀付⽅負擔。</p>
+                                <p><strong>2.</strong> 本公司應於執行到期日開立當月份發票予委刊客戶，委刊客戶應於收到發票時，按發票日期月結30日依發票所載之金額匯入本公司指定帳戶如下。</p>
+                                <p><strong>3.</strong> 所有報酬及因本服務契約書產⽣之相關費⽤均以本服務契約書內載明之幣值及約定付款⽇付款。</p>
+                                <div className="mt-3 bg-gray-50 p-3 rounded border text-xs">
+                                    <table className="w-full">
+                                        <tbody>
+                                            <tr>
+                                                <td className="py-1 pr-4"><strong>銀行名稱：</strong>{companyBankInfo.bankName}</td>
+                                                <td><strong>銀行帳號：</strong>{companyBankInfo.accountNumber}</td>
+                                            </tr>
+                                            <tr>
+                                                <td className="py-1 pr-4"><strong>分行名稱：</strong>{companyBankInfo.branchName}</td>
+                                                <td><strong>帳戶名稱：</strong>{companyBankInfo.accountName}</td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </td>
+                    <td className="w-1/3 align-top">
+                        <table className="w-full border text-sm h-full">
+                            <tbody>
+                                <tr><td className="border p-2 font-bold bg-gray-50">未稅小計</td><td className="border p-2 text-right">${quote.subtotal_untaxed?.toLocaleString() || '0'}</td></tr>
+                                <tr><td className="border p-2 font-bold bg-gray-50">營業稅 (5%)</td><td className="border p-2 text-right">${quote.tax?.toLocaleString() || '0'}</td></tr>
+                                <tr><td className="border p-2 font-bold bg-red-50">含稅總計</td><td className="border p-2 text-right font-bold text-red-600">${quote.grand_total_taxed?.toLocaleString() || '0'}</td></tr>
+                                {quote.has_discount && <tr><td className="border p-2 font-bold bg-blue-50">優惠價</td><td className="border p-2 text-right font-bold text-blue-600">${quote.discounted_price?.toLocaleString() || '0'}</td></tr>}
+                            </tbody>
+                        </table>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+        
         <div className="text-xs space-y-4 whitespace-pre-wrap">
-            <div className="border p-4"><h3 className="text-sm font-bold mb-3 bg-gray-50 p-2 -m-4 mb-3 border-b">【合約約定】</h3><p className="text-[10px] leading-normal">{contractAgreement}</p></div>
-            <div className="border p-4"><h3 className="text-sm font-bold mb-3 bg-gray-50 p-2 -m-4 mb-3 border-b">【保密協議】</h3><p className="text-[10px] leading-normal">{confidentialityAgreement}</p></div>
-            {quote.remarks && <div className="border p-4"><h3 className="text-sm font-bold mb-3 bg-gray-50 p-2 -m-4 mb-3 border-b">【補充協議】</h3><p className="text-[10px] leading-normal">{quote.remarks}</p></div>}
+            <div className="border p-4 break-inside-avoid"><h3 className="text-sm font-bold mb-3 bg-gray-50 p-2 -m-4 mb-3 border-b">【合約約定】</h3><p className="text-[10px] leading-normal">{contractAgreement}</p></div>
+            <div className="border p-4 break-inside-avoid"><h3 className="text-sm font-bold mb-3 bg-gray-50 p-2 -m-4 mb-3 border-b">【保密協議】</h3><p className="text-[10px] leading-normal">{confidentialityAgreement}</p></div>
+            {quote.remarks && <div className="border p-4 break-inside-avoid"><h3 className="text-sm font-bold mb-3 bg-gray-50 p-2 -m-4 mb-3 border-b">【補充協議】</h3><p className="text-[10px] leading-normal">{quote.remarks}</p></div>}
         </div>
         
-        <div className="mt-12 flex justify-between items-start gap-8 break-inside-avoid">
-            {/* 【關鍵修正】使用新的 CSS class 並動態渲染印章 */}
+        <div className="mt-8 flex justify-between items-start gap-8 break-inside-avoid">
             <div className="text-center w-[48%]">
                 <div className="signature-box">
                     <p className="text-sm font-bold">委刊方簽章</p>
                     {electronicSealConfig.enabled && (
                         <div className="seal-image-container">
-                            <img 
-                                src={electronicSealConfig.stampImage} 
-                                alt="Electronic Seal" 
-                                style={sealImageStyle}
-                            />
+                            <img src={electronicSealConfig.stampImage} alt="Electronic Seal" style={sealImageStyle} />
                         </div>
                     )}
                 </div>

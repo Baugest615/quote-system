@@ -4,11 +4,12 @@ import { useState, useEffect, useCallback } from 'react'
 import supabase from '@/lib/supabase/client'
 import { Database } from '@/types/database.types'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input' // 確保 Input 已被引入
+import { Input } from '@/components/ui/input'
 import { KolModal } from '@/components/kols/KolModal'
 import { PlusCircle, Edit, Trash2, Facebook, Instagram, Youtube, Twitch, Twitter, Link as LinkIcon, Search } from 'lucide-react'
+import { toast } from 'sonner'
 
-// 類型定義
+// ... (類型定義維持不變) ...
 type Kol = Database['public']['Tables']['kols']['Row']
 type KolService = Database['public']['Tables']['kol_services']['Row']
 type KolType = Database['public']['Tables']['kol_types']['Row']
@@ -20,16 +21,17 @@ type KolWithDetails = Kol & {
   })[]
 }
 
+
 export default function KolsPage() {
   const [kols, setKols] = useState<KolWithDetails[]>([])
-  const [filteredKols, setFilteredKols] = useState<KolWithDetails[]>([]) // 新增：用於搜尋結果的 state
+  const [filteredKols, setFilteredKols] = useState<KolWithDetails[]>([])
   const [kolTypes, setKolTypes] = useState<KolType[]>([])
   const [serviceTypes, setServiceTypes] = useState<ServiceType[]>([])
   const [loading, setLoading] = useState(true)
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [selectedKol, setSelectedKol] = useState<KolWithDetails | null>(null)
   const [priceMap, setPriceMap] = useState<Record<string, number | null>>({})
-  const [searchTerm, setSearchTerm] = useState('') // 新增：搜尋關鍵字 state
+  const [searchTerm, setSearchTerm] = useState('')
 
   const fetchData = useCallback(async () => {
     setLoading(true)
@@ -40,12 +42,12 @@ export default function KolsPage() {
     ])
 
     if (kolsRes.error) {
-      alert('讀取 KOL 資料失敗: ' + kolsRes.error.message)
+      toast.error('讀取 KOL 資料失敗: ' + kolsRes.error.message)
       setKols([])
     } else {
       const fetchedKols = kolsRes.data as KolWithDetails[]
       setKols(fetchedKols)
-      setFilteredKols(fetchedKols) // 初始化顯示所有資料
+      setFilteredKols(fetchedKols)
       
       const initialPriceMap: Record<string, number | null> = {}
       fetchedKols.forEach(kol => {
@@ -58,10 +60,10 @@ export default function KolsPage() {
       setPriceMap(initialPriceMap)
     }
 
-    if (kolTypesRes.error) alert('讀取 KOL 類型失敗: ' + kolTypesRes.error.message)
+    if (kolTypesRes.error) toast.error('讀取 KOL 類型失敗: ' + kolTypesRes.error.message)
     else setKolTypes(kolTypesRes.data)
 
-    if (serviceTypesRes.error) alert('讀取服務類型失敗: ' + serviceTypesRes.error.message)
+    if (serviceTypesRes.error) toast.error('讀取服務類型失敗: ' + serviceTypesRes.error.message)
     else setServiceTypes(serviceTypesRes.data)
 
     setLoading(false)
@@ -71,7 +73,6 @@ export default function KolsPage() {
     fetchData()
   }, [fetchData])
 
-  // 新增：處理搜尋邏輯的 useEffect
   useEffect(() => {
     const lowercasedFilter = searchTerm.toLowerCase();
     const filteredData = kols.filter(kol => {
@@ -96,6 +97,7 @@ export default function KolsPage() {
     setSelectedKol(null)
   }
   
+  // 步驟 4: 統一儲存成功訊息
   const handleSaveKol = async (formData: any, id?: string) => {
     const { services, ...kolData } = formData
     try {
@@ -121,18 +123,25 @@ export default function KolsPage() {
         const { error: serviceError } = await supabase.from('kol_services').insert(servicesToInsert)
         if (serviceError) throw serviceError
       }
+      
+      toast.success('儲存成功！');
+
       await fetchData()
       handleCloseModal()
     } catch (error: any) {
-      alert('儲存 KOL 失敗: ' + error.message)
+      toast.error('儲存 KOL 失敗: ' + error.message)
     }
   }
   
   const handleDeleteKol = async (id: string) => {
     if (window.confirm('確定要刪除這位 KOL 嗎？所有相關服務項目也會被刪除。')) {
       const { error } = await supabase.from('kols').delete().eq('id', id)
-      if (error) alert('刪除 KOL 失敗: ' + error.message)
-      else await fetchData()
+      if (error) {
+        toast.error('刪除 KOL 失敗: ' + error.message)
+      } else {
+        toast.success('KOL 已刪除');
+        await fetchData()
+      }
     }
   }
 
