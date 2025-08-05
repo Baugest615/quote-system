@@ -106,7 +106,7 @@ export default function Sidebar() {
             <FileText className="w-6 h-6 text-white" />
           </div>
           <div>
-            <h1 className="text-xl font-bold text-gray-900">報價系統</h1>
+            <h1 className="text-xl font-bold text-gray-900">後台管理系統</h1>
             <p className="text-sm text-gray-500">Quote Management</p>
           </div>
         </div>
@@ -158,25 +158,7 @@ export default function Sidebar() {
 
       {/* 底部操作區 */}
       <div className="p-4 border-t border-gray-200 space-y-2">
-        {/* 系統設定 */}
-        {checkPageAccess('settings') && (
-          <Link
-            href="/dashboard/settings"
-            className={`
-              flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors
-              ${pathname === '/dashboard/settings'
-                ? 'bg-blue-50 text-blue-700 border border-blue-200' 
-                : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'
-              }
-            `}
-          >
-            <Settings className={`w-5 h-5 ${
-              pathname === '/dashboard/settings' ? 'text-blue-600' : 'text-gray-500'
-            }`} />
-            <span>系統設定</span>
-          </Link>
-        )}
-        
+       
         {/* 登出按鈕 */}
         <button
           onClick={handleLogout}
@@ -185,24 +167,6 @@ export default function Sidebar() {
           <LogOut className="w-5 h-5 text-gray-500 hover:text-red-500" />
           <span>登出</span>
         </button>
-      </div>
-
-      {/* 權限說明 */}
-      <div className="p-4 bg-gray-50 border-t border-gray-200">
-        <div className="text-xs text-gray-500 space-y-1">
-          <div className="flex items-center gap-2">
-            <div className="w-2 h-2 bg-red-500 rounded-full"></div>
-            <span>管理員 - 完整權限</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-2 h-2 bg-yellow-500 rounded-full"></div>
-            <span>編輯者 - 審核權限</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-            <span>成員 - 基本操作</span>
-          </div>
-        </div>
       </div>
     </div>
   )
