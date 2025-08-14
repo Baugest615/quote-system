@@ -12,7 +12,7 @@ import { Modal } from '@/components/ui/modal';
 import { pdfGenerator } from '@/lib/pdf/enhanced-pdf-generator';
 import { SealStampConfig, SealStampManager } from '@/components/pdf/SealStampManager';
 import { ElectronicSealManager } from '@/components/pdf/ElectronicSealManager';
-import { usePermission } from '@/lib/permissions'; // 步驟 1：引入 usePermission Hook
+import { usePermission } from '@/lib/permissions';
 
 type Quotation = Database['public']['Tables']['quotations']['Row'];
 type QuotationItem = Database['public']['Tables']['quotation_items']['Row'];
@@ -61,7 +61,7 @@ export default function ViewQuotePage() {
   const params = useParams();
   const router = useRouter();
   const id = params.id as string;
-  const { hasRole } = usePermission(); // 步驟 2：在組件中調用 Hook
+  const { hasRole } = usePermission();
   const [quote, setQuote] = useState<FullQuotation | null>(null);
   const [loading, setLoading] = useState(true);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -157,6 +157,17 @@ export default function ViewQuotePage() {
   const contractAgreement = termsParts[0].replace('合約約定：', '').trim();
   const confidentialityAgreement = termsParts.length > 1 ? termsParts[1].trim() : '';
 
+  // 【步驟 1】: 在 render 之前，先計算好優惠價情況下的稅金和總額
+  let discountedTax = 0;
+  let discountedGrandTotal = 0;
+  const hasDiscountPrice = quote.has_discount && typeof quote.discounted_price === 'number';
+
+  if (hasDiscountPrice) {
+    discountedTax = Math.round(quote.discounted_price! * 0.05);
+    discountedGrandTotal = quote.discounted_price! + discountedTax;
+  }
+
+
   return (
     <div className="space-y-6">
       {/* 操作按鈕區域 */}
@@ -168,7 +179,6 @@ export default function ViewQuotePage() {
           <h1 className="text-3xl font-bold">檢視報價單</h1>
         </div>
         <div className="flex space-x-2">
-          {/* 步驟 3：使用 hasRole 進行條件渲染 */}
           {hasRole('Editor') && (
             <>
               <Button
@@ -254,7 +264,7 @@ export default function ViewQuotePage() {
             <thead>
                 <tr className="bg-gray-50">
                     <th className="border p-2 text-center">分類</th><th className="border p-2 text-center">KOL</th><th className="border p-2 text-center">服務內容</th>
-                    <th className="border p-2 text-center">数量</th><th className="border p-2 text-center">價格</th><th className="border p-2 text-center">執行時間</th>
+                    <th className="border p-2 text-center">數量</th><th className="border p-2 text-center">價格</th><th className="border p-2 text-center">執行時間</th>
                 </tr>
             </thead>
             <tbody>
@@ -268,7 +278,6 @@ export default function ViewQuotePage() {
             </tbody>
         </table>
 
-        {/* 【關鍵修正】將支付約定與金額計算區塊改為使用 table 佈局 */}
         <table className="w-full mb-8 break-inside-avoid">
             <tbody>
                 <tr>
@@ -299,10 +308,21 @@ export default function ViewQuotePage() {
                     <td className="w-1/3 align-top">
                         <table className="w-full border text-sm h-full">
                             <tbody>
-                                <tr><td className="border p-2 font-bold bg-gray-50">未稅小計</td><td className="border p-2 text-right">${quote.subtotal_untaxed?.toLocaleString() || '0'}</td></tr>
-                                <tr><td className="border p-2 font-bold bg-gray-50">營業稅 (5%)</td><td className="border p-2 text-right">${quote.tax?.toLocaleString() || '0'}</td></tr>
-                                <tr><td className="border p-2 font-bold bg-red-50">含稅總計</td><td className="border p-2 text-right font-bold text-red-600">${quote.grand_total_taxed?.toLocaleString() || '0'}</td></tr>
-                                {quote.has_discount && <tr><td className="border p-2 font-bold bg-blue-50">優惠價</td><td className="border p-2 text-right font-bold text-blue-600">${quote.discounted_price?.toLocaleString() || '0'}</td></tr>}
+                                {/* 【步驟 2】: 使用三元運算符進行條件渲染 */}
+                                {hasDiscountPrice ? (
+                                  <>
+                                    <tr><td className="border p-2 font-bold bg-gray-50">未稅小計</td><td className="border p-2 text-right" style={{ textDecoration: 'line-through' }}>${quote.subtotal_untaxed?.toLocaleString() || '0'}</td></tr>
+                                    <tr><td className="border p-2 font-bold bg-blue-50">未稅優惠</td><td className="border p-2 text-right font-bold text-blue-600">${quote.discounted_price?.toLocaleString() || '0'}</td></tr>
+                                    <tr><td className="border p-2 font-bold bg-gray-50">營業稅 (5%)</td><td className="border p-2 text-right">${discountedTax.toLocaleString()}</td></tr>
+                                    <tr><td className="border p-2 font-bold bg-red-50">含稅總計</td><td className="border p-2 text-right font-bold text-red-600">${discountedGrandTotal.toLocaleString()}</td></tr>
+                                  </>
+                                ) : (
+                                  <>
+                                    <tr><td className="border p-2 font-bold bg-gray-50">未稅小計</td><td className="border p-2 text-right">${quote.subtotal_untaxed?.toLocaleString() || '0'}</td></tr>
+                                    <tr><td className="border p-2 font-bold bg-gray-50">營業稅 (5%)</td><td className="border p-2 text-right">${quote.tax?.toLocaleString() || '0'}</td></tr>
+                                    <tr><td className="border p-2 font-bold bg-red-50">含稅總計</td><td className="border p-2 text-right font-bold text-red-600">${quote.grand_total_taxed?.toLocaleString() || '0'}</td></tr>
+                                  </>
+                                )}
                             </tbody>
                         </table>
                     </td>
@@ -319,7 +339,7 @@ export default function ViewQuotePage() {
         <div className="mt-8 flex justify-between items-start gap-8 break-inside-avoid">
             <div className="text-center w-[48%]">
                 <div className="signature-box">
-                    <p className="text-sm font-bold">安安娛樂簽章</p>
+                    <p className="text-sm font-bold">委刊方簽章</p>
                     {electronicSealConfig.enabled && (
                         <div className="seal-image-container">
                             <img src={electronicSealConfig.stampImage} alt="Electronic Seal" style={sealImageStyle} />
@@ -329,7 +349,7 @@ export default function ViewQuotePage() {
             </div>
             <div className="text-center w-[48%]">
                 <div className="signature-box">
-                    <p className="text-sm font-bold">委刊方簽章</p>
+                    <p className="text-sm font-bold">受刊方簽章</p>
                 </div>
             </div>
         </div>
