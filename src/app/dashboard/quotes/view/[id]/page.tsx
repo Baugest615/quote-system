@@ -339,7 +339,7 @@ export default function ViewQuotePage() {
         <div className="mt-8 flex justify-between items-start gap-8 break-inside-avoid">
             <div className="text-center w-[48%]">
                 <div className="signature-box">
-                    <p className="text-sm font-bold">委刊方簽章</p>
+                    <p className="text-sm font-bold">安安娛樂簽章</p>
                     {electronicSealConfig.enabled && (
                         <div className="seal-image-container">
                             <img src={electronicSealConfig.stampImage} alt="Electronic Seal" style={sealImageStyle} />
@@ -349,7 +349,7 @@ export default function ViewQuotePage() {
             </div>
             <div className="text-center w-[48%]">
                 <div className="signature-box">
-                    <p className="text-sm font-bold">受刊方簽章</p>
+                    <p className="text-sm font-bold">委刊方簽章</p>
                 </div>
             </div>
         </div>
