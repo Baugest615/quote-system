@@ -1,14 +1,14 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import supabase from '@/lib/supabase/client'  // 修正導入方式
+import supabase from '@/lib/supabase/client'
 import { 
   UserRole, 
   PageConfig, 
   PermissionCheckResult,
   PAGE_PERMISSIONS,
   USER_ROLES 
-} from '@/types/database.types'
+} from '@/types/custom.types'  // 🔄 修改：從 custom.types 引入
 
 // ===== 權限檢查工具函數 =====
 
