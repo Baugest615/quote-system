@@ -1,6 +1,6 @@
 import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
-import { PAGE_PERMISSIONS, UserRole } from '@/types/database.types'
+import { PAGE_PERMISSIONS, UserRole } from '@/types/custom.types'  // 🔄 修改：從 custom.types 引入
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
@@ -82,7 +82,7 @@ export async function middleware(request: NextRequest) {
     const routeToPageMap: Record<string, string> = {
       '/dashboard': 'dashboard',
       '/dashboard/clients': 'clients',
-      '/dashboard/kols': 'kols', 
+      '/dashboard/kols': 'kols',
       '/dashboard/quotes': 'quotes',
       '/dashboard/reports': 'reports',
       '/dashboard/pending-payments': 'pending_payments',
@@ -91,44 +91,31 @@ export async function middleware(request: NextRequest) {
       '/dashboard/settings': 'settings',
     }
 
-    // 公開路由 - 不需要認證
-    const publicRoutes = ['/auth/login', '/auth/register', '/auth/forgot-password']
-    
-    // 檢查是否為公開路由
-    if (publicRoutes.includes(pathname)) {
-      try {
-        const { data: { user } } = await supabase.auth.getUser()
-        // 如果已登入用戶訪問登入頁面，重定向到儀表板
-        if (user && pathname === '/auth/login') {
-          return NextResponse.redirect(new URL('/dashboard', request.url))
-        }
-      } catch (error) {
-        console.log('Auth check failed for public route:', error)
+    // 處理認證路由
+    if (pathname.startsWith('/auth')) {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (user && pathname === '/auth/login') {
+        return NextResponse.redirect(new URL('/dashboard', request.url))
       }
       return response
     }
 
-    // 檢查根路徑
+    // 處理根路徑
     if (pathname === '/') {
-      try {
-        const { data: { user } } = await supabase.auth.getUser()
-        if (user) {
-          return NextResponse.redirect(new URL('/dashboard', request.url))
-        } else {
-          return NextResponse.redirect(new URL('/auth/login', request.url))
-        }
-      } catch (error) {
-        console.log('Auth check failed for root route:', error)
+      const { data: { user } } = await supabase.auth.getUser()
+      if (user) {
+        return NextResponse.redirect(new URL('/dashboard', request.url))
+      } else {
         return NextResponse.redirect(new URL('/auth/login', request.url))
       }
     }
 
-    // 保護的路由 - 需要認證和權限
+    // 處理受保護的路由
     if (pathname.startsWith('/dashboard')) {
       try {
-        const { data: { user } } = await supabase.auth.getUser()
-        
-        if (!user) {
+        const { data: { user }, error } = await supabase.auth.getUser()
+
+        if (error || !user) {
           return NextResponse.redirect(new URL('/auth/login', request.url))
         }
 

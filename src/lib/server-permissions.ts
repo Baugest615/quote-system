@@ -4,7 +4,7 @@ import {
   PermissionCheckResult,
   PAGE_PERMISSIONS,
   UserRole 
-} from '@/types/database.types'
+} from '@/types/custom.types'  // 🔄 修改：從 custom.types 引入
 
 /**
  * 創建服務器端 Supabase 客戶端
@@ -94,11 +94,11 @@ export async function checkServerPermission(
 
     return {
       hasAccess: hasAccess || false,
-      allowedFunctions: hasAccess ? (pageConfig?.allowedFunctions || []) : [],
+      allowedFunctions: hasAccess ? pageConfig?.allowedFunctions || [] : [],
       userRole,
     }
   } catch (error) {
-    console.error('Server permission check error:', error)
+    console.error('Server permission check failed:', error)
     return {
       hasAccess: false,
       allowedFunctions: [],
@@ -108,17 +108,22 @@ export async function checkServerPermission(
 }
 
 /**
- * 取得服務器端用戶角色
+ * 快速權限檢查（僅檢查頁面存取權）
  */
-export async function getServerUserRole(): Promise<UserRole | null> {
+export async function quickPermissionCheck(pageKey: string): Promise<boolean> {
+  const result = await checkServerPermission(pageKey)
+  return result.hasAccess
+}
+
+/**
+ * 取得當前用戶角色
+ */
+export async function getCurrentUserRole(): Promise<UserRole | null> {
   try {
     const supabase = await createServerSupabaseClient()
+    const { data: { user } } = await supabase.auth.getUser()
     
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
-    
-    if (authError || !user) {
-      return null
-    }
+    if (!user) return null
 
     const { data: profile } = await supabase
       .from('profiles')
@@ -128,7 +133,7 @@ export async function getServerUserRole(): Promise<UserRole | null> {
 
     return profile?.role || null
   } catch (error) {
-    console.error('Error getting server user role:', error)
+    console.error('Error getting current user role:', error)
     return null
   }
 }
