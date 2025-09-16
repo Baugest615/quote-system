@@ -16,42 +16,57 @@ export type Database = {
     Tables: {
       clients: {
         Row: {
-          address: string | null
-          bank_info: Json | null
-          contact_person: string | null
-          created_at: string | null
-          email: string | null
           id: string
-          invoice_title: string | null
           name: string
-          phone: string | null
           tin: string | null
+          invoice_title: string | null
+          contact_person: string | null
+          phone: string | null
+          email: string | null
+          address: string | null
+          bank_info: {
+            bankName?: string | null
+            branchName?: string | null
+            accountNumber?: string | null
+          } | null
+          contacts: any[] | null // JSONB 欄位，允許任何陣列格式
+          created_at: string | null
           updated_at: string | null
         }
         Insert: {
-          address?: string | null
-          bank_info?: Json | null
-          contact_person?: string | null
-          created_at?: string | null
-          email?: string | null
           id?: string
-          invoice_title?: string | null
           name: string
-          phone?: string | null
           tin?: string | null
+          invoice_title?: string | null
+          contact_person?: string | null
+          phone?: string | null
+          email?: string | null
+          address?: string | null
+          bank_info?: {
+            bankName?: string | null
+            branchName?: string | null
+            accountNumber?: string | null
+          } | null
+          contacts?: any[] | null // JSONB 欄位
+          created_at?: string | null
           updated_at?: string | null
         }
         Update: {
-          address?: string | null
-          bank_info?: Json | null
-          contact_person?: string | null
-          created_at?: string | null
-          email?: string | null
           id?: string
-          invoice_title?: string | null
           name?: string
-          phone?: string | null
           tin?: string | null
+          invoice_title?: string | null
+          contact_person?: string | null
+          phone?: string | null
+          email?: string | null
+          address?: string | null
+          bank_info?: {
+            bankName?: string | null
+            branchName?: string | null
+            accountNumber?: string | null
+          } | null
+          contacts?: any[] | null // JSONB 欄位
+          created_at?: string | null
           updated_at?: string | null
         }
         Relationships: []
@@ -753,3 +768,16 @@ export type CompositeTypes<
     ? DefaultSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
     : never
 
+// 聯絡人介面定義
+export interface Contact {
+  name: string
+  email?: string
+  phone?: string
+  position?: string
+  is_primary?: boolean
+}
+
+// 擴展的客戶類型，包含解析後的聯絡人
+export type ClientWithParsedContacts = Database['public']['Tables']['clients']['Row'] & {
+  parsedContacts: Contact[]
+}

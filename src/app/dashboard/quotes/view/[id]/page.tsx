@@ -70,6 +70,71 @@ export default function ViewQuotePage() {
   const [showElectronicSealSettings, setShowElectronicSealSettings] = useState(false);
   const [electronicSealConfig, setElectronicSealConfig] = useState<SealStampConfig>(defaultElectronicSealConfig);
 
+  // 在 ViewQuotePage 組件中加入這個函數，用於處理表格合併邏輯
+const processTableData = (items: (QuotationItem & { kols: Pick<Kol, 'name'> | null })[]): Array<{
+  item: QuotationItem & { kols: Pick<Kol, 'name'> | null };
+  categoryRowSpan: number;
+  kolRowSpan: number;
+  showCategory: boolean;
+  showKol: boolean;
+}> => {
+  // 建立分類和KOL的分組統計
+  const categoryGroups = new Map<string, number>();
+  const kolGroups = new Map<string, number>();
+  
+  // 統計每個分類和KOL組合的數量
+  items.forEach(item => {
+    const category = item.category || 'N/A';
+    const kolName = item.kols?.name || 'N/A';
+    const categoryKey = category;
+    const kolKey = `${category}-${kolName}`;
+    
+    categoryGroups.set(categoryKey, (categoryGroups.get(categoryKey) || 0) + 1);
+    kolGroups.set(kolKey, (kolGroups.get(kolKey) || 0) + 1);
+  });
+  
+  // 處理每一行的顯示邏輯
+  const processedItems: Array<{
+    item: QuotationItem & { kols: Pick<Kol, 'name'> | null };
+    categoryRowSpan: number;
+    kolRowSpan: number;
+    showCategory: boolean;
+    showKol: boolean;
+  }> = [];
+  
+  const categoryCounters = new Map<string, number>();
+  const kolCounters = new Map<string, number>();
+  
+  items.forEach(item => {
+    const category = item.category || 'N/A';
+    const kolName = item.kols?.name || 'N/A';
+    const categoryKey = category;
+    const kolKey = `${category}-${kolName}`;
+    
+    // 計算當前分類和KOL的計數器
+    const categoryCount = categoryCounters.get(categoryKey) || 0;
+    const kolCount = kolCounters.get(kolKey) || 0;
+    
+    // 更新計數器
+    categoryCounters.set(categoryKey, categoryCount + 1);
+    kolCounters.set(kolKey, kolCount + 1);
+    
+    // 決定是否顯示分類和KOL欄位
+    const showCategory = categoryCount === 0; // 只在第一次出現時顯示
+    const showKol = kolCount === 0; // 只在第一次出現時顯示
+    
+    processedItems.push({
+      item,
+      categoryRowSpan: categoryGroups.get(categoryKey) || 1,
+      kolRowSpan: kolGroups.get(kolKey) || 1,
+      showCategory,
+      showKol
+    });
+  });
+  
+  return processedItems;
+};
+
   const fetchQuote = useCallback(async () => {
     if (!id) return;
     setLoading(true);
@@ -267,15 +332,37 @@ export default function ViewQuotePage() {
                     <th className="border p-2 text-center">數量</th><th className="border p-2 text-center">價格</th><th className="border p-2 text-center">執行時間</th>
                 </tr>
             </thead>
-            <tbody>
-                {quote.quotation_items.map((item, index) => (
-                    <tr key={index} className="break-inside-avoid">
-                        <td className="border p-2 text-center">{item.category || 'N/A'}</td><td className="border p-2 text-center">{item.kols?.name || 'N/A'}</td>
-                        <td className="border p-2 text-center">{item.service}</td><td className="border p-2 text-center">{item.quantity}</td>
-                        <td className="border p-2 text-right">${item.price?.toLocaleString() || '0'}</td><td className="border p-2 text-center">{item.remark || ''}</td>
-                    </tr>
+              <tbody>
+                {processTableData(quote.quotation_items).map((row, index) => (
+                  <tr key={index} className="break-inside-avoid">
+                    {/* 分類欄位 - 只在第一次出現時顯示，並設置 rowSpan */}
+                    {row.showCategory && (
+                      <td 
+                        className="border p-2 text-center align-middle font-medium bg-gray-50" 
+                        rowSpan={row.categoryRowSpan}
+                      >
+                        {row.item.category || 'N/A'}
+                      </td>
+                    )}
+                    
+                    {/* KOL欄位 - 只在第一次出現時顯示，並設置 rowSpan */}
+                    {row.showKol && (
+                      <td 
+                        className="border p-2 text-center align-middle font-medium bg-blue-50" 
+                        rowSpan={row.kolRowSpan}
+                      >
+                        {row.item.kols?.name || 'N/A'}
+                      </td>
+                    )}
+                    
+                    {/* 其他欄位保持原樣 */}
+                    <td className="border p-2 text-center">{row.item.service}</td>
+                    <td className="border p-2 text-center">{row.item.quantity}</td>
+                    <td className="border p-2 text-right">${row.item.price?.toLocaleString() || '0'}</td>
+                    <td className="border p-2 text-center">{row.item.remark || ''}</td>
+                  </tr>
                 ))}
-            </tbody>
+              </tbody>
         </table>
 
         <table className="w-full mb-8 break-inside-avoid">
