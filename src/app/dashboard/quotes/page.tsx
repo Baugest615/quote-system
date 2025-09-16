@@ -237,18 +237,18 @@ export default function QuotesPage() {
     if (filters.amountRange.min) {
       const minAmount = parseFloat(filters.amountRange.min)
       result = result.filter((quote) => {
-        const total = quote.has_discount ? 
-          (quote.discounted_price || 0) : 
-          (quote.grand_total_taxed || 0)
+        const total = quote.has_discount && quote.discounted_price ? 
+        quote.discounted_price + Math.round(quote.discounted_price * 0.05) : // 優惠價含稅
+        (quote.grand_total_taxed || 0) // 原含稅價
         return total >= minAmount
       })
     }
     if (filters.amountRange.max) {
       const maxAmount = parseFloat(filters.amountRange.max)
       result = result.filter((quote) => {
-        const total = quote.has_discount ? 
-          (quote.discounted_price || 0) : 
-          (quote.grand_total_taxed || 0)
+        const total = quote.has_discount && quote.discounted_price ? 
+        quote.discounted_price + Math.round(quote.discounted_price * 0.05) : // 優惠價含稅
+        (quote.grand_total_taxed || 0) // 原含稅價
         return total <= maxAmount
       })
     }
@@ -549,7 +549,7 @@ export default function QuotesPage() {
                 onClick={() => handleSort('total_amount')}
               >
                 <div className="flex items-center justify-between">
-                  金額
+                  金額(含稅)
                   <SortIcon field="total_amount" />
                 </div>
               </th>
@@ -570,9 +570,9 @@ export default function QuotesPage() {
           </thead>
           <tbody>
             {filteredAndSortedQuotations.map((quote) => {
-              const total = quote.has_discount ?
-                (quote.discounted_price || 0) :
-                (quote.grand_total_taxed || 0)
+              const total = quote.has_discount && quote.discounted_price ? 
+              quote.discounted_price + Math.round(quote.discounted_price * 0.05) : // 優惠價含稅
+              (quote.grand_total_taxed || 0) // 原含稅價
 
               return (
                 <tr key={quote.id} className="border-b hover:bg-gray-50">
