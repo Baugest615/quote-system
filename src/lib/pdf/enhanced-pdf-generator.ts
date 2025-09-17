@@ -91,11 +91,48 @@ export class EnhancedPDFGenerator {
       const { default: html2pdf } = await import('html2pdf.js');
       const elementToPrint = this.prepareElementForPrint(element);
 
+            // 【關鍵修正】添加 PDF 專用樣式類別
+      elementToPrint.classList.add('pdf-export');
+
       const worker = html2pdf().set({
         margin: config.pageOptions!.margin,
         filename: config.filename,
         image: { type: 'jpeg', quality: 0.98 },
-        html2canvas: { scale: 2, useCORS: true, backgroundColor: '#ffffff' },
+        html2canvas: { scale: 2, useCORS: true, backgroundColor: '#ffffff',          
+          // 【修正】優化 html2canvas 設定以正確處理樣式
+          onclone: (clonedDoc: Document) => {
+            // 在克隆的文檔中確保樣式正確應用
+            const clonedElement = clonedDoc.getElementById(config.elementId);
+            if (clonedElement) {
+              // 移除所有可能導致黑線的 text-decoration 樣式
+              const allElements = clonedElement.querySelectorAll('*');
+              allElements.forEach((el) => {
+                const htmlEl = el as HTMLElement;
+                if (htmlEl.style) {
+                  htmlEl.style.textDecoration = 'none';
+                  htmlEl.style.textDecorationLine = 'none';
+                  htmlEl.style.textDecorationStyle = 'none';
+                  htmlEl.style.textDecorationColor = 'transparent';
+                }
+              });
+
+              // 確保表格邊框樣式
+              const tables = clonedElement.querySelectorAll('table');
+              tables.forEach(table => {
+                const tableEl = table as HTMLElement;
+                tableEl.style.borderCollapse = 'collapse';
+                tableEl.style.border = '1px solid #d1d5db';
+              });
+
+              // 確保所有 td, th 都有正確的邊框
+              const cells = clonedElement.querySelectorAll('td, th');
+              cells.forEach(cell => {
+                const cellEl = cell as HTMLElement;
+                cellEl.style.border = '1px solid #d1d5db';
+              });
+            }
+          } },
+        
         jsPDF: { unit: 'in', format: config.pageOptions!.format, orientation: config.pageOptions!.orientation, compress: true },
         pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
       }).from(elementToPrint);
@@ -113,8 +150,11 @@ export class EnhancedPDFGenerator {
           }
           await this.addSealStamp(pdf, totalPages, config.sealStamp, sealImage);
         }
-        // 【已移除】電子簽章的後製邏輯已完全移除
       }).save();
+
+      // 【清理】移除 PDF 專用樣式類別
+      elementToPrint.classList.remove('pdf-export');
+
     } catch (error) {
       console.error('PDF 生成失敗:', error);
       throw new Error(`PDF 生成失敗: ${error instanceof Error ? error.message : String(error)}`);
@@ -123,9 +163,18 @@ export class EnhancedPDFGenerator {
 
   private prepareElementForPrint(element: HTMLElement): HTMLElement {
     const elementToPrint = element.cloneNode(true) as HTMLElement;
+    // 移除不需要的樣式
     elementToPrint.classList.remove('border', 'shadow-md', 'rounded-lg');
+    // 移除現有浮水印（將由 PDF 處理）
     const existingWatermark = elementToPrint.querySelector('img[alt="watermark"]');
     if (existingWatermark) existingWatermark.remove();
+
+        // 【新增】確保表格樣式正確
+    const tables = elementToPrint.querySelectorAll('table');
+    tables.forEach(table => {
+      table.style.borderCollapse = 'collapse';
+    });
+
     return elementToPrint;
   }
 
@@ -158,7 +207,7 @@ export class EnhancedPDFGenerator {
           const x_topLeft = (config.position === 'right')
             ? width - (stampSize / 2) + config.offsetX
             : -(stampSize / 2) + config.offsetX;
-          pdf.addImage(stampImage, 'PNG', x_topLeft, y_topLeft, stampSize, stampImage.length); // Typo corrected
+          pdf.addImage(stampImage, 'PNG', x_topLeft, y_topLeft, stampSize, stampSize);
         } else if (config.position === 'top' || config.position === 'bottom') {
           const x_center = width / 2 + config.offsetX;
           const x_topLeft = x_center - (stampSize / 2);

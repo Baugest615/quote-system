@@ -344,7 +344,7 @@ export default function QuoteForm({ initialData }: QuoteFormProps) {
                 <thead>
                   <tr className="bg-gray-50">
                     <th className="p-2 w-[120px] text-left font-medium text-gray-600">類別</th>
-                    <th className="p-2 w-[200px] text-left font-medium text-gray-600">KOL</th>
+                    <th className="p-2 w-[200px] text-left font-medium text-gray-600">名稱/項目</th>
                     <th className="p-2 w-[220px] text-left font-medium text-gray-600">執行內容</th>
                     <th className="p-2 w-[80px] text-left font-medium text-gray-600">數量</th>
                     <th className="p-2 w-[120px] text-left font-medium text-gray-600">價格</th>
