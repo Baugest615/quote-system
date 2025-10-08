@@ -346,15 +346,17 @@ export default function QuoteForm({ initialData }: QuoteFormProps) {
                     <th className="p-2 w-[120px] text-left font-medium text-gray-600">類別</th>
                     <th className="p-2 w-[200px] text-left font-medium text-gray-600">名稱/項目</th>
                     <th className="p-2 w-[220px] text-left font-medium text-gray-600">執行內容</th>
+                    <th className="p-2 w-[120px] text-left font-medium text-gray-600">單價</th>
                     <th className="p-2 w-[80px] text-left font-medium text-gray-600">數量</th>
-                    <th className="p-2 w-[120px] text-left font-medium text-gray-600">價格</th>
-                    <th className="p-2 w-[150px] text-left font-medium text-gray-600">執行時間</th>
+                    <th className="p-2 w-[120px] text-left font-medium text-gray-600">合計</th>
                     <th className="p-2 w-[80px] text-center font-medium text-gray-600">操作</th>
                   </tr>
                 </thead>
                 <tbody>
                     {fields.map((field, index) => {
                        const categoryId = `category-${index}`; const kolId = `kol-${index}`; const serviceId = `service-${index}`;
+                       // 🆕 計算每列的合計
+                       const itemPrice = watchItems[index]?.price || 0; const itemQuantity = watchItems[index]?.quantity || 1; const itemTotal = itemPrice * itemQuantity;
                        return (
                         <tr key={field.id} className="align-top border-b table-row-min-height">
                            <td className="p-3 align-top" onMouseDown={e => e.stopPropagation()}>
@@ -368,9 +370,9 @@ export default function QuoteForm({ initialData }: QuoteFormProps) {
                                 <ServiceSearchInput value={watchItems[index]?.service} onChange={(service, price) => { setValue(`items.${index}.service`, service); if (price !== undefined) setValue(`items.${index}.price`, price); }} isOpen={activeDropdown === serviceId} onOpen={() => setActiveDropdown(serviceId)} placeholder="搜尋或輸入服務" kolServices={getKolServices(watchItems[index]?.kol_id)} />
                                 {errors.items?.[index]?.service && <p className="text-red-500 text-xs mt-1">{errors.items[index]?.service?.message}</p>}
                             </td>
-                            <td className="p-3 align-top"><Input type="number" {...register(`items.${index}.quantity`, { valueAsNumber: true })} defaultValue={1} />{errors.items?.[index]?.quantity && <p className="text-red-500 text-xs mt-1">{errors.items[index]?.quantity?.message}</p>}</td>
                             <td className="p-3 align-top"><Input type="number" {...register(`items.${index}.price`, { valueAsNumber: true })} placeholder="價格" />{errors.items?.[index]?.price && <p className="text-red-500 text-xs mt-1">{errors.items[index]?.price?.message}</p>}</td>
-                            <td className="p-3 align-top"><Input {...register(`items.${index}.remark`)} placeholder="執行時間" /></td>
+                            <td className="p-3 align-top"><Input type="number" {...register(`items.${index}.quantity`, { valueAsNumber: true })} defaultValue={1} />{errors.items?.[index]?.quantity && <p className="text-red-500 text-xs mt-1">{errors.items[index]?.quantity?.message}</p>}</td>
+                            <td className="p-3 align-top"><div className="text-sm font-semibold text-gray-700 py-2">NT$ {itemTotal.toLocaleString()}</div></td>
                             <td className="p-3 text-center align-top"><Button type="button" variant="ghost" size="sm" onClick={() => remove(index)} disabled={fields.length === 1}><Trash2 className="h-4 w-4 text-red-500" /></Button></td>
                         </tr>
                        )
