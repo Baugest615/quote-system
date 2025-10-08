@@ -332,13 +332,17 @@ export default function ViewQuotePage() {
               <th className="border p-2 text-center">分類</th>
               <th className="border p-2 text-center">KOL</th>
               <th className="border p-2 text-center">服務內容</th>
+              <th className="border p-2 text-center">單價</th>
               <th className="border p-2 text-center">數量</th>
-              <th className="border p-2 text-center">價格</th>
-              <th className="border p-2 text-center">執行時間</th>
+              <th className="border p-2 text-center">合計</th>
             </tr>
           </thead>
           <tbody>
-            {processTableData(quote.quotation_items).map((row, index) => (
+            {processTableData(quote.quotation_items).map((row, index) => {
+                const itemTotal = (row.item.price || 0) * (row.item.quantity || 1);
+      
+                return (
+              
               <tr key={index} className="break-inside-avoid">
                 {/* 分類欄位 - 只在第一次出現時顯示，並設置 rowSpan */}
                 {row.showCategory && (
@@ -360,15 +364,24 @@ export default function ViewQuotePage() {
                   </td>
                 )}
                 
-                {/* 其他欄位保持原樣 */}
+                {/* 服務內容 */}
                 <td className="border p-2 text-center">{row.item.service}</td>
-                <td className="border p-2 text-center">{row.item.quantity}</td>
+
+                {/* 🔄 單價 - 調整順序 */}
                 <td className="border p-2 text-right">${row.item.price?.toLocaleString() || '0'}</td>
-                <td className="border p-2 text-center">{row.item.remark || ''}</td>
+
+                {/* 🔄 數量 - 調整順序 */}
+                <td className="border p-2 text-center">{row.item.quantity || 1}</td>
+
+                {/* 🆕 合計 - 新增欄位 */}
+                <td className="border p-2 text-right font-semibold">${itemTotal.toLocaleString()}</td>
               </tr>
-            ))}
+              );
+            })}
           </tbody>
         </table>
+
+
 
         <table className="w-full mb-8 break-inside-avoid">
           <tbody>
@@ -405,22 +418,9 @@ export default function ViewQuotePage() {
                         <tr>
                           <td className="border p-2 font-bold bg-gray-50">未稅小計</td>
                           <td className="border p-2 text-right text-gray-500 relative">
-                            <div style={{
-                              position: 'relative',
-                              display: 'inline-block',
-                              color: '#6b7280'
-                            }}>
+
                               ${quote.subtotal_untaxed?.toLocaleString() || '0'}
-                              <div style={{
-                                position: 'absolute',
-                                left: '0',
-                                right: '0',
-                                top: '50%',
-                                height: '1px',
-                                backgroundColor: '#9ca3af',
-                                transform: 'translateY(-50%)'
-                              }}></div>
-                            </div>                             
+                           
                           </td>
                         </tr>
                         <tr>
