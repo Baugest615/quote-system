@@ -7,14 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Trash2, Link as LinkIcon, Eye, Download, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
-
-interface PendingPaymentAttachment { 
-  name: string; 
-  url: string; 
-  path: string; 
-  uploadedAt: string;
-  size: number;
-}
+import { PendingPaymentAttachment } from '@/lib/payments/types';
 
 interface PendingPaymentFileModalProps {
   isOpen: boolean;
@@ -25,13 +18,13 @@ interface PendingPaymentFileModalProps {
   onUpdate: (itemId: string, attachments: PendingPaymentAttachment[]) => void;
 }
 
-export function PendingPaymentFileModal({ 
-  isOpen, 
-  onClose, 
-  itemId, 
-  projectName, 
+export function PendingPaymentFileModal({
+  isOpen,
+  onClose,
+  itemId,
+  projectName,
   currentAttachments,
-  onUpdate 
+  onUpdate
 }: PendingPaymentFileModalProps) {
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
@@ -47,7 +40,7 @@ export function PendingPaymentFileModal({
   const createSafeFileName = (originalName: string): string => {
     const timestamp = new Date().getTime();
     const extension = originalName.split('.').pop()?.toLowerCase() || 'file';
-    
+
     const safeName = originalName
       .replace(/\.[^/.]+$/, '') // 移除副檔名
       .replace(/[^\x00-\x7F]/g, '') // 移除所有非ASCII字符（包括中文）
@@ -55,7 +48,7 @@ export function PendingPaymentFileModal({
       .replace(/_+/g, '_') // 將多個連續底線合併為一個
       .replace(/^_|_$/g, '') // 移除開頭和結尾的底線
       .substring(0, 20); // 限制長度
-    
+
     const finalName = safeName || 'file';
     return `${timestamp}_${finalName}.${extension}`;
   };
@@ -66,7 +59,7 @@ export function PendingPaymentFileModal({
     const imageTypes = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg'];
     const documentTypes = ['pdf', 'doc', 'docx', 'txt'];
     const spreadsheetTypes = ['xls', 'xlsx', 'csv'];
-    
+
     if (imageTypes.includes(extension)) return 'image';
     if (documentTypes.includes(extension)) return 'document';
     if (spreadsheetTypes.includes(extension)) return 'spreadsheet';
@@ -110,7 +103,7 @@ export function PendingPaymentFileModal({
     }
 
     setUploading(true);
-    
+
     try {
       // 如果已達到最大檔案數量，刪除最舊的檔案
       let updatedAttachments = [...attachments];
@@ -118,12 +111,12 @@ export function PendingPaymentFileModal({
         // 按上傳時間排序，刪除最舊的
         updatedAttachments.sort((a, b) => new Date(a.uploadedAt).getTime() - new Date(b.uploadedAt).getTime());
         const oldestFile = updatedAttachments[0];
-        
+
         // 從 Supabase Storage 刪除最舊檔案
         await supabase.storage
           .from('attachments')
           .remove([oldestFile.path]);
-        
+
         // 從陣列中移除
         updatedAttachments = updatedAttachments.slice(1);
       }
@@ -139,9 +132,9 @@ export function PendingPaymentFileModal({
       // 上傳新檔案
       const { error: uploadError, data: uploadData } = await supabase.storage
         .from('attachments')
-        .upload(uploadPath, file, { 
-          cacheControl: '3600', 
-          upsert: true 
+        .upload(uploadPath, file, {
+          cacheControl: '3600',
+          upsert: true
         });
 
       if (uploadError) {
@@ -164,14 +157,14 @@ export function PendingPaymentFileModal({
         uploadedAt: new Date().toISOString(),
         size: file.size
       };
-      
+
       // 更新附件陣列
       const finalAttachments = [...updatedAttachments, newAttachment];
       setAttachments(finalAttachments);
-      
+
       console.log('File upload completed successfully');
       toast.success('檔案已成功上傳！');
-      
+
       // 通知父組件更新
       onUpdate(itemId, finalAttachments);
 
@@ -189,7 +182,7 @@ export function PendingPaymentFileModal({
   // 安全下載檔案
   const handleFileDownload = async (attachment: PendingPaymentAttachment) => {
     setDownloadError(null);
-    
+
     try {
       const { data, error } = await supabase.storage
         .from('attachments')
@@ -219,7 +212,7 @@ export function PendingPaymentFileModal({
   // 預覽檔案
   const handleFilePreview = async (attachment: PendingPaymentAttachment) => {
     setDownloadError(null);
-    
+
     try {
       const { data, error } = await supabase.storage
         .from('attachments')
@@ -245,7 +238,7 @@ export function PendingPaymentFileModal({
     if (window.confirm(`確定要刪除檔案 "${attachment.name}" 嗎？`)) {
       try {
         console.log('Deleting file:', attachment.path);
-        
+
         // 從儲存空間刪除檔案
         const { error: storageError } = await supabase.storage
           .from('attachments')
@@ -254,17 +247,17 @@ export function PendingPaymentFileModal({
         if (storageError) {
           console.warn('從儲存空間刪除檔案失敗:', storageError.message);
         }
-        
+
         // 從陣列中移除
         const updatedAttachments = attachments.filter(a => a.path !== attachment.path);
         setAttachments(updatedAttachments);
-        
+
         console.log('File deletion completed successfully');
         toast.success('檔案已成功刪除！');
-        
+
         // 通知父組件更新
         onUpdate(itemId, updatedAttachments);
-        
+
       } catch (error) {
         console.error('Delete process error:', error);
         setUploadError('刪除失敗: ' + (error instanceof Error ? error.message : '未知錯誤'));
@@ -297,7 +290,7 @@ export function PendingPaymentFileModal({
             </span>
           </div>
           <div className="mt-2 bg-blue-200 rounded-full h-2">
-            <div 
+            <div
               className="bg-blue-500 h-2 rounded-full transition-all duration-300"
               style={{ width: `${Math.min((currentTotalSize / MAX_TOTAL_SIZE) * 100, 100)}%` }}
             />
@@ -310,7 +303,7 @@ export function PendingPaymentFileModal({
             <LinkIcon className="h-4 w-4 mr-2" />
             已上傳檔案 ({attachments.length})
           </h4>
-          
+
           {attachments.length > 0 ? (
             <div className="space-y-2 max-h-64 overflow-y-auto">
               {attachments.map((attachment, index) => {
@@ -334,30 +327,30 @@ export function PendingPaymentFileModal({
                           </p>
                         </div>
                       </div>
-                      
+
                       <div className="flex space-x-1 ml-3">
-                        <Button 
-                          variant="ghost" 
-                          size="sm" 
-                          className="h-8 w-8 p-0 text-blue-500 hover:text-blue-700 hover:bg-blue-50" 
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-8 w-8 p-0 text-blue-500 hover:text-blue-700 hover:bg-blue-50"
                           onClick={() => handleFilePreview(attachment)}
                           title="預覽"
                         >
                           <Eye className="h-3 w-3" />
                         </Button>
-                        <Button 
-                          variant="ghost" 
-                          size="sm" 
-                          className="h-8 w-8 p-0 text-green-500 hover:text-green-700 hover:bg-green-50" 
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-8 w-8 p-0 text-green-500 hover:text-green-700 hover:bg-green-50"
                           onClick={() => handleFileDownload(attachment)}
                           title="下載"
                         >
                           <Download className="h-3 w-3" />
                         </Button>
-                        <Button 
-                          variant="ghost" 
-                          size="sm" 
-                          className="h-8 w-8 p-0 text-red-500 hover:text-red-700 hover:bg-red-50" 
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-8 w-8 p-0 text-red-500 hover:text-red-700 hover:bg-red-50"
                           onClick={() => handleFileDelete(attachment)}
                           title="刪除"
                         >
@@ -380,7 +373,7 @@ export function PendingPaymentFileModal({
         {/* 上傳新檔案 */}
         <div className="border-t pt-4">
           <h4 className="text-md font-semibold text-gray-700 mb-3">上傳新檔案</h4>
-          
+
           <div className="bg-yellow-50 border border-yellow-200 rounded-md p-3 mb-3">
             <p className="text-xs text-yellow-800">
               <strong>重要說明：</strong><br />
@@ -390,16 +383,16 @@ export function PendingPaymentFileModal({
               • 支援格式：PDF, Word, Excel, 圖片等常見格式
             </p>
           </div>
-          
-          <Input 
-            type="file" 
-            ref={fileInputRef} 
-            onChange={handleFileUpload} 
-            disabled={uploading || currentTotalSize >= MAX_TOTAL_SIZE} 
+
+          <Input
+            type="file"
+            ref={fileInputRef}
+            onChange={handleFileUpload}
+            disabled={uploading || currentTotalSize >= MAX_TOTAL_SIZE}
             className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"
             accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.gif,.txt,.zip,.rar"
           />
-          
+
           {currentTotalSize >= MAX_TOTAL_SIZE && (
             <div className="mt-2 bg-red-50 border border-red-200 rounded-md p-2">
               <p className="text-sm text-red-800">
@@ -407,27 +400,27 @@ export function PendingPaymentFileModal({
               </p>
             </div>
           )}
-          
+
           {uploading && (
             <div className="mt-2 flex items-center text-sm text-indigo-600">
               <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-indigo-600 mr-2"></div>
               上傳中，請稍候...
             </div>
           )}
-          
+
           {uploadError && (
             <div className="mt-2 bg-red-50 border border-red-200 rounded-md p-2">
               <p className="text-sm text-red-800">{uploadError}</p>
             </div>
           )}
-          
+
           {downloadError && (
             <div className="mt-2 bg-red-50 border border-red-200 rounded-md p-2">
               <p className="text-sm text-red-800">{downloadError}</p>
             </div>
           )}
         </div>
-        
+
         <div className="flex justify-end pt-4 border-t">
           <Button variant="outline" onClick={handleClose} disabled={uploading}>
             {uploading ? '處理中...' : '關閉'}

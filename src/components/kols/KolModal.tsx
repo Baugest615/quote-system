@@ -30,6 +30,7 @@ interface KolFormData {
   bank_info: {
     bankType?: 'individual' | 'company'
     companyAccountName?: string
+    personalAccountName?: string
     bankName?: string
     branchName?: string
     accountNumber?: string
@@ -49,12 +50,12 @@ interface KolModalProps {
 
 // 建立一個帶有圖示的 Input 子元件，方便重用
 const SocialInput = ({ name, icon: Icon, register, placeholder }: { name: keyof KolFormData['social_links']; icon: React.ElementType; register: any; placeholder: string }) => (
-    <div className="relative">
-        <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
-            <Icon className="h-5 w-5 text-gray-400" />
-        </div>
-        <Input {...register(`social_links.${name}`)} placeholder={placeholder} className="pl-10" />
+  <div className="relative">
+    <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+      <Icon className="h-5 w-5 text-gray-400" />
     </div>
+    <Input {...register(`social_links.${name}`)} placeholder={placeholder} className="pl-10" />
+  </div>
 )
 
 
@@ -103,6 +104,9 @@ export function KolModal({ isOpen, onClose, onSave, kol, kolTypes, serviceTypes 
     if (data.bank_info?.bankType !== 'company') {
       data.bank_info = { ...data.bank_info, companyAccountName: '' };
     }
+    if (data.bank_info?.bankType !== 'individual') {
+      data.bank_info = { ...data.bank_info, personalAccountName: '' };
+    }
     const sanitizedData = { ...data, real_name: data.real_name || null, type_id: data.type_id || null };
     await onSave(sanitizedData, kol?.id)
   }
@@ -111,7 +115,7 @@ export function KolModal({ isOpen, onClose, onSave, kol, kolTypes, serviceTypes 
     // 修改 Modal 元件，讓它可以接收寬度參數
     <Modal isOpen={isOpen} onClose={onClose} title={kol ? '編輯 KOL 資料' : '新增 KOL'} maxWidth="max-w-4xl">
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-6 max-h-[80vh] overflow-y-auto p-1">
-        
+
         {/* 基本資訊區塊 */}
         <div className="space-y-4">
           <h4 className="text-md font-semibold text-gray-700 border-b pb-2">基本資訊</h4>
@@ -125,12 +129,12 @@ export function KolModal({ isOpen, onClose, onSave, kol, kolTypes, serviceTypes 
             </div>
             <div>
               <label className="text-sm font-medium">KOL 名稱 (必填)</label>
-              <Input {...register('name', { required: 'KOL 名稱為必填' })} className="mt-1"/>
+              <Input {...register('name', { required: 'KOL 名稱為必填' })} className="mt-1" />
               {errors.name && <p className="text-red-500 text-xs mt-1">{errors.name.message}</p>}
             </div>
             <div>
               <label className="text-sm font-medium">真實姓名</label>
-              <Input {...register('real_name')} className="mt-1"/>
+              <Input {...register('real_name')} className="mt-1" />
             </div>
           </div>
         </div>
@@ -186,6 +190,12 @@ export function KolModal({ isOpen, onClose, onSave, kol, kolTypes, serviceTypes 
                 <div>
                   <label className="block text-sm font-medium">公司匯款戶名</label>
                   <Input {...register('bank_info.companyAccountName')} className="mt-1" />
+                </div>
+              )}
+              {watchBankType === 'individual' && (
+                <div>
+                  <label className="block text-sm font-medium">個人匯款戶名</label>
+                  <Input {...register('bank_info.personalAccountName')} className="mt-1" />
                 </div>
               )}
             </div>
