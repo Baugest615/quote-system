@@ -25,6 +25,7 @@ export default function ConfirmedPaymentsPage() {
       .from('payment_confirmations')
       .select(`
         *,
+        remittance_settings,
         payment_confirmation_items (
           *,
           payment_requests (
@@ -51,6 +52,11 @@ export default function ConfirmedPaymentsPage() {
       .order('confirmation_date', { ascending: false })
 
     if (error) throw error
+
+    console.log('Fetched confirmations:', data)
+    if (data && data.length > 0) {
+      console.log('First confirmation settings:', data[0].remittance_settings)
+    }
 
     // 初始化展開狀態
     return (data || []).map(item => ({

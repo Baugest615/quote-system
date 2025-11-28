@@ -57,7 +57,7 @@ export function QuotationItemsList({ quotationId, onUpdate }: QuotationItemsList
         setLoading(true)
         const { data, error } = await supabase
             .from('quotation_items')
-            .select('*')
+            .select('*, payment_requests(verification_status)')
             .eq('quotation_id', quotationId)
             .order('created_at', { ascending: true })
 
@@ -146,6 +146,20 @@ export function QuotationItemsList({ quotationId, onUpdate }: QuotationItemsList
 
     // 本地刪除項目
     const handleDeleteItem = (id: string) => {
+        // 檢查是否有關聯的付款申請
+        const item = items.find(i => i.id === id);
+        if (item) {
+            // @ts-ignore - payment_requests is joined
+            const paymentRequests = item.payment_requests as any[];
+            if (paymentRequests && paymentRequests.length > 0) {
+                const hasActiveRequest = paymentRequests.some(pr => pr.verification_status !== 'rejected');
+                if (hasActiveRequest) {
+                    toast.error('此項目已有進行中或已完成的付款申請，無法刪除。');
+                    return;
+                }
+            }
+        }
+
         // 判斷是否為新項目
         const isNew = !originalItems.some(item => item.id === id)
 
@@ -178,10 +192,13 @@ export function QuotationItemsList({ quotationId, onUpdate }: QuotationItemsList
             }
 
             // 2. 執行新增與更新
+            // 2. 執行新增與更新
             const itemsToUpsert = items.map(item => {
                 // 移除 created_at，讓資料庫處理 (新增時 default now()，更新時不變)
+                // 移除 payment_requests，這是關聯資料，不能寫入
                 // 必須保留 id，因為我們現在全都是 UUID
-                const { created_at, ...rest } = item
+                // @ts-ignore
+                const { created_at, payment_requests, ...rest } = item
 
                 // 確保數值正確
                 return {
@@ -467,8 +484,23 @@ export function QuotationItemsList({ quotationId, onUpdate }: QuotationItemsList
                                         <Button
                                             variant="ghost"
                                             size="sm"
-                                            className="h-6 w-6 p-0 opacity-0 group-hover:opacity-100 text-red-400 hover:text-red-600"
+                                            className={`h-6 w-6 p-0 ${
+                                                // @ts-ignore
+                                                item.payment_requests?.some((pr: any) => pr.verification_status !== 'rejected')
+                                                    ? 'text-gray-300 cursor-not-allowed'
+                                                    : 'opacity-0 group-hover:opacity-100 text-red-400 hover:text-red-600'
+                                                }`}
                                             onClick={() => handleDeleteItem(item.id)}
+                                            disabled={
+                                                // @ts-ignore
+                                                item.payment_requests?.some((pr: any) => pr.verification_status !== 'rejected')
+                                            }
+                                            title={
+                                                // @ts-ignore
+                                                item.payment_requests?.some((pr: any) => pr.verification_status !== 'rejected')
+                                                    ? '此項目已有付款申請，無法刪除'
+                                                    : '刪除項目'
+                                            }
                                         >
                                             <Trash2 className="h-3 w-3" />
                                         </Button>

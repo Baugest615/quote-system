@@ -99,42 +99,63 @@ const FileViewerModal = ({ isOpen, onClose, request }: {
 }
 
 export default function PaymentRequestsPage() {
-  // 1. 資料管理 Hook
   const fetchPaymentRequests = useCallback(async () => {
-    // 自定義獲取邏輯
     const { data, error } = await supabase
-      .from('payment_requests_with_details')
-      .select('*')
+      .from('payment_requests')
+      .select(`
+        *,
+        quotation_items:quotation_item_id (
+          *,
+          quotations:quotation_id (
+            project_name,
+            client_id,
+            clients:client_id (name)
+          ),
+          kols:kol_id (
+            id,
+            name,
+            real_name,
+            bank_info
+          )
+        )
+      `)
       .eq('verification_status', 'pending')
-      .order('request_date', { ascending: false })
+      .not('request_date', 'is', null)
+      .order('request_date', { ascending: true })
 
     if (error) throw error
 
-    // 轉換資料格式
-    return (data || []).map(item => ({
-      ...item,
-      id: item.quotation_item_id, // 使用 quotation_item_id 作為主要 ID
-      payment_request_id: item.id,
-      quotations: {
-        project_name: item.project_name || '',
-        client_id: null,
-        clients: { name: item.client_name || '' }
-      },
-      kols: {
-        id: item.kol_id || '',
-        name: item.kol_name || '',
-        real_name: null,
-        bank_info: null
-      },
-      service: item.service_item || '',
-      price: 0,
-      quantity: 1,
-      cost: item.cost_amount,
-      remark: null,
-      created_at: item.request_date,
-      attachments: item.attachment_file_path ? JSON.parse(item.attachment_file_path) : [],
-      parsed_attachments: item.attachment_file_path ? JSON.parse(item.attachment_file_path) : []
-    })) as PaymentRequestItem[]
+    return (data || []).map((req: any) => {
+      const qItem = req.quotation_items;
+      const quotation = qItem?.quotations;
+      const client = quotation?.clients;
+      const kol = qItem?.kols;
+
+      return {
+        ...req,
+        id: req.quotation_item_id,
+        payment_request_id: req.id,
+        quotations: {
+          project_name: quotation?.project_name || '',
+          client_id: quotation?.client_id,
+          clients: { name: client?.name || '' }
+        },
+        kols: {
+          id: kol?.id || '',
+          name: kol?.name || '',
+          real_name: kol?.real_name,
+          bank_info: kol?.bank_info
+        },
+        service: qItem?.service_item || '',
+        price: 0,
+        quantity: 1,
+        cost: req.cost_amount,
+        remark: null,
+        created_at: req.request_date,
+        attachments: req.attachment_file_path ? JSON.parse(req.attachment_file_path) : [],
+        parsed_attachments: req.attachment_file_path ? JSON.parse(req.attachment_file_path) : []
+      } as PaymentRequestItem
+    })
   }, [])
 
   const paymentDataOptions = useMemo(() => ({
