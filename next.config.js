@@ -16,8 +16,8 @@ const nextConfig = {
     removeConsole:
       process.env.NODE_ENV === 'production'
         ? {
-            exclude: ['error', 'warn'],
-          }
+          exclude: ['error', 'warn'],
+        }
         : false,
   },
 
@@ -109,20 +109,6 @@ const nextConfig = {
 
     return config;
   },
-
-  // ===== TypeScript 配置 =====
-  typescript: {
-    ignoreBuildErrors: false,
-  },
-
-  // ===== ESLint 配置 =====
-  eslint: {
-    ignoreDuringBuilds: false,
-    dirs: ['src'],
-  },
-
-  // ===== 效能優化 =====
-  compress: true,
 
   // ===== Logging 配置 =====
   logging: {
