@@ -1,644 +1,382 @@
 'use client'
 
-import { useState, useEffect, useCallback, useMemo } from 'react'
-import Link from 'next/link'
+import { useState, useCallback, useEffect, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import supabase from '@/lib/supabase/client'
 import { Database } from '@/types/database.types'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { FileModal } from '@/components/quotes/FileModal'
-import { 
-  PlusCircle, Edit, Trash2, Search, UploadCloud, Paperclip, CheckCircle, 
-  ChevronUp, ChevronDown, Filter, X, Calendar, DollarSign 
-} from 'lucide-react'
+import { Search, PlusCircle, Filter, ChevronLeft, ChevronRight, Calendar, DollarSign } from 'lucide-react'
+import { QuotesDataGrid } from '@/components/quotes/v2/QuotesDataGrid'
 
-// 類型定義
+// 類型定義 (與 V1 保持一致)
 type Quotation = Database['public']['Tables']['quotations']['Row']
 type Client = Database['public']['Tables']['clients']['Row']
-type QuotationWithClient = Quotation & { clients: Client | null }
-
-// 排序方向類型
-type SortDirection = 'asc' | 'desc' | null
-type SortField = 'created_at' | 'project_name' | 'client_name' | 'total_amount' | 'status'
+export type QuotationWithClient = Quotation & { clients: Client | null }
 
 // 篩選器類型
 interface FilterState {
-  status: string[]
-  clientIds: string[]
-  dateRange: {
-    start: string
-    end: string
-  }
-  amountRange: {
-    min: string
-    max: string
-  }
+    status: string[]
+    clientIds: string[]
+    dateRange: {
+        start: string
+        end: string
+    }
+    amountRange: {
+        min: string
+        max: string
+    }
 }
 
-export default function QuotesPage() {
-  const [quotations, setQuotations] = useState<QuotationWithClient[]>([])
-  const [clients, setClients] = useState<Client[]>([])
-  const [loading, setLoading] = useState(true)
-  const [searchTerm, setSearchTerm] = useState('')
-  const [fileModalOpen, setFileModalOpen] = useState(false)
-  const [selectedQuote, setSelectedQuote] = useState<QuotationWithClient | null>(null)
-  const [showFilters, setShowFilters] = useState(false)
-  
-  // 🆕 排序狀態
-  const [sortField, setSortField] = useState<SortField>('created_at')
-  const [sortDirection, setSortDirection] = useState<SortDirection>('desc')
-  
-  // 🆕 篩選狀態
-  const [filters, setFilters] = useState<FilterState>({
-    status: [],
-    clientIds: [],
-    dateRange: { start: '', end: '' },
-    amountRange: { min: '', max: '' }
-  })
+export default function QuotesV2Page() {
+    const [quotations, setQuotations] = useState<QuotationWithClient[]>([])
+    const [clients, setClients] = useState<Client[]>([])
+    const [loading, setLoading] = useState(true)
+    const [searchTerm, setSearchTerm] = useState('')
+    const [showFilters, setShowFilters] = useState(false)
 
-  const router = useRouter()
-
-  // 🆕 狀態選項
-  const statusOptions = [
-    { value: '草稿', label: '草稿', color: 'bg-gray-100 text-gray-800' },
-    { value: '待簽約', label: '待簽約', color: 'bg-yellow-100 text-yellow-800' },
-    { value: '已簽約', label: '已簽約', color: 'bg-green-100 text-green-800' },
-    { value: '已歸檔', label: '已歸檔', color: 'bg-blue-100 text-blue-800' }
-  ]
-
-  // 輔助函數
-  const hasAttachment = (attachments: any): boolean => {
-    return attachments && Array.isArray(attachments) && attachments.length > 0
-  }
-
-  const formatDate = (dateString: string | null): string => {
-    if (!dateString) return ''
-    return new Date(dateString).toLocaleDateString('zh-TW')
-  }
-
-  // 渲染附件按鈕
-  const renderAttachmentButton = (quote: QuotationWithClient) => {
-    const hasFile = hasAttachment(quote.attachments)
-    
-    if (hasFile) {
-      return (
-        <Button 
-          variant="outline" 
-          size="sm"
-          onClick={() => {
-            setSelectedQuote(quote)
-            setFileModalOpen(true)
-          }}
-          className="text-green-600 border-green-300 hover:bg-green-50"
-        >
-          <CheckCircle className="mr-1 h-3 w-3" /> 已上傳
-        </Button>
-      )
-    } else {
-      return (
-        <Button 
-          variant="outline" 
-          size="sm"
-          onClick={() => {
-            setSelectedQuote(quote)
-            setFileModalOpen(true)
-          }}
-          className="text-gray-500 border-gray-300 hover:bg-gray-50"
-        >
-          <UploadCloud className="mr-1 h-3 w-3" /> 上傳檔案
-        </Button>
-      )
-    }
-  }
-
-  // 🆕 排序處理函數
-  const handleSort = (field: SortField) => {
-    if (sortField === field) {
-      // 同一欄位：昇序 → 降序 → 無排序
-      if (sortDirection === 'asc') {
-        setSortDirection('desc')
-      } else if (sortDirection === 'desc') {
-        setSortDirection(null)
-        setSortField('created_at') // 回到預設排序
-      } else {
-        setSortDirection('asc')
-      }
-    } else {
-      // 不同欄位：直接設為昇序
-      setSortField(field)
-      setSortDirection('asc')
-    }
-  }
-
-  // 🆕 排序圖標組件
-  const SortIcon = ({ field }: { field: SortField }) => {
-    if (sortField !== field) return <div className="w-4 h-4" />
-    if (sortDirection === 'asc') return <ChevronUp className="w-4 h-4" />
-    if (sortDirection === 'desc') return <ChevronDown className="w-4 h-4" />
-    return <div className="w-4 h-4" />
-  }
-
-  // 🆕 篩選器重置
-  const resetFilters = () => {
-    setFilters({
-      status: [],
-      clientIds: [],
-      dateRange: { start: '', end: '' },
-      amountRange: { min: '', max: '' }
+    // 篩選狀態
+    const [filters, setFilters] = useState<FilterState>({
+        status: [],
+        clientIds: [],
+        dateRange: { start: '', end: '' },
+        amountRange: { min: '', max: '' }
     })
-  }
 
-  // 🆕 檢查是否有啟用的篩選
-  const hasActiveFilters = useMemo(() => {
-    return (
-      filters.status.length > 0 ||
-      filters.clientIds.length > 0 ||
-      filters.dateRange.start ||
-      filters.dateRange.end ||
-      filters.amountRange.min ||
-      filters.amountRange.max
-    )
-  }, [filters])
+    // 分頁狀態
+    const [currentPage, setCurrentPage] = useState(1)
+    const itemsPerPage = 50
 
-  // 數據獲取
-  const fetchData = useCallback(async () => {
-    setLoading(true)
-    const [quotationsRes, clientsRes] = await Promise.all([
-      supabase
-        .from('quotations')
-        .select('*, clients(*)')
-        .order('created_at', { ascending: false }),
-      supabase
-        .from('clients')
-        .select('*')
-        .order('name')
-    ])
+    // 狀態選項
+    const statusOptions = [
+        { value: '草稿', label: '草稿', color: 'bg-gray-100 text-gray-800' },
+        { value: '待簽約', label: '待簽約', color: 'bg-yellow-100 text-yellow-800' },
+        { value: '已簽約', label: '已簽約', color: 'bg-green-100 text-green-800' },
+        { value: '已歸檔', label: '已歸檔', color: 'bg-blue-100 text-blue-800' }
+    ]
 
-    if (quotationsRes.error) {
-      console.error('Error fetching quotations:', quotationsRes.error)
-    } else {
-      setQuotations(quotationsRes.data as QuotationWithClient[])
-    }
+    // 資料獲取
+    const fetchData = useCallback(async () => {
+        setLoading(true)
+        const [quotationsRes, clientsRes] = await Promise.all([
+            supabase
+                .from('quotations')
+                .select('*, clients(*)')
+                .order('created_at', { ascending: false }),
+            supabase
+                .from('clients')
+                .select('*')
+                .order('name')
+        ])
 
-    if (clientsRes.error) {
-      console.error('Error fetching clients:', clientsRes.error)
-    } else {
-      setClients(clientsRes.data || [])
-    }
-
-    setLoading(false)
-  }, [])
-
-  useEffect(() => {
-    fetchData()
-  }, [fetchData])
-
-  // 🆕 篩選和排序邏輯
-  const filteredAndSortedQuotations = useMemo(() => {
-    let result = [...quotations]
-
-    // 1. 基本搜尋
-    if (searchTerm) {
-      result = result.filter((quote) =>
-        quote.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        quote.project_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        quote.clients?.name.toLowerCase().includes(searchTerm.toLowerCase())
-      )
-    }
-
-    // 2. 狀態篩選
-    if (filters.status.length > 0) {
-      result = result.filter((quote) => 
-        quote.status && filters.status.includes(quote.status)
-      )
-    }
-
-    // 3. 客戶篩選
-    if (filters.clientIds.length > 0) {
-      result = result.filter((quote) => 
-        quote.client_id && filters.clientIds.includes(quote.client_id)
-      )
-    }
-
-    // 4. 日期範圍篩選
-    if (filters.dateRange.start) {
-      result = result.filter((quote) => 
-        quote.created_at && quote.created_at >= filters.dateRange.start
-      )
-    }
-    if (filters.dateRange.end) {
-      result = result.filter((quote) => 
-        quote.created_at && quote.created_at <= filters.dateRange.end + 'T23:59:59'
-      )
-    }
-
-    // 5. 金額範圍篩選
-    if (filters.amountRange.min) {
-      const minAmount = parseFloat(filters.amountRange.min)
-      result = result.filter((quote) => {
-        const total = quote.has_discount && quote.discounted_price ? 
-        quote.discounted_price + Math.round(quote.discounted_price * 0.05) : // 優惠價含稅
-        (quote.grand_total_taxed || 0) // 原含稅價
-        return total >= minAmount
-      })
-    }
-    if (filters.amountRange.max) {
-      const maxAmount = parseFloat(filters.amountRange.max)
-      result = result.filter((quote) => {
-        const total = quote.has_discount && quote.discounted_price ? 
-        quote.discounted_price + Math.round(quote.discounted_price * 0.05) : // 優惠價含稅
-        (quote.grand_total_taxed || 0) // 原含稅價
-        return total <= maxAmount
-      })
-    }
-
-    // 6. 排序
-    if (sortDirection && sortField) {
-      result.sort((a, b) => {
-        let aValue: any
-        let bValue: any
-
-        switch (sortField) {
-          case 'created_at':
-            aValue = new Date(a.created_at || 0).getTime()
-            bValue = new Date(b.created_at || 0).getTime()
-            break
-          case 'project_name':
-            aValue = a.project_name.toLowerCase()
-            bValue = b.project_name.toLowerCase()
-            break
-          case 'client_name':
-            aValue = (a.clients?.name || '').toLowerCase()
-            bValue = (b.clients?.name || '').toLowerCase()
-            break
-          case 'total_amount':
-            aValue = a.has_discount ? (a.discounted_price || 0) : (a.grand_total_taxed || 0)
-            bValue = b.has_discount ? (b.discounted_price || 0) : (b.grand_total_taxed || 0)
-            break
-          case 'status':
-            aValue = a.status || ''
-            bValue = b.status || ''
-            break
-          default:
-            return 0
+        if (quotationsRes.error) {
+            console.error('Error fetching quotations:', quotationsRes.error)
+        } else {
+            setQuotations(quotationsRes.data as QuotationWithClient[])
         }
 
-        if (aValue < bValue) return sortDirection === 'asc' ? -1 : 1
-        if (aValue > bValue) return sortDirection === 'asc' ? 1 : -1
-        return 0
-      })
-    }
+        if (clientsRes.error) {
+            console.error('Error fetching clients:', clientsRes.error)
+        } else {
+            setClients(clientsRes.data || [])
+        }
 
-    return result
-  }, [quotations, searchTerm, filters, sortField, sortDirection])
+        setLoading(false)
+    }, [])
 
-  // 渲染狀態標籤
-  const renderStatusBadge = (status: string | null) => {
-    const statusOption = statusOptions.find(opt => opt.value === status)
-    if (!statusOption) return <span className="text-gray-500">未設定</span>
-    
+    useEffect(() => {
+        fetchData()
+    }, [fetchData])
+
+    // 檢查是否有啟用的篩選
+    const hasActiveFilters = useMemo(() => {
+        return (
+            filters.status.length > 0 ||
+            filters.clientIds.length > 0 ||
+            filters.dateRange.start ||
+            filters.dateRange.end ||
+            filters.amountRange.min ||
+            filters.amountRange.max
+        )
+    }, [filters])
+
+    // 篩選邏輯
+    const filteredQuotations = useMemo(() => {
+        let result = [...quotations]
+
+        // 1. 基本搜尋
+        if (searchTerm) {
+            result = result.filter((quote) =>
+                quote.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                quote.project_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                (quote.clients?.name || '').toLowerCase().includes(searchTerm.toLowerCase())
+            )
+        }
+
+        // 2. 狀態篩選
+        if (filters.status.length > 0) {
+            result = result.filter((quote) =>
+                quote.status && filters.status.includes(quote.status)
+            )
+        }
+
+        // 3. 客戶篩選
+        if (filters.clientIds.length > 0) {
+            result = result.filter((quote) =>
+                quote.client_id && filters.clientIds.includes(quote.client_id)
+            )
+        }
+
+        // 4. 日期範圍篩選
+        if (filters.dateRange.start) {
+            result = result.filter((quote) =>
+                quote.created_at && quote.created_at >= filters.dateRange.start
+            )
+        }
+        if (filters.dateRange.end) {
+            result = result.filter((quote) =>
+                quote.created_at && quote.created_at <= filters.dateRange.end + 'T23:59:59'
+            )
+        }
+
+        // 5. 金額範圍篩選
+        if (filters.amountRange.min) {
+            const minAmount = parseFloat(filters.amountRange.min)
+            result = result.filter((quote) => {
+                const total = quote.has_discount && quote.discounted_price ?
+                    quote.discounted_price + Math.round(quote.discounted_price * 0.05) :
+                    (quote.grand_total_taxed || 0)
+                return total >= minAmount
+            })
+        }
+        if (filters.amountRange.max) {
+            const maxAmount = parseFloat(filters.amountRange.max)
+            result = result.filter((quote) => {
+                const total = quote.has_discount && quote.discounted_price ?
+                    quote.discounted_price + Math.round(quote.discounted_price * 0.05) :
+                    (quote.grand_total_taxed || 0)
+                return total <= maxAmount
+            })
+        }
+
+        return result
+    }, [quotations, searchTerm, filters])
+
+    // 分頁邏輯
+    const totalPages = Math.ceil(filteredQuotations.length / itemsPerPage)
+    const paginatedQuotations = useMemo(() => {
+        const startIndex = (currentPage - 1) * itemsPerPage
+        return filteredQuotations.slice(startIndex, startIndex + itemsPerPage)
+    }, [filteredQuotations, currentPage])
+
+    // 當篩選條件改變時，重置回第一頁
+    useEffect(() => {
+        setCurrentPage(1)
+    }, [searchTerm, filters])
+
     return (
-      <span className={`px-2 py-1 rounded-full text-xs font-medium ${statusOption.color}`}>
-        {statusOption.label}
-      </span>
-    )
-  }
-
-  // 刪除報價單
-  const handleDelete = async (id: string) => {
-    if (window.confirm('確定要刪除這個報價單嗎？此操作無法復原。')) {
-      const { error } = await supabase.from('quotations').delete().eq('id', id)
-      if (error) {
-        alert('刪除失敗: ' + error.message)
-      } else {
-        await fetchData()
-      }
-    }
-  }
-
-  if (loading) return <div>讀取中...</div>
-
-  return (
-    <div className="bg-white rounded-lg shadow-md p-6">
-      {/* 標題與主要操作 */}
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold">報價單管理</h1>
-        <div className="flex items-center space-x-4">
-          {/* 基本搜尋 */}
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-            <Input
-              type="text"
-              placeholder="搜尋報價單 ID、專案名稱或客戶..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10 w-64"
-            />
-          </div>
-          
-          {/* 篩選按鈕 */}
-          <Button 
-            variant="outline" 
-            onClick={() => setShowFilters(!showFilters)}
-            className={hasActiveFilters ? 'border-blue-500 text-blue-600' : ''}
-          >
-            <Filter className="mr-2 h-4 w-4" />
-            篩選 {hasActiveFilters && `(${Object.values(filters).flat().filter(Boolean).length})`}
-          </Button>
-          
-          <Link href="/dashboard/quotes/new">
-            <Button>
-              <PlusCircle className="mr-2 h-4 w-4" /> 新增報價單
-            </Button>
-          </Link>
-        </div>
-      </div>
-
-      {/* 🆕 篩選面板 */}
-      {showFilters && (
-        <div className="bg-gray-50 p-4 rounded-lg mb-6 space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            
-            {/* 狀態篩選 */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">狀態</label>
-              <div className="space-y-2">
-                {statusOptions.map((option) => (
-                  <label key={option.value} className="flex items-center">
-                    <input
-                      type="checkbox"
-                      checked={filters.status.includes(option.value)}
-                      onChange={(e) => {
-                        if (e.target.checked) {
-                          setFilters(prev => ({
-                            ...prev,
-                            status: [...prev.status, option.value]
-                          }))
-                        } else {
-                          setFilters(prev => ({
-                            ...prev,
-                            status: prev.status.filter(s => s !== option.value)
-                          }))
-                        }
-                      }}
-                      className="mr-2"
-                    />
-                    <span className="text-sm">{option.label}</span>
-                  </label>
-                ))}
-              </div>
-            </div>
-
-            {/* 客戶篩選 */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">客戶</label>
-              <div className="max-h-32 overflow-y-auto space-y-2">
-                {clients.map((client) => (
-                  <label key={client.id} className="flex items-center">
-                    <input
-                      type="checkbox"
-                      checked={filters.clientIds.includes(client.id)}
-                      onChange={(e) => {
-                        if (e.target.checked) {
-                          setFilters(prev => ({
-                            ...prev,
-                            clientIds: [...prev.clientIds, client.id]
-                          }))
-                        } else {
-                          setFilters(prev => ({
-                            ...prev,
-                            clientIds: prev.clientIds.filter(id => id !== client.id)
-                          }))
-                        }
-                      }}
-                      className="mr-2"
-                    />
-                    <span className="text-sm truncate">{client.name}</span>
-                  </label>
-                ))}
-              </div>
-            </div>
-
-            {/* 日期範圍 */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                <Calendar className="inline w-4 h-4 mr-1" />
-                建立日期
-              </label>
-              <div className="space-y-2">
-                <Input
-                  type="date"
-                  placeholder="開始日期"
-                  value={filters.dateRange.start}
-                  onChange={(e) => setFilters(prev => ({
-                    ...prev,
-                    dateRange: { ...prev.dateRange, start: e.target.value }
-                  }))}
-                  className="text-sm"
-                />
-                <Input
-                  type="date"
-                  placeholder="結束日期"
-                  value={filters.dateRange.end}
-                  onChange={(e) => setFilters(prev => ({
-                    ...prev,
-                    dateRange: { ...prev.dateRange, end: e.target.value }
-                  }))}
-                  className="text-sm"
-                />
-              </div>
-            </div>
-
-            {/* 金額範圍 */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                <DollarSign className="inline w-4 h-4 mr-1" />
-                金額範圍
-              </label>
-              <div className="space-y-2">
-                <Input
-                  type="number"
-                  placeholder="最小金額"
-                  value={filters.amountRange.min}
-                  onChange={(e) => setFilters(prev => ({
-                    ...prev,
-                    amountRange: { ...prev.amountRange, min: e.target.value }
-                  }))}
-                  className="text-sm"
-                />
-                <Input
-                  type="number"
-                  placeholder="最大金額"
-                  value={filters.amountRange.max}
-                  onChange={(e) => setFilters(prev => ({
-                    ...prev,
-                    amountRange: { ...prev.amountRange, max: e.target.value }
-                  }))}
-                  className="text-sm"
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* 篩選操作按鈕 */}
-          <div className="flex justify-end space-x-2">
-            <Button variant="outline" size="sm" onClick={resetFilters}>
-              <X className="mr-1 h-3 w-3" /> 清除篩選
-            </Button>
-            <Button variant="outline" size="sm" onClick={() => setShowFilters(false)}>
-              收起
-            </Button>
-          </div>
-        </div>
-      )}
-
-      {/* 結果統計 */}
-      <div className="mb-4 text-sm text-gray-600">
-        顯示 {filteredAndSortedQuotations.length} / {quotations.length} 個報價單
-        {hasActiveFilters && (
-          <span className="text-blue-600 ml-2">
-            (已套用篩選)
-          </span>
-        )}
-      </div>
-
-      {/* 🆕 可排序的表格 */}
-      <div className="overflow-x-auto">
-        <table className="w-full text-left table-auto">
-          <thead>
-            <tr className="bg-gray-50 border-b">
-              <th className="p-4 font-medium text-sm whitespace-nowrap">ID</th>
-              
-              {/* 可排序的委刊日期 */}
-              <th 
-                className="p-4 font-medium text-sm whitespace-nowrap w-28 cursor-pointer hover:bg-gray-100 select-none"
-                onClick={() => handleSort('created_at')}
-              >
-                <div className="flex items-center justify-between">
-                  委刊日期
-                  <SortIcon field="created_at" />
-                </div>
-              </th>
-              
-              {/* 可排序的專案名稱 */}
-              <th 
-                className="p-4 font-medium text-sm whitespace-nowrap cursor-pointer hover:bg-gray-100 select-none"
-                onClick={() => handleSort('project_name')}
-              >
-                <div className="flex items-center justify-between">
-                  專案名稱
-                  <SortIcon field="project_name" />
-                </div>
-              </th>
-              
-              {/* 可排序的客戶 */}
-              <th 
-                className="p-4 font-medium text-sm whitespace-nowrap cursor-pointer hover:bg-gray-100 select-none"
-                onClick={() => handleSort('client_name')}
-              >
-                <div className="flex items-center justify-between">
-                  客戶
-                  <SortIcon field="client_name" />
-                </div>
-              </th>
-              
-              {/* 可排序的金額 */}
-              <th 
-                className="p-4 font-medium text-sm whitespace-nowrap cursor-pointer hover:bg-gray-100 select-none"
-                onClick={() => handleSort('total_amount')}
-              >
-                <div className="flex items-center justify-between">
-                  金額(含稅)
-                  <SortIcon field="total_amount" />
-                </div>
-              </th>
-              
-              {/* 可排序的狀態 */}
-              <th 
-                className="p-4 font-medium text-sm whitespace-nowrap w-24 cursor-pointer hover:bg-gray-100 select-none"
-                onClick={() => handleSort('status')}
-              >
-                <div className="flex items-center justify-between">
-                  狀態
-                  <SortIcon field="status" />
-                </div>
-              </th>
-              
-              <th className="p-4 font-medium text-sm text-center whitespace-nowrap w-48">操作</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filteredAndSortedQuotations.map((quote) => {
-              const total = quote.has_discount && quote.discounted_price ? 
-              quote.discounted_price + Math.round(quote.discounted_price * 0.05) : // 優惠價含稅
-              (quote.grand_total_taxed || 0) // 原含稅價
-
-              return (
-                <tr key={quote.id} className="border-b hover:bg-gray-50">
-                  <td className="p-4 text-sm font-mono text-gray-600">
-                    {quote.id.slice(-8)}
-                  </td>
-                  <td className="p-4 text-sm">{formatDate(quote.created_at)}</td>
-                  <td className="p-4 text-sm font-semibold text-indigo-700">
-                    {quote.project_name}
-                  </td>
-                  <td className="p-4 text-sm">{quote.clients?.name || 'N/A'}</td>
-                  <td className="p-4 text-sm font-semibold">
-                    NT$ {total.toLocaleString()}
-                  </td>
-                  <td className="p-4">{renderStatusBadge(quote.status)}</td>
-                  <td className="p-4 text-center">
-                    <div className="flex justify-center space-x-1">
-                      {renderAttachmentButton(quote)}
-                      <Link href={`/dashboard/quotes/view/${quote.id}`}>
-                        <Button variant="outline" size="sm">
-                          <CheckCircle className="mr-1 h-3 w-3" /> 檢視
-                        </Button>
-                      </Link>
-                      <Button 
-                        variant="destructive" 
-                        size="sm" 
-                        onClick={() => handleDelete(quote.id)}
-                      >
-                        <Trash2 className="mr-1 h-3 w-3" /> 刪除
-                      </Button>
+        <div className="h-[calc(100vh-4rem)] flex flex-col space-y-4 p-6 bg-gray-50">
+            {/* 頂部工具列 */}
+            <div className="flex justify-between items-center bg-white p-4 rounded-lg shadow-sm border">
+                <div className="flex items-center space-x-4">
+                    <h1 className="text-2xl font-bold text-gray-800">報價單管理</h1>
+                    <div className="text-sm text-gray-500">
+                        共 {filteredQuotations.length} 筆專案
                     </div>
-                  </td>
-                </tr>
-              )
-            })}
-          </tbody>
-        </table>
-      </div>
+                </div>
 
-      {/* 空狀態顯示 */}
-      {filteredAndSortedQuotations.length === 0 && !loading && (
-        <div className="text-center py-12">
-          <div className="text-gray-500 mb-2">
-            {hasActiveFilters || searchTerm ? '沒有符合條件的報價單' : '尚無報價單資料'}
-          </div>
-          {(hasActiveFilters || searchTerm) && (
-            <Button variant="outline" onClick={() => {
-              setSearchTerm('')
-              resetFilters()
-            }}>
-              清除所有篩選
-            </Button>
-          )}
+                <div className="flex items-center space-x-4">
+                    {/* 搜尋 */}
+                    <div className="relative w-64">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                        <Input
+                            placeholder="搜尋專案、客戶..."
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            className="pl-10"
+                        />
+                    </div>
+
+                    {/* 篩選按鈕 */}
+                    <Button
+                        variant="outline"
+                        onClick={() => setShowFilters(!showFilters)}
+                        className={hasActiveFilters ? 'border-blue-500 text-blue-600' : ''}
+                    >
+                        <Filter className="mr-2 h-4 w-4" />
+                        篩選 {hasActiveFilters && `(${Object.values(filters).flat().filter(Boolean).length})`}
+                    </Button>
+
+                    <Link href="/dashboard/quotes/new">
+                        <Button>
+                            <PlusCircle className="mr-2 h-4 w-4" /> 新增報價單
+                        </Button>
+                    </Link>
+                </div>
+            </div>
+
+            {/* 篩選面板 */}
+            {showFilters && (
+                <div className="bg-white p-4 rounded-lg shadow-sm border space-y-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                        {/* 狀態篩選 */}
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">狀態</label>
+                            <div className="space-y-2">
+                                {statusOptions.map((option) => (
+                                    <label key={option.value} className="flex items-center">
+                                        <input
+                                            type="checkbox"
+                                            checked={filters.status.includes(option.value)}
+                                            onChange={(e) => {
+                                                if (e.target.checked) {
+                                                    setFilters(prev => ({ ...prev, status: [...prev.status, option.value] }))
+                                                } else {
+                                                    setFilters(prev => ({ ...prev, status: prev.status.filter(s => s !== option.value) }))
+                                                }
+                                            }}
+                                            className="mr-2 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                                        />
+                                        <span className="text-sm">{option.label}</span>
+                                    </label>
+                                ))}
+                            </div>
+                        </div>
+
+                        {/* 客戶篩選 */}
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">客戶</label>
+                            <select
+                                multiple
+                                className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md h-32"
+                                value={filters.clientIds}
+                                onChange={(e) => {
+                                    const selectedOptions = Array.from(e.target.selectedOptions, option => option.value)
+                                    setFilters(prev => ({ ...prev, clientIds: selectedOptions }))
+                                }}
+                            >
+                                {clients.map((client) => (
+                                    <option key={client.id} value={client.id}>{client.name}</option>
+                                ))}
+                            </select>
+                            <p className="text-xs text-gray-500 mt-1">按住 Ctrl/Cmd 可多選</p>
+                        </div>
+
+                        {/* 日期範圍 */}
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">建立日期</label>
+                            <div className="space-y-2">
+                                <div className="flex items-center">
+                                    <Calendar className="h-4 w-4 text-gray-400 mr-2" />
+                                    <Input
+                                        type="date"
+                                        value={filters.dateRange.start}
+                                        onChange={(e) => setFilters(prev => ({ ...prev, dateRange: { ...prev.dateRange, start: e.target.value } }))}
+                                        className="text-sm"
+                                    />
+                                </div>
+                                <div className="flex items-center">
+                                    <span className="text-gray-400 mr-2 text-sm">至</span>
+                                    <Input
+                                        type="date"
+                                        value={filters.dateRange.end}
+                                        onChange={(e) => setFilters(prev => ({ ...prev, dateRange: { ...prev.dateRange, end: e.target.value } }))}
+                                        className="text-sm"
+                                    />
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* 金額範圍 */}
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">總金額 (含稅)</label>
+                            <div className="space-y-2">
+                                <div className="flex items-center">
+                                    <DollarSign className="h-4 w-4 text-gray-400 mr-2" />
+                                    <Input
+                                        type="number"
+                                        placeholder="最小值"
+                                        value={filters.amountRange.min}
+                                        onChange={(e) => setFilters(prev => ({ ...prev, amountRange: { ...prev.amountRange, min: e.target.value } }))}
+                                        className="text-sm"
+                                    />
+                                </div>
+                                <div className="flex items-center">
+                                    <span className="text-gray-400 mr-2 text-sm">至</span>
+                                    <Input
+                                        type="number"
+                                        placeholder="最大值"
+                                        value={filters.amountRange.max}
+                                        onChange={(e) => setFilters(prev => ({ ...prev, amountRange: { ...prev.amountRange, max: e.target.value } }))}
+                                        className="text-sm"
+                                    />
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div className="flex justify-end">
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setFilters({
+                                status: [],
+                                clientIds: [],
+                                dateRange: { start: '', end: '' },
+                                amountRange: { min: '', max: '' }
+                            })}
+                            className="text-gray-500"
+                        >
+                            清除篩選
+                        </Button>
+                    </div>
+                </div>
+            )}
+
+            {/* Data Grid 區域 */}
+            <div className="flex-1 overflow-hidden bg-white rounded-lg shadow-sm border">
+                {loading ? (
+                    <div className="flex items-center justify-center h-full">
+                        <div className="text-gray-500">讀取中...</div>
+                    </div>
+                ) : (
+                    <QuotesDataGrid
+                        data={paginatedQuotations}
+                        clients={clients}
+                        onRefresh={fetchData}
+                    />
+                )}
+            </div>
+
+            {/* 分頁控制 */}
+            {totalPages > 1 && (
+                <div className="flex items-center justify-between bg-white p-4 rounded-lg shadow-sm border">
+                    <div className="text-sm text-gray-500">
+                        顯示 {((currentPage - 1) * itemsPerPage) + 1} 至 {Math.min(currentPage * itemsPerPage, filteredQuotations.length)} 筆，共 {filteredQuotations.length} 筆
+                    </div>
+                    <div className="flex items-center space-x-2">
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                            disabled={currentPage === 1}
+                        >
+                            <ChevronLeft className="h-4 w-4" /> 上一頁
+                        </Button>
+                        <div className="text-sm font-medium">
+                            第 {currentPage} 頁 / 共 {totalPages} 頁
+                        </div>
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                            disabled={currentPage === totalPages}
+                        >
+                            下一頁 <ChevronRight className="h-4 w-4" />
+                        </Button>
+                    </div>
+                </div>
+            )}
         </div>
-      )}
-
-      {/* 檔案上傳 Modal */}
-      <FileModal
-        isOpen={fileModalOpen}
-        onClose={() => {
-          setFileModalOpen(false)
-          setSelectedQuote(null)
-        }}
-        quote={selectedQuote}
-        onUpdate={fetchData}
-      />
-    </div>
-  )
+    )
 }
