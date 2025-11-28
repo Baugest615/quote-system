@@ -32,28 +32,42 @@ export default function PendingPaymentsPage() {
   const [selectedMergeType, setSelectedMergeType] = useState<'account' | null>(null)
   const [fileModalOpen, setFileModalOpen] = useState(false)
   const [selectedItemForFile, setSelectedItemForFile] = useState<PendingPaymentItem | null>(null)
+  const [isMergeMode, setIsMergeMode] = useState(false)
 
   const fetchPendingItems = useCallback(async () => {
     setLoading(true)
     try {
+      // 1. Fetch rejected requests
       const { data: rejectedRequests, error: rejectedError } = await supabase
         .from('payment_requests')
         .select(`*, quotation_items:quotation_item_id (*, quotations:quotation_id(*, clients:client_id(name)), kols:kol_id(id, name, real_name, bank_info))`)
         .eq('verification_status', 'rejected')
       if (rejectedError) throw new Error(`獲取駁回項目失敗: ${rejectedError.message}`);
 
-      const rejectedItemIds = new Set(rejectedRequests.map(req => req.quotation_item_id));
+      // 2. Fetch draft requests (pending status with null request_date)
+      const { data: draftRequests, error: draftError } = await supabase
+        .from('payment_requests')
+        .select(`*, quotation_items:quotation_item_id (*, quotations:quotation_id(*, clients:client_id(name)), kols:kol_id(id, name, real_name, bank_info))`)
+        .eq('verification_status', 'pending')
+        .is('request_date', null)
+      if (draftError) throw new Error(`獲取草稿項目失敗: ${draftError.message}`);
 
+      const rejectedItemIds = new Set(rejectedRequests?.map(req => req.quotation_item_id) || []);
+      const draftItemIds = new Set(draftRequests?.map(req => req.quotation_item_id) || []);
+
+      // 3. Fetch available items from RPC
       const { data: availableItemsData, error: itemsError } = await supabase.rpc('get_available_pending_payments');
       if (itemsError) throw new Error(`獲取全新項目失敗: ${itemsError.message}`);
 
-      const availableItems = (availableItemsData as any[]).filter(item => !rejectedItemIds.has(item.id));
+      // Filter out items that are already rejected or in draft
+      const availableItems = (availableItemsData as any[]).filter(item =>
+        !rejectedItemIds.has(item.id) && !draftItemIds.has(item.id)
+      );
 
-      // Fetch costs for available items separately since RPC might be missing it
-      // Note: The new RPC should return cost and remittance_name, but we keep this for backward compatibility or if RPC update failed
       const availableItemIds = availableItems.map(item => item.id);
       let costsMap = new Map<string, number | null>();
 
+      // 4. Fetch costs for available items
       if (availableItemIds.length > 0) {
         const { data: costsData, error: costsError } = await supabase
           .from('quotation_items')
@@ -67,15 +81,13 @@ export default function PendingPaymentsPage() {
 
       const processedItems: PendingPaymentItem[] = [];
 
+      // Process available items
       availableItems.forEach(item => {
         const cost = item.cost !== undefined ? item.cost : costsMap.get(item.id);
 
-        // Auto-populate remittance name logic
         let defaultRemittanceName = item.remittance_name;
         if (!defaultRemittanceName && item.kols?.bank_info) {
           const bankInfo = item.kols.bank_info as any;
-          // Only populate if it's a company AND has a companyAccountName AND bankName
-          // OR if it's an individual AND has a personalAccountName AND bankName
           if (bankInfo.bankType === 'company' && bankInfo.companyAccountName && bankInfo.bankName) {
             defaultRemittanceName = bankInfo.companyAccountName;
           } else if (bankInfo.bankType === 'individual' && bankInfo.personalAccountName && bankInfo.bankName) {
@@ -99,7 +111,8 @@ export default function PendingPaymentsPage() {
         } as PendingPaymentItem);
       });
 
-      rejectedRequests.forEach(req => {
+      // Process rejected requests
+      rejectedRequests?.forEach(req => {
         if (req.quotation_items) {
           processedItems.push({
             ...(req.quotation_items as any),
@@ -122,6 +135,31 @@ export default function PendingPaymentsPage() {
         }
       });
 
+      // Process draft requests
+      draftRequests?.forEach(req => {
+        if (req.quotation_items) {
+          processedItems.push({
+            ...(req.quotation_items as any),
+            quotations: req.quotation_items.quotations,
+            kols: req.quotation_items.kols,
+            payment_request_id: req.id,
+            rejection_reason: null,
+            rejected_by: null,
+            rejected_at: null,
+            attachments: req.attachment_file_path ? JSON.parse(req.attachment_file_path) : [],
+            invoice_number_input: req.invoice_number,
+            is_selected: false,
+            merge_type: req.merge_type as 'account' | null,
+            merge_group_id: req.merge_group_id,
+            is_merge_leader: req.is_merge_leader,
+            merge_color: req.merge_color || '',
+            cost_amount_input: req.cost_amount ?? ((req.quotation_items.cost !== null && req.quotation_items.cost !== undefined) ? (req.quotation_items.cost * (req.quotation_items.quantity || 1)) : 0),
+            remittance_name_input: req.quotation_items.remittance_name || null
+          } as PendingPaymentItem);
+        }
+      });
+
+      // Handle merge grouping visualization
       const mergeGroupLeaders = new Map<string, string>();
       processedItems.forEach(item => {
         if (item.merge_group_id && !mergeGroupLeaders.has(item.merge_group_id)) {
@@ -180,7 +218,6 @@ export default function PendingPaymentsPage() {
 
       if (error) throw error;
 
-      // Update local state to ensure consistency
       setItems(prev => prev.map(item =>
         item.id === itemId ? {
           ...item,
@@ -206,7 +243,6 @@ export default function PendingPaymentsPage() {
     )
   }, [searchTerm, items]);
 
-  // 使用分組 Hook
   const { projectGroups, toggleProject } = usePaymentGrouping(filteredItems)
 
   const clearRejectionReason = async (paymentRequestId: string) => {
@@ -265,15 +301,12 @@ export default function PendingPaymentsPage() {
   }
 
   const handleInvoiceNumberChange = async (itemId: string, inputValue: string) => {
-    // 1. 自動轉大寫
     let formattedValue = inputValue.toUpperCase();
 
-    // 2. 自動添加連字號 (如果長度 > 2 且第三個字元不是 -)
     if (formattedValue.length > 2 && formattedValue[2] !== '-') {
       formattedValue = formattedValue.slice(0, 2) + '-' + formattedValue.slice(2);
     }
 
-    // 3. 限制長度 (AB-12345678 共 11 碼)
     if (formattedValue.length > 11) {
       formattedValue = formattedValue.slice(0, 11);
     }
@@ -341,6 +374,7 @@ export default function PendingPaymentsPage() {
       toast.success('合併成功');
       setSelectedForMerge([]);
       setSelectedMergeType(null);
+      setIsMergeMode(false);
       fetchPendingItems();
     } catch (error: any) {
       toast.error('合併失敗: ' + error.message);
@@ -388,7 +422,6 @@ export default function PendingPaymentsPage() {
     }
 
     try {
-      // Group items by merge_group_id or treat as individual
       const groups = new Map<string, PendingPaymentItem[]>();
       const individualItems: PendingPaymentItem[] = [];
 
@@ -403,7 +436,6 @@ export default function PendingPaymentsPage() {
         }
       });
 
-      // Validate groups: all items in a group must be selected
       for (const [groupId, groupItems] of Array.from(groups.entries())) {
         const allGroupItems = items.filter(i => i.merge_group_id === groupId);
         if (groupItems.length !== allGroupItems.length) {
@@ -412,15 +444,13 @@ export default function PendingPaymentsPage() {
         }
       }
 
-      // Submit requests
-      // For individual items
       for (const item of individualItems) {
         if (item.payment_request_id) {
-          // Re-submit rejected item
           const { error } = await supabase
             .from('payment_requests')
             .update({
               verification_status: 'pending',
+              request_date: new Date().toISOString(),
               rejection_reason: null,
               rejected_by: null,
               rejected_at: null,
@@ -431,12 +461,12 @@ export default function PendingPaymentsPage() {
             .eq('id', item.payment_request_id);
           if (error) throw error;
         } else {
-          // New request
           const { error } = await supabase
             .from('payment_requests')
             .insert({
               quotation_item_id: item.id,
               verification_status: 'pending',
+              request_date: new Date().toISOString(),
               cost_amount: item.cost_amount_input,
               invoice_number: item.invoice_number_input,
               attachment_file_path: JSON.stringify(item.attachments)
@@ -445,58 +475,28 @@ export default function PendingPaymentsPage() {
         }
       }
 
-      // For grouped items (only leader needs to be updated/inserted if using group logic, but current schema links 1:1)
-      // Actually, for grouped items, we should update all of them.
-      // If it's a re-submission of a group, update all requests in the group.
       for (const [groupId, groupItems] of Array.from(groups.entries())) {
         const leader = groupItems.find((i: PendingPaymentItem) => i.is_merge_leader);
-        if (!leader) continue; // Should not happen
+        if (!leader) continue;
 
-        // If leader has payment_request_id, it's a re-submission
-        if (leader.payment_request_id) {
-          const { error } = await supabase
-            .from('payment_requests')
-            .update({
-              verification_status: 'pending',
-              rejection_reason: null,
-              rejected_by: null,
-              rejected_at: null,
-              // Cost might be individual, but attachments/invoice are shared
-              // Update shared fields for all in group? Or just leader?
-              // Based on previous logic, we update all in group for shared fields
-              invoice_number: leader.invoice_number_input,
-              attachment_file_path: JSON.stringify(leader.attachments)
-            })
-            .eq('merge_group_id', groupId);
-          if (error) throw error;
-        } else {
-          // New group request - handled by create_payment_request_group?
-          // No, create_payment_request_group only groups them. We still need to submit them.
-          // But wait, if they are grouped, they already have payment_requests created (with status 'draft' maybe? or just grouped in quotation_items?)
-          // Actually, the current flow seems to be:
-          // 1. Items are in quotation_items.
-          // 2. User selects and clicks "Merge" -> creates payment_requests with status 'pending' (or similar) and groups them?
-          // Let's check create_payment_request_group RPC.
-          // Assuming items are just grouped in UI or via some other mechanism.
-          // If they are already grouped (have merge_group_id), we just need to insert/update payment_requests.
+        for (const item of groupItems) {
+          if (item.payment_request_id) {
+            const { error } = await supabase
+              .from('payment_requests')
+              .update({
+                verification_status: 'pending',
+                request_date: new Date().toISOString(),
+                rejection_reason: null,
+                rejected_by: null,
+                rejected_at: null,
+                cost_amount: item.cost_amount_input,
+                invoice_number: leader.invoice_number_input,
+                attachment_file_path: JSON.stringify(leader.attachments)
+              })
+              .eq('id', item.payment_request_id);
 
-          // If they don't have payment_request_id, we insert new ones.
-          // But wait, if they are grouped, they MUST have payment_requests?
-          // The RPC create_payment_request_group creates payment_requests.
-          // So if they have merge_group_id, they SHOULD have payment_request_id.
-          // So we just update them.
-          const { error } = await supabase
-            .from('payment_requests')
-            .update({
-              verification_status: 'pending',
-              rejection_reason: null,
-              rejected_by: null,
-              rejected_at: null,
-              invoice_number: leader.invoice_number_input,
-              attachment_file_path: JSON.stringify(leader.attachments)
-            })
-            .eq('merge_group_id', groupId);
-          if (error) throw error;
+            if (error) throw error;
+          }
         }
       }
 
@@ -515,9 +515,11 @@ export default function PendingPaymentsPage() {
           <p className="text-gray-500 mt-1">管理所有待請款的報價項目</p>
         </div>
         <div className="flex items-center space-x-4">
-          {selectedForMerge.length > 0 && (
-            <div className="flex items-center space-x-2 bg-blue-50 px-4 py-2 rounded-lg border border-blue-100">
-              <span className="text-sm text-blue-700 font-medium">已選擇 {selectedForMerge.length} 筆</span>
+          {isMergeMode ? (
+            <div className="flex items-center space-x-2 bg-blue-50 px-4 py-2 rounded-lg border border-blue-100 animate-in fade-in slide-in-from-top-2">
+              <span className="text-sm text-blue-700 font-medium">
+                {selectedForMerge.length > 0 ? `已選擇 ${selectedForMerge.length} 筆` : '請選擇合併項目'}
+              </span>
               <select
                 className="text-sm border-gray-300 rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500"
                 value={selectedMergeType || ''}
@@ -526,15 +528,29 @@ export default function PendingPaymentsPage() {
                 <option value="">選擇合併類型...</option>
                 <option value="account">帳號合併</option>
               </select>
-              <Button size="sm" onClick={handleMergeSubmit} disabled={!selectedMergeType}>
+              <Button size="sm" onClick={handleMergeSubmit} disabled={!selectedMergeType || selectedForMerge.length < 2}>
                 <Unlink className="w-4 h-4 mr-2" />
                 確認合併
               </Button>
-              <Button size="sm" variant="ghost" onClick={() => setSelectedForMerge([])}>
+              <Button size="sm" variant="ghost" onClick={() => {
+                setIsMergeMode(false);
+                setSelectedForMerge([]);
+                setSelectedMergeType(null);
+              }}>
                 <X className="w-4 h-4" />
+                取消
               </Button>
             </div>
+          ) : (
+            <Button variant="outline" onClick={() => {
+              setIsMergeMode(true);
+              setSelectedMergeType('account');
+            }}>
+              <Unlink className="w-4 h-4 mr-2" />
+              進入合併模式
+            </Button>
           )}
+
           <div className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
             <Input
@@ -559,6 +575,7 @@ export default function PendingPaymentsPage() {
           onToggleProject={toggleProject}
           selectedMergeType={selectedMergeType}
           selectedForMerge={selectedForMerge}
+          isMergeMode={isMergeMode}
           canMergeWith={canMergeWith}
           canSelectForPayment={canSelectForPayment}
           onCostChange={handleCostAmountChange}

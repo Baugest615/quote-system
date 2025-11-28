@@ -22,6 +22,7 @@ interface ProjectGroupViewProps {
     selectedItems: string[]
     selectedForMerge: string[]
     selectedMergeType: 'account' | null
+    isMergeMode: boolean // NEW PROP
     canSelectForPayment: (item: PendingPaymentItem) => boolean
     canMergeWith: (item: PendingPaymentItem) => boolean
     shouldShowControls: (item: PendingPaymentItem) => boolean
@@ -43,6 +44,7 @@ export function ProjectGroupView({
     selectedItems,
     selectedForMerge,
     selectedMergeType,
+    isMergeMode, // NEW PROP
     canSelectForPayment,
     canMergeWith,
     shouldShowControls,
@@ -131,6 +133,7 @@ export function ProjectGroupView({
                                                 displayItem={displayItem}
                                                 selectedMergeType={selectedMergeType}
                                                 selectedForMerge={selectedForMerge}
+                                                isMergeMode={isMergeMode} // Pass to ItemRow
                                                 canMergeWith={canMergeWith}
                                                 canSelectForPayment={canSelectForPayment}
                                                 shouldShowControls={shouldShowControls}
