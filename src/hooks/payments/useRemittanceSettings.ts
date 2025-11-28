@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from 'react'
+import { useState, useCallback, useRef, useEffect } from 'react'
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 import { RemittanceSettings } from '@/lib/payments/types'
 import { Database } from '@/types/database.types'
@@ -8,20 +8,32 @@ export const useRemittanceSettings = (confirmationId: string, initialSettings: R
     const supabase = createClientComponentClient<Database>()
     const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
+    // Sync state with props when data is loaded/refreshed
+    useEffect(() => {
+        if (initialSettings) {
+            console.log('Syncing settings from props:', initialSettings)
+            setSettings(initialSettings)
+        }
+    }, [initialSettings])
+
     const saveSettings = useCallback(async (newSettings: RemittanceSettings) => {
         if (saveTimeoutRef.current) {
             clearTimeout(saveTimeoutRef.current)
         }
 
         saveTimeoutRef.current = setTimeout(async () => {
+            console.log('Attempting to save settings to DB (via RPC):', newSettings)
             try {
-                const { error } = await supabase
-                    .from('payment_confirmations')
-                    .update({ remittance_settings: newSettings })
-                    .eq('id', confirmationId)
+                const { data, error } = await supabase
+                    .rpc('update_remittance_settings', {
+                        p_confirmation_id: confirmationId,
+                        p_settings: newSettings
+                    })
 
                 if (error) {
                     console.error('Error saving remittance settings:', JSON.stringify(error, null, 2))
+                } else {
+                    console.log('Settings saved successfully via RPC. Response:', data)
                 }
             } catch (err) {
                 console.error('Failed to save settings:', err instanceof Error ? err.message : err)
