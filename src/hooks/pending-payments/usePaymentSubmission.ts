@@ -3,7 +3,7 @@
 import { useCallback } from 'react'
 import supabase from '@/lib/supabase/client'
 import { toast } from 'sonner'
-import type { PendingPaymentItem } from '@/lib/pending-payments/grouping-utils'
+import type { PendingPaymentItem } from '@/lib/payments/types'
 
 export function usePaymentSubmission(
     items: PendingPaymentItem[],

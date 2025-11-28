@@ -3,7 +3,7 @@
 import { useState, useCallback } from 'react'
 import supabase from '@/lib/supabase/client'
 import { toast } from 'sonner'
-import type { PendingPaymentItem } from '@/lib/pending-payments/grouping-utils'
+import type { PendingPaymentItem } from '@/lib/payments/types'
 
 const MERGE_COLORS = ['bg-red-100', 'bg-blue-100', 'bg-green-100', 'bg-yellow-100', 'bg-purple-100', 'bg-pink-100']
 

@@ -4,7 +4,7 @@ import { useState, useCallback } from 'react'
 import supabase from '@/lib/supabase/client'
 import { toast } from 'sonner'
 import { Database } from '@/types/database.types'
-import type { PendingPaymentItem, PendingPaymentAttachment } from '@/lib/pending-payments/grouping-utils'
+import type { PendingPaymentItem, PendingPaymentAttachment } from '@/lib/payments/types'
 
 type QuotationItemWithDetails = (Database['public']['Tables']['quotation_items']['Row'] & {
     quotations: Database['public']['Tables']['quotations']['Row'] & {
@@ -71,7 +71,11 @@ export function usePendingItems() {
                     invoice_number_input: null,
                     attachments: [],
                     payment_request_id: null,
-                    cost_amount_input: (cost !== null && cost !== undefined) ? (cost * (item.quantity || 1)) : 0
+                    cost_amount_input: (cost !== null && cost !== undefined) ? (cost * (item.quantity || 1)) : 0,
+                    remittance_name: null,
+                    remittance_name_input: null,
+                    rejected_by: null,
+                    rejected_at: null
                 });
             });
 
@@ -89,7 +93,11 @@ export function usePendingItems() {
                         merge_group_id: req.merge_group_id,
                         is_merge_leader: req.is_merge_leader,
                         merge_color: req.merge_color || '',
-                        cost_amount_input: req.cost_amount ?? ((req.quotation_items.cost !== null && req.quotation_items.cost !== undefined) ? (req.quotation_items.cost * (req.quotation_items.quantity || 1)) : 0)
+                        cost_amount_input: req.cost_amount ?? ((req.quotation_items.cost !== null && req.quotation_items.cost !== undefined) ? (req.quotation_items.cost * (req.quotation_items.quantity || 1)) : 0),
+                        remittance_name: null,
+                        remittance_name_input: null,
+                        rejected_by: req.rejected_by,
+                        rejected_at: req.rejected_at
                     });
                 }
             });
