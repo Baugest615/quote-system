@@ -639,6 +639,13 @@ export type Database = {
           p_settings: Json
         }
         Returns: Json
+      },
+      // 🆕 解除合併函數
+      ungroup_payment_requests: {
+        Args: {
+          p_group_id: string
+        }
+        Returns: void
       }
     },
     Enums: {
