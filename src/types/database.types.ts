@@ -631,6 +631,14 @@ export type Database = {
           service: string
           total_amount: number
         }[]
+      },
+      // 🆕 更新匯款設定函數 (繞過 RLS)
+      update_remittance_settings: {
+        Args: {
+          p_confirmation_id: string
+          p_settings: Json
+        }
+        Returns: Json
       }
     },
     Enums: {

@@ -10,6 +10,7 @@ interface ItemRowProps {
     displayItem: PendingPaymentItem
     selectedMergeType: 'account' | null
     selectedForMerge: string[]
+    isMergeMode: boolean // NEW PROP
     canMergeWith: (item: PendingPaymentItem) => boolean
     canSelectForPayment: (item: PendingPaymentItem) => boolean
     shouldShowControls: (item: PendingPaymentItem) => boolean
@@ -30,6 +31,7 @@ export function ItemRow({
     displayItem,
     selectedMergeType,
     selectedForMerge,
+    isMergeMode, // NEW PROP
     canMergeWith,
     canSelectForPayment,
     shouldShowControls,
@@ -104,7 +106,7 @@ export function ItemRow({
 
             {/* Merge */}
             <td className="px-2 py-2 align-top text-xs">
-                {selectedMergeType && canMergeWith(item) && !item.merge_group_id && (
+                {isMergeMode && canMergeWith(item) && !item.merge_group_id && (
                     <label className="flex items-center cursor-pointer">
                         <input
                             type="checkbox"

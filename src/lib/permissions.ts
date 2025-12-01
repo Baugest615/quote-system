@@ -2,13 +2,11 @@
 
 import { useEffect, useState } from 'react'
 import supabase from '@/lib/supabase/client'
-import { 
-  UserRole, 
-  PageConfig, 
-  PermissionCheckResult,
-  PAGE_PERMISSIONS,
-  USER_ROLES 
-} from '@/types/custom.types'  // 🔄 修改：從 custom.types 引入
+import {
+  UserRole,
+  PageConfig,
+  PAGE_PERMISSIONS
+} from '@/types/custom.types'
 
 // ===== 權限檢查工具函數 =====
 
@@ -18,7 +16,7 @@ import {
 export function checkPageAccess(pageKey: string, userRole?: UserRole): boolean {
   const pageConfig = PAGE_PERMISSIONS[pageKey]
   if (!pageConfig || !userRole) return false
-  
+
   return pageConfig.allowedRoles.includes(userRole)
 }
 
@@ -26,12 +24,12 @@ export function checkPageAccess(pageKey: string, userRole?: UserRole): boolean {
  * 檢查用戶是否有執行特定功能的權限
  */
 export function checkFunctionAccess(
-  pageKey: string, 
-  functionName: string, 
+  pageKey: string,
+  functionName: string,
   userRole?: UserRole
 ): boolean {
   if (!checkPageAccess(pageKey, userRole)) return false
-  
+
   const pageConfig = PAGE_PERMISSIONS[pageKey]
   return pageConfig.allowedFunctions.includes(functionName)
 }
@@ -40,7 +38,7 @@ export function checkFunctionAccess(
  * 取得用戶可存取的所有頁面
  */
 export function getAllowedPages(userRole: UserRole): PageConfig[] {
-  return Object.values(PAGE_PERMISSIONS).filter(page => 
+  return Object.values(PAGE_PERMISSIONS).filter(page =>
     page.allowedRoles.includes(userRole)
   )
 }
@@ -50,14 +48,14 @@ export function getAllowedPages(userRole: UserRole): PageConfig[] {
  */
 export function hasRole(requiredRole: UserRole, userRole?: UserRole): boolean {
   if (!userRole) return false
-  
+
   // 使用大寫版本匹配您的資料庫
-  const roleHierarchy = {
+  const roleHierarchy: Record<UserRole, number> = {
     'Member': 1,
     'Editor': 2,
     'Admin': 3,
   }
-  
+
   return (roleHierarchy[userRole] || 0) >= (roleHierarchy[requiredRole] || 0)
 }
 
@@ -65,12 +63,12 @@ export function hasRole(requiredRole: UserRole, userRole?: UserRole): boolean {
  * 取得角色的中文顯示名稱
  */
 export function getRoleDisplayName(role: UserRole): string {
-  const roleNames = {
+  const roleNames: Record<UserRole, string> = {
     'Admin': '管理員',
     'Editor': '編輯者',
     'Member': '成員',
   }
-  
+
   return roleNames[role] || '未知角色'
 }
 
@@ -88,11 +86,11 @@ export function usePermission() {
     async function fetchUserRole() {
       try {
         const { data: { user }, error: authError } = await supabase.auth.getUser()
-        
+
         if (authError) {
           throw authError
         }
-        
+
         if (!user) {
           setUserRole(null)
           setLoading(false)
@@ -128,7 +126,7 @@ export function usePermission() {
     error,
     // 權限檢查方法
     checkPageAccess: (pageKey: string) => checkPageAccess(pageKey, userRole || undefined),
-    checkFunctionAccess: (pageKey: string, functionName: string) => 
+    checkFunctionAccess: (pageKey: string, functionName: string) =>
       checkFunctionAccess(pageKey, functionName, userRole || undefined),
     getAllowedPages: () => userRole ? getAllowedPages(userRole) : [],
     hasRole: (requiredRole: UserRole) => hasRole(requiredRole, userRole || undefined),
@@ -141,10 +139,10 @@ export function usePermission() {
  */
 export function usePagePermission(pageKey: string) {
   const { userRole, loading, checkPageAccess, checkFunctionAccess } = usePermission()
-  
+
   const hasAccess = checkPageAccess(pageKey)
   const pageConfig = PAGE_PERMISSIONS[pageKey]
-  
+
   return {
     hasAccess,
     loading,
