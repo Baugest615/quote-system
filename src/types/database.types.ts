@@ -627,31 +627,13 @@ export type Database = {
           payment_request_id: string
           quotation_item_id: string
           kol_name: string | null
-          project_name: string
-          service: string
-          total_amount: number
-        }[]
-      },
-      // 🆕 更新匯款設定函數 (繞過 RLS)
-      update_remittance_settings: {
-        Args: {
-          p_confirmation_id: string
-          p_settings: Json
+          user_role: "Admin" | "Editor" | "Member"
+        },
+        CompositeTypes: {
+          [_ in never]: never
         }
-        Returns: Json
       }
-    },
-    Enums: {
-      payment_method: "電匯" | "ATM轉帳"
-      quotation_status: "草稿" | "待簽約" | "已簽約" | "已歸檔"
-      // 🆕 三級用戶權限（匹配您的資料庫大寫格式）
-      user_role: "Admin" | "Editor" | "Member"
-    },
-    CompositeTypes: {
-      [_ in never]: never
     }
-  }
-}
 
 type DatabaseWithoutInternals = Omit<Database, "__InternalSupabase">
 
