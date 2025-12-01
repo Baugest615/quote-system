@@ -616,34 +616,13 @@ export type Database = {
         Args: {
           user_id: string
           page_key: string
-          required_function?: string
+          user_role: "Admin" | "Editor" | "Member"
+        },
+        CompositeTypes: {
+          [_ in never]: never
         }
-        Returns: boolean
-      },
-      // 🆕 取得合併群組項目函數
-      get_merge_group_items: {
-        Args: { group_id: string }
-        Returns: {
-          payment_request_id: string
-          quotation_item_id: string
-          kol_name: string | null
-          project_name: string
-          service: string
-          total_amount: number
-        }[]
       }
-    },
-    Enums: {
-      payment_method: "電匯" | "ATM轉帳"
-      quotation_status: "草稿" | "待簽約" | "已簽約" | "已歸檔"
-      // 🆕 三級用戶權限（匹配您的資料庫大寫格式）
-      user_role: "Admin" | "Editor" | "Member"
-    },
-    CompositeTypes: {
-      [_ in never]: never
     }
-  }
-}
 
 type DatabaseWithoutInternals = Omit<Database, "__InternalSupabase">
 
