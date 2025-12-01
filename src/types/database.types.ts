@@ -601,61 +601,33 @@ export type Database = {
           role: Database["public"]["Enums"]["user_role"] | null
           page_key: string
           page_name: string
-          allowed_functions: string[]
-        }
-        Relationships: []
-      }
-    },
-    Functions: {
-      get_user_role: {
-        Args: { user_id: string }
-        Returns: string
-      },
-      // 🆕 權限檢查函數
-      check_page_permission: {
-        Args: {
-          user_id: string
-          page_key: string
-          user_role: "Admin" | "Editor" | "Member"
-        },
-        CompositeTypes: {
-          [_ in never]: never
-        }
-      }
-    }
-
-type DatabaseWithoutInternals = Omit<Database, "__InternalSupabase">
-
-type DefaultSchema = DatabaseWithoutInternals[Extract<keyof Database, "public">]
-
-export type Tables<
   DefaultSchemaTableNameOrOptions extends
-  | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
+  | keyof(DefaultSchema["Tables"] & DefaultSchema["Views"])
   | { schema: keyof DatabaseWithoutInternals },
   TableName extends DefaultSchemaTableNameOrOptions extends {
-    schema: keyof DatabaseWithoutInternals
-  }
-  ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
-    DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
+  schema: keyof DatabaseWithoutInternals
+}
+  ?keyof(DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+  DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
   : never = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
-  ? (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
-    DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])[TableName] extends {
-      Row: infer R
-    }
-  ? R
-  : never
-  : DefaultSchemaTableNameOrOptions extends keyof (DefaultSchema["Tables"] &
-    DefaultSchema["Views"])
+  ?(DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+  DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])[TableName] extends {
+  Row: infer R
+}
+  ?R
+: never
+: DefaultSchemaTableNameOrOptions extends keyof(DefaultSchema["Tables"] &
+  DefaultSchema["Views"])
   ? (DefaultSchema["Tables"] &
     DefaultSchema["Views"])[DefaultSchemaTableNameOrOptions] extends {
-      Row: infer R
-    }
-  ? R
-  : never
-  : never
+  Row: infer R
+}
+  ?R
+: never
+: never
 
 export type TablesInsert<
   DefaultSchemaTableNameOrOptions extends
