@@ -655,9 +655,9 @@ export type Database = {
       }
     },
     Enums: {
-      payment_method: "?餃" | "ATM頧董"
-      quotation_status: "?阮" | "敺偷蝝? | "撌脩偷蝝? | "撌脫飛瑼?
-      // ?? 銝??冽甈?嚗????澈憭批神?澆?嚗?
+      payment_method: "電匯" | "ATM轉帳"
+      quotation_status: "草稿" | "待簽約" | "已簽約" | "已歸檔"
+      // 權限角色定義
       user_role: "Admin" | "Editor" | "Member"
     },
     CompositeTypes: {
@@ -783,7 +783,7 @@ export type CompositeTypes<
   ? DefaultSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
   : never
 
-// ?舐窗鈭箔??Ｗ?蝢?
+// 聯絡人資訊定義
 export interface Contact {
   name: string
   email?: string
@@ -792,7 +792,7 @@ export interface Contact {
   is_primary?: boolean
 }
 
-// ?游??恥?園????閫??敺??舐窗鈭?
+// 擴充的客戶型別，包含解析後的聯絡人
 export type ClientWithParsedContacts = Database['public']['Tables']['clients']['Row'] & {
   parsedContacts: Contact[]
 }
