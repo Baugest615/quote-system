@@ -93,6 +93,9 @@ const nextConfig = {
   // ===== 輸出配置 =====
   output: 'standalone',
 
+  // ===== Turbopack 配置 (Next.js 16+) =====
+  turbopack: {},
+
   // ===== Webpack 配置 =====
   webpack: (config, { dev, isServer }) => {
     config.module.rules.push({
