@@ -93,6 +93,9 @@ const nextConfig = {
   // ===== 輸出配置 =====
   output: 'standalone',
 
+  // ===== Turbopack 配置 (Next.js 16+) =====
+  turbopack: {},
+
   // ===== Webpack 配置 =====
   webpack: (config, { dev, isServer }) => {
     config.module.rules.push({
@@ -123,11 +126,6 @@ const nextConfig = {
   // ===== 生產環境配置 =====
   ...(process.env.NODE_ENV === 'production' && {
     poweredByHeader: false,
-    modularizeImports: {
-      'lucide-react': {
-        transform: 'lucide-react/dist/esm/icons/{{member}}',
-      },
-    },
   }),
 };
 

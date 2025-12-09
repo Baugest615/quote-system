@@ -1,4 +1,4 @@
-export type Json =
+﻿export type Json =
   | string
   | number
   | boolean
@@ -408,7 +408,7 @@ export type Database = {
           id: string
           kol_id: string | null
           price: number
-          cost: number | null // 🆕 新增成本欄位
+          cost: number | null // ?? ?啣??甈?
           quantity: number
           quotation_id: string | null
           remark: string | null
@@ -420,7 +420,7 @@ export type Database = {
           id?: string
           kol_id?: string | null
           price?: number
-          cost?: number | null // 🆕 新增成本欄位
+          cost?: number | null // ?? ?啣??甈?
           quantity?: number
           quotation_id?: string | null
           remark?: string | null
@@ -432,7 +432,7 @@ export type Database = {
           id?: string
           kol_id?: string | null
           price?: number
-          cost?: number | null // 🆕 新增成本欄位
+          cost?: number | null // ?? ?啣??甈?
           quantity?: number
           quotation_id?: string | null
           remark?: string | null
@@ -460,6 +460,8 @@ export type Database = {
           attachments: Json[] | null
           client_contact: string | null
           client_id: string | null
+          contact_email: string | null
+          contact_phone: string | null
           created_at: string | null
           discounted_price: number | null
           grand_total_taxed: number | null
@@ -478,6 +480,8 @@ export type Database = {
           attachments?: Json[] | null
           client_contact?: string | null
           client_id?: string | null
+          contact_email?: string | null
+          contact_phone?: string | null
           created_at?: string | null
           discounted_price?: number | null
           grand_total_taxed?: number | null
@@ -496,6 +500,8 @@ export type Database = {
           attachments?: Json[] | null
           client_contact?: string | null
           client_id?: string | null
+          contact_email?: string | null
+          contact_phone?: string | null
           created_at?: string | null
           discounted_price?: number | null
           grand_total_taxed?: number | null
@@ -558,7 +564,7 @@ export type Database = {
       }
     },
     Views: {
-      // 🆕 請款申請詳細視圖
+      // ?? 隢狡?唾?閰喟敦閬?
       payment_requests_with_details: {
         Row: {
           id: string
@@ -579,7 +585,7 @@ export type Database = {
           service: string
           quantity: number
           price: number
-          cost_amount: number | null // 【NEW】新增成本金額欄位
+          cost_amount: number | null // ?EW?憓??祇?憿?雿?
           category: string | null
           remark: string | null
           project_name: string
@@ -593,7 +599,7 @@ export type Database = {
         }
         Relationships: []
       },
-      // 🆕 用戶權限視圖
+      // ?? ?冽甈?閬?
       user_permissions: {
         Row: {
           id: string
@@ -611,7 +617,7 @@ export type Database = {
         Args: { user_id: string }
         Returns: string
       },
-      // 🆕 權限檢查函數
+      // ?? 甈?瑼Ｘ?賣
       check_page_permission: {
         Args: {
           user_id: string
@@ -620,7 +626,7 @@ export type Database = {
         }
         Returns: boolean
       },
-      // 🆕 取得合併群組項目函數
+      // ?? ???蔥蝢斤???賣
       get_merge_group_items: {
         Args: { group_id: string }
         Returns: {
@@ -632,7 +638,7 @@ export type Database = {
           total_amount: number
         }[]
       },
-      // 🆕 更新匯款設定函數 (繞過 RLS)
+      // ?? ?湔?舀狡閮剖??賣 (蝜? RLS)
       update_remittance_settings: {
         Args: {
           p_confirmation_id: string
@@ -640,7 +646,7 @@ export type Database = {
         }
         Returns: Json
       },
-      // 🆕 解除合併函數
+      // ?? 閫??蔥?賣
       ungroup_payment_requests: {
         Args: {
           p_group_id: string
@@ -651,7 +657,7 @@ export type Database = {
     Enums: {
       payment_method: "電匯" | "ATM轉帳"
       quotation_status: "草稿" | "待簽約" | "已簽約" | "已歸檔"
-      // 🆕 三級用戶權限（匹配您的資料庫大寫格式）
+      // 權限角色定義
       user_role: "Admin" | "Editor" | "Member"
     },
     CompositeTypes: {
@@ -777,7 +783,7 @@ export type CompositeTypes<
   ? DefaultSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
   : never
 
-// 聯絡人介面定義
+// 聯絡人資訊定義
 export interface Contact {
   name: string
   email?: string
@@ -786,7 +792,7 @@ export interface Contact {
   is_primary?: boolean
 }
 
-// 擴展的客戶類型，包含解析後的聯絡人
+// 擴充的客戶型別，包含解析後的聯絡人
 export type ClientWithParsedContacts = Database['public']['Tables']['clients']['Row'] & {
   parsedContacts: Contact[]
 }

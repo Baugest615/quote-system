@@ -80,7 +80,7 @@ export default function ViewQuotePage() {
   }> => {
     // 按分類分組，然後在每個分類內按KOL分組
     const categoryGroups = new Map<string, Array<QuotationItem & { kols: Pick<Kol, 'name'> | null }>>();
-    
+
     // 先按分類分組
     items.forEach(item => {
       const category = item.category || 'N/A';
@@ -89,7 +89,7 @@ export default function ViewQuotePage() {
       }
       categoryGroups.get(category)!.push(item);
     });
-    
+
     const processedItems: Array<{
       item: QuotationItem & { kols: Pick<Kol, 'name'> | null };
       categoryRowSpan: number;
@@ -97,15 +97,15 @@ export default function ViewQuotePage() {
       showCategory: boolean;
       showKol: boolean;
     }> = [];
-    
+
     // 處理每個分類
     categoryGroups.forEach((categoryItems, category) => {
       const categoryRowSpan = categoryItems.length;
       let isFirstInCategory = true;
-      
+
       // 在該分類內，按KOL分組
       const kolGroups = new Map<string, Array<QuotationItem & { kols: Pick<Kol, 'name'> | null }>>();
-      
+
       categoryItems.forEach(item => {
         const kolName = item.kols?.name || 'N/A';
         if (!kolGroups.has(kolName)) {
@@ -113,12 +113,12 @@ export default function ViewQuotePage() {
         }
         kolGroups.get(kolName)!.push(item);
       });
-      
+
       // 處理該分類內的每個KOL組
       kolGroups.forEach((kolItems, kolName) => {
         const kolRowSpan = kolItems.length;
         let isFirstInKolGroup = true;
-        
+
         kolItems.forEach(item => {
           processedItems.push({
             item,
@@ -127,13 +127,13 @@ export default function ViewQuotePage() {
             showCategory: isFirstInCategory,
             showKol: isFirstInKolGroup
           });
-          
+
           isFirstInCategory = false;
           isFirstInKolGroup = false;
         });
       });
     });
-    
+
     return processedItems;
   };
 
@@ -209,12 +209,12 @@ export default function ViewQuotePage() {
       setIsProcessing(false);
     }
   };
-  
+
   const sealImageStyle: React.CSSProperties = {
-      width: `${electronicSealConfig.size}in`,
-      height: `${electronicSealConfig.size}in`,
-      opacity: electronicSealConfig.opacity,
-      transform: `translate(${electronicSealConfig.offsetX}in, ${electronicSealConfig.offsetY}in) rotate(${electronicSealConfig.rotation}deg)`,
+    width: `${electronicSealConfig.size}in`,
+    height: `${electronicSealConfig.size}in`,
+    opacity: electronicSealConfig.opacity,
+    transform: `translate(${electronicSealConfig.offsetX}in, ${electronicSealConfig.offsetY}in) rotate(${electronicSealConfig.rotation}deg)`,
   };
 
   if (loading) return <div>讀取中...</div>;
@@ -288,8 +288,8 @@ export default function ViewQuotePage() {
       <div id="printable-quote" className="relative bg-white p-8 md:p-12 rounded-lg shadow-md border text-[13px] leading-relaxed">
         <img src="/watermark-an.png" alt="watermark" className="absolute inset-0 w-full h-full opacity-5 object-contain z-0 pdf-watermark" />
         <div className="text-center mb-4 pb-2 border-b">
-            <img src="/logo.png" alt="安安娛樂 LOGO" className="h-10 w-auto" />
-            <h1 className="text-xl font-bold">安安娛樂有限公司委刊專案契約書</h1>
+          <img src="/logo.png" alt="安安娛樂 LOGO" className="h-10 w-auto" />
+          <h1 className="text-xl font-bold">安安娛樂有限公司委刊專案契約書</h1>
         </div>
 
         <table className="w-full text-sm mb-8 border border-gray-300">
@@ -314,18 +314,18 @@ export default function ViewQuotePage() {
             <tr className="border-b">
               <td className="p-2 font-bold bg-gray-50 whitespace-nowrap w-[120px]">統一編號：</td>
               <td className="p-2">{quote.clients?.tin || 'N/A'}</td>
-              <td className="p-2 font-bold bg-gray-50 whitespace-nowrap w-[120px]">電話：</td>
-              <td className="p-2">{quote.clients?.phone || 'N/A'}</td>
+              <td className="p-2 font-bold bg-gray-50 whitespace-nowrap w-[120px]">聯絡人電話：</td>
+              <td className="p-2">{quote.contact_phone || quote.clients?.phone || 'N/A'}</td>
             </tr>
             <tr className="border-b">
               <td className="p-2 font-bold bg-gray-50 whitespace-nowrap w-[120px]">地址：</td>
               <td className="p-2">{quote.clients?.address || 'N/A'}</td>
               <td className="p-2 font-bold bg-gray-50 whitespace-nowrap w-[120px]">電子郵件：</td>
-              <td className="p-2">{quote.clients?.email || 'N/A'}</td>
+              <td className="p-2">{quote.contact_email || quote.clients?.email || 'N/A'}</td>
             </tr>
           </tbody>
         </table>
-        
+
         <table className="w-full border border-gray-300 mb-6 text-xs">
           <thead>
             <tr className="bg-gray-50">
@@ -339,43 +339,43 @@ export default function ViewQuotePage() {
           </thead>
           <tbody>
             {processTableData(quote.quotation_items).map((row, index) => {
-                const itemTotal = (row.item.price || 0) * (row.item.quantity || 1);
-      
-                return (
-              
-              <tr key={index} className="break-inside-avoid">
-                {/* 分類欄位 - 只在第一次出現時顯示，並設置 rowSpan */}
-                {row.showCategory && (
-                  <td 
-                    className="border p-2 text-center align-middle font-medium bg-gray-50" 
-                    rowSpan={row.categoryRowSpan}
-                  >
-                    {row.item.category || 'N/A'}
-                  </td>
-                )}
-                
-                {/* KOL欄位 - 只在第一次出現時顯示，並設置 rowSpan */}
-                {row.showKol && (
-                  <td 
-                    className="border p-2 text-center align-middle font-medium bg-blue-50" 
-                    rowSpan={row.kolRowSpan}
-                  >
-                    {row.item.kols?.name || 'N/A'}
-                  </td>
-                )}
-                
-                {/* 服務內容 */}
-                <td className="border p-2 text-center">{row.item.service}</td>
+              const itemTotal = (row.item.price || 0) * (row.item.quantity || 1);
 
-                {/* 🔄 單價 - 調整順序 */}
-                <td className="border p-2 text-right">${row.item.price?.toLocaleString() || '0'}</td>
+              return (
 
-                {/* 🔄 數量 - 調整順序 */}
-                <td className="border p-2 text-center">{row.item.quantity || 1}</td>
+                <tr key={index} className="break-inside-avoid">
+                  {/* 分類欄位 - 只在第一次出現時顯示，並設置 rowSpan */}
+                  {row.showCategory && (
+                    <td
+                      className="border p-2 text-center align-middle font-medium bg-gray-50"
+                      rowSpan={row.categoryRowSpan}
+                    >
+                      {row.item.category || 'N/A'}
+                    </td>
+                  )}
 
-                {/* 🆕 合計 - 新增欄位 */}
-                <td className="border p-2 text-right font-semibold">${itemTotal.toLocaleString()}</td>
-              </tr>
+                  {/* KOL欄位 - 只在第一次出現時顯示，並設置 rowSpan */}
+                  {row.showKol && (
+                    <td
+                      className="border p-2 text-center align-middle font-medium bg-blue-50"
+                      rowSpan={row.kolRowSpan}
+                    >
+                      {row.item.kols?.name || 'N/A'}
+                    </td>
+                  )}
+
+                  {/* 服務內容 */}
+                  <td className="border p-2 text-center">{row.item.service}</td>
+
+                  {/* 🔄 單價 - 調整順序 */}
+                  <td className="border p-2 text-right">${row.item.price?.toLocaleString() || '0'}</td>
+
+                  {/* 🔄 數量 - 調整順序 */}
+                  <td className="border p-2 text-center">{row.item.quantity || 1}</td>
+
+                  {/* 🆕 合計 - 新增欄位 */}
+                  <td className="border p-2 text-right font-semibold">${itemTotal.toLocaleString()}</td>
+                </tr>
               );
             })}
           </tbody>
@@ -419,8 +419,8 @@ export default function ViewQuotePage() {
                           <td className="border p-2 font-bold bg-gray-50">未稅小計</td>
                           <td className="border p-2 text-right text-gray-500 relative">
 
-                              ${quote.subtotal_untaxed?.toLocaleString() || '0'}
-                           
+                            ${quote.subtotal_untaxed?.toLocaleString() || '0'}
+
                           </td>
                         </tr>
                         <tr>
@@ -470,7 +470,7 @@ export default function ViewQuotePage() {
             </tr>
           </tbody>
         </table>
-        
+
         <div className="text-xs space-y-4 whitespace-pre-wrap">
           <div className="border p-4 break-inside-avoid">
             <h3 className="text-sm font-bold mb-3 bg-gray-50 p-2 -m-4 mb-3 border-b">【合約約定】</h3>
@@ -487,7 +487,7 @@ export default function ViewQuotePage() {
             </div>
           )}
         </div>
-        
+
         <div className="mt-8 flex justify-between items-start gap-8 break-inside-avoid">
           <div className="text-center w-[48%]">
             <div className="signature-box">

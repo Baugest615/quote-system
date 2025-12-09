@@ -1,4 +1,4 @@
-// src/components/quotes/QuoteForm.tsx - 修正版本
+﻿// src/components/quotes/QuoteForm.tsx - 修正版本
 'use client'
 
 import { useForm, useFieldArray, Controller, SubmitHandler } from 'react-hook-form'
@@ -57,6 +57,8 @@ const quoteSchema = z.object({
   project_name: z.string().min(1, '專案名稱為必填項目'),
   client_id: z.string().nullable(),
   client_contact: z.string().nullable(),
+  contact_email: z.string().nullable().optional(),
+  contact_phone: z.string().nullable().optional(),
   payment_method: z.enum(['電匯', 'ATM轉帳']),
   status: z.enum(['草稿', '待簽約', '已簽約', '已歸檔']).optional(),
   has_discount: z.boolean(),
@@ -117,6 +119,8 @@ export default function QuoteForm({ initialData }: QuoteFormProps) {
       project_name: initialData?.project_name || '',
       client_id: initialData?.client_id || null,
       client_contact: initialData?.client_contact || null,
+      contact_email: initialData?.contact_email || null,
+      contact_phone: initialData?.contact_phone || null,
       payment_method: initialData?.payment_method || '電匯',
       status: initialData?.status || '草稿',
       has_discount: initialData?.has_discount || false,
@@ -224,6 +228,9 @@ export default function QuoteForm({ initialData }: QuoteFormProps) {
         if (contactToSelect) {
           setSelectedContact(contactToSelect)
           setValue('client_contact', contactToSelect.name)
+          setValue('contact_email', contactToSelect.email || null)
+          setValue('contact_phone', contactToSelect.phone || null)
+
           // 如果聯絡人有自己的 email，就用聯絡人的
           if (contactToSelect.email) {
             setClientInfo(prev => ({ ...prev, email: contactToSelect.email || '' }))
@@ -234,6 +241,8 @@ export default function QuoteForm({ initialData }: QuoteFormProps) {
         setClientContacts([])
         setSelectedContact(null)
         setValue('client_contact', '')
+        setValue('contact_email', null)
+        setValue('contact_phone', null)
       }
     } else {
       // 沒有選擇客戶，全部清空
@@ -241,6 +250,8 @@ export default function QuoteForm({ initialData }: QuoteFormProps) {
       setClientContacts([])
       setSelectedContact(null)
       setValue('client_contact', '')
+      setValue('contact_email', null)
+      setValue('contact_phone', null)
     }
   }, [watchClientId, clients, setValue, initialData])
 
@@ -251,6 +262,8 @@ export default function QuoteForm({ initialData }: QuoteFormProps) {
     if (contact) {
       setSelectedContact(contact)
       setValue('client_contact', contact.name)
+      setValue('contact_email', contact.email || null)
+      setValue('contact_phone', contact.phone || null)
       // 更新 Email 顯示，優先使用聯絡人 Email，否則使用客戶預設 Email
       const clientEmail = clients.find(c => c.id === watchClientId)?.email || '';
       setClientInfo(prev => ({ ...prev, email: contact.email || clientEmail }))
@@ -267,7 +280,7 @@ export default function QuoteForm({ initialData }: QuoteFormProps) {
   const grandTotalTaxed = subTotalUntaxed + tax;
 
   const onSubmit: SubmitHandler<QuoteFormData> = async (data) => {
-    const quoteDataToSave = { project_name: data.project_name, client_id: data.client_id || null, client_contact: data.client_contact || null, payment_method: data.payment_method, status: data.status || '草稿', subtotal_untaxed: subTotalUntaxed, tax: tax, grand_total_taxed: grandTotalTaxed, has_discount: data.has_discount, discounted_price: data.has_discount ? data.discounted_price : null, terms: data.terms || null, remarks: data.remarks || null, attachments: initialData?.attachments || null, };
+    const quoteDataToSave = { project_name: data.project_name, client_id: data.client_id || null, client_contact: data.client_contact || null, contact_email: data.contact_email || null, contact_phone: data.contact_phone || null, payment_method: data.payment_method, status: data.status || '草稿', subtotal_untaxed: subTotalUntaxed, tax: tax, grand_total_taxed: grandTotalTaxed, has_discount: data.has_discount, discounted_price: data.has_discount ? data.discounted_price : null, terms: data.terms || null, remarks: data.remarks || null, attachments: initialData?.attachments || null, };
     try {
       let quoteId = initialData?.id;
       if (quoteId) {
