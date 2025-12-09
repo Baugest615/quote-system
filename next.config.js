@@ -126,11 +126,6 @@ const nextConfig = {
   // ===== 生產環境配置 =====
   ...(process.env.NODE_ENV === 'production' && {
     poweredByHeader: false,
-    modularizeImports: {
-      'lucide-react': {
-        transform: 'lucide-react/dist/esm/icons/{{member}}',
-      },
-    },
   }),
 };
 
