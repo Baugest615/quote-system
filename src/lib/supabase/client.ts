@@ -1,4 +1,3 @@
-import { createClient } from '@supabase/supabase-js'
 import { createBrowserClient } from '@supabase/ssr'
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
@@ -8,12 +7,7 @@ if (!supabaseUrl || !supabaseAnonKey) {
   throw new Error('缺少 Supabase 環境變數')
 }
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-  auth: {
-    autoRefreshToken: true,
-    persistSession: true,
-    detectSessionInUrl: true
-  }
-})
+// 使用 createBrowserClient 確保在 Next.js App Router 中正確處理 cookie
+export const supabase = createBrowserClient(supabaseUrl, supabaseAnonKey)
 
 export default supabase
