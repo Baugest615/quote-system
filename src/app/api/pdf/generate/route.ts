@@ -25,7 +25,7 @@ async function getBrowser(): Promise<Browser> {
         const chromium = await import('@sparticuz/chromium');
 
         return puppeteer.launch({
-            args: (chromium.default as any).args,
+            args: [...(chromium.default as any).args, '--hide-scrollbars', '--disable-web-security'],
             defaultViewport: (chromium.default as any).defaultViewport,
             executablePath: await (chromium.default as any).executablePath(),
             headless: (chromium.default as any).headless,
