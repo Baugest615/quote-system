@@ -191,23 +191,88 @@
 
 /* 新增 PDF 與列印專用樣式 */
 @media print {
+  /* 隱藏所有非列印內容 */
   body * {
     visibility: hidden;
   }
+  
+  /* 只顯示報價單區塊 */
   #printable-quote, #printable-quote * {
     visibility: visible;
   }
+  
   #printable-quote {
     position: absolute;
     left: 0;
     top: 0;
     width: 100%;
+    padding: 20px !important;
+    background: white !important;
   }
+
+  /* 隱藏列印時不需要的元素 */
   .print\:hidden {
     display: none !important;
   }
-  /* 【確保此樣式存在】 */
+
+  /* 防止表格列被分頁切斷 */
+  tr {
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+  }
+
+  /* 防止表格被切斷 */
+  table {
+    break-inside: auto;
+  }
+
+  thead {
+    display: table-header-group;
+  }
+
+  /* 確保 rowSpan 儲存格正確顯示 */
+  td[rowspan], th[rowspan] {
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+  }
+
+  /* 通用防分頁切斷 */
   .break-inside-avoid {
-    break-inside: avoid;
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+  }
+
+  /* 確保簽章區不被切斷 */
+  .signature-box {
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+  }
+
+  /* 調整浮水印樣式 */
+  .pdf-watermark {
+    opacity: 0.05 !important;
+    position: absolute !important;
+    width: 100% !important;
+    height: 100% !important;
+    object-fit: contain !important;
+    z-index: -1 !important;
+  }
+
+  /* 移除陰影和圓角（列印時不需要） */
+  #printable-quote {
+    box-shadow: none !important;
+    border: none !important;
+    border-radius: 0 !important;
+  }
+
+  /* 確保表格邊框在列印時顯示 */
+  table, th, td {
+    border: 1px solid #d1d5db !important;
+  }
+
+  /* 頁面設定 */
+  @page {
+    size: A4;
+    margin: 15mm;
   }
 }

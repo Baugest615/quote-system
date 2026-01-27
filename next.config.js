@@ -3,11 +3,12 @@
 const nextConfig = {
   // ===== 基本配置 =====
   reactStrictMode: true,
-  serverExternalPackages: ['@supabase/supabase-js'],
 
   // ===== 實驗性功能 =====
   experimental: {
     optimizePackageImports: ['lucide-react', 'date-fns'],
+    // Next.js 14 使用 serverComponentsExternalPackages（Next.js 15 改名為 serverExternalPackages）
+    serverComponentsExternalPackages: ['@supabase/supabase-js'],
     ppr: false,
   },
 

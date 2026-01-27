@@ -12,6 +12,7 @@ import { Modal } from '@/components/ui/modal';
 import { pdfGenerator } from '@/lib/pdf/enhanced-pdf-generator';
 import { SealStampConfig, SealStampManager } from '@/components/pdf/SealStampManager';
 import { ElectronicSealManager } from '@/components/pdf/ElectronicSealManager';
+import { QuotePrintableTable } from '@/components/pdf/QuotePrintableTable';
 import { usePermission } from '@/lib/permissions';
 
 type Quotation = Database['public']['Tables']['quotations']['Row'];
@@ -70,7 +71,7 @@ export default function ViewQuotePage() {
   const [showElectronicSealSettings, setShowElectronicSealSettings] = useState(false);
   const [electronicSealConfig, setElectronicSealConfig] = useState<SealStampConfig>(defaultElectronicSealConfig);
 
-  // 🔧 修正後的表格合併邏輯
+  // 🔧 簡化的表格合併邏輯 - 正確計算 rowSpan
   const processTableData = (items: (QuotationItem & { kols: Pick<Kol, 'name'> | null })[]): Array<{
     item: QuotationItem & { kols: Pick<Kol, 'name'> | null };
     categoryRowSpan: number;
@@ -78,66 +79,53 @@ export default function ViewQuotePage() {
     showCategory: boolean;
     showKol: boolean;
   }> => {
-    // 按分類分組，然後在每個分類內按KOL分組
-    const categoryGroups = new Map<string, Array<QuotationItem & { kols: Pick<Kol, 'name'> | null }>>();
+    // 先排序 - 按分類、KOL名稱排序，確保項目連續
+    const sortedItems = [...items].sort((a, b) => {
+      const categoryA = a.category || 'N/A';
+      const categoryB = b.category || 'N/A';
+      if (categoryA !== categoryB) return categoryA.localeCompare(categoryB);
 
-    // 先按分類分組
-    items.forEach(item => {
+      const kolA = a.kols?.name || 'N/A';
+      const kolB = b.kols?.name || 'N/A';
+      return kolA.localeCompare(kolB);
+    });
+
+    // 第一遍：計算每個分類和 KOL 的項目數量
+    const categoryCount = new Map<string, number>();
+    const kolCount = new Map<string, number>(); // key: "category|kol"
+
+    sortedItems.forEach(item => {
       const category = item.category || 'N/A';
-      if (!categoryGroups.has(category)) {
-        categoryGroups.set(category, []);
-      }
-      categoryGroups.get(category)!.push(item);
+      const kol = item.kols?.name || 'N/A';
+      const kolKey = `${category}|${kol}`;
+
+      categoryCount.set(category, (categoryCount.get(category) || 0) + 1);
+      kolCount.set(kolKey, (kolCount.get(kolKey) || 0) + 1);
     });
 
-    const processedItems: Array<{
-      item: QuotationItem & { kols: Pick<Kol, 'name'> | null };
-      categoryRowSpan: number;
-      kolRowSpan: number;
-      showCategory: boolean;
-      showKol: boolean;
-    }> = [];
+    // 第二遍：生成帶有 rowSpan 資訊的項目
+    const seenCategories = new Set<string>();
+    const seenKols = new Set<string>(); // key: "category|kol"
 
-    // 處理每個分類
-    categoryGroups.forEach((categoryItems, category) => {
-      const categoryRowSpan = categoryItems.length;
+    return sortedItems.map(item => {
+      const category = item.category || 'N/A';
+      const kol = item.kols?.name || 'N/A';
+      const kolKey = `${category}|${kol}`;
 
-      // 🔧 關鍵修正：追蹤是否是分類中的第一個項目
-      let categoryFirstItemProcessed = false;
+      const isFirstInCategory = !seenCategories.has(category);
+      const isFirstInKol = !seenKols.has(kolKey);
 
-      // 在該分類內，按KOL分組
-      const kolGroups = new Map<string, Array<QuotationItem & { kols: Pick<Kol, 'name'> | null }>>();
+      if (isFirstInCategory) seenCategories.add(category);
+      if (isFirstInKol) seenKols.add(kolKey);
 
-      categoryItems.forEach(item => {
-        const kolName = item.kols?.name || 'N/A';
-        if (!kolGroups.has(kolName)) {
-          kolGroups.set(kolName, []);
-        }
-        kolGroups.get(kolName)!.push(item);
-      });
-
-      // 處理該分類內的每個KOL組
-      kolGroups.forEach((kolItems, kolName) => {
-        const kolRowSpan = kolItems.length;
-
-        kolItems.forEach((item, itemIndex) => {
-          processedItems.push({
-            item,
-            categoryRowSpan,
-            kolRowSpan,
-            // 🔧 關鍵修正：只有分類中真正的第一個項目才顯示分類
-            showCategory: !categoryFirstItemProcessed,
-            // 🔧 只有 KOL 組中的第一個項目才顯示 KOL
-            showKol: itemIndex === 0
-          });
-
-          // 🔧 標記分類的第一個項目已處理
-          categoryFirstItemProcessed = true;
-        });
-      });
+      return {
+        item,
+        categoryRowSpan: isFirstInCategory ? categoryCount.get(category)! : 0,
+        kolRowSpan: isFirstInKol ? kolCount.get(kolKey)! : 0,
+        showCategory: isFirstInCategory,
+        showKol: isFirstInKol,
+      };
     });
-
-    return processedItems;
   };
 
   const fetchQuote = useCallback(async () => {
@@ -201,13 +189,107 @@ export default function ViewQuotePage() {
     setIsProcessing(true);
 
     try {
-      await pdfGenerator.generatePDF({
-        filename: `報價單-${quote.clients?.name || '客戶'}-${quote.project_name}.pdf`,
-        elementId: 'printable-quote',
-        sealStamp: sealStampConfig,
+      // 🔧 使用 Puppeteer API 生成 PDF（完美渲染 rowSpan）
+      // 🔧 使用 HTML Injection 方案 - 前端獲取 HTML，後端 Puppeteer 渲染
+      // 1. 獲取列印頁面的 HTML (包含使用者 Cookie，所以無需後端重新驗證)
+      const printUrl = `/print/quote/${id}?seal=${electronicSealConfig.enabled}`;
+      const htmlResponse = await fetch(printUrl, {
+        credentials: 'include' // 確保發送所有 cookie
       });
+
+      if (!htmlResponse.ok) {
+        throw new Error(`無法讀取報價單列印頁面 (${htmlResponse.status} ${htmlResponse.statusText})`);
+      }
+
+      let html = await htmlResponse.text();
+
+      // 檢查 HTML 是否有效
+      if (!html.includes('printable-quote')) {
+        console.error('無效的列印頁面 HTML:', html.substring(0, 500) + '...');
+        // 嘗試解析它是什麼頁面
+        const titleMatch = html.match(/<title>(.*?)<\/title>/);
+        const pageTitle = titleMatch ? titleMatch[1] : 'Unknown Page';
+        throw new Error(`列印頁面內容無效 (標題: ${pageTitle})，請檢查是否已登入或權限不足。`);
+      }
+
+      // 2. 清理 HTML：移除所有 script 標籤，防止 Puppeteer 中的 hydration錯誤
+      // Next.js 的 hydration 腳本可能會在 Puppeteer 中失敗並觸發錯誤頁面
+      html = html.replace(/<script\b[^>]*>([\s\S]*?)<\/script>/gmi, "");
+      html = html.replace(/<link\b[^>]*as="script"[^>]*>/gmi, "");
+
+      // 3. 將相對路徑轉換為絕對路徑 (確保 Puppeteer 能加載圖片和樣式)
+      const origin = window.location.origin;
+      html = html
+        .replace(/src="\//g, `src="${origin}/`)
+        .replace(/href="\//g, `href="${origin}/`)
+        .replace(/srcset="\//g, `srcset="${origin}/`);
+
+      // 3. 替換電子用印圖片 (如果使用者有自定義)
+      if (electronicSealConfig.enabled && electronicSealConfig.stampImage !== '/seals/approved-seal.png') {
+        html = html.replace('/seals/approved-seal.png', electronicSealConfig.stampImage);
+      }
+
+      // 4. 準備騎縫章圖片 (轉換為 Base64)
+      let sealStampBase64 = '';
+      if (sealStampConfig.enabled) {
+        try {
+          const imageUrl = sealStampConfig.stampImage;
+          let fetchUrl = imageUrl;
+
+          // 處理相對路徑
+          if (imageUrl.startsWith('/')) {
+            fetchUrl = `${window.location.origin}${imageUrl}`;
+          }
+
+          const imageRes = await fetch(fetchUrl);
+          const imageBlob = await imageRes.blob();
+
+          sealStampBase64 = await new Promise((resolve) => {
+            const reader = new FileReader();
+            reader.onloadend = () => resolve(reader.result as string);
+            reader.readAsDataURL(imageBlob);
+          });
+
+          console.log('騎縫章圖片已轉換為 Base64');
+        } catch (e) {
+          console.error('轉換騎縫章圖片失敗:', e);
+          // 失敗時不傳送圖片，避免後端報錯，或可選擇 alert 提示
+        }
+      }
+
+      // 5. 發送 HTML 到後端生成 API
+      const response = await fetch('/api/pdf/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          quoteId: id,
+          html: html, // 傳送處理過的 HTML
+          filename: `報價單-${quote.clients?.name || '客戶'}-${quote.project_name}.pdf`,
+          sealStampEnabled: sealStampConfig.enabled,
+          sealStampImage: sealStampBase64, // 傳送 Base64
+          electronicSealEnabled: electronicSealConfig.enabled,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'PDF 生成失敗');
+      }
+
+      // 下載 PDF
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `報價單-${quote.clients?.name || '客戶'}-${quote.project_name}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+
     } catch (error: any) {
-      alert(error.message);
+      console.error('PDF 匯出錯誤:', error);
+      alert('PDF 生成失敗：' + error.message);
     } finally {
       setIsProcessing(false);
     }
@@ -341,14 +423,16 @@ export default function ViewQuotePage() {
             </tr>
           </thead>
           <tbody>
+            {/* 🔧 網頁預覽使用 rowSpan（PDF 用 @react-pdf/renderer 獨立渲染） */}
             {processTableData(quote.quotation_items).map((row, index) => {
               const itemTotal = (row.item.price || 0) * (row.item.quantity || 1);
+              const showCategory = row.showCategory && row.categoryRowSpan > 0;
+              const showKol = row.showKol && row.kolRowSpan > 0;
 
               return (
-
                 <tr key={index} className="break-inside-avoid">
-                  {/* 分類欄位 - 只在第一次出現時顯示，並設置 rowSpan */}
-                  {row.showCategory && (
+                  {/* 分類欄位 - 使用 rowSpan 合併 */}
+                  {showCategory && (
                     <td
                       className="border p-2 text-center align-middle font-medium bg-gray-50"
                       rowSpan={row.categoryRowSpan}
@@ -357,8 +441,8 @@ export default function ViewQuotePage() {
                     </td>
                   )}
 
-                  {/* KOL欄位 - 只在第一次出現時顯示，並設置 rowSpan */}
-                  {row.showKol && (
+                  {/* KOL欄位 - 使用 rowSpan 合併 */}
+                  {showKol && (
                     <td
                       className="border p-2 text-center align-middle font-medium bg-blue-50"
                       rowSpan={row.kolRowSpan}
@@ -370,13 +454,13 @@ export default function ViewQuotePage() {
                   {/* 服務內容 */}
                   <td className="border p-2 text-center">{row.item.service}</td>
 
-                  {/* 🔄 單價 - 調整順序 */}
+                  {/* 單價 */}
                   <td className="border p-2 text-right">${row.item.price?.toLocaleString() || '0'}</td>
 
-                  {/* 🔄 數量 - 調整順序 */}
+                  {/* 數量 */}
                   <td className="border p-2 text-center">{row.item.quantity || 1}</td>
 
-                  {/* 🆕 合計 - 新增欄位 */}
+                  {/* 合計 */}
                   <td className="border p-2 text-right font-semibold">${itemTotal.toLocaleString()}</td>
                 </tr>
               );
@@ -491,6 +575,139 @@ export default function ViewQuotePage() {
           )}
         </div>
 
+        <div className="mt-8 flex justify-between items-start gap-8 break-inside-avoid">
+          <div className="text-center w-[48%]">
+            <div className="signature-box">
+              <p className="text-sm font-bold">安安娛樂簽章</p>
+              {electronicSealConfig.enabled && (
+                <div className="seal-image-container">
+                  <img src={electronicSealConfig.stampImage} alt="Electronic Seal" style={sealImageStyle} />
+                </div>
+              )}
+            </div>
+          </div>
+          <div className="text-center w-[48%]">
+            <div className="signature-box">
+              <p className="text-sm font-bold">委刊方簽章</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* 🔧 隱藏的 PDF 專用區塊 - 供 html2pdf.js 使用（無 rowSpan 避免跑版） */}
+      <div
+        id="pdf-printable"
+        className="fixed -left-[9999px] top-0 bg-white"
+        style={{ width: '210mm', padding: '15mm' }}
+      >
+        <img src="/watermark-an.png" alt="watermark" className="absolute inset-0 w-full h-full opacity-5 object-contain z-0 pdf-watermark" />
+        <div className="text-center mb-4 pb-2 border-b">
+          <img src="/logo.png" alt="安安娛樂 LOGO" className="h-10 w-auto" />
+          <h1 className="text-xl font-bold">安安娛樂有限公司委刊專案契約書</h1>
+        </div>
+
+        <table className="w-full text-sm mb-8 border border-gray-300">
+          <tbody>
+            <tr className="border-b">
+              <td className="p-2 font-bold bg-gray-50 whitespace-nowrap w-[120px]">專案名稱：</td>
+              <td className="p-2" colSpan={3}>
+                <div className="flex justify-between items-center">
+                  <span>{quote.project_name}</span>
+                  <span className="text-sm text-gray-600 whitespace-nowrap">
+                    開立時間：{quote.created_at ? new Date(quote.created_at).toLocaleDateString() : 'N/A'}
+                  </span>
+                </div>
+              </td>
+            </tr>
+            <tr className="border-b">
+              <td className="p-2 font-bold bg-gray-50 whitespace-nowrap w-[120px]">委刊客戶：</td>
+              <td className="p-2">{quote.clients?.name || 'N/A'}</td>
+              <td className="p-2 font-bold bg-gray-50 whitespace-nowrap w-[120px]">客戶聯絡人：</td>
+              <td className="p-2">{quote.client_contact}</td>
+            </tr>
+            <tr className="border-b">
+              <td className="p-2 font-bold bg-gray-50 whitespace-nowrap w-[120px]">統一編號：</td>
+              <td className="p-2">{quote.clients?.tin || 'N/A'}</td>
+              <td className="p-2 font-bold bg-gray-50 whitespace-nowrap w-[120px]">聯絡人電話：</td>
+              <td className="p-2">{quote.contact_phone || quote.clients?.phone || 'N/A'}</td>
+            </tr>
+            <tr className="border-b">
+              <td className="p-2 font-bold bg-gray-50 whitespace-nowrap w-[120px]">地址：</td>
+              <td className="p-2">{quote.clients?.address || 'N/A'}</td>
+              <td className="p-2 font-bold bg-gray-50 whitespace-nowrap w-[120px]">電子郵件：</td>
+              <td className="p-2">{quote.contact_email || quote.clients?.email || 'N/A'}</td>
+            </tr>
+          </tbody>
+        </table>
+
+        {/* 使用無 rowSpan 的表格 */}
+        <QuotePrintableTable items={quote.quotation_items} />
+
+        {/* 金額匯總表 */}
+        <table className="w-full mb-8 break-inside-avoid">
+          <tbody>
+            <tr>
+              <td className="w-2/3 pr-8 align-top">
+                <div className="border p-4 h-full">
+                  <h3 className="text-sm font-bold mb-3 bg-gray-50 p-2 -m-4 mb-3 border-b">【廣告費之支付約定】</h3>
+                  <div className="text-[10px] leading-normal space-y-2">
+                    <p><strong>1.</strong> 本次廣告行銷費用由委託公司負責繳付，所有費用代收百分之五的營業稅。銀⾏⼿續費由⽀付⽅負擔。</p>
+                    <p><strong>2.</strong> 本公司應於執行到期日開立當月份發票予委刊客戶，委刊客戶應於收到發票時，按發票日期月結30日依發票所載之金額匯入本公司指定帳戶如下。</p>
+                    <p><strong>3.</strong> 所有報酬及因本服務契約書產⽣之相關費⽤均以本服務契約書內載明之幣值及約定付款⽇付款。</p>
+                    <div className="mt-3 bg-gray-50 p-3 rounded border text-xs">
+                      <p>銀行名稱：{companyBankInfo.bankName}　｜　銀行帳號：{companyBankInfo.accountNumber}</p>
+                      <p>分行名稱：{companyBankInfo.branchName}　｜　帳戶名稱：{companyBankInfo.accountName}</p>
+                    </div>
+                  </div>
+                </div>
+              </td>
+              <td className="w-1/3 align-top">
+                <table className="w-full border border-gray-300 text-sm">
+                  <tbody>
+                    {hasDiscountPrice ? (
+                      <>
+                        <tr className="border-b"><td className="p-2 font-bold bg-gray-50">未稅小計</td><td className="p-2 text-right line-through text-gray-400">${quote.subtotal_untaxed?.toLocaleString()}</td></tr>
+                        <tr className="border-b bg-blue-50"><td className="p-2 font-bold">未稅優惠</td><td className="p-2 text-right text-blue-600 font-bold">${quote.discounted_price?.toLocaleString()}</td></tr>
+                        <tr className="border-b"><td className="p-2 font-bold bg-gray-50">營業稅(5%)</td><td className="p-2 text-right">${discountedTax.toLocaleString()}</td></tr>
+                        <tr className="bg-red-50"><td className="p-2 font-bold">含稅總計</td><td className="p-2 text-right text-red-600 text-lg font-bold">${discountedGrandTotal.toLocaleString()}</td></tr>
+                      </>
+                    ) : (
+                      <>
+                        <tr className="border-b"><td className="p-2 font-bold bg-gray-50">未稅小計</td><td className="p-2 text-right">${quote.subtotal_untaxed?.toLocaleString()}</td></tr>
+                        <tr className="border-b"><td className="p-2 font-bold bg-gray-50">營業稅(5%)</td><td className="p-2 text-right">${quote.tax?.toLocaleString()}</td></tr>
+                        <tr className="bg-red-50"><td className="p-2 font-bold">含稅總計</td><td className="p-2 text-right text-red-600 text-lg font-bold">${quote.grand_total_taxed?.toLocaleString()}</td></tr>
+                      </>
+                    )}
+                  </tbody>
+                </table>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+
+        {/* 條款區塊 */}
+        <div className="space-y-4 break-inside-avoid">
+          {contractAgreement && (
+            <div className="border p-4">
+              <h3 className="text-sm font-bold mb-3 bg-gray-50 p-2 -m-4 mb-3 border-b">【合約約定】</h3>
+              <p className="text-[10px] leading-normal whitespace-pre-wrap">{contractAgreement}</p>
+            </div>
+          )}
+          {confidentialityAgreement && (
+            <div className="border p-4">
+              <h3 className="text-sm font-bold mb-3 bg-gray-50 p-2 -m-4 mb-3 border-b">【保密協議】</h3>
+              <p className="text-[10px] leading-normal whitespace-pre-wrap">{confidentialityAgreement}</p>
+            </div>
+          )}
+          {quote.remarks && (
+            <div className="border p-4">
+              <h3 className="text-sm font-bold mb-3 bg-gray-50 p-2 -m-4 mb-3 border-b">【補充協議】</h3>
+              <p className="text-[10px] leading-normal">{quote.remarks}</p>
+            </div>
+          )}
+        </div>
+
+        {/* 簽章區 - PDF 版本 */}
         <div className="mt-8 flex justify-between items-start gap-8 break-inside-avoid">
           <div className="text-center w-[48%]">
             <div className="signature-box">

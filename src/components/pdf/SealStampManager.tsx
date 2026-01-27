@@ -46,12 +46,12 @@ export function SealStampManager({
   onPreview
 }: SealStampManagerProps) {
 
-  // 確保始終使用固定的印章圖片
-  React.useEffect(() => {
-    if (config.stampImage !== FIXED_STAMP_IMAGE) {
-      onChange({ ...config, stampImage: FIXED_STAMP_IMAGE });
-    }
-  }, [config, onChange]);
+  // 移除強制圖檔邏輯，允許外部傳入的設定生效
+  // React.useEffect(() => {
+  //   if (config.stampImage !== FIXED_STAMP_IMAGE) {
+  //     onChange({ ...config, stampImage: FIXED_STAMP_IMAGE });
+  //   }
+  // }, [config, onChange]);
 
   return (
     <div className="space-y-6 p-6 bg-white rounded-lg border">
@@ -69,7 +69,7 @@ export function SealStampManager({
       {config.enabled && (
         <div className="space-y-4">
           {/* 移除了印章圖片上傳、預覽和顯示功能 */}
-          
+
           <div className="grid grid-cols-2 gap-4">
             <div>
               <Label htmlFor="stamp-position">騎縫位置</Label>
@@ -88,13 +88,13 @@ export function SealStampManager({
             </div>
             <div>
               <Label>印章大小 ({config.size}吋)</Label>
-              <Slider 
-                value={[config.size]} 
-                onValueChange={([size]) => onChange({ ...config, size })} 
-                min={0.5} 
-                max={3.0} 
-                step={0.1} 
-                className="mt-2" 
+              <Slider
+                value={[config.size]}
+                onValueChange={([size]) => onChange({ ...config, size })}
+                min={0.5}
+                max={3.0}
+                step={0.1}
+                className="mt-2"
               />
             </div>
           </div>
@@ -102,24 +102,24 @@ export function SealStampManager({
           <div className="grid grid-cols-2 gap-4">
             <div>
               <Label>透明度 ({Math.round(config.opacity * 100)}%)</Label>
-              <Slider 
-                value={[config.opacity]} 
-                onValueChange={([opacity]) => onChange({ ...config, opacity })} 
-                min={0.1} 
-                max={1.0} 
-                step={0.1} 
-                className="mt-2" 
+              <Slider
+                value={[config.opacity]}
+                onValueChange={([opacity]) => onChange({ ...config, opacity })}
+                min={0.1}
+                max={1.0}
+                step={0.1}
+                className="mt-2"
               />
             </div>
             <div>
               <Label>旋轉角度 ({config.rotation}°)</Label>
-              <Slider 
-                value={[config.rotation]} 
-                onValueChange={([rotation]) => onChange({ ...config, rotation })} 
-                min={-90} 
-                max={90} 
-                step={5} 
-                className="mt-2" 
+              <Slider
+                value={[config.rotation]}
+                onValueChange={([rotation]) => onChange({ ...config, rotation })}
+                min={-90}
+                max={90}
+                step={5}
+                className="mt-2"
               />
             </div>
           </div>
@@ -127,33 +127,33 @@ export function SealStampManager({
           <div className="grid grid-cols-2 gap-4">
             <div>
               <Label>水平偏移 ({config.offsetX}吋)</Label>
-              <Slider 
-                value={[config.offsetX]} 
-                onValueChange={([offsetX]) => onChange({ ...config, offsetX })} 
-                min={-2.0} 
-                max={2.0} 
-                step={0.1} 
-                className="mt-2" 
+              <Slider
+                value={[config.offsetX]}
+                onValueChange={([offsetX]) => onChange({ ...config, offsetX })}
+                min={-2.0}
+                max={2.0}
+                step={0.1}
+                className="mt-2"
               />
             </div>
             <div>
               <Label>垂直偏移 ({config.offsetY}吋)</Label>
-              <Slider 
-                value={[config.offsetY]} 
-                onValueChange={([offsetY]) => onChange({ ...config, offsetY })} 
-                min={-4.0} 
-                max={4.0} 
-                step={0.1} 
-                className="mt-2" 
+              <Slider
+                value={[config.offsetY]}
+                onValueChange={([offsetY]) => onChange({ ...config, offsetY })}
+                min={-4.0}
+                max={4.0}
+                step={0.1}
+                className="mt-2"
               />
             </div>
           </div>
 
           <div className="flex items-center space-x-2">
-            <Switch 
-              id="overlay-pages" 
-              checked={config.overlayPages} 
-              onCheckedChange={(overlayPages) => onChange({ ...config, overlayPages })} 
+            <Switch
+              id="overlay-pages"
+              checked={config.overlayPages}
+              onCheckedChange={(overlayPages) => onChange({ ...config, overlayPages })}
             />
             <Label htmlFor="overlay-pages">啟用跨頁連續效果</Label>
           </div>
