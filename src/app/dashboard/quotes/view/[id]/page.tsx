@@ -101,7 +101,9 @@ export default function ViewQuotePage() {
     // 處理每個分類
     categoryGroups.forEach((categoryItems, category) => {
       const categoryRowSpan = categoryItems.length;
-      let isFirstInCategory = true;
+
+      // 🔧 關鍵修正：追蹤是否是分類中的第一個項目
+      let categoryFirstItemProcessed = false;
 
       // 在該分類內，按KOL分組
       const kolGroups = new Map<string, Array<QuotationItem & { kols: Pick<Kol, 'name'> | null }>>();
@@ -117,19 +119,20 @@ export default function ViewQuotePage() {
       // 處理該分類內的每個KOL組
       kolGroups.forEach((kolItems, kolName) => {
         const kolRowSpan = kolItems.length;
-        let isFirstInKolGroup = true;
 
-        kolItems.forEach(item => {
+        kolItems.forEach((item, itemIndex) => {
           processedItems.push({
             item,
             categoryRowSpan,
             kolRowSpan,
-            showCategory: isFirstInCategory,
-            showKol: isFirstInKolGroup
+            // 🔧 關鍵修正：只有分類中真正的第一個項目才顯示分類
+            showCategory: !categoryFirstItemProcessed,
+            // 🔧 只有 KOL 組中的第一個項目才顯示 KOL
+            showKol: itemIndex === 0
           });
 
-          isFirstInCategory = false;
-          isFirstInKolGroup = false;
+          // 🔧 標記分類的第一個項目已處理
+          categoryFirstItemProcessed = true;
         });
       });
     });
