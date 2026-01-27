@@ -8,7 +8,7 @@ const nextConfig = {
   experimental: {
     optimizePackageImports: ['lucide-react', 'date-fns'],
     // Next.js 14 使用 serverComponentsExternalPackages（Next.js 15 改名為 serverExternalPackages）
-    serverComponentsExternalPackages: ['@supabase/supabase-js'],
+    serverComponentsExternalPackages: ['@supabase/supabase-js', '@sparticuz/chromium', 'puppeteer-core'],
     ppr: false,
   },
 
