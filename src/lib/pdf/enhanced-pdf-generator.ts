@@ -91,14 +91,15 @@ export class EnhancedPDFGenerator {
       const { default: html2pdf } = await import('html2pdf.js');
       const elementToPrint = this.prepareElementForPrint(element);
 
-            // 【關鍵修正】添加 PDF 專用樣式類別
+      // 添加 PDF 專用樣式類別
       elementToPrint.classList.add('pdf-export');
 
       const worker = html2pdf().set({
         margin: config.pageOptions!.margin,
         filename: config.filename,
         image: { type: 'jpeg', quality: 0.98 },
-        html2canvas: { scale: 2, useCORS: true, backgroundColor: '#ffffff',          
+        html2canvas: {
+          scale: 2, useCORS: true, backgroundColor: '#ffffff',
           // 【修正】優化 html2canvas 設定以正確處理樣式
           onclone: (clonedDoc: Document) => {
             // 在克隆的文檔中確保樣式正確應用
@@ -131,8 +132,9 @@ export class EnhancedPDFGenerator {
                 cellEl.style.border = '1px solid #d1d5db';
               });
             }
-          } },
-        
+          }
+        },
+
         jsPDF: { unit: 'in', format: config.pageOptions!.format, orientation: config.pageOptions!.orientation, compress: true },
         pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
       }).from(elementToPrint);
@@ -142,7 +144,7 @@ export class EnhancedPDFGenerator {
         if (config.watermark?.enabled) {
           await this.addWatermark(pdf, totalPages, config.watermark);
         }
-        
+
         if (config.sealStamp?.enabled && config.sealStamp.stampImage) {
           let sealImage = await this.loadImageAsBase64(config.sealStamp.stampImage);
           if (config.sealStamp.rotation !== 0) {
@@ -169,7 +171,10 @@ export class EnhancedPDFGenerator {
     const existingWatermark = elementToPrint.querySelector('img[alt="watermark"]');
     if (existingWatermark) existingWatermark.remove();
 
-        // 【新增】確保表格樣式正確
+    // 【關鍵修正】移除 rowSpan 並填充儲存格，避免 pdf 渲染問題
+    this.removeRowSpans(elementToPrint);
+
+    // 確保表格樣式正確
     const tables = elementToPrint.querySelectorAll('table');
     tables.forEach(table => {
       table.style.borderCollapse = 'collapse';
@@ -178,18 +183,143 @@ export class EnhancedPDFGenerator {
     return elementToPrint;
   }
 
-  private async addWatermark(pdf: any, totalPages: number, watermarkConfig: NonNullable<PDFExportOptions['watermark']>): Promise<void> {
-      for (let i = 1; i <= totalPages; i++) {
-        pdf.setPage(i);
-        pdf.setGState(new pdf.GState({ opacity: watermarkConfig.opacity }));
-        const { width, height } = pdf.internal.pageSize;
-        const imgWidth = width * watermarkConfig.size.width;
-        const imgHeight = height * watermarkConfig.size.height;
-        const x = (width - imgWidth) / 2;
-        const y = (height - imgHeight) / 2;
-        pdf.addImage(watermarkConfig.imagePath, 'PNG', x, y, imgWidth, imgHeight);
-        pdf.setGState(new pdf.GState({ opacity: 1 }));
+  /**
+   * 移除表格中的 rowSpan，將合併儲存格展開為每行獨立的儲存格
+   * 只處理有 rowSpan > 1 的表格，避免影響其他表格
+   */
+  private removeRowSpans(element: HTMLElement): void {
+    const tables = element.querySelectorAll('table');
+
+    tables.forEach(table => {
+      const tbody = table.querySelector('tbody');
+      if (!tbody) return;
+
+      const rows = Array.from(tbody.querySelectorAll('tr'));
+      if (rows.length === 0) return;
+
+      // 🔧 檢查這個表格是否有 rowSpan > 1 的儲存格
+      // 如果沒有，就跳過這個表格（避免影響公司資訊等只用 colSpan 的表格）
+      let hasRowSpan = false;
+      for (const row of rows) {
+        const cells = Array.from(row.querySelectorAll('td, th'));
+        for (const cell of cells) {
+          if ((cell as HTMLTableCellElement).rowSpan > 1) {
+            hasRowSpan = true;
+            break;
+          }
+        }
+        if (hasRowSpan) break;
       }
+      if (!hasRowSpan) return; // 這個表格沒有 rowSpan，跳過
+
+      // 計算實際的欄數（從表頭計算）
+      const thead = table.querySelector('thead tr');
+      const headerCells = thead ? thead.querySelectorAll('th, td') : null;
+      const actualCols = headerCells ? headerCells.length : 6;
+
+      // 建立虛擬表格來追蹤每個格子的佔用狀態
+      const grid: { occupied: boolean; cell: HTMLTableCellElement | null; originalText: string }[][] = [];
+
+      // 初始化 grid
+      for (let r = 0; r < rows.length; r++) {
+        grid[r] = [];
+        for (let c = 0; c < actualCols; c++) {
+          grid[r][c] = { occupied: false, cell: null, originalText: '' };
+        }
+      }
+
+      // 第一遍：遍歷所有行，記錄 rowSpan 佔用的格子
+      rows.forEach((row, rowIndex) => {
+        const cells = Array.from(row.querySelectorAll('td, th')) as HTMLTableCellElement[];
+        let colIndex = 0;
+
+        cells.forEach(cell => {
+          // 跳過已被佔用的格子
+          while (colIndex < actualCols && grid[rowIndex][colIndex].occupied) {
+            colIndex++;
+          }
+          if (colIndex >= actualCols) return;
+
+          const rowSpan = cell.rowSpan || 1;
+          const colSpan = cell.colSpan || 1;
+          const cellText = cell.textContent || '';
+
+          // 標記這個儲存格佔用的所有位置
+          for (let r = 0; r < rowSpan && (rowIndex + r) < rows.length; r++) {
+            for (let c = 0; c < colSpan && (colIndex + c) < actualCols; c++) {
+              grid[rowIndex + r][colIndex + c] = {
+                occupied: true,
+                cell: r === 0 && c === 0 ? cell : null,
+                originalText: cellText
+              };
+            }
+          }
+
+          // 如果有 rowSpan > 1，移除它
+          if (rowSpan > 1) {
+            cell.removeAttribute('rowspan');
+          }
+
+          colIndex += colSpan;
+        });
+      });
+
+      // 第二遍：為被 rowSpan 佔用的位置插入填充儲存格
+      rows.forEach((row, rowIndex) => {
+        const newRow: Node[] = [];
+
+        for (let colIndex = 0; colIndex < actualCols; colIndex++) {
+          const gridCell = grid[rowIndex][colIndex];
+
+          if (!gridCell.occupied) {
+            break; // 超出表格範圍
+          }
+
+          if (gridCell.cell !== null) {
+            // 這是原始儲存格的位置，添加防截斷樣式
+            gridCell.cell.style.breakInside = 'avoid';
+            newRow.push(gridCell.cell);
+          } else {
+            // 這是被 rowSpan 佔用的位置，創建填充儲存格
+            // 顯示原始文字（淺灰色）以保持可讀性
+            const newCell = document.createElement('td');
+            newCell.textContent = gridCell.originalText ? `↳ ${gridCell.originalText}` : '';
+            newCell.style.border = '1px solid #d1d5db';
+            newCell.style.padding = '0.5rem';
+            newCell.style.textAlign = 'center';
+            newCell.style.verticalAlign = 'middle';
+            newCell.style.color = '#9ca3af'; // 淺灰色
+            newCell.style.fontSize = '0.85em';
+            newCell.style.breakInside = 'avoid';
+            newRow.push(newCell);
+          }
+        }
+
+        // 添加防截斷樣式到行
+        (row as HTMLElement).style.breakInside = 'avoid';
+        (row as HTMLElement).style.pageBreakInside = 'avoid';
+
+        // 清空原本的行並重新添加儲存格
+        while (row.firstChild) {
+          row.removeChild(row.firstChild);
+        }
+        newRow.forEach(cell => row.appendChild(cell));
+      });
+    });
+  }
+
+  private async addWatermark(pdf: any, totalPages: number, watermarkConfig: NonNullable<PDFExportOptions['watermark']>): Promise<void> {
+    for (let i = 1; i <= totalPages; i++) {
+      pdf.setPage(i);
+      pdf.setGState(new pdf.GState({ opacity: watermarkConfig.opacity }));
+      const { width, height } = pdf.internal.pageSize;
+      const imgWidth = width * watermarkConfig.size.width;
+      const imgHeight = height * watermarkConfig.size.height;
+      const x = (width - imgWidth) / 2;
+      const y = (height - imgHeight) / 2;
+      pdf.addImage(watermarkConfig.imagePath, 'PNG', x, y, imgWidth, imgHeight);
+      pdf.setGState(new pdf.GState({ opacity: 1 }));
+    }
   }
 
   private async addSealStamp(pdf: any, totalPages: number, config: SealStampConfig, stampImage: string): Promise<void> {
