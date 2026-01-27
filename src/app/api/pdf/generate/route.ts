@@ -21,14 +21,14 @@ async function getBrowser(): Promise<Browser> {
             args: ['--no-sandbox', '--disable-setuid-sandbox'],
         });
     } else {
-        // Vercel 部署：使用 @sparticuz/chromium
+        // Vercel 部署：使用 @sparticuz/chromium (v112)
         const chromium = await import('@sparticuz/chromium');
 
         return puppeteer.launch({
-            args: [...(chromium.default as any).args, '--hide-scrollbars', '--disable-web-security'],
-            defaultViewport: (chromium.default as any).defaultViewport,
-            executablePath: await (chromium.default as any).executablePath(),
-            headless: (chromium.default as any).headless,
+            args: chromium.default.args,
+            defaultViewport: chromium.default.defaultViewport,
+            executablePath: await chromium.default.executablePath(),
+            headless: chromium.default.headless,
         });
     }
 }
