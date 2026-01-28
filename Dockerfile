@@ -28,12 +28,18 @@ RUN npm ci --legacy-peer-deps
 # 複製專案檔案
 COPY . .
 
-# 建置 Next.js 應用
-RUN npm run build
+# 接受建置時環境變數（Railway 會自動傳遞）
+ARG NEXT_PUBLIC_SUPABASE_URL
+ARG NEXT_PUBLIC_SUPABASE_ANON_KEY
 
-# 設定環境變數
+# 設為環境變數供 Next.js 建置使用
+ENV NEXT_PUBLIC_SUPABASE_URL=$NEXT_PUBLIC_SUPABASE_URL
+ENV NEXT_PUBLIC_SUPABASE_ANON_KEY=$NEXT_PUBLIC_SUPABASE_ANON_KEY
 ENV NODE_ENV=production
 ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
+
+# 建置 Next.js 應用
+RUN npm run build
 
 # 暴露端口
 EXPOSE 3000
