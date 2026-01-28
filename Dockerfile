@@ -1,0 +1,42 @@
+# 使用官方 Node.js 鏡像
+FROM node:20-slim
+
+# 安裝 Chromium 及其依賴
+RUN apt-get update && apt-get install -y \
+    chromium \
+    chromium-sandbox \
+    fonts-ipafont-gothic \
+    fonts-wqy-zenhei \
+    fonts-thai-tlwg \
+    fonts-kacst \
+    fonts-freefont-ttf \
+    libxss1 \
+    libxtst6 \
+    ca-certificates \
+    --no-install-recommends \
+    && rm -rf /var/lib/apt/lists/*
+
+# 設定工作目錄
+WORKDIR /app
+
+# 複製 package.json 和 package-lock.json
+COPY package*.json ./
+
+# 安裝依賴
+RUN npm ci --legacy-peer-deps
+
+# 複製專案檔案
+COPY . .
+
+# 建置 Next.js 應用
+RUN npm run build
+
+# 設定環境變數
+ENV NODE_ENV=production
+ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
+
+# 暴露端口
+EXPOSE 3000
+
+# 啟動應用
+CMD ["npm", "start"]

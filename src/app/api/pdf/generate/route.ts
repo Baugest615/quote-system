@@ -6,6 +6,7 @@ import puppeteer, { Browser, Page } from 'puppeteer-core';
 // 動態 import @sparticuz/chromium 避免本地開發問題
 async function getBrowser(): Promise<Browser> {
     const isDev = process.env.NODE_ENV === 'development';
+    const puppeteerPath = process.env.PUPPETEER_EXECUTABLE_PATH;
 
     if (isDev) {
         // 本地開發：使用系統的 Chrome
@@ -22,7 +23,22 @@ async function getBrowser(): Promise<Browser> {
         });
     }
 
-    // 生產環境（Vercel / Railway）：使用 @sparticuz/chromium
+    // Railway Docker 環境：使用系統安裝的 Chromium
+    if (puppeteerPath) {
+        console.log('[PDF API] Using system Chromium from:', puppeteerPath);
+        return puppeteer.launch({
+            headless: true,
+            executablePath: puppeteerPath,
+            args: [
+                '--no-sandbox',
+                '--disable-setuid-sandbox',
+                '--disable-dev-shm-usage',
+                '--disable-gpu',
+            ],
+        });
+    }
+
+    // Vercel 或其他環境：使用 @sparticuz/chromium
     const chromium = await import('@sparticuz/chromium');
 
     return puppeteer.launch({
