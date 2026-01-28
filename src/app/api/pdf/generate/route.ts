@@ -22,24 +22,12 @@ async function getBrowser(): Promise<Browser> {
             args: ['--no-sandbox', '--disable-setuid-sandbox'],
         });
     } else if (isRailway) {
-        // Railway 環境：使用 Nix 安裝的系統 Chromium
-        // 使用環境變數或固定路徑
-        const { execSync } = await import('child_process');
-
-        let chromiumPath: string;
-        try {
-            // 嘗試使用 which 命令找到 chromium
-            chromiumPath = execSync('which chromium', { encoding: 'utf-8' }).trim();
-        } catch (e) {
-            // 如果 which 失敗，嘗試常見路徑
-            chromiumPath = '/usr/bin/chromium-browser';
-        }
-
-        console.log('[PDF API] Railway Chromium path:', chromiumPath);
+        // Railway 環境：直接使用 chromium 命令（Nix 會將其加入 PATH）
+        console.log('[PDF API] Using Railway/Nix Chromium from PATH');
 
         return puppeteer.launch({
             headless: true,
-            executablePath: chromiumPath,
+            executablePath: 'chromium',  // 直接使用命令名稱，不需要完整路徑
             args: [
                 '--no-sandbox',
                 '--disable-setuid-sandbox',
