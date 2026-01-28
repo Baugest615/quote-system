@@ -23,10 +23,23 @@ async function getBrowser(): Promise<Browser> {
         });
     } else if (isRailway) {
         // Railway 環境：使用 Nix 安裝的系統 Chromium
+        // 使用環境變數或固定路徑
+        const { execSync } = await import('child_process');
+
+        let chromiumPath: string;
+        try {
+            // 嘗試使用 which 命令找到 chromium
+            chromiumPath = execSync('which chromium', { encoding: 'utf-8' }).trim();
+        } catch (e) {
+            // 如果 which 失敗，嘗試常見路徑
+            chromiumPath = '/usr/bin/chromium-browser';
+        }
+
+        console.log('[PDF API] Railway Chromium path:', chromiumPath);
+
         return puppeteer.launch({
             headless: true,
-            executablePath: '/nix/store/' + (await import('fs')).readdirSync('/nix/store')
-                .find(dir => dir.includes('chromium')) + '/bin/chromium',
+            executablePath: chromiumPath,
             args: [
                 '--no-sandbox',
                 '--disable-setuid-sandbox',
