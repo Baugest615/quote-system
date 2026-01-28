@@ -23,10 +23,10 @@ const StatCard = ({ title, value, icon: Icon }: { title: string, value: string |
 
 // 重新設計的快速功能按鈕
 const ActionButton = ({ href, icon: Icon, text }: { href: string, icon: React.ElementType, text: string }) => (
-    <Link href={href} className="flex flex-col items-center justify-center p-6 bg-gray-50 rounded-lg hover:bg-indigo-50 hover:shadow-sm transition-all border border-gray-200">
-        <Icon className="h-8 w-8 text-indigo-600 mb-2" />
-        <span className="font-semibold text-gray-700">{text}</span>
-    </Link>
+  <Link href={href} className="flex flex-col items-center justify-center p-6 bg-gray-50 rounded-lg hover:bg-indigo-50 hover:shadow-sm transition-all border border-gray-200">
+    <Icon className="h-8 w-8 text-indigo-600 mb-2" />
+    <span className="font-semibold text-gray-700">{text}</span>
+  </Link>
 )
 
 export default function DashboardPage() {
@@ -49,13 +49,13 @@ export default function DashboardPage() {
       router.push('/auth/login')
       return
     }
-    
+
     setUser(session.user)
 
     try {
       const now = new Date();
       const year = now.getFullYear();
-      const month = now.getMonth(); 
+      const month = now.getMonth();
 
       const startDate = new Date(year, month, 1).toISOString().split('T')[0];
       const endDate = new Date(year, month + 1, 1).toISOString().split('T')[0];
@@ -71,7 +71,7 @@ export default function DashboardPage() {
           .gte('created_at', startDate)
           .lt('created_at', endDate),
       ]);
-      
+
       const monthlyTotal = monthlyTotalRes.data?.reduce((sum, item) => sum + (item.grand_total_taxed || 0), 0) || 0;
 
       setStats({
@@ -104,7 +104,7 @@ export default function DashboardPage() {
     <div className="space-y-8">
       <div>
         <h1 className="text-3xl font-bold text-gray-900">總覽</h1>
-        <p className="text-gray-500 mt-1">歡迎回來，{user?.email}</p>
+        <p className="text-gray-500 mt-1">歡迎，{user?.email}</p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
