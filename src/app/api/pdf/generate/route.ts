@@ -6,7 +6,6 @@ import puppeteer, { Browser, Page } from 'puppeteer-core';
 // 動態 import @sparticuz/chromium 避免本地開發問題
 async function getBrowser(): Promise<Browser> {
     const isDev = process.env.NODE_ENV === 'development';
-    const isRailway = process.env.RAILWAY_ENVIRONMENT !== undefined;
 
     if (isDev) {
         // 本地開發：使用系統的 Chrome
@@ -21,31 +20,17 @@ async function getBrowser(): Promise<Browser> {
             executablePath,
             args: ['--no-sandbox', '--disable-setuid-sandbox'],
         });
-    } else if (isRailway) {
-        // Railway 環境：直接使用 chromium 命令（Nix 會將其加入 PATH）
-        console.log('[PDF API] Using Railway/Nix Chromium from PATH');
-
-        return puppeteer.launch({
-            headless: true,
-            executablePath: 'chromium',  // 直接使用命令名稱，不需要完整路徑
-            args: [
-                '--no-sandbox',
-                '--disable-setuid-sandbox',
-                '--disable-dev-shm-usage',
-                '--disable-gpu',
-            ],
-        });
-    } else {
-        // Vercel 部署：使用 @sparticuz/chromium
-        const chromium = await import('@sparticuz/chromium');
-
-        return puppeteer.launch({
-            args: (chromium.default as any).args,
-            defaultViewport: (chromium.default as any).defaultViewport,
-            executablePath: await (chromium.default as any).executablePath(),
-            headless: (chromium.default as any).headless,
-        });
     }
+
+    // 生產環境（Vercel / Railway）：使用 @sparticuz/chromium
+    const chromium = await import('@sparticuz/chromium');
+
+    return puppeteer.launch({
+        args: (chromium.default as any).args,
+        defaultViewport: (chromium.default as any).defaultViewport,
+        executablePath: await (chromium.default as any).executablePath(),
+        headless: (chromium.default as any).headless,
+    });
 }
 
 export async function POST(request: NextRequest) {
