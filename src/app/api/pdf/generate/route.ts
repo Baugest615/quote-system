@@ -21,7 +21,7 @@ async function getBrowser(): Promise<Browser> {
             args: ['--no-sandbox', '--disable-setuid-sandbox'],
         });
     } else {
-        // Vercel 部署：使用 @sparticuz/chromium (v112)
+        // Vercel 部署：使用 @sparticuz/chromium
         const chromium = await import('@sparticuz/chromium');
 
         return puppeteer.launch({
