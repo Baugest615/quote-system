@@ -1,0 +1,13 @@
+# Railway ignore file
+# 類似 .gitignore，指定不需要上傳到 Railway 的檔案
+
+.git
+.next
+node_modules
+.env.local
+.DS_Store
+*.log
+.vercel
+coverage
+.cache
+test-pdf-api.js

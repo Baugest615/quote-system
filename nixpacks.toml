@@ -1,0 +1,31 @@
+# Railway Nixpacks 配置
+# 用於確保 Puppeteer 所需的系統依賴正確安裝
+
+[phases.setup]
+nixPkgs = [
+  "nodejs_20",
+  "chromium",
+  "nss",
+  "freetype",
+  "freetype.dev",
+  "fontconfig",
+  "stdenv.cc.cc.lib"
+]
+
+[phases.install]
+cmds = [
+  "npm ci --legacy-peer-deps"
+]
+
+[phases.build]
+cmds = [
+  "npm run build"
+]
+
+[start]
+cmd = "npm start"
+
+[env]
+# 告訴 Puppeteer 使用系統的 Chromium
+PUPPETEER_SKIP_CHROMIUM_DOWNLOAD = "true"
+PUPPETEER_EXECUTABLE_PATH = "/nix/store/*-chromium-*/bin/chromium"
