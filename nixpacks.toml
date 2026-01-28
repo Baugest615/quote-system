@@ -1,0 +1,35 @@
+# Railway Nixpacks 配置
+# 為 @sparticuz/chromium 提供所需的系統依賴庫
+
+[phases.setup]
+nixPkgs = [
+  "nodejs_20"
+]
+
+# 安裝 Chromium 執行所需的系統庫
+aptPkgs = [
+  "libnss3",
+  "libatk1.0-0",
+  "libatk-bridge2.0-0",
+  "libcups2",
+  "libdrm2",
+  "libxkbcommon0",
+  "libxcomposite1",
+  "libxdamage1",
+  "libxrandr2",
+  "libgbm1",
+  "libasound2"
+]
+
+[phases.install]
+cmds = [
+  "npm ci --legacy-peer-deps"
+]
+
+[phases.build]
+cmds = [
+  "npm run build"
+]
+
+[start]
+cmd = "npm start"
