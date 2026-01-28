@@ -6,6 +6,7 @@ import puppeteer, { Browser, Page } from 'puppeteer-core';
 // 動態 import @sparticuz/chromium 避免本地開發問題
 async function getBrowser(): Promise<Browser> {
     const isDev = process.env.NODE_ENV === 'development';
+    const isRailway = process.env.RAILWAY_ENVIRONMENT !== undefined;
 
     if (isDev) {
         // 本地開發：使用系統的 Chrome
@@ -19,6 +20,19 @@ async function getBrowser(): Promise<Browser> {
             headless: true,
             executablePath,
             args: ['--no-sandbox', '--disable-setuid-sandbox'],
+        });
+    } else if (isRailway) {
+        // Railway 環境：使用 Nix 安裝的系統 Chromium
+        return puppeteer.launch({
+            headless: true,
+            executablePath: '/nix/store/' + (await import('fs')).readdirSync('/nix/store')
+                .find(dir => dir.includes('chromium')) + '/bin/chromium',
+            args: [
+                '--no-sandbox',
+                '--disable-setuid-sandbox',
+                '--disable-dev-shm-usage',
+                '--disable-gpu',
+            ],
         });
     } else {
         // Vercel 部署：使用 @sparticuz/chromium
