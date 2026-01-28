@@ -25,10 +25,10 @@ async function getBrowser(): Promise<Browser> {
         const chromium = await import('@sparticuz/chromium');
 
         return puppeteer.launch({
-            args: chromium.default.args,
-            defaultViewport: chromium.default.defaultViewport,
-            executablePath: await chromium.default.executablePath(),
-            headless: chromium.default.headless,
+            args: (chromium.default as any).args,
+            defaultViewport: (chromium.default as any).defaultViewport,
+            executablePath: await (chromium.default as any).executablePath(),
+            headless: (chromium.default as any).headless,
         });
     }
 }
