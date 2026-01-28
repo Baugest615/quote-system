@@ -4,12 +4,7 @@
 [phases.setup]
 nixPkgs = [
   "nodejs_20",
-  "chromium",
-  "nss",
-  "freetype",
-  "freetype.dev",
-  "fontconfig",
-  "stdenv.cc.cc.lib"
+  "chromium"
 ]
 
 [phases.install]
@@ -24,8 +19,3 @@ cmds = [
 
 [start]
 cmd = "npm start"
-
-[env]
-# 告訴 Puppeteer 使用系統的 Chromium
-PUPPETEER_SKIP_CHROMIUM_DOWNLOAD = "true"
-PUPPETEER_EXECUTABLE_PATH = "/nix/store/*-chromium-*/bin/chromium"
