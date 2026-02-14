@@ -21,3 +21,6 @@ Thumbs.db
 # Backup files
 *.backup
 *.backup-v2
+
+# DB 資料備份（含敏感資料，不上傳）
+supabase/backups/data_*.sql
