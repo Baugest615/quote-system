@@ -106,6 +106,20 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=
 SUPABASE_SERVICE_ROLE_KEY=
 ```
 
+## AI 助手偏好設定
+
+- **語言**：一律使用繁體中文回覆
+- **Git 操作**：執行 `git push` 之前必須先詢問使用者確認
+- **Commit**：執行 `git commit` 之前也先詢問使用者確認
+
+## 開發進度追蹤
+
+專案的開發進度記錄在 `DEV_PROGRESS.md`，用於跨開發環境同步。
+
+- 當使用者說「**更新開發進度**」時，將目前的工作狀態、已完成事項、待辦事項寫入 `DEV_PROGRESS.md`
+- 當使用者說「**載入開發進度**」時，讀取 `DEV_PROGRESS.md` 了解目前專案狀態後繼續工作
+- 進度檔案隨 git 同步，確保任何開發環境都能接續工作
+
 ## Claude Code Skills
 
 此專案包含以下 Claude Code skills（位於 `.claude/skills/`）：
