@@ -8,6 +8,7 @@ import {
   Star,
   FileText,
   TrendingUp,
+  TrendingDown,
   Clock,
   CheckCircle,
   FileCheck,
@@ -17,7 +18,10 @@ import {
   User,
   ChevronLeft,
   ChevronRight,
-  Menu
+  ChevronDown,
+  BookOpen,
+  Receipt,
+  Calculator,
 } from 'lucide-react'
 import { usePermission } from '@/lib/permissions'
 import supabase from '@/lib/supabase/client'
@@ -25,6 +29,17 @@ import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import { useState, useEffect } from 'react'
 import { cn } from '@/lib/utils'
+
+// 帳務管理子選單定義
+const ACCOUNTING_SUB_MENU = [
+  { href: '/dashboard/accounting', label: '總覽', icon: BookOpen },
+  { href: '/dashboard/accounting/sales', label: '銷項管理', icon: Receipt },
+  { href: '/dashboard/accounting/expenses', label: '進項管理', icon: TrendingDown },
+  { href: '/dashboard/accounting/payroll', label: '人事薪資', icon: Users },
+  { href: '/dashboard/accounting/projects', label: '專案損益', icon: BarChart3 },
+  { href: '/dashboard/accounting/calculator', label: '利潤試算', icon: Calculator },
+  { href: '/dashboard/accounting/reports', label: '歷年報表', icon: FileText },
+]
 
 export default function Sidebar() {
   const pathname = usePathname()
@@ -37,37 +52,37 @@ export default function Sidebar() {
     checkPageAccess
   } = usePermission()
 
-  // 側邊欄收合狀態
   const [isCollapsed, setIsCollapsed] = useState(false)
+  const [accountingOpen, setAccountingOpen] = useState(false)
+
+  // 如果目前在帳務頁面，自動展開子選單
+  useEffect(() => {
+    if (pathname.startsWith('/dashboard/accounting')) {
+      setAccountingOpen(true)
+    }
+  }, [pathname])
 
   // 響應式處理：小螢幕預設收合
   useEffect(() => {
     const handleResize = () => {
-      if (window.innerWidth < 1024) { // lg breakpoint
+      if (window.innerWidth < 1024) {
         setIsCollapsed(true)
       } else {
         setIsCollapsed(false)
       }
     }
-
-    // 初始檢查
     handleResize()
-
-    // 監聽視窗大小變化
     window.addEventListener('resize', handleResize)
     return () => window.removeEventListener('resize', handleResize)
   }, [])
 
-  // 處理登出
   const handleLogout = async () => {
     try {
       const { error } = await supabase.auth.signOut()
-
       if (error) {
         toast.error('登出失敗：' + error.message)
         return
       }
-
       toast.success('已成功登出')
       router.push('/auth/login')
       router.refresh()
@@ -77,7 +92,6 @@ export default function Sidebar() {
     }
   }
 
-  // 選單項目圖示映射
   const iconMap = {
     BarChart3,
     Users,
@@ -88,6 +102,7 @@ export default function Sidebar() {
     CheckCircle,
     FileCheck,
     Settings,
+    BookOpen,
   }
 
   if (loading) {
@@ -120,8 +135,8 @@ export default function Sidebar() {
     )
   }
 
-  // 取得用戶可存取的頁面
   const allowedPages = getAllowedPages()
+  const isAccountingActive = pathname.startsWith('/dashboard/accounting')
 
   return (
     <div className={cn(
@@ -166,7 +181,7 @@ export default function Sidebar() {
             "w-2 h-2 rounded-full flex-shrink-0",
             userRole === 'Admin' ? 'bg-red-500' :
               userRole === 'Editor' ? 'bg-yellow-500' : 'bg-green-500',
-            isCollapsed && "absolute top-4 right-4 border border-white" // 收合時顯示為狀態點
+            isCollapsed && "absolute top-4 right-4 border border-white"
           )} />
         </div>
       </div>
@@ -176,7 +191,85 @@ export default function Sidebar() {
         {allowedPages.map((page) => {
           const Icon = iconMap[page.icon as keyof typeof iconMap] || FileText
           const isActive = pathname === page.route || pathname.startsWith(page.route + '/')
+          const isAccounting = page.key === 'accounting'
 
+          // 帳務管理：可展開子選單
+          if (isAccounting) {
+            return (
+              <div key={page.key}>
+                <button
+                  onClick={() => {
+                    if (isCollapsed) {
+                      router.push('/dashboard/accounting')
+                    } else {
+                      setAccountingOpen(!accountingOpen)
+                    }
+                  }}
+                  className={cn(
+                    "w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors group relative",
+                    isAccountingActive
+                      ? 'bg-blue-50 text-blue-700 border border-blue-200'
+                      : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900',
+                    isCollapsed && "justify-center px-2"
+                  )}
+                  title={isCollapsed ? page.name : undefined}
+                >
+                  <Icon className={cn("w-5 h-5 flex-shrink-0", isAccountingActive ? 'text-blue-600' : 'text-gray-500')} />
+                  <span className={cn(
+                    "whitespace-nowrap transition-all duration-300 flex-1 text-left",
+                    isCollapsed ? "w-0 opacity-0 hidden" : "w-auto opacity-100"
+                  )}>
+                    {page.name}
+                  </span>
+                  {!isCollapsed && (
+                    <ChevronDown className={cn(
+                      "w-4 h-4 text-gray-400 transition-transform duration-200",
+                      accountingOpen && "rotate-180"
+                    )} />
+                  )}
+
+                  {/* 收合 tooltip */}
+                  {isCollapsed && (
+                    <div className="absolute left-full ml-2 px-2 py-1 bg-gray-800 text-white text-xs rounded opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap z-50">
+                      {page.name}
+                    </div>
+                  )}
+                </button>
+
+                {/* 子選單 */}
+                {!isCollapsed && (
+                  <div className={cn(
+                    "overflow-hidden transition-all duration-200",
+                    accountingOpen ? "max-h-96 mt-1" : "max-h-0"
+                  )}>
+                    <div className="ml-4 pl-4 border-l-2 border-gray-200 space-y-0.5">
+                      {ACCOUNTING_SUB_MENU.map((sub) => {
+                        const SubIcon = sub.icon
+                        const isSubActive = pathname === sub.href
+                        return (
+                          <Link
+                            key={sub.href}
+                            href={sub.href}
+                            className={cn(
+                              "flex items-center gap-2.5 px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors",
+                              isSubActive
+                                ? 'bg-blue-50 text-blue-700'
+                                : 'text-gray-500 hover:bg-gray-50 hover:text-gray-700'
+                            )}
+                          >
+                            <SubIcon className={cn("w-3.5 h-3.5 flex-shrink-0", isSubActive ? 'text-blue-600' : 'text-gray-400')} />
+                            {sub.label}
+                          </Link>
+                        )
+                      })}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )
+          }
+
+          // 一般選單項目
           return (
             <Link
               key={page.key}
@@ -205,7 +298,7 @@ export default function Sidebar() {
                 </div>
               )}
 
-              {/* 收合時的懸浮提示 (Tooltip) */}
+              {/* 收合時的懸浮提示 */}
               {isCollapsed && (
                 <div className="absolute left-full ml-2 px-2 py-1 bg-gray-800 text-white text-xs rounded opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap z-50">
                   {page.name}
@@ -218,8 +311,6 @@ export default function Sidebar() {
 
       {/* 底部操作區 */}
       <div className="p-4 border-t border-gray-200 space-y-2">
-
-        {/* 登出按鈕 */}
         <button
           onClick={handleLogout}
           className={cn(

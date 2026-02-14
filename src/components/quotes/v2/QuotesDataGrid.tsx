@@ -11,6 +11,7 @@ import { QuotationItemsList } from './QuotationItemsList'
 import { FileModal } from '@/components/quotes/FileModal'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
+import { handleQuotationAccountingSync } from '@/lib/accounting/sync-quote-accounting'
 import type { QuotationWithClient } from '@/app/dashboard/quotes/page'
 
 interface QuotesDataGridProps {
@@ -78,6 +79,13 @@ export function QuotesDataGrid({ data, clients, onRefresh }: QuotesDataGridProps
             toast.error('更新失敗: ' + error.message)
         } else {
             toast.success('已更新')
+
+            // 狀態變更時自動同步帳務記錄
+            if (field === 'status') {
+                const oldStatus = data.find(q => q.id === id)?.status
+                await handleQuotationAccountingSync(id, value as string, oldStatus)
+            }
+
             onRefresh()
         }
     }

@@ -14,6 +14,7 @@ import { PlusCircle, Trash2, FileSignature, Calculator, Book, Search, X } from '
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { toast } from 'sonner'
+import { handleQuotationAccountingSync } from '@/lib/accounting/sync-quote-accounting'
 
 // --- Type Definitions ---
 type Client = Database['public']['Tables']['clients']['Row']
@@ -290,6 +291,16 @@ export default function QuoteForm({ initialData }: QuoteFormProps) {
       const itemsToInsert = data.items.filter(item => item.service || item.price).map(item => ({ quotation_id: quoteId, category: item.category || null, kol_id: item.kol_id || null, service: item.service || '', quantity: Number(item.quantity) || 1, price: Number(item.price) || 0, cost: Number(item.cost) || 0, remark: item.remark || null }));
       if (itemsToInsert.length > 0) { const { error } = await supabase.from('quotation_items').insert(itemsToInsert); if (error) throw error; }
       toast.success('儲存成功！');
+
+      // 狀態變更時自動同步帳務記錄
+      if (quoteId) {
+        const oldStatus = initialData?.status || null
+        const newStatus = data.status || '草稿'
+        if (oldStatus !== newStatus) {
+          await handleQuotationAccountingSync(quoteId, newStatus, oldStatus)
+        }
+      }
+
       router.push('/dashboard/quotes');
       router.refresh();
     } catch (error: any) {
