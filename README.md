@@ -1,569 +1,142 @@
 # 報價管理系統 (Quotation Management System)
 
-[![Next.js](https://img.shields.io/badge/Next.js-15.4.5-black)](https://nextjs.org/)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5.9.2-blue)](https://www.typescriptlang.org/)
-[![Supabase](https://img.shields.io/badge/Supabase-Latest-green)](https://supabase.com/)
-[![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-3.4.17-38B2AC)](https://tailwindcss.com/)
+[![Next.js](https://img.shields.io/badge/Next.js-14-black)](https://nextjs.org/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.3-blue)](https://www.typescriptlang.org/)
+[![Supabase](https://img.shields.io/badge/Supabase-2.39-green)](https://supabase.com/)
+[![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-3.4-38B2AC)](https://tailwindcss.com/)
+
+現代化的企業級報價管理系統，支援客戶管理、KOL管理、報價單生成、請款流程、會計模組等完整業務功能。使用 Next.js 14 (App Router) 和 Supabase 建構的全端應用程式。
+
+## 主要功能
+
+- **客戶管理** — 完整的客戶資料管理，包含聯絡資訊、發票資料、銀行資訊
+- **KOL管理** — KOL資料庫管理，包含社群連結、服務類型、價格設定
+- **報價單管理** — 動態報價單建立、編輯、檢視與PDF匯出
+- **請款流程管理** — 完整的請款申請、審核、確認流程
+- **會計模組** — 專案損益、財務報表、薪資管理、銷售分析、費用管理
+- **權限管理** — 基於角色的存取控制（Admin/Editor/Member）
+- **報表分析** — 業務統計、營收分析、趨勢圖表
+- **PDF匯出** — 含浮水印的高品質PDF生成
+
+## 技術架構
+
+### 前端
+
+| 技術 | 用途 |
+|------|------|
+| Next.js 14 (App Router) | React 全端框架 |
+| TypeScript | 型別安全 |
+| Tailwind CSS | 原子化 CSS |
+| Shadcn/ui + Radix UI | UI 組件庫 |
+| React Hook Form + Zod | 表單管理與驗證 |
+| Framer Motion | 動畫效果 |
+| Lucide React | 圖標庫 |
+
+### 後端與資料庫
+
+| 技術 | 用途 |
+|------|------|
+| Supabase | PostgreSQL + Auth + Storage |
+| Row Level Security (RLS) | 資料安全保護 |
+
+### PDF與檔案處理
+
+| 技術 | 用途 |
+|------|------|
+| jsPDF + jsPDF-AutoTable | PDF 生成 |
+| pdf-lib | 進階 PDF 操作 |
+| html2canvas | HTML 轉圖像（浮水印）|
+| Puppeteer (Docker) | 伺服器端 PDF 渲染 |
+
+## 專案結構
+
+```
+src/
+├── app/                          # Next.js App Router 頁面
+│   ├── api/                      # API Routes
+│   ├── auth/login/               # 登入
+│   ├── print/                    # 列印頁面
+│   └── dashboard/                # 主要功能區
+│       ├── clients/              # 客戶管理
+│       ├── kols/                 # KOL 管理
+│       ├── quotes/               # 報價單（列表/新增/編輯/檢視）
+│       ├── pending-payments/     # 待請款管理
+│       ├── payment-requests/     # 請款申請審核
+│       ├── confirmed-payments/   # 已確認請款清單
+│       ├── accounting/           # 會計模組
+│       │   ├── projects/         #   專案損益
+│       │   ├── reports/          #   財務報表
+│       │   ├── calculator/       #   計算器
+│       │   ├── payroll/          #   薪資管理
+│       │   ├── sales/            #   銷售分析
+│       │   └── expenses/         #   費用管理
+│       ├── reports/              # 報表分析
+│       └── settings/             # 系統設定
+├── components/                   # React 元件
+│   ├── ui/                       # Shadcn/ui 基礎元件
+│   ├── dashboard/                # 儀表板元件
+│   ├── clients/                  # 客戶相關元件
+│   ├── kols/                     # KOL 相關元件
+│   ├── quotes/                   # 報價單元件（含 v2 DataGrid）
+│   ├── accounting/               # 會計模組元件
+│   ├── pending-payments/         # 待請款元件
+│   ├── pdf/                      # PDF 元件
+│   └── settings/                 # 設定元件
+├── hooks/                        # 自訂 Hooks
+│   └── accounting/               # 會計模組 Hooks
+├── lib/                          # 工具函式庫
+│   ├── supabase/client.ts        # Supabase 客戶端
+│   ├── pdf/                      # PDF 生成器
+│   ├── accounting/               # 會計邏輯
+│   ├── spreadsheet-utils.ts      # 試算表工具
+│   └── utils.ts                  # 通用工具
+└── types/                        # TypeScript 型別
+    ├── database.types.ts         # Supabase 自動生成型別
+    └── custom.types.ts           # 自訂業務型別
+```
+
+## 資料庫架構
+
+### 主要資料表
+
+| 資料表 | 說明 | 關鍵欄位 |
+|--------|------|----------|
+| `users` | 使用者 | email, role (Admin/Editor/Member) |
+| `clients` | 客戶 | name, title, unified_number, bank_info |
+| `kols` | KOL | name, real_name, social_links, bank_info |
+| `quotations` | 報價單 | client_id, project_name, status, grand_total_taxed |
+| `quotation_items` | 報價項目 | quotation_id, kol_id, service, price |
+| `payment_requests` | 請款申請 | quotation_item_id, verification_status |
+| `payment_confirmations` | 請款確認 | confirmation_date, total_amount |
+| `payment_confirmation_items` | 確認項目 | payment_confirmation_id, amount |
 
-現代化的企業級報價管理系統，支援客戶管理、KOL管理、報價單生成、請款流程等完整業務功能。使用 Next.js 15 (App Router) 和 Supabase 建構的全端應用程式。
+### 輔助資料表
 
-🚀 專案概述
-本系統是一個完整的業務報價管理平台，專為需要管理多種客戶、KOL（意見領袖）合作以及生成專業報價單的企業設計。系統採用現代化的技術架構，提供流暢的使用者體驗和強大的功能支援。
+- `kol_types` — KOL 類型
+- `service_types` — 服務類型
+- `quote_categories` — 報價單類別
+- `kol_services` — KOL 服務價格關聯
 
-🌟 主要功能特色
+### Migration
 
-🏢 客戶管理: 完整的客戶資料管理，包含聯絡資訊、發票資料、銀行資訊
-👥 KOL管理: KOL資料庫管理，包含社群連結、服務類型、價格設定
-📋 報價單管理: 動態報價單建立、編輯、檢視與PDF匯出
-💰 請款流程管理: 完整的請款申請、審核、確認流程
-🔐 權限管理: 基於角色的存取控制（Admin/Editor/Member）
-📊 報表分析: 業務統計、營收分析、趨勢圖表
-📁 檔案管理: 支援附件上傳與管理（含浮水印PDF匯出）
-🎨 響應式設計: 支援桌面與行動裝置
+- 檔案位於 `supabase/migrations/`
+- 命名格式: `YYYYMMDD[HHMMSS]_description.sql`
+- 所有資料表使用 snake_case，必須包含 RLS policies
 
-🏗️ 技術架構
-前端技術堆疊
+## 開發指南
 
-Next.js 15.4.5 (App Router) - React 全端框架
-TypeScript 5.9.2 - 型別安全與程式碼品質保證
-Tailwind CSS 3.4.17 - 原子化CSS框架
-Shadcn/ui - 現代化UI組件庫
-React Hook Form - 高效能表單管理
-Zod - TypeScript優先的資料驗證
-Lucide React 0.303.0 - 現代化圖標庫
-Framer Motion 10.16.16 - 動畫效果庫
+### 環境需求
 
-後端與資料庫
+- Node.js >= 18.x
+- npm >= 8.0.0
+- Supabase 帳號與專案
 
-Supabase 2.39.0 - 開源Firebase替代方案
+### 安裝與啟動
 
-PostgreSQL 資料庫
-即時訂閱功能
-身份驗證系統
-檔案儲存服務
-
-
-Row Level Security (RLS) - 資料安全保護
-
-PDF與檔案處理
-
-jsPDF 3.0.1 - 高品質PDF生成
-jsPDF-AutoTable 5.0.2 - PDF表格生成
-html2canvas 1.4.1 - HTML轉圖像（含浮水印功能）
-pdf-lib 1.17.1 - 進階PDF操作
-
-開發工具
-
-ESLint 8.56.0 & Prettier 3.1.1 - 程式碼品質與格式化
-Jest 29.7.0 - 單元測試框架
-Sonner 2.0.6 - Toast通知系統
-
-📁 完整專案檔案結構
-quotation-management-system/
-├── 📄 配置檔案
-│   ├── .gitignore                 # Git忽略檔案設定
-│   ├── .eslintrc.json            # ESLint設定
-│   ├── components.json           # Shadcn/ui設定
-│   ├── declarations.d.ts         # TypeScript聲明檔案
-│   ├── middleware.ts             # Next.js中介軟體（權限控制）
-│   ├── middleware.ts.backup      # 中介軟體備份檔案
-│   ├── next.config.js            # Next.js設定
-│   ├── next-env.d.ts            # Next.js TypeScript定義
-│   ├── package.json              # 專案依賴與腳本
-│   ├── package-lock.json         # 依賴版本鎖定檔案
-│   ├── postcss.config.js         # PostCSS設定
-│   ├── tailwind.config.js        # Tailwind CSS設定
-│   ├── tsconfig.json             # TypeScript設定
-│   └── README.md                 # 專案說明文件
-│
-├── 📁 public/                    # 靜態資源
-│   ├── favicon.ico
-│   ├── watermark-an.png          # PDF浮水印圖檔
-│   └── fonts/
-│       └── NotoSansTC-Regular.ttf # 中文字體檔案
-│
-└── 📁 src/                       # 原始碼目錄
-    ├── 📁 app/                   # Next.js App Router頁面
-    │   ├── globals.css           # 全域CSS樣式
-    │   ├── layout.tsx            # 根佈局元件
-    │   ├── page.tsx              # 首頁（重定向邏輯）
-    │   │
-    │   ├── 📁 auth/              # 身份驗證相關頁面
-    │   │   └── login/
-    │   │       └── page.tsx      # 登入頁面
-    │   │
-    │   └── 📁 dashboard/         # 儀表板區域
-    │       ├── layout.tsx        # 儀表板佈局
-    │       ├── page.tsx          # 儀表板首頁（統計總覽）
-    │       │
-    │       ├── 📁 clients/       # 客戶管理
-    │       │   └── page.tsx      # 客戶列表頁面
-    │       │
-    │       ├── 📁 kols/          # KOL管理
-    │       │   └── page.tsx      # KOL列表頁面
-    │       │
-    │       ├── 📁 quotes/        # 報價單管理
-    │       │   ├── page.tsx      # 報價單列表
-    │       │   ├── new/
-    │       │   │   └── page.tsx  # 建立新報價單
-    │       │   ├── edit/
-    │       │   │   └── [id]/
-    │       │   │       └── page.tsx # 編輯報價單
-    │       │   └── view/
-    │       │       └── [id]/
-    │       │           └── page.tsx # 檢視報價單（含PDF匯出）
-    │       │
-    │       ├── 📁 pending-payments/    # 🆕 待請款管理
-    │       │   └── page.tsx            # 待請款項目管理頁面
-    │       │
-    │       ├── 📁 payment-requests/    # 🆕 請款申請
-    │       │   └── page.tsx            # 請款申請審核頁面
-    │       │
-    │       ├── 📁 confirmed-payments/  # 🆕 已確認請款清單
-    │       │   └── page.tsx            # 已確認請款清單管理
-    │       │
-    │       ├── 📁 reports/       # 報表分析
-    │       │   └── page.tsx      # 報表儀表板（營收統計、趨勢分析）
-    │       │
-    │       └── 📁 settings/      # 系統設定
-    │           └── page.tsx      # 設定頁面
-    │
-    ├── 📁 components/            # React組件
-    │   ├── 📁 ui/                # 基礎UI組件（Shadcn/ui）
-    │   │   ├── button.tsx        # 按鈕組件
-    │   │   ├── input.tsx         # 輸入框組件
-    │   │   ├── label.tsx         # 標籤組件
-    │   │   ├── modal.tsx         # 對話框組件
-    │   │   ├── textarea.tsx      # 文字區域組件
-    │   │   └── ...               # 其他UI組件
-    │   │
-    │   ├── 📁 dashboard/         # 儀表板組件
-    │   │   └── Sidebar.tsx       # 側邊欄導覽（含請款功能選單）
-    │   │
-    │   ├── 📁 clients/           # 客戶相關組件
-    │   │   └── ClientModal.tsx   # 客戶新增/編輯對話框
-    │   │
-    │   ├── 📁 kols/              # KOL相關組件
-    │   │   └── KolModal.tsx      # KOL新增/編輯對話框
-    │   │
-    │   ├── 📁 quotes/            # 報價單相關組件
-    │   │   └── FileModal.tsx     # 報價單檔案管理對話框
-    │   │
-    │   ├── 📁 pending-payments/  # 🆕 待請款組件
-    │   │   └── PendingPaymentFileModal.tsx # 請款檔案管理對話框
-    │   │
-    │   ├── 📁 pdf/               # PDF相關組件
-    │   │   └── SealStampManager.tsx # 印章/浮水印管理器
-    │   │
-    │   └── 📁 settings/          # 設定相關組件
-    │       └── SettingsCard.tsx  # 設定卡片組件
-    │
-    ├── 📁 lib/                   # 工具函式庫
-    │   ├── 📁 supabase/          # Supabase相關
-    │   │   └── client.ts         # Supabase客戶端設定
-    │   │
-    │   ├── 📁 pdf/               # PDF生成相關
-    │   │   └── enhanced-pdf-generator.ts # 增強型PDF生成器
-    │   │
-    │   └── utils.ts              # 通用工具函式
-    │
-    └── 📁 types/                 # TypeScript類型定義
-        ├── database.types.ts     # 資料庫類型定義
-        └── custom.types.ts       # 自訂類型定義
-🗄️ 資料庫架構
-主要資料表
-users (使用者資料表)
-
-id (UUID, Primary Key)
-email (電子郵件，唯一)
-role ('Admin' | 'Editor' | 'Member')
-created_at (建立時間)
-updated_at (更新時間)
-
-clients (客戶資料表)
-
-id (UUID, Primary Key)
-name (客戶名稱)
-title (客戶抬頭)
-unified_number (統一編號)
-contact_person (聯絡人)
-phone (電話)
-address (地址)
-bank_info (銀行資訊，JSON)
-
-kols (KOL資料表)
-
-id (UUID, Primary Key)
-name (KOL名稱/藝名)
-real_name (真實姓名)
-type_id (外鍵 → kol_types)
-social_links (社群連結，JSON)
-bank_info (銀行資訊，JSON)
-
-quotations (報價單資料表)
-
-id (UUID, Primary Key)
-client_id (外鍵 → clients)
-project_name (專案名稱)
-status ('草稿' | '待簽約' | '已簽約' | '已歸檔')
-subtotal (小計)
-discount (折扣)
-tax (稅額)
-grand_total_taxed (含稅總額)
-attachments (附件，JSON陣列)
-remark (備註)
-
-quotation_items (報價單項目資料表)
-
-id (UUID, Primary Key)
-quotation_id (外鍵 → quotations)
-kol_id (外鍵 → kols)
-service (服務內容)
-quantity (數量)
-price (單價)
-category_id (外鍵 → quote_categories)
-
-🆕 payment_requests (請款申請資料表)
-
-id (UUID, Primary Key)
-quotation_item_id (外鍵 → quotation_items)
-request_date (申請日期)
-verification_status ('pending' | 'approved' | 'rejected' | 'confirmed')
-merge_type ('company' | 'account' | null)
-merge_group_id (合併群組ID)
-is_merge_leader (是否為合併領導項目)
-merge_color (合併顏色標識)
-attachment_file_path (附件檔案路徑)
-invoice_number (發票號碼)
-approved_by (審核者)
-rejection_reason (駁回原因)
-
-🆕 payment_confirmations (請款確認主表)
-
-id (UUID, Primary Key)
-confirmation_date (確認日期)
-total_amount (總金額)
-total_items (項目總數)
-created_by (建立者)
-
-🆕 payment_confirmation_items (請款確認項目關聯表)
-
-id (UUID, Primary Key)
-payment_confirmation_id (外鍵 → payment_confirmations)
-payment_request_id (外鍵 → payment_requests)
-amount_at_confirmation (確認時金額)
-kol_name_at_confirmation (確認時KOL名稱)
-project_name_at_confirmation (確認時專案名稱)
-service_at_confirmation (確認時服務內容)
-
-輔助資料表
-
-kol_types - KOL類型
-service_types - 服務類型
-quote_categories - 報價單類別
-kol_services - KOL服務價格關聯表
-
-🚦 當前專案狀態
-✅ 已完成核心功能
-身份驗證與權限
-
-✅ 完整的使用者身份驗證系統
-✅ 基於角色的權限控制 (Admin/Editor/Member)
-✅ Middleware 路由保護
-✅ useAuthGuard Hook 頁面級保護
-
-資料管理
-
-✅ 客戶資料CRUD操作（含搜尋功能）
-✅ KOL資料管理與服務價格設定
-✅ 報價單建立、編輯、檢視功能
-✅ 動態報價項目管理
-✅ 自動稅額計算與折扣處理
-
-🆕 請款管理系統
-
-✅ 待請款管理 (pending-payments)
-
-已簽約項目的請款前準備
-支援合併請款功能（按公司/帳戶）
-附件上傳與發票號碼管理
-智能檔名處理與安全性檢查
-
-
-✅ 請款申請審核 (payment-requests)
-
-申請項目的審核與確認
-批次操作與狀態管理
-退回與駁回機制
-    │       │   └── page.tsx      # KOL列表頁面
-    │       │
-    │       ├── 📁 quotes/        # 報價單管理
-    │       │   ├── page.tsx      # 報價單列表
-    │       │   ├── new/
-    │       │   │   └── page.tsx  # 建立新報價單
-    │       │   ├── edit/
-    │       │   │   └── [id]/
-    │       │   │       └── page.tsx # 編輯報價單
-    │       │   └── view/
-    │       │       └── [id]/
-    │       │           └── page.tsx # 檢視報價單（含PDF匯出）
-    │       │
-    │       ├── 📁 pending-payments/    # 🆕 待請款管理
-    │       │   └── page.tsx            # 待請款項目管理頁面
-    │       │
-    │       ├── 📁 payment-requests/    # 🆕 請款申請
-    │       │   └── page.tsx            # 請款申請審核頁面
-    │       │
-    │       ├── 📁 confirmed-payments/  # 🆕 已確認請款清單
-    │       │   └── page.tsx            # 已確認請款清單管理
-    │       │
-    │       ├── 📁 reports/       # 報表分析
-    │       │   └── page.tsx      # 報表儀表板（營收統計、趨勢分析）
-    │       │
-    │       └── 📁 settings/      # 系統設定
-    │           └── page.tsx      # 設定頁面
-    │
-    ├── 📁 components/            # React組件
-    │   ├── 📁 ui/                # 基礎UI組件（Shadcn/ui）
-    │   │   ├── button.tsx        # 按鈕組件
-    │   │   ├── input.tsx         # 輸入框組件
-    │   │   ├── label.tsx         # 標籤組件
-    │   │   ├── modal.tsx         # 對話框組件
-    │   │   ├── textarea.tsx      # 文字區域組件
-    │   │   └── ...               # 其他UI組件
-    │   │
-    │   ├── 📁 dashboard/         # 儀表板組件
-    │   │   └── Sidebar.tsx       # 側邊欄導覽（含請款功能選單）
-    │   │
-    │   ├── 📁 clients/           # 客戶相關組件
-    │   │   └── ClientModal.tsx   # 客戶新增/編輯對話框
-    │   │
-    │   ├── 📁 kols/              # KOL相關組件
-    │   │   └── KolModal.tsx      # KOL新增/編輯對話框
-    │   │
-    │   ├── 📁 quotes/            # 報價單相關組件
-    │   │   └── FileModal.tsx     # 報價單檔案管理對話框
-    │   │
-    │   ├── 📁 pending-payments/  # 🆕 待請款組件
-    │   │   └── PendingPaymentFileModal.tsx # 請款檔案管理對話框
-    │   │
-    │   ├── 📁 pdf/               # PDF相關組件
-    │   │   └── SealStampManager.tsx # 印章/浮水印管理器
-    │   │
-    │   └── 📁 settings/          # 設定相關組件
-    │       └── SettingsCard.tsx  # 設定卡片組件
-    │
-    ├── 📁 lib/                   # 工具函式庫
-    │   ├── 📁 supabase/          # Supabase相關
-    │   │   └── client.ts         # Supabase客戶端設定
-    │   │
-    │   ├── 📁 pdf/               # PDF生成相關
-    │   │   └── enhanced-pdf-generator.ts # 增強型PDF生成器
-    │   │
-    │   └── utils.ts              # 通用工具函式
-    │
-    └── 📁 types/                 # TypeScript類型定義
-        ├── database.types.ts     # 資料庫類型定義
-        └── custom.types.ts       # 自訂類型定義
-🗄️ 資料庫架構
-主要資料表
-users (使用者資料表)
-
-id (UUID, Primary Key)
-email (電子郵件，唯一)
-role ('Admin' | 'Editor' | 'Member')
-created_at (建立時間)
-updated_at (更新時間)
-
-clients (客戶資料表)
-
-id (UUID, Primary Key)
-name (客戶名稱)
-title (客戶抬頭)
-unified_number (統一編號)
-contact_person (聯絡人)
-phone (電話)
-address (地址)
-bank_info (銀行資訊，JSON)
-
-kols (KOL資料表)
-
-id (UUID, Primary Key)
-name (KOL名稱/藝名)
-real_name (真實姓名)
-type_id (外鍵 → kol_types)
-social_links (社群連結，JSON)
-bank_info (銀行資訊，JSON)
-
-quotations (報價單資料表)
-
-id (UUID, Primary Key)
-client_id (外鍵 → clients)
-project_name (專案名稱)
-status ('草稿' | '待簽約' | '已簽約' | '已歸檔')
-subtotal (小計)
-discount (折扣)
-tax (稅額)
-grand_total_taxed (含稅總額)
-attachments (附件，JSON陣列)
-remark (備註)
-
-quotation_items (報價單項目資料表)
-
-id (UUID, Primary Key)
-quotation_id (外鍵 → quotations)
-kol_id (外鍵 → kols)
-service (服務內容)
-quantity (數量)
-price (單價)
-category_id (外鍵 → quote_categories)
-
-🆕 payment_requests (請款申請資料表)
-
-id (UUID, Primary Key)
-quotation_item_id (外鍵 → quotation_items)
-request_date (申請日期)
-verification_status ('pending' | 'approved' | 'rejected' | 'confirmed')
-merge_type ('company' | 'account' | null)
-merge_group_id (合併群組ID)
-is_merge_leader (是否為合併領導項目)
-merge_color (合併顏色標識)
-attachment_file_path (附件檔案路徑)
-invoice_number (發票號碼)
-approved_by (審核者)
-rejection_reason (駁回原因)
-
-🆕 payment_confirmations (請款確認主表)
-
-id (UUID, Primary Key)
-confirmation_date (確認日期)
-total_amount (總金額)
-total_items (項目總數)
-created_by (建立者)
-
-🆕 payment_confirmation_items (請款確認項目關聯表)
-
-id (UUID, Primary Key)
-payment_confirmation_id (外鍵 → payment_confirmations)
-payment_request_id (外鍵 → payment_requests)
-amount_at_confirmation (確認時金額)
-kol_name_at_confirmation (確認時KOL名稱)
-project_name_at_confirmation (確認時專案名稱)
-service_at_confirmation (確認時服務內容)
-
-輔助資料表
-
-kol_types - KOL類型
-service_types - 服務類型
-quote_categories - 報價單類別
-kol_services - KOL服務價格關聯表
-
-🚦 當前專案狀態
-✅ 已完成核心功能
-身份驗證與權限
-
-✅ 完整的使用者身份驗證系統
-✅ 基於角色的權限控制 (Admin/Editor/Member)
-✅ Middleware 路由保護
-✅ useAuthGuard Hook 頁面級保護
-
-資料管理
-
-✅ 客戶資料CRUD操作（含搜尋功能）
-✅ KOL資料管理與服務價格設定
-✅ 報價單建立、編輯、檢視功能
-✅ 動態報價項目管理
-✅ 自動稅額計算與折扣處理
-
-🆕 請款管理系統
-
-✅ 待請款管理 (pending-payments)
-
-已簽約項目的請款前準備
-支援合併請款功能（按公司/帳戶）
-附件上傳與發票號碼管理
-智能檔名處理與安全性檢查
-
-
-✅ 請款申請審核 (payment-requests)
-
-申請項目的審核與確認
-批次操作與狀態管理
-退回與駁回機制
-完整的稽核追蹤
-
-
-✅ 已確認請款清單 (confirmed-payments)
-
-確認項目的彙總與管理
-按帳戶分組顯示項目
-清單退回與重新處理
-CSV匯出功能（含詳細費用明細）
-🆕 支援匯款手續費、代扣稅額、二代健保自動計算
-
-
-PDF與檔案功能
-
-✅ 高品質PDF匯出（jsPDF實作）
-
-動態載入避免SSR錯誤
-自動浮水印添加
-完整樣式處理
-錯誤處理機制
-
-
-✅ 檔案上傳管理（FileModal組件）
-
-安全檔名處理（中文轉英文）
-5MB檔案大小限制
-多格式支援
-狀態衝突避免機制
-
-
-
-報表與分析
-
-✅ 完整報表儀表板
-
-營收統計與趨勢分析
-客戶貢獻度排行
-KOL績效分析
-狀態分布圖表
-CSV匯出功能
-
-
-
-使用者介面
-
-✅ 響應式UI設計
-✅ 現代化組件庫 (Shadcn/ui)
-✅ Toast通知系統 (Sonner)
-✅ 載入狀態與錯誤處理
-✅ 進階搜尋與篩選
-✅ 排序與分頁功能
-
-📈 系統亮點
-
-完整請款工作流程: 從待請款 → 申請審核 → 確認清單的完整流程
-智能合併功能: 支援按公司或帳戶合併請款，提高效率
-費用自動計算: 內建匯款手續費、稅額、二代健保計算邏輯
-PDF輸出專業級: 含浮水印的高品質PDF生成
-完整權限系統: 多層級權限控制與路由保護
-資料安全性: RLS + 中介軟體雙重保護
-使用者體驗: 流暢的操作流程與即時回饋
-技術架構現代化: Next.js 15 App Router + TypeScript + Supabase
-
-🛠️ 開發指南
-環境需求
-
-Node.js 18.x 或更高版本
-npm 8.0.0 或更高版本
-Supabase 帳號與專案設定
-
-安裝與啟動
-bash# 複製專案
+```bash
+# 複製專案
 git clone https://github.com/Baugest615/quote-system.git
-cd quotation-management-system
+cd quote-system
 
 # 安裝依賴
 npm install
@@ -574,10 +147,21 @@ cp .env.example .env.local
 
 # 啟動開發伺服器
 npm run dev
-
 # 開啟瀏覽器 http://localhost:3000
-可用指令
-bashnpm run dev            # 開發模式
+```
+
+### 環境變數
+
+```env
+NEXT_PUBLIC_SUPABASE_URL=your-supabase-url
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
+SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
+```
+
+### 可用指令
+
+```bash
+npm run dev            # 開發模式
 npm run build          # 建置生產版本
 npm run start          # 啟動生產伺服器
 npm run lint           # ESLint 檢查
@@ -585,231 +169,105 @@ npm run lint:fix       # 自動修復 ESLint 問題
 npm run type-check     # TypeScript 型別檢查
 npm run test           # 執行測試
 npm run test:watch     # 監視模式執行測試
-npm run test:coverage  # 執行測試覆蓋率
+npm run test:coverage  # 測試覆蓋率
 npm run format         # Prettier 格式化
-npm run format:check   # 檢查格式化
 npm run analyze        # Bundle 分析
 npm run clean          # 清理建置檔案
 npm run db:types       # 生成資料庫型別定義
-📋 使用流程
-基本操作流程
+```
 
-系統登入 → 身份驗證 → 進入儀表板
-資料建立 → 新增客戶 → 建立KOL檔案
-報價製作 → 選擇客戶 → 新增項目 → 設定價格
-合約簽訂 → 更新狀態為「已簽約」
-請款流程 → 待請款管理 → 申請審核 → 確認付款
-文件處理 → 檢視預覽 → 上傳附件 → 匯出PDF
-報表分析 → 檢視統計 → 匯出數據
+## 業務流程
 
-🆕 請款流程詳解
+### 基本操作
 
-待請款準備：
+```
+登入 → 儀表板 → 新增客戶/KOL → 建立報價單 → 簽約 → 請款 → 確認付款
+```
 
-系統自動顯示「已簽約」狀態的報價項目
-上傳相關附件或填入發票號碼
-選擇合併方式（按公司或帳戶）
-提交請款申請
+### 請款流程
 
+1. **待請款準備** — 已簽約項目上傳附件、填入發票號碼、選擇合併方式
+2. **申請審核** — 管理員審核，可批次通過/駁回（需填原因）
+3. **清單管理** — 按帳戶分組、設定手續費/稅額/二代健保、CSV 匯出
 
-申請審核：
+## Claude Code 開發環境
 
-管理員審核提交的請款申請
-可批次通過或個別處理
-駁回時需填寫駁回原因
-確認後生成請款清單
+本專案整合了 Claude Code skills，確保跨環境的一致開發體驗。
 
+### 已包含的 Skills
 
-清單管理：
+| Skill | 說明 |
+|-------|------|
+| `/commit` | 智能分析變更，生成規範的 Git commit message |
+| `/pr` | 自動建立 Pull Request |
+| `/review` | 全面 Code Review（邏輯、效能、安全性） |
+| `/db-migration` | 生成 Supabase migration SQL（含 RLS） |
+| `/frontend-design` | 建立高品質前端介面 |
+| `/supabase-postgres-best-practices` | Postgres 查詢優化與最佳實踐 |
+| `/ui-ux-pro-max` | UI/UX 設計系統建議 |
+| `/pdf` | PDF 檔案處理 |
+| `/docx` | Word 文件處理 |
+| `/xlsx` | Excel 試算表處理 |
+| `/webapp-testing` | Playwright 網頁測試 |
+| `/mcp-builder` | MCP Server 開發指南 |
 
-檢視已確認的請款清單
-按帳戶分組顯示項目
-設定匯款手續費、稅額、二代健保
-可匯出為CSV格式（含完整費用明細）
-支援清單退回重新處理
+### 新環境設定
 
+```bash
+# 1. Clone 專案（skills 已包含在 .claude/skills/）
+git clone https://github.com/Baugest615/quote-system.git
+cd quote-system
 
+# 2. 安裝依賴
+npm install
 
-🤝 貢獻指南
-本專案歡迎貢獻！請遵循以下流程：
+# 3. 設定環境變數
+cp .env.example .env.local
 
-Fork 本專案
-建立功能分支 (git checkout -b feature/amazing-feature)
-提交變更 (git commit -m 'Add amazing feature')
-推送分支 (git push origin feature/amazing-feature)
-建立 Pull Request
+# 4. 安裝 Claude Code（如尚未安裝）
+npm install -g @anthropic-ai/claude-code
 
-編碼規範
+# 5. 開始開發 — skills 自動載入
+claude
+```
 
-使用 TypeScript 嚴格模式
-遵循 ESLint 規則
-使用 Prettier 格式化
-變數和函式使用英文命名
-註解使用繁體中文
-提交訊息使用英文
+> Skills 存放在 `.claude/skills/`，已納入版本控制。
+> 個人設定 `.claude/settings.local.json` 不會被追蹤。
 
-📊 專案統計
+## 編碼規範
 
-專案版本: v1.3.0
-程式碼行數: ~22,000+ lines
-組件數量: 65+ components
-API端點: 40+ endpoints
-資料表: 16+ tables
-功能模組: 12+ modules
+- TypeScript 嚴格模式，避免使用 `any`
+- 變數和函式使用英文命名
+- 註解使用繁體中文
+- 遵循 ESLint + Prettier 規則
+- Commit message 格式: `<type>: <description>`
 
-🚀 部署建議
-生產環境部署
+## 部署
 
-建議使用 Vercel 或 Netlify
-設定正確的環境變數
-啟用 Supabase RLS 政策
-配置 CDN 加速靜態資源
+### Docker
 
-效能監控
+```bash
+docker build -t quote-system .
+docker run -p 3000:3000 quote-system
+```
 
-建議整合 Sentry 錯誤追蹤
-使用 Google Analytics 分析使用者行為
-設定 Uptime 監控服務
+### Vercel
 
-🔮 進階優化建議
-1. 效能增強
+直接連接 GitHub repo，設定環境變數即可部署。
 
-全域狀態管理:
+## 貢獻指南
 
-引入 Zustand 或 Redux Toolkit
-實作客戶、KOL資料本地快取
-背景資料同步機制
-減少重複API請求
+1. Fork 本專案
+2. 建立功能分支 (`git checkout -b feature/amazing-feature`)
+3. 提交變更 (`git commit -m 'feat: add amazing feature'`)
+4. 推送分支 (`git push origin feature/amazing-feature`)
+5. 建立 Pull Request
 
+## 授權
 
-載入優化:
+MIT License
 
-實作報價單列表虛擬捲動
-圖片延遲載入 (Lazy Loading)
-組件程式碼分割 (Code Splitting)
-React Query 實作資料快取
+---
 
-
-
-2. 功能擴展
-
-進階報表視覺化:
-
-整合 Chart.js 或 Recharts
-互動式圖表儀表板
-自訂報表範本系統
-即時資料更新與推播
-
-
-通知與自動化:
-
-Email自動發送系統 (SendGrid/Resend)
-到期提醒通知
-Webhook整合第三方服務
-批次處理排程任務
-
-
-範本與工作流程:
-
-報價單範本管理
-可自訂的審批流程
-批次操作功能增強
-歷史版本控制
-
-
-
-3. 使用者體驗優化
-
-進階互動功能:
-
-拖拽排序功能 (react-beautiful-dnd)
-鍵盤快捷鍵支援
-批次選擇操作
-即時協作功能 (使用 Supabase Realtime)
-
-
-搜尋與篩選增強:
-
-全文搜尋功能 (使用 PostgreSQL Full Text Search)
-進階篩選條件組合
-搜尋結果高亮顯示
-儲存常用搜尋條件
-
-
-
-4. 技術架構升級
-
-程式碼品質提升:
-
-單元測試覆蓋率提升至80%+
-E2E測試實作 (Playwright/Cypress)
-錯誤邊界組件 (Error Boundaries)
-效能監控儀表板 (Sentry)
-
-
-API抽象化:
-
-統一資料存取層 (Repository Pattern)
-自訂Hooks重構
-快取策略優化
-GraphQL整合考量
-
-
-
-5. 安全性強化
-
-稽核與監控:
-
-完整操作日誌記錄
-異常行為偵測
-即時安全監控
-效能瓶頸分析
-
-
-資料保護:
-
-敏感資料加密
-自動備份與復原機制
-GDPR合規功能
-資料匿名化選項
-
-
-
-💡 快速提示
-檔案上傳注意事項
-
-中文檔名會自動轉換為英文，但保留原始檔名顯示
-單一檔案大小限制：5MB
-待請款項目最多可上傳 5 個檔案
-支援格式：PDF, Word, Excel, 圖片等
-
-請款合併規則
-
-按公司合併：同一客戶的所有項目合併為一筆
-按帳戶合併：同一KOL的所有項目合併為一筆
-合併後的項目會以不同顏色標示
-合併領導項目負責管理附件和發票
-
-PDF匯出特色
-
-自動添加公司浮水印
-保持網頁排版一致性
-支援中文字體渲染
-檔案大小優化
-動態載入避免SSR問題
-
-📄 授權
-本專案採用 MIT 授權條款 - 詳見 LICENSE 檔案
-📞 技術支援
-如有技術問題，請透過以下方式聯繫：
-
-建立 GitHub Issue
-發送郵件至專案維護者
-
-
-最後更新: 2025年11月
-專案版本: v1.3.0
-技術狀態: ✅ 生產就緒，功能完整
-下一版本規劃: 效能優化、進階報表、自動化流程、AI輔助功能
-
-本README反映專案當前完整功能狀態，包含最新的請款管理系統與所有功能模組
+最後更新: 2026 年 2 月
+專案版本: v2.0.1

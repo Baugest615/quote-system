@@ -4,3 +4,20 @@ node_modules/
 .env
 dist/
 .DS_Store
+
+# AI agent directories
+.agent/
+.agents/
+
+# Claude Code - 只排除個人設定，保留可共享的 skills 與配置
+.claude/settings.local.json
+.claude/**/*.local.md
+.claude/**/*.local.json
+
+# OS generated
+nul
+Thumbs.db
+
+# Backup files
+*.backup
+*.backup-v2
