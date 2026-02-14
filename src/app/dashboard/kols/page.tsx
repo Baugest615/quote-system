@@ -153,21 +153,21 @@ export default function KolsPage() {
   if (loading) return <div>讀取中...</div>
 
   return (
-    <div className="bg-white rounded-lg shadow-md p-6">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold">KOL 管理</h1>
-        <div className="flex items-center space-x-4">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+    <div className="bg-card rounded-xl border border-border p-4 sm:p-6">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-6">
+        <h1 className="text-xl sm:text-2xl font-bold text-foreground">KOL 管理</h1>
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3">
+          <div className="relative w-full sm:w-56">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
               type="text"
               placeholder="搜尋 KOL 名稱、類型..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10 w-64"
+              className="pl-10 bg-secondary border-border"
             />
           </div>
-          <Button onClick={() => handleOpenModal()}>
+          <Button onClick={() => handleOpenModal()} className="bg-emerald-600 hover:bg-emerald-700 text-white">
             <PlusCircle className="mr-2 h-4 w-4" /> 新增 KOL
           </Button>
         </div>
@@ -175,13 +175,13 @@ export default function KolsPage() {
       <div className="overflow-x-auto">
         <table className="w-full text-left">
           <thead>
-            <tr className="bg-gray-50 border-b">
+            <tr className="bg-secondary/50 border-b border-border">
               <th className="p-4 w-10"></th>
-              <th className="p-4 font-medium text-sm">類型</th>
-              <th className="p-4 font-medium text-sm">KOL 名稱</th>
-              <th className="p-4 font-medium text-sm">社群平台</th>
-              <th className="p-4 font-medium text-sm">服務項目概覽</th>
-              <th className="p-4 font-medium text-sm text-center">操作</th>
+              <th className="p-4 font-medium text-sm text-muted-foreground hidden sm:table-cell">類型</th>
+              <th className="p-4 font-medium text-sm text-muted-foreground">KOL 名稱</th>
+              <th className="p-4 font-medium text-sm text-muted-foreground hidden md:table-cell">社群平台</th>
+              <th className="p-4 font-medium text-sm text-muted-foreground hidden sm:table-cell">服務項目概覽</th>
+              <th className="p-4 font-medium text-sm text-muted-foreground text-center">操作</th>
             </tr>
           </thead>
           <tbody>
@@ -199,24 +199,24 @@ export default function KolsPage() {
 
               return (
                 <Fragment key={kol.id}>
-                  <tr className={cn("border-b hover:bg-gray-50 transition-colors", isExpanded && "bg-gray-50")}>
+                  <tr className={cn("border-b border-border hover:bg-muted/50 transition-colors", isExpanded && "bg-muted/30")}>
                     <td className="p-4">
                       <button
                         onClick={() => toggleRow(kol.id)}
-                        className="p-1 hover:bg-gray-200 rounded-full transition-colors"
+                        className="p-1 hover:bg-muted rounded-full transition-colors"
                       >
-                        {isExpanded ? <ChevronDown className="h-4 w-4 text-gray-500" /> : <ChevronRight className="h-4 w-4 text-gray-400" />}
+                        {isExpanded ? <ChevronDown className="h-4 w-4 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 text-muted-foreground" />}
                       </button>
                     </td>
-                    <td className="p-4 text-sm">{kolTypes.find(t => t.id === kol.type_id)?.name || 'N/A'}</td>
-                    <td className="p-4 text-sm font-semibold text-indigo-700">{kol.name}</td>
-                    <td className="p-4">
+                    <td className="p-4 text-sm hidden sm:table-cell">{kolTypes.find(t => t.id === kol.type_id)?.name || 'N/A'}</td>
+                    <td className="p-4 text-sm font-semibold text-emerald-400">{kol.name}</td>
+                    <td className="p-4 hidden md:table-cell">
                       <div className="flex items-center space-x-3">
                         {Object.entries(kol.social_links || {}).map(([key, value]) => {
                           const Icon = socialIcons[key as keyof typeof socialIcons]
                           if (value && Icon) {
                             return (
-                              <a key={key} href={value as string} target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-indigo-600" title={key.toUpperCase()}>
+                              <a key={key} href={value as string} target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-emerald-400" title={key.toUpperCase()}>
                                 <Icon size={18} />
                                 <span className="sr-only">{key} Link</span>
                               </a>
@@ -226,14 +226,14 @@ export default function KolsPage() {
                         })}
                       </div>
                     </td>
-                    <td className="p-4 text-sm text-gray-600">
+                    <td className="p-4 text-sm text-muted-foreground hidden sm:table-cell">
                       {serviceCount > 0 ? (
                         <div className="flex flex-col">
-                          <span className="font-medium text-gray-900">{serviceCount} 項服務</span>
-                          <span className="text-xs text-gray-500">{priceRange}</span>
+                          <span className="font-medium text-foreground">{serviceCount} 項服務</span>
+                          <span className="text-xs text-muted-foreground">{priceRange}</span>
                         </div>
                       ) : (
-                        <span className="text-gray-400">無服務項目</span>
+                        <span className="text-muted-foreground">無服務項目</span>
                       )}
                     </td>
                     <td className="p-4 text-center space-x-1">
@@ -248,12 +248,12 @@ export default function KolsPage() {
 
                   {/* 展開的詳細服務列表 */}
                   {isExpanded && (
-                    <tr className="bg-gray-50/50">
-                      <td colSpan={6} className="p-0 border-b">
-                        <div className="p-4 pl-14 pr-14">
-                          <div className="bg-white rounded-lg border shadow-sm overflow-hidden">
+                    <tr className="bg-muted/20">
+                      <td colSpan={6} className="p-0 border-b border-border">
+                        <div className="p-4 sm:pl-14 sm:pr-14">
+                          <div className="bg-card rounded-lg border border-border overflow-hidden">
                             <table className="w-full text-sm">
-                              <thead className="bg-gray-100 text-gray-600">
+                              <thead className="bg-secondary/50 text-muted-foreground">
                                 <tr>
                                   <th className="p-3 text-left font-medium">服務項目</th>
                                   <th className="p-3 text-right font-medium">價格</th>
@@ -262,18 +262,18 @@ export default function KolsPage() {
                               <tbody className="divide-y">
                                 {kol.kol_services && kol.kol_services.length > 0 ? (
                                   kol.kol_services.map(service => (
-                                    <tr key={service.id} className="hover:bg-gray-50">
-                                      <td className="p-3 text-gray-800 font-medium">
+                                    <tr key={service.id} className="hover:bg-muted/50">
+                                      <td className="p-3 text-foreground font-medium">
                                         {service.service_types?.name || '未知服務'}
                                       </td>
-                                      <td className="p-3 text-right font-mono text-indigo-600">
+                                      <td className="p-3 text-right font-mono text-emerald-400">
                                         NT$ {(service.price || 0).toLocaleString()}
                                       </td>
                                     </tr>
                                   ))
                                 ) : (
                                   <tr>
-                                    <td colSpan={2} className="p-4 text-center text-gray-400">
+                                    <td colSpan={2} className="p-4 text-center text-muted-foreground">
                                       此 KOL 尚未設定服務項目與價格
                                     </td>
                                   </tr>

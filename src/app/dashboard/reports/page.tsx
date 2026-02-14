@@ -232,20 +232,20 @@ export default function ReportsPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-indigo-600"></div>
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-emerald-500"></div>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-secondary">
       {/* Header */}
-      <div className="bg-white shadow">
+      <div className="bg-card shadow">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center py-6">
             <div>
-              <h1 className="text-3xl font-bold text-gray-900">報表分析</h1>
-              <p className="text-sm text-gray-500 mt-1">
+              <h1 className="text-3xl font-bold text-foreground">報表分析</h1>
+              <p className="text-sm text-muted-foreground mt-1">
                 營收統計與業績分析
               </p>
             </div>
@@ -279,28 +279,28 @@ export default function ReportsPage() {
           )}
 
           {/* 日期範圍選擇 */}
-          <div className="bg-white shadow rounded-lg mb-6">
+          <div className="bg-card shadow rounded-lg mb-6">
             <div className="px-4 py-5 sm:p-6">
-              <h3 className="text-lg leading-6 font-medium text-gray-900 mb-4">
+              <h3 className="text-lg leading-6 font-medium text-foreground mb-4">
                 報表時間範圍
               </h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">開始日期</label>
+                  <label className="block text-sm font-medium text-foreground/70">開始日期</label>
                   <input
                     type="date"
                     value={dateRange.start}
                     onChange={(e) => setDateRange({...dateRange, start: e.target.value})}
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm px-3 py-2 border"
+                    className="mt-1 block w-full rounded-md border-border shadow-sm focus:border-emerald-500 focus:ring-emerald-400 sm:text-sm px-3 py-2 border"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">結束日期</label>
+                  <label className="block text-sm font-medium text-foreground/70">結束日期</label>
                   <input
                     type="date"
                     value={dateRange.end}
                     onChange={(e) => setDateRange({...dateRange, end: e.target.value})}
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm px-3 py-2 border"
+                    className="mt-1 block w-full rounded-md border-border shadow-sm focus:border-emerald-500 focus:ring-emerald-400 sm:text-sm px-3 py-2 border"
                   />
                 </div>
               </div>
@@ -311,7 +311,7 @@ export default function ReportsPage() {
             <>
               {/* 核心指標 */}
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-                <div className="bg-white overflow-hidden shadow rounded-lg">
+                <div className="bg-card overflow-hidden shadow rounded-lg">
                   <div className="p-5">
                     <div className="flex items-center">
                       <div className="flex-shrink-0">
@@ -319,10 +319,10 @@ export default function ReportsPage() {
                       </div>
                       <div className="ml-5 w-0 flex-1">
                         <dl>
-                          <dt className="text-sm font-medium text-gray-500 truncate">
+                          <dt className="text-sm font-medium text-muted-foreground truncate">
                             總報價單數
                           </dt>
-                          <dd className="text-lg font-medium text-gray-900">
+                          <dd className="text-lg font-medium text-foreground">
                             {reportData.totalQuotations}
                           </dd>
                         </dl>
@@ -331,7 +331,7 @@ export default function ReportsPage() {
                   </div>
                 </div>
 
-                <div className="bg-white overflow-hidden shadow rounded-lg">
+                <div className="bg-card overflow-hidden shadow rounded-lg">
                   <div className="p-5">
                     <div className="flex items-center">
                       <div className="flex-shrink-0">
@@ -339,10 +339,10 @@ export default function ReportsPage() {
                       </div>
                       <div className="ml-5 w-0 flex-1">
                         <dl>
-                          <dt className="text-sm font-medium text-gray-500 truncate">
+                          <dt className="text-sm font-medium text-muted-foreground truncate">
                             總營收
                           </dt>
-                          <dd className="text-lg font-medium text-gray-900">
+                          <dd className="text-lg font-medium text-foreground">
                             {formatCurrency(reportData.totalRevenue)}
                           </dd>
                         </dl>
@@ -351,7 +351,7 @@ export default function ReportsPage() {
                   </div>
                 </div>
 
-                <div className="bg-white overflow-hidden shadow rounded-lg">
+                <div className="bg-card overflow-hidden shadow rounded-lg">
                   <div className="p-5">
                     <div className="flex items-center">
                       <div className="flex-shrink-0">
@@ -359,10 +359,10 @@ export default function ReportsPage() {
                       </div>
                       <div className="ml-5 w-0 flex-1">
                         <dl>
-                          <dt className="text-sm font-medium text-gray-500 truncate">
+                          <dt className="text-sm font-medium text-muted-foreground truncate">
                             平均報價金額
                           </dt>
-                          <dd className="text-lg font-medium text-gray-900">
+                          <dd className="text-lg font-medium text-foreground">
                             {formatCurrency(reportData.avgQuotationValue)}
                           </dd>
                         </dl>
@@ -371,7 +371,7 @@ export default function ReportsPage() {
                   </div>
                 </div>
 
-                <div className="bg-white overflow-hidden shadow rounded-lg">
+                <div className="bg-card overflow-hidden shadow rounded-lg">
                   <div className="p-5">
                     <div className="flex items-center">
                       <div className="flex-shrink-0">
@@ -379,10 +379,10 @@ export default function ReportsPage() {
                       </div>
                       <div className="ml-5 w-0 flex-1">
                         <dl>
-                          <dt className="text-sm font-medium text-gray-500 truncate">
+                          <dt className="text-sm font-medium text-muted-foreground truncate">
                             簽約轉換率
                           </dt>
-                          <dd className="text-lg font-medium text-gray-900">
+                          <dd className="text-lg font-medium text-foreground">
                             {reportData.conversionRate.toFixed(1)}%
                           </dd>
                         </dl>
@@ -394,9 +394,9 @@ export default function ReportsPage() {
 
               {/* 狀態分佈 */}
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-                <div className="bg-white shadow rounded-lg">
+                <div className="bg-card shadow rounded-lg">
                   <div className="px-4 py-5 sm:p-6">
-                    <h3 className="text-lg leading-6 font-medium text-gray-900 mb-4">
+                    <h3 className="text-lg leading-6 font-medium text-foreground mb-4">
                       報價單狀態分佈
                     </h3>
                     <div className="space-y-3">
@@ -405,17 +405,17 @@ export default function ReportsPage() {
                         return (
                           <div key={status} className="flex items-center justify-between">
                             <div className="flex items-center space-x-2">
-                              <span className="text-sm font-medium text-gray-900">{status}</span>
-                              <span className="text-sm text-gray-500">({count})</span>
+                              <span className="text-sm font-medium text-foreground">{status}</span>
+                              <span className="text-sm text-muted-foreground">({count})</span>
                             </div>
                             <div className="flex items-center space-x-2">
-                              <div className="w-20 bg-gray-200 rounded-full h-2">
+                              <div className="w-20 bg-muted rounded-full h-2">
                                 <div 
-                                  className="bg-indigo-600 h-2 rounded-full" 
+                                  className="bg-emerald-600 h-2 rounded-full" 
                                   style={{ width: `${percentage}%` }}
                                 ></div>
                               </div>
-                              <span className="text-sm text-gray-500 w-12 text-right">
+                              <span className="text-sm text-muted-foreground w-12 text-right">
                                 {percentage.toFixed(1)}%
                               </span>
                             </div>
@@ -427,19 +427,19 @@ export default function ReportsPage() {
                 </div>
 
                 {/* 月度營收趨勢 */}
-                <div className="bg-white shadow rounded-lg">
+                <div className="bg-card shadow rounded-lg">
                   <div className="px-4 py-5 sm:p-6">
-                    <h3 className="text-lg leading-6 font-medium text-gray-900 mb-4">
+                    <h3 className="text-lg leading-6 font-medium text-foreground mb-4">
                       月度營收趨勢
                     </h3>
                     <div className="space-y-3">
                       {reportData.monthlyRevenue.map((data) => (
                         <div key={data.month} className="flex items-center justify-between">
                           <div className="flex items-center space-x-2">
-                            <span className="text-sm font-medium text-gray-900">{data.month}</span>
-                            <span className="text-sm text-gray-500">({data.count} 單)</span>
+                            <span className="text-sm font-medium text-foreground">{data.month}</span>
+                            <span className="text-sm text-muted-foreground">({data.count} 單)</span>
                           </div>
-                          <span className="text-sm font-medium text-gray-900">
+                          <span className="text-sm font-medium text-foreground">
                             {formatCurrency(data.revenue)}
                           </span>
                         </div>
@@ -452,27 +452,27 @@ export default function ReportsPage() {
               {/* 客戶和 KOL 排行 */}
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
                 {/* 客戶排行 */}
-                <div className="bg-white shadow rounded-lg">
+                <div className="bg-card shadow rounded-lg">
                   <div className="px-4 py-5 sm:p-6">
-                    <h3 className="text-lg leading-6 font-medium text-gray-900 mb-4">
+                    <h3 className="text-lg leading-6 font-medium text-foreground mb-4">
                       客戶營收排行 TOP 10
                     </h3>
                     {reportData.topClients.length === 0 ? (
-                      <p className="text-sm text-gray-500">暫無客戶數據</p>
+                      <p className="text-sm text-muted-foreground">暫無客戶數據</p>
                     ) : (
                       <div className="space-y-3">
                         {reportData.topClients.map((client, index) => (
                           <div key={client.client} className="flex items-center justify-between">
                             <div className="flex items-center space-x-3">
-                              <span className="flex-shrink-0 w-6 h-6 bg-indigo-100 rounded-full flex items-center justify-center text-xs font-medium text-indigo-800">
+                              <span className="flex-shrink-0 w-6 h-6 bg-emerald-500/10 rounded-full flex items-center justify-center text-xs font-medium text-emerald-400">
                                 {index + 1}
                               </span>
                               <div>
-                                <span className="text-sm font-medium text-gray-900">{client.client}</span>
-                                <span className="text-xs text-gray-500 block">{client.quotations} 筆報價</span>
+                                <span className="text-sm font-medium text-foreground">{client.client}</span>
+                                <span className="text-xs text-muted-foreground block">{client.quotations} 筆報價</span>
                               </div>
                             </div>
-                            <span className="text-sm font-medium text-gray-900">
+                            <span className="text-sm font-medium text-foreground">
                               {formatCurrency(client.revenue)}
                             </span>
                           </div>
@@ -483,13 +483,13 @@ export default function ReportsPage() {
                 </div>
 
                 {/* KOL 排行 */}
-                <div className="bg-white shadow rounded-lg">
+                <div className="bg-card shadow rounded-lg">
                   <div className="px-4 py-5 sm:p-6">
-                    <h3 className="text-lg leading-6 font-medium text-gray-900 mb-4">
+                    <h3 className="text-lg leading-6 font-medium text-foreground mb-4">
                       KOL 營收排行 TOP 10
                     </h3>
                     {reportData.topKols.length === 0 ? (
-                      <p className="text-sm text-gray-500">暫無 KOL 數據</p>
+                      <p className="text-sm text-muted-foreground">暫無 KOL 數據</p>
                     ) : (
                       <div className="space-y-3">
                         {reportData.topKols.map((kol, index) => (
@@ -499,11 +499,11 @@ export default function ReportsPage() {
                                 {index + 1}
                               </span>
                               <div>
-                                <span className="text-sm font-medium text-gray-900">{kol.kol}</span>
-                                <span className="text-xs text-gray-500 block">{kol.quotations} 個項目</span>
+                                <span className="text-sm font-medium text-foreground">{kol.kol}</span>
+                                <span className="text-xs text-muted-foreground block">{kol.quotations} 個項目</span>
                               </div>
                             </div>
-                            <span className="text-sm font-medium text-gray-900">
+                            <span className="text-sm font-medium text-foreground">
                               {formatCurrency(kol.revenue)}
                             </span>
                           </div>
@@ -515,45 +515,45 @@ export default function ReportsPage() {
               </div>
 
               {/* 服務類型分析 */}
-              <div className="bg-white shadow rounded-lg">
+              <div className="bg-card shadow rounded-lg">
                 <div className="px-4 py-5 sm:p-6">
-                  <h3 className="text-lg leading-6 font-medium text-gray-900 mb-4">
+                  <h3 className="text-lg leading-6 font-medium text-foreground mb-4">
                     服務類型營收分析 TOP 10
                   </h3>
                   {reportData.serviceTypeBreakdown.length === 0 ? (
-                    <p className="text-sm text-gray-500">暫無服務數據</p>
+                    <p className="text-sm text-muted-foreground">暫無服務數據</p>
                   ) : (
                     <div className="overflow-x-auto">
                       <table className="min-w-full divide-y divide-gray-200">
-                        <thead className="bg-gray-50">
+                        <thead className="bg-secondary">
                           <tr>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                               排名
                             </th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                               服務內容
                             </th>
-                            <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            <th className="px-6 py-3 text-right text-xs font-medium text-muted-foreground uppercase tracking-wider">
                               項目數量
                             </th>
-                            <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            <th className="px-6 py-3 text-right text-xs font-medium text-muted-foreground uppercase tracking-wider">
                               營收金額
                             </th>
                           </tr>
                         </thead>
-                        <tbody className="bg-white divide-y divide-gray-200">
+                        <tbody className="bg-card divide-y divide-gray-200">
                           {reportData.serviceTypeBreakdown.map((service, index) => (
                             <tr key={service.service}>
-                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                              <td className="px-6 py-4 whitespace-nowrap text-sm text-foreground">
                                 #{index + 1}
                               </td>
-                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                              <td className="px-6 py-4 whitespace-nowrap text-sm text-foreground">
                                 {service.service}
                               </td>
-                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">
+                              <td className="px-6 py-4 whitespace-nowrap text-sm text-foreground text-right">
                                 {service.count}
                               </td>
-                              <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 text-right">
+                              <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-foreground text-right">
                                 {formatCurrency(service.revenue)}
                               </td>
                             </tr>

@@ -36,8 +36,8 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-gray-50">
-      <div className="relative flex w-full max-w-4xl mx-auto overflow-hidden bg-white rounded-lg shadow-lg lg:h-[600px]">
+    <div className="flex items-center justify-center min-h-screen bg-secondary">
+      <div className="relative flex w-full max-w-4xl mx-auto overflow-hidden bg-card rounded-lg shadow-lg lg:h-[600px]">
         
         {/* 左側: 登入表單 */}
         <div className="flex items-center justify-center w-full px-8 py-12 lg:w-1/2">
@@ -47,16 +47,16 @@ export default function LoginPage() {
                   <Image src="/logo.png" alt="Logo" width={48} height={48} />
               </div>
               
-              <h2 className="mt-6 text-2xl font-bold text-center text-gray-800 lg:text-left">
+              <h2 className="mt-6 text-2xl font-bold text-center text-foreground lg:text-left">
               系統登入
               </h2>
-              <p className="mt-2 text-center text-gray-600 lg:text-left">
+              <p className="mt-2 text-center text-muted-foreground lg:text-left">
               請輸入您的帳號以繼續
               </p>
 
               <form onSubmit={handleLogin} className="mt-8 space-y-6">
                   <div>
-                      <label htmlFor="email" className="block mb-2 text-sm font-medium text-gray-700">
+                      <label htmlFor="email" className="block mb-2 text-sm font-medium text-foreground/70">
                           電子郵件
                       </label>
                       <Input
@@ -72,7 +72,7 @@ export default function LoginPage() {
                   </div>
 
                   <div>
-                      <label htmlFor="password" className="block mb-2 text-sm font-medium text-gray-700">
+                      <label htmlFor="password" className="block mb-2 text-sm font-medium text-foreground/70">
                           密碼
                       </label>
                       <Input

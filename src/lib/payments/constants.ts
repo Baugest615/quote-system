@@ -6,39 +6,39 @@
 export const PAYMENT_COLORS = {
     // 狀態顏色
     status: {
-        pending: 'bg-yellow-50 border-yellow-200 text-yellow-800',
-        approved: 'bg-green-50 border-green-200 text-green-800',
-        rejected: 'bg-red-50 border-red-200 text-red-800',
-        confirmed: 'bg-blue-50 border-blue-200 text-blue-800',
-        ready: 'bg-green-50 border-green-200 text-green-800',
-        incomplete: 'bg-orange-50 border-orange-200 text-orange-800',
+        pending: 'bg-yellow-500/10 border-yellow-500/30 text-yellow-400',
+        approved: 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400',
+        rejected: 'bg-red-500/10 border-red-500/30 text-red-400',
+        confirmed: 'bg-sky-500/10 border-sky-500/30 text-sky-400',
+        ready: 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400',
+        incomplete: 'bg-orange-500/10 border-orange-500/30 text-orange-400',
     },
 
     // 狀態徽章顏色
     badge: {
-        pending: 'bg-yellow-100 text-yellow-800',
-        approved: 'bg-green-100 text-green-800',
-        rejected: 'bg-red-100 text-red-800',
-        confirmed: 'bg-blue-100 text-blue-800',
-        ready: 'bg-green-100 text-green-800',
-        incomplete: 'bg-orange-100 text-orange-800',
+        pending: 'bg-yellow-500/15 text-yellow-400',
+        approved: 'bg-emerald-500/15 text-emerald-400',
+        rejected: 'bg-red-500/15 text-red-400',
+        confirmed: 'bg-sky-500/15 text-sky-400',
+        ready: 'bg-emerald-500/15 text-emerald-400',
+        incomplete: 'bg-orange-500/15 text-orange-400',
     },
 
-    // 合併群組顏色（保留原有）
+    // 合併群組顏色（深色主題適用）
     merge: [
-        'bg-red-100',
-        'bg-blue-100',
-        'bg-green-100',
-        'bg-yellow-100',
-        'bg-purple-100',
-        'bg-pink-100'
+        'bg-red-500/15',
+        'bg-sky-500/15',
+        'bg-emerald-500/15',
+        'bg-yellow-500/15',
+        'bg-purple-500/15',
+        'bg-pink-500/15'
     ],
 
     // 優先級顏色
     priority: {
-        high: 'bg-red-100 text-red-800 border-red-200',
-        medium: 'bg-yellow-100 text-yellow-800 border-yellow-200',
-        low: 'bg-gray-100 text-gray-800 border-gray-200',
+        high: 'bg-red-500/15 text-red-400 border-red-500/30',
+        medium: 'bg-yellow-500/15 text-yellow-400 border-yellow-500/30',
+        low: 'bg-muted text-foreground/80 border-border',
     }
 } as const
 

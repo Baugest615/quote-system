@@ -72,6 +72,7 @@
     "@types/lodash": "^4.17.21",
     "@typescript-eslint/eslint-plugin": "^6.15.0",
     "@typescript-eslint/parser": "^6.15.0",
+    "agentation": "^2.2.0",
     "autoprefixer": "^10.4.21",
     "cross-env": "^7.0.3",
     "eslint": "^8.56.0",

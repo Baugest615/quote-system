@@ -73,14 +73,14 @@ export default function SettingsPage() {
 
         {/* 步驟 4: 新增權限管理區塊，並使用 hasRole 判斷式 */}
         {hasRole('Admin') && (
-          <div className="bg-white rounded-lg shadow-md p-6 border-l-4 border-red-500">
+          <div className="bg-card rounded-lg shadow-none border border-border p-6 border-l-4 border-red-500">
             <div className="flex items-start justify-between">
               <div>
                 <h2 className="text-xl font-bold mb-2 flex items-center">
                   <Shield className="mr-2 h-5 w-5 text-red-600" />
                   權限管理
                 </h2>
-                <p className="text-sm text-gray-600">
+                <p className="text-sm text-muted-foreground">
                   管理使用者帳號的角色與系統存取權限。
                 </p>
               </div>

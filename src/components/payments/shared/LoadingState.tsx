@@ -26,16 +26,16 @@ export function LoadingState({
 }: LoadingStateProps) {
     const content = (
         <div className={cn('flex flex-col items-center justify-center', className)}>
-            <Loader2 className={cn('animate-spin text-indigo-600', SIZE_CONFIG[size])} />
+            <Loader2 className={cn('animate-spin text-emerald-400', SIZE_CONFIG[size])} />
             {message && (
-                <p className="mt-4 text-sm text-gray-600">{message}</p>
+                <p className="mt-4 text-sm text-muted-foreground">{message}</p>
             )}
         </div>
     )
 
     if (fullScreen) {
         return (
-            <div className="fixed inset-0 bg-white bg-opacity-75 flex items-center justify-center z-50">
+            <div className="fixed inset-0 bg-card bg-opacity-75 flex items-center justify-center z-50">
                 {content}
             </div>
         )

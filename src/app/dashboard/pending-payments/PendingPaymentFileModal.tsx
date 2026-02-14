@@ -303,7 +303,7 @@ export function PendingPaymentFileModal({
 
         {/* 已上傳檔案列表 */}
         <div>
-          <h4 className="text-md font-semibold text-gray-700 mb-3 flex items-center">
+          <h4 className="text-md font-semibold text-foreground/70 mb-3 flex items-center">
             <LinkIcon className="h-4 w-4 mr-2" />
             已上傳檔案 ({attachments.length})
           </h4>
@@ -313,20 +313,20 @@ export function PendingPaymentFileModal({
               {attachments.map((attachment, index) => {
                 const fileType = getFileType(attachment.name);
                 return (
-                  <div key={attachment.path} className="bg-gray-50 p-3 rounded-lg border">
+                  <div key={attachment.path} className="bg-secondary p-3 rounded-lg border">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center flex-1 min-w-0">
                         <div className="flex-shrink-0 mr-3">
                           {fileType === 'image' && <div className="w-6 h-6 bg-green-100 rounded flex items-center justify-center text-xs">🖼️</div>}
                           {fileType === 'document' && <div className="w-6 h-6 bg-blue-100 rounded flex items-center justify-center text-xs">📄</div>}
                           {fileType === 'spreadsheet' && <div className="w-6 h-6 bg-yellow-100 rounded flex items-center justify-center text-xs">📊</div>}
-                          {fileType === 'file' && <div className="w-6 h-6 bg-gray-100 rounded flex items-center justify-center text-xs">📎</div>}
+                          {fileType === 'file' && <div className="w-6 h-6 bg-secondary/50 rounded flex items-center justify-center text-xs">📎</div>}
                         </div>
                         <div className="min-w-0 flex-1">
-                          <p className="font-medium text-gray-900 truncate text-sm" title={attachment.name}>
+                          <p className="font-medium text-foreground truncate text-sm" title={attachment.name}>
                             {attachment.name}
                           </p>
-                          <p className="text-xs text-gray-500">
+                          <p className="text-xs text-muted-foreground">
                             {formatFileSize(attachment.size)} • {new Date(attachment.uploadedAt).toLocaleString('zh-TW')}
                           </p>
                         </div>
@@ -367,7 +367,7 @@ export function PendingPaymentFileModal({
               })}
             </div>
           ) : (
-            <div className="text-center py-8 text-gray-500">
+            <div className="text-center py-8 text-muted-foreground">
               <AlertCircle className="mx-auto h-8 w-8 mb-2" />
               <p>尚未上傳任何檔案</p>
             </div>
@@ -376,7 +376,7 @@ export function PendingPaymentFileModal({
 
         {/* 上傳新檔案 */}
         <div className="border-t pt-4">
-          <h4 className="text-md font-semibold text-gray-700 mb-3">上傳新檔案</h4>
+          <h4 className="text-md font-semibold text-foreground/70 mb-3">上傳新檔案</h4>
           
           <div className="bg-yellow-50 border border-yellow-200 rounded-md p-3 mb-3">
             <p className="text-xs text-yellow-800">
@@ -393,7 +393,7 @@ export function PendingPaymentFileModal({
             ref={fileInputRef} 
             onChange={handleFileUpload} 
             disabled={uploading || currentTotalSize >= MAX_TOTAL_SIZE} 
-            className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"
+            className="block w-full text-sm text-muted-foreground file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-emerald-500/5 file:text-emerald-400 hover:file:bg-emerald-500/10"
             accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.gif,.txt,.zip,.rar"
           />
           
@@ -406,8 +406,8 @@ export function PendingPaymentFileModal({
           )}
           
           {uploading && (
-            <div className="mt-2 flex items-center text-sm text-indigo-600">
-              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-indigo-600 mr-2"></div>
+            <div className="mt-2 flex items-center text-sm text-emerald-400">
+              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-emerald-500 mr-2"></div>
               上傳中，請稍候...
             </div>
           )}

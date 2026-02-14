@@ -16,8 +16,8 @@ export function ConfirmationDetails({ confirmation, settings, updateSettings, ge
 
     if (remittanceGroups.length === 0) {
         return (
-            <div className="text-center py-8 text-gray-500">
-                <FileText className="mx-auto h-12 w-12 text-gray-300 mb-2" />
+            <div className="text-center py-8 text-muted-foreground">
+                <FileText className="mx-auto h-12 w-12 text-muted-foreground mb-2" />
                 <p>此確認記錄沒有關聯的項目</p>
             </div>
         )
@@ -36,7 +36,7 @@ export function ConfirmationDetails({ confirmation, settings, updateSettings, ge
                 const netTotal = subtotal - tax - insurance - fee
 
                 return (
-                    <div key={groupIndex} className="border rounded-lg overflow-hidden shadow-sm bg-white">
+                    <div key={groupIndex} className="border rounded-lg overflow-hidden shadow-none bg-card">
                         {/* 匯款戶名標題與設定區 */}
                         <div className="bg-blue-50 border-b p-4">
                             <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
@@ -44,10 +44,10 @@ export function ConfirmationDetails({ confirmation, settings, updateSettings, ge
                                 <div className="flex items-start space-x-3">
                                     <User className="h-6 w-6 text-blue-600 mt-1" />
                                     <div>
-                                        <div className="font-semibold text-lg text-gray-900">
+                                        <div className="font-semibold text-lg text-foreground">
                                             {group.remittanceName}
                                         </div>
-                                        <div className="text-sm text-gray-500 mt-1 flex flex-wrap gap-x-4 gap-y-1">
+                                        <div className="text-sm text-muted-foreground mt-1 flex flex-wrap gap-x-4 gap-y-1">
                                             {group.bankName && (
                                                 <span><span className="font-medium">銀行:</span> {group.bankName}</span>
                                             )}
@@ -62,7 +62,7 @@ export function ConfirmationDetails({ confirmation, settings, updateSettings, ge
                                 </div>
 
                                 {/* 右側：付款試算設定 */}
-                                <div className="bg-white/60 rounded-lg p-3 border border-blue-100">
+                                <div className="bg-card/60 rounded-lg p-3 border border-blue-100">
                                     <div className="flex items-center gap-2 mb-2 text-blue-800 font-medium text-sm">
                                         <Calculator className="h-4 w-4" />
                                         付款試算設定
@@ -72,7 +72,7 @@ export function ConfirmationDetails({ confirmation, settings, updateSettings, ge
                                         <label className="flex items-center gap-2 cursor-pointer hover:text-blue-700 transition-colors">
                                             <input
                                                 type="checkbox"
-                                                className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                                                className="rounded border-border text-blue-600 focus:ring-blue-500"
                                                 checked={settings.hasRemittanceFee}
                                                 onChange={(e) => updateSettings(group.remittanceName, { hasRemittanceFee: e.target.checked })}
                                             />
@@ -80,10 +80,10 @@ export function ConfirmationDetails({ confirmation, settings, updateSettings, ge
                                         </label>
                                         {settings.hasRemittanceFee && (
                                             <div className="flex items-center gap-1">
-                                                <span className="text-gray-500">$</span>
+                                                <span className="text-muted-foreground">$</span>
                                                 <input
                                                     type="number"
-                                                    className="w-16 h-7 text-sm border-gray-300 rounded focus:ring-blue-500 focus:border-blue-500 px-2 py-0"
+                                                    className="w-16 h-7 text-sm border-border rounded focus:ring-blue-500 focus:border-blue-500 px-2 py-0"
                                                     value={settings.remittanceFeeAmount}
                                                     onChange={(e) => updateSettings(group.remittanceName, { remittanceFeeAmount: Number(e.target.value) })}
                                                 />
@@ -96,7 +96,7 @@ export function ConfirmationDetails({ confirmation, settings, updateSettings, ge
                                         <label className="flex items-center gap-2 cursor-pointer hover:text-blue-700 transition-colors">
                                             <input
                                                 type="checkbox"
-                                                className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                                                className="rounded border-border text-blue-600 focus:ring-blue-500"
                                                 checked={settings.hasTax}
                                                 onChange={(e) => updateSettings(group.remittanceName, { hasTax: e.target.checked })}
                                             />
@@ -106,7 +106,7 @@ export function ConfirmationDetails({ confirmation, settings, updateSettings, ge
                                         <label className="flex items-center gap-2 cursor-pointer hover:text-blue-700 transition-colors">
                                             <input
                                                 type="checkbox"
-                                                className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                                                className="rounded border-border text-blue-600 focus:ring-blue-500"
                                                 checked={settings.hasInsurance}
                                                 onChange={(e) => updateSettings(group.remittanceName, { hasInsurance: e.target.checked })}
                                             />
@@ -120,26 +120,26 @@ export function ConfirmationDetails({ confirmation, settings, updateSettings, ge
                         {/* 項目列表 */}
                         <div className="overflow-x-auto">
                             <table className="min-w-full">
-                                <thead className="bg-gray-50">
+                                <thead className="bg-secondary">
                                     <tr>
-                                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">專案名稱</th>
-                                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">KOL</th>
-                                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">服務項目</th>
-                                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">匯款戶名</th>
-                                        <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">匯款金額</th>
+                                        <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">專案名稱</th>
+                                        <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">KOL</th>
+                                        <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">服務項目</th>
+                                        <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">匯款戶名</th>
+                                        <th className="px-4 py-3 text-right text-xs font-medium text-muted-foreground uppercase tracking-wider">匯款金額</th>
                                     </tr>
                                 </thead>
-                                <tbody className="bg-white divide-y divide-gray-200">
+                                <tbody className="bg-card divide-y divide-gray-200">
                                     {group.items.map((item) => (
                                         <PaymentRecordRow key={item.id} item={item} />
                                     ))}
                                 </tbody>
                                 {/* 結算列 */}
-                                <tfoot className="bg-gray-50/50 font-medium text-sm">
+                                <tfoot className="bg-muted/20 font-medium text-sm">
                                     {/* 小計 */}
                                     <tr>
-                                        <td colSpan={4} className="px-4 py-2 text-right text-gray-500">小計 (Subtotal)</td>
-                                        <td className="px-4 py-2 text-right text-gray-900">
+                                        <td colSpan={4} className="px-4 py-2 text-right text-muted-foreground">小計 (Subtotal)</td>
+                                        <td className="px-4 py-2 text-right text-foreground">
                                             NT$ {subtotal.toLocaleString()}
                                         </td>
                                     </tr>

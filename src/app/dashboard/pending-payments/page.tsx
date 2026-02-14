@@ -508,67 +508,71 @@ export default function PendingPaymentsPage() {
   };
 
   return (
-    <div className="p-6 max-w-[1600px] mx-auto space-y-6">
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">待請款項目</h1>
-          <p className="text-gray-500 mt-1">管理所有待請款的報價項目</p>
-        </div>
-        <div className="flex items-center space-x-4">
-          {isMergeMode ? (
-            <div className="flex items-center space-x-2 bg-blue-50 px-4 py-2 rounded-lg border border-blue-100 animate-in fade-in slide-in-from-top-2">
-              <span className="text-sm text-blue-700 font-medium">
-                {selectedForMerge.length > 0 ? `已選擇 ${selectedForMerge.length} 筆` : '請選擇合併項目'}
-              </span>
-              <select
-                className="text-sm border-gray-300 rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                value={selectedMergeType || ''}
-                onChange={(e) => setSelectedMergeType(e.target.value as 'account')}
-              >
-                <option value="">選擇合併類型...</option>
-                <option value="account">帳號合併</option>
-              </select>
-              <Button size="sm" onClick={handleMergeSubmit} disabled={!selectedMergeType || selectedForMerge.length < 2}>
-                <Unlink className="w-4 h-4 mr-2" />
-                確認合併
-              </Button>
-              <Button size="sm" variant="ghost" onClick={() => {
-                setIsMergeMode(false);
-                setSelectedForMerge([]);
-                setSelectedMergeType(null);
-              }}>
-                <X className="w-4 h-4" />
-                取消
-              </Button>
-            </div>
-          ) : (
-            <Button variant="outline" onClick={() => {
-              setIsMergeMode(true);
-              setSelectedMergeType('account');
-            }}>
-              <Unlink className="w-4 h-4 mr-2" />
-              進入合併模式
-            </Button>
-          )}
-
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-            <Input
-              placeholder="搜尋專案、KOL、服務..."
-              className="pl-10 w-64"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
+    <div className="space-y-4 sm:space-y-6">
+      <div className="flex flex-col gap-4">
+        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
+          <div>
+            <h1 className="text-xl sm:text-2xl font-bold text-foreground">待請款項目</h1>
+            <p className="text-muted-foreground mt-1 text-sm">管理所有待請款的報價項目</p>
           </div>
-          <Button onClick={handleSubmitPayment} disabled={!items.some(i => i.is_selected)}>
-            <CheckCircle className="w-4 h-4 mr-2" />
-            送出請款申請
-          </Button>
+          <div className="flex flex-wrap items-center gap-2">
+            {!isMergeMode && (
+              <Button variant="outline" className="border-border" onClick={() => {
+                setIsMergeMode(true);
+                setSelectedMergeType('account');
+              }}>
+                <Unlink className="w-4 h-4 mr-2" />
+                合併模式
+              </Button>
+            )}
+            <Button onClick={handleSubmitPayment} disabled={!items.some(i => i.is_selected)} className="bg-emerald-600 hover:bg-emerald-700 text-white">
+              <CheckCircle className="w-4 h-4 mr-2" />
+              送出請款
+            </Button>
+          </div>
+        </div>
+
+        {isMergeMode && (
+          <div className="flex flex-wrap items-center gap-2 bg-emerald-500/10 px-4 py-3 rounded-lg border border-emerald-500/20 animate-in fade-in slide-in-from-top-2">
+            <span className="text-sm text-emerald-400 font-medium">
+              {selectedForMerge.length > 0 ? `已選擇 ${selectedForMerge.length} 筆` : '請選擇合併項目'}
+            </span>
+            <select
+              className="text-sm border-border bg-secondary text-foreground rounded-md focus:border-emerald-500 focus:ring-emerald-500"
+              value={selectedMergeType || ''}
+              onChange={(e) => setSelectedMergeType(e.target.value as 'account')}
+            >
+              <option value="">選擇合併類型...</option>
+              <option value="account">帳號合併</option>
+            </select>
+            <Button size="sm" onClick={handleMergeSubmit} disabled={!selectedMergeType || selectedForMerge.length < 2} className="bg-emerald-600 hover:bg-emerald-700 text-white">
+              <Unlink className="w-4 h-4 mr-2" />
+              確認合併
+            </Button>
+            <Button size="sm" variant="ghost" onClick={() => {
+              setIsMergeMode(false);
+              setSelectedForMerge([]);
+              setSelectedMergeType(null);
+            }}>
+              <X className="w-4 h-4" />
+              取消
+            </Button>
+          </div>
+        )}
+
+        <div className="relative w-full sm:max-w-xs">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+          <Input
+            placeholder="搜尋專案、KOL、服務..."
+            className="pl-10 bg-secondary border-border w-full"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
         </div>
       </div>
 
       {loading ? (
-        <div className="text-center py-12 text-gray-500">載入中...</div>
+        <div className="text-center py-12 text-muted-foreground">載入中...</div>
       ) : (
         <ProjectGroupView
           groups={projectGroups}

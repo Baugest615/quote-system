@@ -47,7 +47,7 @@ export default function ClientsPage() {
       // 解析JSONB contacts並排序
       const clientsWithContacts = (data || []).map(client => {
         let parsedContacts: Contact[] = []
-        
+
         try {
           if (client.contacts) {
             if (typeof client.contacts === 'string') {
@@ -103,12 +103,12 @@ export default function ClientsPage() {
   useEffect(() => {
     const filtered = clients.filter((client) => {
       const searchLower = searchTerm.toLowerCase()
-      
+
       // 搜尋公司名稱
       if (client.name.toLowerCase().includes(searchLower)) return true
-      
+
       // 搜尋所有聯絡人的姓名和電子郵件
-      return client.parsedContacts.some(contact => 
+      return client.parsedContacts.some(contact =>
         (contact.name && contact.name.toLowerCase().includes(searchLower)) ||
         (contact.email && contact.email.toLowerCase().includes(searchLower)) ||
         (contact.position && contact.position.toLowerCase().includes(searchLower))
@@ -147,14 +147,14 @@ export default function ClientsPage() {
           .from('clients')
           .update(dataToSave)
           .eq('id', id)
-        
+
         if (error) throw error
         toast.success('客戶資料更新成功！')
       } else {
         const { error } = await supabase
           .from('clients')
           .insert(dataToSave)
-        
+
         if (error) throw error
         toast.success('客戶新增成功！')
       }
@@ -171,7 +171,7 @@ export default function ClientsPage() {
       try {
         const { error } = await supabase.from('clients').delete().eq('id', id)
         if (error) throw error
-        
+
         toast.success('客戶已刪除')
         await fetchClients()
       } catch (error: any) {
@@ -192,39 +192,39 @@ export default function ClientsPage() {
   if (loading) return <div>讀取中...</div>
 
   return (
-    <div className="bg-white rounded-lg shadow-md p-6">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold">客戶管理</h1>
-        <div className="flex items-center space-x-4">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+    <div className="bg-card rounded-xl border border-border p-4 sm:p-6">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-6">
+        <h1 className="text-xl sm:text-2xl font-bold text-foreground">客戶管理</h1>
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3">
+          <div className="relative w-full sm:w-56">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
               type="text"
-              placeholder="搜尋公司名稱、聯絡人或電子郵件..."
+              placeholder="搜尋公司名稱、聯絡人..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10 w-64"
+              className="pl-10 bg-secondary border-border"
             />
           </div>
-          <Button onClick={() => handleOpenModal()}>
+          <Button onClick={() => handleOpenModal()} className="bg-emerald-600 hover:bg-emerald-700 text-white">
             <PlusCircle className="mr-2 h-4 w-4" /> 新增客戶
           </Button>
         </div>
       </div>
 
       {/* 統計資訊 */}
-      <div className="mb-6 grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="bg-gray-50 p-4 rounded-lg">
-          <div className="text-sm text-gray-500">總客戶數</div>
-          <div className="text-xl font-semibold">{clients.length}</div>
+      <div className="mb-6 grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <div className="bg-secondary p-4 rounded-lg">
+          <div className="text-sm text-muted-foreground">總客戶數</div>
+          <div className="text-xl font-semibold text-foreground">{clients.length}</div>
         </div>
-        <div className="bg-gray-50 p-4 rounded-lg">
-          <div className="text-sm text-gray-500">搜尋結果</div>
-          <div className="text-xl font-semibold">{filteredClients.length}</div>
+        <div className="bg-secondary p-4 rounded-lg">
+          <div className="text-sm text-muted-foreground">搜尋結果</div>
+          <div className="text-xl font-semibold text-foreground">{filteredClients.length}</div>
         </div>
-        <div className="bg-gray-50 p-4 rounded-lg">
-          <div className="text-sm text-gray-500">總聯絡人數</div>
-          <div className="text-xl font-semibold">
+        <div className="bg-secondary p-4 rounded-lg">
+          <div className="text-sm text-muted-foreground">總聯絡人數</div>
+          <div className="text-xl font-semibold text-foreground">
             {clients.reduce((sum, client) => sum + client.parsedContacts.length, 0)}
           </div>
         </div>
@@ -233,32 +233,32 @@ export default function ClientsPage() {
       <div className="overflow-x-auto">
         <table className="w-full text-left">
           <thead>
-            <tr className="bg-gray-50 border-b">
-              <th className="p-4 font-medium text-sm">公司資訊</th>
-              <th className="p-4 font-medium text-sm">統一編號</th>
-              <th className="p-4 font-medium text-sm">主要聯絡人</th>
-              <th className="p-4 font-medium text-sm">聯絡方式</th>
-              <th className="p-4 font-medium text-sm text-center">聯絡人數</th>
-              <th className="p-4 font-medium text-sm text-center">操作</th>
+            <tr className="bg-secondary/50 border-b border-border">
+              <th className="p-4 font-medium text-sm text-muted-foreground">公司資訊</th>
+              <th className="p-4 font-medium text-sm text-muted-foreground hidden md:table-cell">統一編號</th>
+              <th className="p-4 font-medium text-sm text-muted-foreground hidden sm:table-cell">主要聯絡人</th>
+              <th className="p-4 font-medium text-sm text-muted-foreground hidden lg:table-cell">聯絡方式</th>
+              <th className="p-4 font-medium text-sm text-muted-foreground text-center hidden sm:table-cell">聯絡人數</th>
+              <th className="p-4 font-medium text-sm text-muted-foreground text-center">操作</th>
             </tr>
           </thead>
           <tbody>
             {filteredClients.map((client) => {
               const primaryContact = getPrimaryContact(client.parsedContacts)
               const contactCount = getContactCount(client.parsedContacts)
-              
+
               return (
-                <tr key={client.id} className="border-b hover:bg-gray-50">
+                <tr key={client.id} className="border-b border-border hover:bg-muted/50 transition-colors">
                   <td className="p-4">
                     <div>
-                      <div className="text-sm font-semibold text-indigo-700">{client.name}</div>
-                      <div className="text-xs text-gray-500">{client.address}</div>
+                      <div className="text-sm font-semibold text-emerald-400">{client.name}</div>
+                      <div className="text-xs text-muted-foreground">{client.address}</div>
                     </div>
                   </td>
-                  
-                  <td className="p-4 text-sm">{client.tin || '-'}</td>
-                  
-                  <td className="p-4">
+
+                  <td className="p-4 text-sm hidden md:table-cell">{client.tin || '-'}</td>
+
+                  <td className="p-4 hidden sm:table-cell">
                     {primaryContact ? (
                       <div>
                         <div className="flex items-center space-x-1">
@@ -268,23 +268,23 @@ export default function ClientsPage() {
                           )}
                         </div>
                         {primaryContact.position && (
-                          <div className="text-xs text-gray-500">{primaryContact.position}</div>
+                          <div className="text-xs text-muted-foreground">{primaryContact.position}</div>
                         )}
                       </div>
                     ) : (
-                      <span className="text-gray-400 text-sm">無聯絡人</span>
+                      <span className="text-muted-foreground text-sm">無聯絡人</span>
                     )}
                   </td>
-                  
-                  <td className="p-4">
+
+                  <td className="p-4 hidden lg:table-cell">
                     {primaryContact ? (
                       <div className="space-y-1">
                         {primaryContact.email && (
-                          <div className="flex items-center text-xs text-gray-600">
+                          <div className="flex items-center text-xs text-muted-foreground">
                             <Mail className="h-3 w-3 mr-1" />
-                            <a 
+                            <a
                               href={`mailto:${primaryContact.email}`}
-                              className="hover:text-indigo-600 truncate max-w-[150px]"
+                              className="hover:text-emerald-400 truncate max-w-[150px]"
                               title={primaryContact.email}
                             >
                               {primaryContact.email}
@@ -292,44 +292,44 @@ export default function ClientsPage() {
                           </div>
                         )}
                         {primaryContact.phone && (
-                          <div className="flex items-center text-xs text-gray-600">
+                          <div className="flex items-center text-xs text-muted-foreground">
                             <Phone className="h-3 w-3 mr-1" />
-                            <a 
+                            <a
                               href={`tel:${primaryContact.phone}`}
-                              className="hover:text-indigo-600"
+                              className="hover:text-emerald-400"
                             >
                               {primaryContact.phone}
                             </a>
                           </div>
                         )}
                         {!primaryContact.email && !primaryContact.phone && (
-                          <span className="text-xs text-gray-400">無聯絡方式</span>
+                          <span className="text-xs text-muted-foreground">無聯絡方式</span>
                         )}
                       </div>
                     ) : (
-                      <span className="text-gray-400 text-sm">-</span>
+                      <span className="text-muted-foreground text-sm">-</span>
                     )}
                   </td>
-                  
-                  <td className="p-4 text-center">
+
+                  <td className="p-4 text-center hidden sm:table-cell">
                     <div className="flex items-center justify-center space-x-1">
-                      <Users className="h-4 w-4 text-gray-400" />
-                      <span className="text-sm text-gray-600">{contactCount}</span>
+                      <Users className="h-4 w-4 text-muted-foreground" />
+                      <span className="text-sm text-foreground/80">{contactCount}</span>
                       {contactCount > 1 && (
-                        <span className="text-xs text-blue-600 bg-blue-100 px-1 rounded">
+                        <span className="text-xs text-emerald-400 bg-emerald-500/10 px-1 rounded">
                           多窗口
                         </span>
                       )}
                     </div>
                   </td>
-                  
+
                   <td className="p-4 text-center">
                     <div className="flex justify-center space-x-2">
                       <Button
                         variant="outline"
                         size="sm"
                         onClick={() => handleOpenModal(client)}
-                        className="text-indigo-600 hover:text-indigo-700"
+                        className="text-emerald-400 hover:text-emerald-300 border-border"
                         title="編輯客戶資料"
                       >
                         <Edit className="h-3 w-3" />
@@ -338,7 +338,7 @@ export default function ClientsPage() {
                         variant="outline"
                         size="sm"
                         onClick={() => handleDeleteClient(client.id)}
-                        className="text-red-600 hover:text-red-700"
+                        className="text-rose-400 hover:text-rose-300 border-border"
                         title="刪除客戶"
                       >
                         <Trash2 className="h-3 w-3" />
@@ -350,9 +350,9 @@ export default function ClientsPage() {
             })}
           </tbody>
         </table>
-        
+
         {filteredClients.length === 0 && !loading && (
-          <div className="text-center py-8 text-gray-500">
+          <div className="text-center py-8 text-muted-foreground">
             {searchTerm ? (
               <div>
                 <p>找不到符合條件的客戶</p>
@@ -369,27 +369,27 @@ export default function ClientsPage() {
 
         {/* 顯示所有聯絡人的詳細資訊（可選，展開式） */}
         {searchTerm && (
-          <div className="mt-6 bg-gray-50 rounded-lg p-4">
-            <h3 className="text-sm font-semibold text-gray-700 mb-3">
+          <div className="mt-6 bg-secondary rounded-lg p-4">
+            <h3 className="text-sm font-semibold text-foreground/70 mb-3">
               搜尋結果中的所有聯絡人：
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-              {filteredClients.flatMap(client => 
+              {filteredClients.flatMap(client =>
                 client.parsedContacts
-                  .filter(contact => 
+                  .filter(contact =>
                     contact.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                     (contact.email && contact.email.toLowerCase().includes(searchTerm.toLowerCase())) ||
                     (contact.position && contact.position.toLowerCase().includes(searchTerm.toLowerCase()))
                   )
                   .map(contact => (
-                    <div key={`${client.id}-${contact.name}`} className="bg-white p-3 rounded border">
+                    <div key={`${client.id}-${contact.name}`} className="bg-card p-3 rounded border border-border">
                       <div className="flex items-center space-x-1 mb-1">
                         <span className="font-medium text-sm">{contact.name}</span>
                         {contact.is_primary && (
                           <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
                         )}
                       </div>
-                      <div className="text-xs text-gray-600">
+                      <div className="text-xs text-muted-foreground">
                         <div className="font-medium">{client.name}</div>
                         {contact.position && <div>{contact.position}</div>}
                         {contact.email && <div>{contact.email}</div>}

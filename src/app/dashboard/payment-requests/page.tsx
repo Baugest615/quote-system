@@ -64,12 +64,12 @@ const FileViewerModal = ({ isOpen, onClose, request }: {
         {request.attachments && request.attachments.length > 0 ? (
           <div className="space-y-2 max-h-96 overflow-y-auto">
             {request.attachments.map((file, index) => (
-              <div key={index} className="bg-gray-50 p-3 rounded-lg border flex items-center justify-between">
+              <div key={index} className="bg-secondary p-3 rounded-lg border flex items-center justify-between">
                 <div className="flex-1 min-w-0">
-                  <p className="font-medium text-gray-900 truncate text-sm" title={file.name}>
+                  <p className="font-medium text-foreground truncate text-sm" title={file.name}>
                     <LinkIcon className="h-3 w-3 inline-block mr-2" />{file.name}
                   </p>
-                  <p className="text-xs text-gray-500 mt-1">
+                  <p className="text-xs text-muted-foreground mt-1">
                     {file.size ? `${formatFileSize(file.size)} • ` : ''}{new Date(file.uploadedAt).toLocaleString('zh-TW')}
                   </p>
                 </div>
@@ -85,7 +85,7 @@ const FileViewerModal = ({ isOpen, onClose, request }: {
             ))}
           </div>
         ) : (
-          <div className="text-center py-8 text-gray-500">
+          <div className="text-center py-8 text-muted-foreground">
             <AlertCircle className="mx-auto h-8 w-8 mb-2" />
             <p>沒有可檢視的附件</p>
           </div>
@@ -328,7 +328,7 @@ export default function PaymentRequestsPage() {
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-3xl font-bold">請款申請審核</h1>
-          <p className="text-gray-500 mt-1">審核來自待請款清單的申請項目</p>
+          <p className="text-muted-foreground mt-1">審核來自待請款清單的申請項目</p>
         </div>
       </div>
 
@@ -336,7 +336,7 @@ export default function PaymentRequestsPage() {
       <div className="flex flex-col space-y-4">
         <div className="flex items-center space-x-4">
           <div className="relative flex-1 max-w-md">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
             <Input
               id="search-requests"
               name="search"
@@ -346,7 +346,7 @@ export default function PaymentRequestsPage() {
               className="pl-10"
             />
           </div>
-          <div className="text-sm text-gray-500">
+          <div className="text-sm text-muted-foreground">
             共 {filteredItems.length} 筆申請
           </div>
         </div>
@@ -363,27 +363,27 @@ export default function PaymentRequestsPage() {
 
       {/* 列表內容 */}
       {filteredItems.length > 0 ? (
-        <div className="bg-white shadow overflow-hidden sm:rounded-lg border border-gray-200">
+        <div className="bg-card shadow overflow-hidden sm:rounded-lg border border-border">
           <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
+            <thead className="bg-secondary">
               <tr>
                 <th className="px-4 py-3 text-left w-10">
                   <input
                     type="checkbox"
                     checked={selectedItems.size > 0 && selectedItems.size === filteredItems.length}
                     onChange={(e) => e.target.checked ? selectAll() : deselectAll()}
-                    className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+                    className="h-4 w-4 text-emerald-400 focus:ring-emerald-400 border-border rounded"
                   />
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">專案資訊</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">KOL / 服務</th>
-                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">金額</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">附件 / 發票</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">狀態</th>
-                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">操作</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">專案資訊</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">KOL / 服務</th>
+                <th className="px-4 py-3 text-right text-xs font-medium text-muted-foreground uppercase tracking-wider">金額</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">附件 / 發票</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">狀態</th>
+                <th className="px-4 py-3 text-right text-xs font-medium text-muted-foreground uppercase tracking-wider">操作</th>
               </tr>
             </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
+            <tbody className="bg-card divide-y divide-gray-200">
               {filteredItems.map((item) => (
                 <RequestItemRow
                   key={item.id}

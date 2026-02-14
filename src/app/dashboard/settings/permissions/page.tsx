@@ -124,8 +124,8 @@ export default function PermissionManagementPage() {
     switch (role) {
       case 'Admin': return <Crown className="h-4 w-4 text-yellow-600" />
       case 'Editor': return <Settings className="h-4 w-4 text-blue-600" />
-      case 'Member': return <User className="h-4 w-4 text-gray-600" />
-      default: return <User className="h-4 w-4 text-gray-600" />
+      case 'Member': return <User className="h-4 w-4 text-muted-foreground" />
+      default: return <User className="h-4 w-4 text-muted-foreground" />
     }
   }
 
@@ -142,9 +142,9 @@ export default function PermissionManagementPage() {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="text-center">
-          <Shield className="h-16 w-16 mx-auto text-gray-400 mb-4" />
-          <h3 className="text-lg font-medium text-gray-900 mb-2">權限不足</h3>
-          <p className="text-gray-500">您沒有權限管理用戶角色</p>
+          <Shield className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
+          <h3 className="text-lg font-medium text-foreground mb-2">權限不足</h3>
+          <p className="text-muted-foreground">您沒有權限管理用戶角色</p>
         </div>
       </div>
     )
@@ -155,13 +155,13 @@ export default function PermissionManagementPage() {
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-2xl font-bold">權限管理</h1>
-          <p className="text-gray-600">管理用戶角色和權限</p>
+          <p className="text-muted-foreground">管理用戶角色和權限</p>
         </div>
       </div>
 
       {/* 搜索欄 */}
       <div className="relative">
-        <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+        <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
         <Input
           placeholder="搜索用戶..."
           value={searchTerm}
@@ -171,8 +171,8 @@ export default function PermissionManagementPage() {
       </div>
 
       {/* 用戶列表 */}
-      <div className="bg-white shadow rounded-lg overflow-hidden">
-        <div className="px-6 py-4 border-b border-gray-200">
+      <div className="bg-card shadow rounded-lg overflow-hidden">
+        <div className="px-6 py-4 border-b border-border">
           <h2 className="text-lg font-medium">用戶列表</h2>
         </div>
         
@@ -187,8 +187,8 @@ export default function PermissionManagementPage() {
                 <div className="flex items-center space-x-3">
                   {getRoleIcon(user.role)}
                   <div>
-                    <p className="text-sm font-medium text-gray-900">{user.email}</p>
-                    <p className="text-sm text-gray-500">{getRoleDisplayName(user.role)}</p>
+                    <p className="text-sm font-medium text-foreground">{user.email}</p>
+                    <p className="text-sm text-muted-foreground">{getRoleDisplayName(user.role)}</p>
                   </div>
                 </div>
                 
@@ -227,18 +227,18 @@ export default function PermissionManagementPage() {
       {/* 編輯角色模態框 */}
       {isEditModalOpen && editingUser && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-md">
+          <div className="bg-card rounded-lg p-6 w-full max-w-md">
             <h3 className="text-lg font-medium mb-4">編輯用戶角色</h3>
             
             <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-foreground/70 mb-2">
                 用戶: {editingUser.email}
               </label>
               
               <select
                 value={selectedRole}
                 onChange={(e) => setSelectedRole(e.target.value as UserRole)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
                 <option value="Member">成員</option>
                 <option value="Editor">編輯者</option>

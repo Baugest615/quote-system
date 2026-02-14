@@ -19,21 +19,21 @@ export function ConfirmationRow({ confirmation, onToggleExpansion, onRevert }: C
     )
 
     return (
-        <div className="bg-white shadow-md rounded-lg overflow-hidden">
+        <div className="bg-card shadow-none border border-border rounded-lg overflow-hidden">
             {/* 清單標題列 */}
             <div
-                className="flex items-center justify-between cursor-pointer hover:bg-gray-50 p-4 border-b bg-gray-50"
+                className="flex items-center justify-between cursor-pointer hover:bg-secondary p-4 border-b bg-secondary"
                 onClick={() => onToggleExpansion(confirmation.id)}
             >
                 <div className="flex items-center space-x-3">
                     {confirmation.isExpanded ?
-                        <ChevronDown className="h-5 w-5 text-gray-400" /> :
-                        <ChevronRight className="h-5 w-5 text-gray-400" />
+                        <ChevronDown className="h-5 w-5 text-muted-foreground" /> :
+                        <ChevronRight className="h-5 w-5 text-muted-foreground" />
                     }
                     <FileText className="h-5 w-5 text-blue-500" />
                     <div>
-                        <div className="font-medium text-gray-900">請款清單 - {confirmation.confirmation_date}</div>
-                        <div className="text-sm text-gray-500">
+                        <div className="font-medium text-foreground">請款清單 - {confirmation.confirmation_date}</div>
+                        <div className="text-sm text-muted-foreground">
                             {confirmation.total_items} 筆項目 | 總成本 NT$ {(confirmation.total_amount || 0).toLocaleString()}
                         </div>
                     </div>

@@ -48,11 +48,11 @@ export default function SettingsCard({ title, items, onAddItem, onUpdateItem, on
   }
 
   return (
-    <div className="bg-white rounded-lg shadow-md p-6">
+    <div className="bg-card rounded-lg shadow-none border border-border p-6">
       <h2 className="text-xl font-bold mb-4">{title}</h2>
       <div className="space-y-2 mb-4">
         {items.map((item) => (
-          <div key={item.id} className="flex items-center justify-between p-2 rounded hover:bg-gray-50">
+          <div key={item.id} className="flex items-center justify-between p-2 rounded hover:bg-secondary">
             {editingItemId === item.id ? (
               <Input
                 value={editingItemName}
@@ -60,7 +60,7 @@ export default function SettingsCard({ title, items, onAddItem, onUpdateItem, on
                 className="flex-grow"
               />
             ) : (
-              <span className="text-gray-700">{item.name}</span>
+              <span className="text-foreground/70">{item.name}</span>
             )}
             <div className="space-x-1">
               {editingItemId === item.id ? (

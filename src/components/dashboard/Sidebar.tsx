@@ -16,12 +16,12 @@ import {
   LogOut,
   Shield,
   User,
-  ChevronLeft,
-  ChevronRight,
   ChevronDown,
   BookOpen,
   Receipt,
   Calculator,
+  X,
+  Menu
 } from 'lucide-react'
 import { usePermission } from '@/lib/permissions'
 import supabase from '@/lib/supabase/client'
@@ -52,7 +52,10 @@ export default function Sidebar() {
     checkPageAccess
   } = usePermission()
 
-  const [isCollapsed, setIsCollapsed] = useState(false)
+  // 行動裝置 overlay 狀態
+  const [isMobileOpen, setIsMobileOpen] = useState(false)
+  const [isMobile, setIsMobile] = useState(false)
+  // 帳務管理子選單展開狀態
   const [accountingOpen, setAccountingOpen] = useState(false)
 
   // 如果目前在帳務頁面，自動展開子選單
@@ -62,20 +65,25 @@ export default function Sidebar() {
     }
   }, [pathname])
 
-  // 響應式處理：小螢幕預設收合
+  // 響應式偵測
   useEffect(() => {
-    const handleResize = () => {
-      if (window.innerWidth < 1024) {
-        setIsCollapsed(true)
-      } else {
-        setIsCollapsed(false)
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 1024)
+      if (window.innerWidth >= 1024) {
+        setIsMobileOpen(false)
       }
     }
-    handleResize()
-    window.addEventListener('resize', handleResize)
-    return () => window.removeEventListener('resize', handleResize)
+    checkMobile()
+    window.addEventListener('resize', checkMobile)
+    return () => window.removeEventListener('resize', checkMobile)
   }, [])
 
+  // 路由變更時關閉行動選單
+  useEffect(() => {
+    setIsMobileOpen(false)
+  }, [pathname])
+
+  // 處理登出
   const handleLogout = async () => {
     try {
       const { error } = await supabase.auth.signOut()
@@ -105,89 +113,101 @@ export default function Sidebar() {
     BookOpen,
   }
 
+  // 漢堡選單按鈕（行動裝置用）
+  const MobileMenuButton = () => (
+    <button
+      onClick={() => setIsMobileOpen(true)}
+      className="lg:hidden fixed top-4 left-4 z-50 bg-secondary/80 backdrop-blur-sm border border-border rounded-lg p-2.5 shadow-lg"
+      aria-label="開啟選單"
+    >
+      <Menu className="w-5 h-5 text-foreground" />
+    </button>
+  )
+
   if (loading) {
     return (
-      <div className={cn("bg-white shadow-sm border-r border-gray-200 transition-all duration-300", isCollapsed ? "w-20" : "w-64")}>
-        <div className="p-6">
-          <div className="animate-pulse">
-            <div className="h-8 bg-gray-200 rounded mb-6"></div>
-            <div className="space-y-3">
-              {[...Array(8)].map((_, i) => (
-                <div key={i} className="h-10 bg-gray-200 rounded"></div>
-              ))}
+      <>
+        <MobileMenuButton />
+        <div className="hidden lg:block w-64 bg-card border-r border-border">
+          <div className="p-6">
+            <div className="animate-pulse">
+              <div className="h-8 bg-muted rounded mb-6"></div>
+              <div className="space-y-3">
+                {[...Array(8)].map((_, i) => (
+                  <div key={i} className="h-10 bg-muted rounded"></div>
+                ))}
+              </div>
             </div>
           </div>
         </div>
-      </div>
+      </>
     )
   }
 
   if (!userRole) {
     return (
-      <div className={cn("bg-white shadow-sm border-r border-gray-200 transition-all duration-300", isCollapsed ? "w-20" : "w-64")}>
-        <div className="p-6">
-          <div className="text-center text-gray-500">
-            <User className="w-12 h-12 mx-auto mb-4 text-gray-300" />
-            <p className={cn("transition-opacity duration-200", isCollapsed ? "opacity-0 hidden" : "opacity-100")}>請重新登入</p>
+      <>
+        <MobileMenuButton />
+        <div className="hidden lg:block w-64 bg-card border-r border-border">
+          <div className="p-6">
+            <div className="text-center text-muted-foreground">
+              <User className="w-12 h-12 mx-auto mb-4 text-muted" />
+              <p>請重新登入</p>
+            </div>
           </div>
         </div>
-      </div>
+      </>
     )
   }
 
   const allowedPages = getAllowedPages()
   const isAccountingActive = pathname.startsWith('/dashboard/accounting')
 
-  return (
+  const sidebarContent = (
     <div className={cn(
-      "bg-white shadow-sm border-r border-gray-200 flex flex-col h-full transition-all duration-300 relative",
-      isCollapsed ? "w-20" : "w-64"
+      "bg-card border-r border-border flex flex-col h-full",
+      isMobile ? "w-72" : "w-64"
     )}>
 
-      {/* 收合切換按鈕 */}
-      <button
-        onClick={() => setIsCollapsed(!isCollapsed)}
-        className="absolute -right-3 top-8 bg-white border border-gray-200 rounded-full p-1 shadow-sm hover:bg-gray-50 z-10"
-        title={isCollapsed ? "展開選單" : "收起選單"}
-      >
-        {isCollapsed ? <ChevronRight className="w-4 h-4 text-gray-600" /> : <ChevronLeft className="w-4 h-4 text-gray-600" />}
-      </button>
+      {/* 關閉按鈕（行動裝置） */}
+      {isMobile && (
+        <button
+          onClick={() => setIsMobileOpen(false)}
+          className="absolute top-4 right-4 p-2 text-muted-foreground hover:text-foreground rounded-lg hover:bg-muted transition-colors"
+          aria-label="關閉選單"
+        >
+          <X className="w-5 h-5" />
+        </button>
+      )}
 
       {/* Logo 和用戶資訊 */}
-      <div className={cn("border-b border-gray-200 transition-all duration-300", isCollapsed ? "p-4" : "p-6")}>
-        <div className={cn("flex items-center gap-3 mb-4", isCollapsed && "justify-center mb-2")}>
-          <div className="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center flex-shrink-0">
-            <FileText className="w-6 h-6 text-white" />
+      <div className="border-b border-border p-6">
+        <div className="flex items-center gap-3 mb-4">
+          <div className="w-10 h-10 bg-emerald-500/15 rounded-lg flex items-center justify-center flex-shrink-0">
+            <FileText className="w-5 h-5 text-emerald-400" />
           </div>
-          <div className={cn("overflow-hidden transition-all duration-300", isCollapsed ? "w-0 opacity-0" : "w-auto opacity-100")}>
-            <h1 className="text-xl font-bold text-gray-900 whitespace-nowrap">後台管理</h1>
-            <p className="text-sm text-gray-500 whitespace-nowrap">Quote System</p>
+          <div>
+            <h1 className="text-lg font-bold text-foreground">報價管理</h1>
+            <p className="text-xs text-muted-foreground">Quote System</p>
           </div>
         </div>
 
         {/* 用戶角色標籤 */}
-        <div className={cn(
-          "flex items-center gap-2 bg-gray-50 rounded-lg transition-all duration-300",
-          isCollapsed ? "justify-center p-2 bg-transparent" : "p-2"
-        )}>
-          <Shield className={cn("w-4 h-4 text-blue-600 flex-shrink-0", isCollapsed && "w-5 h-5")} />
-          <span className={cn(
-            "text-sm font-medium text-gray-700 whitespace-nowrap transition-all duration-300",
-            isCollapsed ? "w-0 opacity-0 hidden" : "w-auto opacity-100"
-          )}>
+        <div className="flex items-center gap-2 bg-muted/50 rounded-lg p-2">
+          <Shield className="w-4 h-4 text-emerald-400 flex-shrink-0" />
+          <span className="text-sm font-medium text-foreground/80">
             {getRoleDisplayName()}
           </span>
           <div className={cn(
-            "w-2 h-2 rounded-full flex-shrink-0",
-            userRole === 'Admin' ? 'bg-red-500' :
-              userRole === 'Editor' ? 'bg-yellow-500' : 'bg-green-500',
-            isCollapsed && "absolute top-4 right-4 border border-white"
+            "w-2 h-2 rounded-full flex-shrink-0 ml-auto",
+            userRole === 'Admin' ? 'bg-rose-400' :
+              userRole === 'Editor' ? 'bg-amber-400' : 'bg-emerald-400'
           )} />
         </div>
       </div>
 
       {/* 導覽選單 */}
-      <nav className="flex-1 p-3 space-y-1 overflow-y-auto overflow-x-hidden">
+      <nav className="flex-1 p-3 space-y-1 overflow-y-auto">
         {allowedPages.map((page) => {
           const Icon = iconMap[page.icon as keyof typeof iconMap] || FileText
           const isActive = pathname === page.route || pathname.startsWith(page.route + '/')
@@ -198,73 +218,52 @@ export default function Sidebar() {
             return (
               <div key={page.key}>
                 <button
-                  onClick={() => {
-                    if (isCollapsed) {
-                      router.push('/dashboard/accounting')
-                    } else {
-                      setAccountingOpen(!accountingOpen)
-                    }
-                  }}
+                  onClick={() => setAccountingOpen(!accountingOpen)}
                   className={cn(
-                    "w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors group relative",
+                    "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 group relative",
                     isAccountingActive
-                      ? 'bg-blue-50 text-blue-700 border border-blue-200'
-                      : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900',
-                    isCollapsed && "justify-center px-2"
+                      ? 'bg-emerald-500/10 text-emerald-400'
+                      : 'text-muted-foreground hover:bg-muted hover:text-foreground'
                   )}
-                  title={isCollapsed ? page.name : undefined}
                 >
-                  <Icon className={cn("w-5 h-5 flex-shrink-0", isAccountingActive ? 'text-blue-600' : 'text-gray-500')} />
-                  <span className={cn(
-                    "whitespace-nowrap transition-all duration-300 flex-1 text-left",
-                    isCollapsed ? "w-0 opacity-0 hidden" : "w-auto opacity-100"
-                  )}>
-                    {page.name}
-                  </span>
-                  {!isCollapsed && (
-                    <ChevronDown className={cn(
-                      "w-4 h-4 text-gray-400 transition-transform duration-200",
-                      accountingOpen && "rotate-180"
-                    )} />
+                  {isAccountingActive && (
+                    <div className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-5 bg-emerald-400 rounded-full" />
                   )}
-
-                  {/* 收合 tooltip */}
-                  {isCollapsed && (
-                    <div className="absolute left-full ml-2 px-2 py-1 bg-gray-800 text-white text-xs rounded opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap z-50">
-                      {page.name}
-                    </div>
-                  )}
+                  <Icon className={cn("w-[18px] h-[18px] flex-shrink-0", isAccountingActive ? 'text-emerald-400' : 'text-muted-foreground group-hover:text-foreground')} />
+                  <span className="flex-1 text-left">{page.name}</span>
+                  <ChevronDown className={cn(
+                    "w-4 h-4 text-muted-foreground transition-transform duration-200",
+                    accountingOpen && "rotate-180"
+                  )} />
                 </button>
 
                 {/* 子選單 */}
-                {!isCollapsed && (
-                  <div className={cn(
-                    "overflow-hidden transition-all duration-200",
-                    accountingOpen ? "max-h-96 mt-1" : "max-h-0"
-                  )}>
-                    <div className="ml-4 pl-4 border-l-2 border-gray-200 space-y-0.5">
-                      {ACCOUNTING_SUB_MENU.map((sub) => {
-                        const SubIcon = sub.icon
-                        const isSubActive = pathname === sub.href
-                        return (
-                          <Link
-                            key={sub.href}
-                            href={sub.href}
-                            className={cn(
-                              "flex items-center gap-2.5 px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors",
-                              isSubActive
-                                ? 'bg-blue-50 text-blue-700'
-                                : 'text-gray-500 hover:bg-gray-50 hover:text-gray-700'
-                            )}
-                          >
-                            <SubIcon className={cn("w-3.5 h-3.5 flex-shrink-0", isSubActive ? 'text-blue-600' : 'text-gray-400')} />
-                            {sub.label}
-                          </Link>
-                        )
-                      })}
-                    </div>
+                <div className={cn(
+                  "overflow-hidden transition-all duration-200",
+                  accountingOpen ? "max-h-96 mt-1" : "max-h-0"
+                )}>
+                  <div className="ml-4 pl-4 border-l-2 border-border space-y-0.5">
+                    {ACCOUNTING_SUB_MENU.map((sub) => {
+                      const SubIcon = sub.icon
+                      const isSubActive = pathname === sub.href
+                      return (
+                        <Link
+                          key={sub.href}
+                          href={sub.href}
+                          className={cn(
+                            "flex items-center gap-2.5 px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors",
+                            isSubActive
+                              ? 'bg-emerald-500/10 text-emerald-400'
+                              : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                          )}
+                        >
+                          <SubIcon className={cn("w-3.5 h-3.5 flex-shrink-0", isSubActive ? 'text-emerald-400' : 'text-muted-foreground')} />
+                          {sub.label}
+                        </Link>
+                      )
+                    })}
                   </div>
-                )}
+                </div>
               </div>
             )
           }
@@ -275,33 +274,23 @@ export default function Sidebar() {
               key={page.key}
               href={page.route}
               className={cn(
-                "flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors group relative",
+                "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 group relative",
                 isActive
-                  ? 'bg-blue-50 text-blue-700 border border-blue-200'
-                  : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900',
-                isCollapsed && "justify-center px-2"
+                  ? 'bg-emerald-500/10 text-emerald-400'
+                  : 'text-muted-foreground hover:bg-muted hover:text-foreground'
               )}
-              title={isCollapsed ? page.name : undefined}
             >
-              <Icon className={cn("w-5 h-5 flex-shrink-0", isActive ? 'text-blue-600' : 'text-gray-500')} />
-              <span className={cn(
-                "whitespace-nowrap transition-all duration-300",
-                isCollapsed ? "w-0 opacity-0 hidden" : "w-auto opacity-100"
-              )}>
-                {page.name}
-              </span>
+              {/* 活動指示條 */}
+              {isActive && (
+                <div className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-5 bg-emerald-400 rounded-full" />
+              )}
+              <Icon className={cn("w-[18px] h-[18px] flex-shrink-0", isActive ? 'text-emerald-400' : 'text-muted-foreground group-hover:text-foreground')} />
+              <span>{page.name}</span>
 
               {/* 權限限制標識 */}
-              {(page.key === 'payment_requests' || page.key === 'confirmed_payments') && !isCollapsed && (
+              {(page.key === 'payment_requests' || page.key === 'confirmed_payments') && (
                 <div className="ml-auto">
-                  <div className="w-2 h-2 bg-yellow-400 rounded-full" title="編輯者以上權限" />
-                </div>
-              )}
-
-              {/* 收合時的懸浮提示 */}
-              {isCollapsed && (
-                <div className="absolute left-full ml-2 px-2 py-1 bg-gray-800 text-white text-xs rounded opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap z-50">
-                  {page.name}
+                  <div className="w-1.5 h-1.5 bg-amber-400 rounded-full" title="編輯者以上權限" />
                 </div>
               )}
             </Link>
@@ -310,24 +299,41 @@ export default function Sidebar() {
       </nav>
 
       {/* 底部操作區 */}
-      <div className="p-4 border-t border-gray-200 space-y-2">
+      <div className="p-4 border-t border-border">
         <button
           onClick={handleLogout}
-          className={cn(
-            "w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-gray-700 hover:bg-red-50 hover:text-red-700 transition-colors",
-            isCollapsed && "justify-center px-2"
-          )}
-          title={isCollapsed ? "登出" : undefined}
+          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-muted-foreground hover:bg-rose-500/10 hover:text-rose-400 transition-all duration-200"
         >
-          <LogOut className="w-5 h-5 text-gray-500 hover:text-red-500 flex-shrink-0" />
-          <span className={cn(
-            "whitespace-nowrap transition-all duration-300",
-            isCollapsed ? "w-0 opacity-0 hidden" : "w-auto opacity-100"
-          )}>
-            登出
-          </span>
+          <LogOut className="w-[18px] h-[18px] flex-shrink-0" />
+          <span>登出</span>
         </button>
       </div>
     </div>
+  )
+
+  return (
+    <>
+      <MobileMenuButton />
+
+      {/* 桌面版：固定側邊欄 */}
+      <div className="hidden lg:block flex-shrink-0">
+        {sidebarContent}
+      </div>
+
+      {/* 行動裝置：Overlay 側滑選單 */}
+      {isMobile && isMobileOpen && (
+        <div className="fixed inset-0 z-[9999]">
+          {/* 半透明遮罩 */}
+          <div
+            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            onClick={() => setIsMobileOpen(false)}
+          />
+          {/* 側邊欄 */}
+          <div className="absolute left-0 top-0 h-full animate-in slide-in-from-left duration-300">
+            {sidebarContent}
+          </div>
+        </div>
+      )}
+    </>
   )
 }

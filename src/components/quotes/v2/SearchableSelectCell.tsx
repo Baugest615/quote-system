@@ -120,23 +120,23 @@ export function SearchableSelectCell({
                 <PortalDropdown
                     isOpen={isOpen}
                     triggerRef={containerRef}
-                    className="portal-dropdown-content max-h-60 w-64 overflow-y-auto bg-white border shadow-lg rounded-md z-[9999]"
+                    className="portal-dropdown-content max-h-60 w-64 overflow-y-auto bg-card border shadow-lg rounded-md z-[9999]"
                 >
                     {filteredOptions.length > 0 ? (
                         filteredOptions.map((opt) => (
                             <div
                                 key={opt.value}
                                 onClick={() => handleSelect(opt)}
-                                className="px-3 py-2 text-sm cursor-pointer hover:bg-blue-50 border-b last:border-b-0 border-gray-50"
+                                className="px-3 py-2 text-sm cursor-pointer hover:bg-accent border-b last:border-b-0 border-border/30"
                             >
-                                <div className="font-medium text-gray-900">{opt.label}</div>
+                                <div className="font-medium text-foreground">{opt.label}</div>
                                 {opt.subLabel && (
-                                    <div className="text-xs text-gray-500">{opt.subLabel}</div>
+                                    <div className="text-xs text-muted-foreground">{opt.subLabel}</div>
                                 )}
                             </div>
                         ))
                     ) : (
-                        <div className="px-3 py-2 text-sm text-gray-500 italic">
+                        <div className="px-3 py-2 text-sm text-muted-foreground italic">
                             {allowCustomValue ? '按 Enter 使用輸入值' : '無相符結果'}
                         </div>
                     )}
@@ -153,8 +153,8 @@ export function SearchableSelectCell({
         <div
             onClick={() => setIsEditing(true)}
             className={cn(
-                "w-full h-full min-h-[2rem] flex items-center px-2 cursor-pointer hover:bg-gray-50 rounded text-sm truncate",
-                !value && "text-gray-400",
+                "w-full h-full min-h-[2rem] flex items-center px-2 cursor-pointer hover:bg-secondary rounded text-sm truncate",
+                !value && "text-muted-foreground",
                 className
             )}
             title={displayText || ''}

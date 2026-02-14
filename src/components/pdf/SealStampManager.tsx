@@ -54,10 +54,10 @@ export function SealStampManager({
   // }, [config, onChange]);
 
   return (
-    <div className="space-y-6 p-6 bg-white rounded-lg border">
+    <div className="space-y-6 p-6 bg-card rounded-lg border">
       <div className="flex items-center justify-between">
         <div className="flex items-center space-x-2">
-          <Stamp className="h-5 w-5 text-indigo-600" />
+          <Stamp className="h-5 w-5 text-emerald-400" />
           <h3 className="text-lg font-semibold">騎縫章設定</h3>
         </div>
         <Switch
@@ -79,7 +79,7 @@ export function SealStampManager({
                 aria-label="騎縫位置選擇"
                 value={config.position}
                 onChange={(e) => onChange({ ...config, position: e.target.value as any })}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm px-3 py-2 border"
+                className="mt-1 block w-full rounded-md border-border shadow-sm focus:border-emerald-500 focus:ring-emerald-500 sm:text-sm px-3 py-2 border bg-card text-foreground"
               >
                 <option value="right">右側騎縫</option>
                 <option value="left">左側騎縫</option>

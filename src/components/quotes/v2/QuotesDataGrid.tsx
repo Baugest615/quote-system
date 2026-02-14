@@ -30,7 +30,7 @@ export function QuotesDataGrid({ data, clients, onRefresh }: QuotesDataGridProps
 
     // 狀態選項
     const statusOptions = [
-        { value: '草稿', label: '草稿', color: 'bg-gray-100 text-gray-800' },
+        { value: '草稿', label: '草稿', color: 'bg-secondary/50 text-foreground' },
         { value: '待簽約', label: '待簽約', color: 'bg-yellow-100 text-yellow-800' },
         { value: '已簽約', label: '已簽約', color: 'bg-green-100 text-green-800' },
         { value: '已歸檔', label: '已歸檔', color: 'bg-blue-100 text-blue-800' }
@@ -114,7 +114,7 @@ export function QuotesDataGrid({ data, clients, onRefresh }: QuotesDataGridProps
             <Button
                 variant="ghost"
                 size="sm"
-                className={cn("h-8 w-8 p-0", hasFile ? "text-green-600" : "text-gray-400")}
+                className={cn("h-8 w-8 p-0", hasFile ? "text-green-600" : "text-muted-foreground")}
                 onClick={(e) => {
                     e.stopPropagation()
                     setSelectedQuote(quote)
@@ -128,9 +128,9 @@ export function QuotesDataGrid({ data, clients, onRefresh }: QuotesDataGridProps
     }
 
     return (
-        <div className="h-full flex flex-col overflow-auto bg-white border rounded-lg shadow">
+        <div className="h-full flex flex-col overflow-auto bg-card border rounded-lg shadow">
             {/* 表頭 (移動到 scroll container 內以支援水平捲動同步，並保持 sticky) */}
-            <div className="flex bg-gray-100 border-b font-medium text-sm text-gray-600 sticky top-0 z-10 min-w-max">
+            <div className="flex bg-secondary/50 border-b font-medium text-sm text-muted-foreground sticky top-0 z-10 min-w-max">
                 <div className="w-10 p-3 flex-shrink-0"></div>
                 <div className="w-32 p-3 flex-shrink-0">ID</div>
                 <div className="w-32 p-3 flex-shrink-0">日期</div>
@@ -153,24 +153,24 @@ export function QuotesDataGrid({ data, clients, onRefresh }: QuotesDataGridProps
                         <div key={quote.id} className="border-b last:border-b-0">
                             {/* 主行 */}
                             <div className={cn(
-                                "flex items-center hover:bg-blue-50/50 transition-colors group",
-                                isExpanded && "bg-blue-50/30"
+                                "flex items-center hover:bg-accent/50 transition-colors group",
+                                isExpanded && "bg-accent/30"
                             )}>
                                 {/* 展開按鈕 */}
                                 <div className="w-10 p-3 flex justify-center flex-shrink-0 cursor-pointer" onClick={() => toggleRow(quote.id)}>
                                     {isExpanded ?
-                                        <ChevronDown className="h-4 w-4 text-gray-500" /> :
-                                        <ChevronRight className="h-4 w-4 text-gray-400 group-hover:text-gray-600" />
+                                        <ChevronDown className="h-4 w-4 text-muted-foreground" /> :
+                                        <ChevronRight className="h-4 w-4 text-muted-foreground group-hover:text-muted-foreground" />
                                     }
                                 </div>
 
                                 {/* ID (唯讀) */}
-                                <div className="w-32 p-3 flex-shrink-0 text-xs font-mono text-gray-500 truncate" title={quote.id}>
+                                <div className="w-32 p-3 flex-shrink-0 text-xs font-mono text-muted-foreground truncate" title={quote.id}>
                                     {quote.id.slice(0, 8)}...
                                 </div>
 
                                 {/* 日期 (唯讀) */}
-                                <div className="w-32 p-3 flex-shrink-0 text-sm text-gray-600">
+                                <div className="w-32 p-3 flex-shrink-0 text-sm text-muted-foreground">
                                     {new Date(quote.created_at || '').toLocaleDateString('zh-TW')}
                                 </div>
 
@@ -179,7 +179,7 @@ export function QuotesDataGrid({ data, clients, onRefresh }: QuotesDataGridProps
                                     <EditableCell
                                         value={quote.project_name}
                                         onChange={(val) => handleUpdateQuotation(quote.id, 'project_name', val)}
-                                        className="font-medium text-gray-900"
+                                        className="font-medium text-foreground"
                                     />
                                 </div>
 
@@ -194,7 +194,7 @@ export function QuotesDataGrid({ data, clients, onRefresh }: QuotesDataGridProps
                                 </div>
 
                                 {/* 總金額 (唯讀 - 自動計算) */}
-                                <div className="w-32 p-3 flex-shrink-0 text-right font-mono font-medium text-gray-700">
+                                <div className="w-32 p-3 flex-shrink-0 text-right font-mono font-medium text-foreground/70">
                                     {total.toLocaleString()}
                                 </div>
 
@@ -235,7 +235,7 @@ export function QuotesDataGrid({ data, clients, onRefresh }: QuotesDataGridProps
 
                             {/* 展開內容 (成本明細) */}
                             {isExpanded && (
-                                <div className="bg-gray-50/50 border-t border-gray-100 p-4 pl-14 shadow-inner overflow-x-auto">
+                                <div className="bg-muted/20 border-t border-border/50 p-4 pl-14 shadow-inner overflow-x-auto">
                                     <QuotationItemsList
                                         quotationId={quote.id}
                                         onUpdate={onRefresh}
@@ -247,7 +247,7 @@ export function QuotesDataGrid({ data, clients, onRefresh }: QuotesDataGridProps
                 })}
 
                 {data.length === 0 && (
-                    <div className="p-8 text-center text-gray-500">
+                    <div className="p-8 text-center text-muted-foreground">
                         沒有資料
                     </div>
                 )}

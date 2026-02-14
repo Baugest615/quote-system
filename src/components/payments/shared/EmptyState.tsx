@@ -54,11 +54,11 @@ export function EmptyState({
 
     return (
         <div className={cn('text-center py-12', className)}>
-            <Icon className="mx-auto h-12 w-12 text-gray-400" />
-            <h3 className="mt-4 text-sm font-medium text-gray-900">
+            <Icon className="mx-auto h-12 w-12 text-muted-foreground" />
+            <h3 className="mt-4 text-sm font-medium text-foreground">
                 {title || config.defaultTitle}
             </h3>
-            <p className="mt-2 text-sm text-gray-500">
+            <p className="mt-2 text-sm text-muted-foreground">
                 {description || config.defaultDescription}
             </p>
             {action && (

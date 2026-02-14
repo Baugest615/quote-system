@@ -50,7 +50,7 @@ export default function QuotesV2Page() {
 
     // 狀態選項
     const statusOptions = [
-        { value: '草稿', label: '草稿', color: 'bg-gray-100 text-gray-800' },
+        { value: '草稿', label: '草稿', color: 'bg-secondary/50 text-foreground' },
         { value: '待簽約', label: '待簽約', color: 'bg-yellow-100 text-yellow-800' },
         { value: '已簽約', label: '已簽約', color: 'bg-green-100 text-green-800' },
         { value: '已歸檔', label: '已歸檔', color: 'bg-blue-100 text-blue-800' }
@@ -176,12 +176,12 @@ export default function QuotesV2Page() {
     }, [searchTerm, filters])
 
     return (
-        <div className="h-[calc(100vh-4rem)] flex flex-col space-y-4 p-6 bg-gray-50">
+        <div className="h-[calc(100vh-4rem)] flex flex-col space-y-4 p-6 bg-secondary">
             {/* 頂部工具列 */}
-            <div className="flex justify-between items-center bg-white p-4 rounded-lg shadow-sm border">
+            <div className="flex justify-between items-center bg-card p-4 rounded-lg shadow-sm border">
                 <div className="flex items-center space-x-4">
-                    <h1 className="text-2xl font-bold text-gray-800">報價單管理</h1>
-                    <div className="text-sm text-gray-500">
+                    <h1 className="text-2xl font-bold text-foreground">報價單管理</h1>
+                    <div className="text-sm text-muted-foreground">
                         共 {filteredQuotations.length} 筆專案
                     </div>
                 </div>
@@ -189,7 +189,7 @@ export default function QuotesV2Page() {
                 <div className="flex items-center space-x-4">
                     {/* 搜尋 */}
                     <div className="relative w-64">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                         <Input
                             placeholder="搜尋專案、客戶..."
                             value={searchTerm}
@@ -218,11 +218,11 @@ export default function QuotesV2Page() {
 
             {/* 篩選面板 */}
             {showFilters && (
-                <div className="bg-white p-4 rounded-lg shadow-sm border space-y-4">
+                <div className="bg-card p-4 rounded-lg shadow-sm border space-y-4">
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                         {/* 狀態篩選 */}
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">狀態</label>
+                            <label className="block text-sm font-medium text-foreground/70 mb-2">狀態</label>
                             <div className="space-y-2">
                                 {statusOptions.map((option) => (
                                     <label key={option.value} className="flex items-center">
@@ -236,7 +236,7 @@ export default function QuotesV2Page() {
                                                     setFilters(prev => ({ ...prev, status: prev.status.filter(s => s !== option.value) }))
                                                 }
                                             }}
-                                            className="mr-2 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                                            className="mr-2 rounded border-border text-emerald-400 focus:ring-emerald-400"
                                         />
                                         <span className="text-sm">{option.label}</span>
                                     </label>
@@ -246,10 +246,10 @@ export default function QuotesV2Page() {
 
                         {/* 客戶篩選 */}
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">客戶</label>
+                            <label className="block text-sm font-medium text-foreground/70 mb-2">客戶</label>
                             <select
                                 multiple
-                                className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md h-32"
+                                className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-border focus:outline-none focus:ring-emerald-400 focus:border-emerald-500 sm:text-sm rounded-md h-32"
                                 value={filters.clientIds}
                                 onChange={(e) => {
                                     const selectedOptions = Array.from(e.target.selectedOptions, option => option.value)
@@ -260,15 +260,15 @@ export default function QuotesV2Page() {
                                     <option key={client.id} value={client.id}>{client.name}</option>
                                 ))}
                             </select>
-                            <p className="text-xs text-gray-500 mt-1">按住 Ctrl/Cmd 可多選</p>
+                            <p className="text-xs text-muted-foreground mt-1">按住 Ctrl/Cmd 可多選</p>
                         </div>
 
                         {/* 日期範圍 */}
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">建立日期</label>
+                            <label className="block text-sm font-medium text-foreground/70 mb-2">建立日期</label>
                             <div className="space-y-2">
                                 <div className="flex items-center">
-                                    <Calendar className="h-4 w-4 text-gray-400 mr-2" />
+                                    <Calendar className="h-4 w-4 text-muted-foreground mr-2" />
                                     <Input
                                         type="date"
                                         value={filters.dateRange.start}
@@ -277,7 +277,7 @@ export default function QuotesV2Page() {
                                     />
                                 </div>
                                 <div className="flex items-center">
-                                    <span className="text-gray-400 mr-2 text-sm">至</span>
+                                    <span className="text-muted-foreground mr-2 text-sm">至</span>
                                     <Input
                                         type="date"
                                         value={filters.dateRange.end}
@@ -290,10 +290,10 @@ export default function QuotesV2Page() {
 
                         {/* 金額範圍 */}
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">總金額 (含稅)</label>
+                            <label className="block text-sm font-medium text-foreground/70 mb-2">總金額 (含稅)</label>
                             <div className="space-y-2">
                                 <div className="flex items-center">
-                                    <DollarSign className="h-4 w-4 text-gray-400 mr-2" />
+                                    <DollarSign className="h-4 w-4 text-muted-foreground mr-2" />
                                     <Input
                                         type="number"
                                         placeholder="最小值"
@@ -303,7 +303,7 @@ export default function QuotesV2Page() {
                                     />
                                 </div>
                                 <div className="flex items-center">
-                                    <span className="text-gray-400 mr-2 text-sm">至</span>
+                                    <span className="text-muted-foreground mr-2 text-sm">至</span>
                                     <Input
                                         type="number"
                                         placeholder="最大值"
@@ -325,7 +325,7 @@ export default function QuotesV2Page() {
                                 dateRange: { start: '', end: '' },
                                 amountRange: { min: '', max: '' }
                             })}
-                            className="text-gray-500"
+                            className="text-muted-foreground"
                         >
                             清除篩選
                         </Button>
@@ -334,10 +334,10 @@ export default function QuotesV2Page() {
             )}
 
             {/* Data Grid 區域 */}
-            <div className="flex-1 overflow-hidden bg-white rounded-lg shadow-sm border">
+            <div className="flex-1 overflow-hidden bg-card rounded-lg shadow-sm border">
                 {loading ? (
                     <div className="flex items-center justify-center h-full">
-                        <div className="text-gray-500">讀取中...</div>
+                        <div className="text-muted-foreground">讀取中...</div>
                     </div>
                 ) : (
                     <QuotesDataGrid
@@ -350,8 +350,8 @@ export default function QuotesV2Page() {
 
             {/* 分頁控制 */}
             {totalPages > 1 && (
-                <div className="flex items-center justify-between bg-white p-4 rounded-lg shadow-sm border">
-                    <div className="text-sm text-gray-500">
+                <div className="flex items-center justify-between bg-card p-4 rounded-lg shadow-sm border">
+                    <div className="text-sm text-muted-foreground">
                         顯示 {((currentPage - 1) * itemsPerPage) + 1} 至 {Math.min(currentPage * itemsPerPage, filteredQuotations.length)} 筆，共 {filteredQuotations.length} 筆
                     </div>
                     <div className="flex items-center space-x-2">

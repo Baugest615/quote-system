@@ -37,7 +37,7 @@ export function RequestItemRow({
 
     return (
         <tr className={cn(
-            "hover:bg-gray-50 transition-colors",
+            "hover:bg-secondary transition-colors",
             isSelected && "bg-blue-50/50"
         )}>
             {/* 選取框 */}
@@ -47,15 +47,15 @@ export function RequestItemRow({
                     checked={isSelected}
                     onChange={(e) => onSelect(e.target.checked)}
                     disabled={isProcessing}
-                    className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded mt-1"
+                    className="h-4 w-4 text-emerald-400 focus:ring-emerald-400 border-border rounded mt-1"
                 />
             </td>
 
             {/* 專案與申請資訊 */}
             <td className="px-4 py-4 align-top">
                 <div className="flex flex-col space-y-1">
-                    <span className="font-medium text-gray-900">{item.quotations?.project_name || '未命名專案'}</span>
-                    <span className="text-xs text-gray-500">
+                    <span className="font-medium text-foreground">{item.quotations?.project_name || '未命名專案'}</span>
+                    <span className="text-xs text-muted-foreground">
                         申請日期: {new Date(item.request_date || '').toLocaleDateString('zh-TW')}
                     </span>
                     {item.merge_group_id && (
@@ -69,14 +69,14 @@ export function RequestItemRow({
             {/* KOL 與服務 */}
             <td className="px-4 py-4 align-top">
                 <div className="flex flex-col space-y-1">
-                    <span className="text-sm text-gray-900">{item.kols?.name || '未知 KOL'}</span>
-                    <span className="text-xs text-gray-500">{item.service}</span>
+                    <span className="text-sm text-foreground">{item.kols?.name || '未知 KOL'}</span>
+                    <span className="text-xs text-muted-foreground">{item.service}</span>
                 </div>
             </td>
 
             {/* 金額 */}
             <td className="px-4 py-4 align-top text-right">
-                <span className="text-sm font-medium text-gray-900">
+                <span className="text-sm font-medium text-foreground">
                     ${item.cost_amount?.toLocaleString()}
                 </span>
             </td>
@@ -96,8 +96,8 @@ export function RequestItemRow({
                     </Button>
 
                     {/* 發票號碼 */}
-                    <div className="flex items-center text-xs text-gray-600 bg-gray-50 px-2 py-1 rounded border">
-                        <FileText className="h-3 w-3 mr-2 text-gray-400" />
+                    <div className="flex items-center text-xs text-muted-foreground bg-secondary px-2 py-1 rounded border">
+                        <FileText className="h-3 w-3 mr-2 text-muted-foreground" />
                         {item.invoice_number || '無發票號碼'}
                     </div>
                 </div>

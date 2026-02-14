@@ -38,12 +38,12 @@ export function PaymentRecordRow({ item }: PaymentRecordRowProps) {
     const amount = item.amount || request?.cost_amount || 0
 
     return (
-        <tr className="text-sm hover:bg-gray-50">
-            <td className="px-4 py-3 text-gray-900">{projectName}</td>
-            <td className="px-4 py-3 text-gray-700">{kolName}</td>
-            <td className="px-4 py-3 text-gray-700">{service}</td>
-            <td className="px-4 py-3 text-gray-700">{remittanceName}</td>
-            <td className="px-4 py-3 text-right font-medium text-gray-900">
+        <tr className="text-sm hover:bg-secondary">
+            <td className="px-4 py-3 text-foreground">{projectName}</td>
+            <td className="px-4 py-3 text-foreground/70">{kolName}</td>
+            <td className="px-4 py-3 text-foreground/70">{service}</td>
+            <td className="px-4 py-3 text-foreground/70">{remittanceName}</td>
+            <td className="px-4 py-3 text-right font-medium text-foreground">
                 NT$ {amount.toLocaleString()}
             </td>
         </tr>

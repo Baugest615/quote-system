@@ -55,15 +55,15 @@ export function ItemRow({
     }
 
     return (
-        <tr className={`hover:bg-gray-50 ${item.merge_color}`}>
+        <tr className={`hover:bg-accent ${item.merge_color}`}>
             {/* KOL */}
-            <td className="px-2 py-2 align-top text-xs text-gray-500">
+            <td className="px-2 py-2 align-top text-xs text-muted-foreground">
                 {item.kols?.name || '自訂項目'}
             </td>
 
             {/* Service */}
             <td className="px-2 py-2 align-top text-xs">
-                <div className="font-medium text-gray-900">{item.service}</div>
+                <div className="font-medium text-foreground">{item.service}</div>
                 <RejectionReasonDisplay
                     item={item}
                     onClear={() => onClearRejection(item.payment_request_id!)}
@@ -96,7 +96,7 @@ export function ItemRow({
                         size="sm"
                         onClick={handleSave}
                         disabled={isSaving}
-                        className="h-7 w-7 p-0 text-green-600 hover:text-green-700 hover:bg-green-50"
+                        className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground hover:bg-emerald-500/10"
                         title="儲存"
                     >
                         <Save className="h-3.5 w-3.5" />
@@ -112,9 +112,9 @@ export function ItemRow({
                             type="checkbox"
                             checked={selectedForMerge.includes(item.id)}
                             onChange={(e) => onMergeSelection(item.id, e.target.checked)}
-                            className="mr-1 h-3.5 w-3.5 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                            className="mr-1 h-3.5 w-3.5 rounded border-border text-emerald-500 focus:ring-emerald-400"
                         />
-                        <span className="text-xs">選擇合併</span>
+                        <span className="text-xs text-muted-foreground">選擇合併</span>
                     </label>
                 )}
                 {item.merge_group_id && (
@@ -146,7 +146,7 @@ export function ItemRow({
                                 variant="outline"
                                 size="sm"
                                 onClick={() => onOpenFileModal(item)}
-                                className={`h-8 w-8 p-0 flex-shrink-0 ${displayItem.attachments?.length > 0 ? 'text-blue-600 border-blue-200 bg-blue-50' : 'text-gray-400'}`}
+                                className={`h-8 w-8 p-0 flex-shrink-0 ${displayItem.attachments?.length > 0 ? 'text-emerald-400 border-emerald-500/30 bg-emerald-500/10' : 'text-muted-foreground'}`}
                                 title={displayItem.attachments?.length > 0 ? `${displayItem.attachments.length} 個檔案` : '上傳/管理檔案'}
                             >
                                 <Paperclip className="h-4 w-4" />
@@ -180,7 +180,7 @@ export function ItemRow({
                         checked={item.is_selected}
                         onChange={(e) => onPaymentSelection(item.id, e.target.checked)}
                         disabled={!canSelectForPayment(item)}
-                        className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded cursor-pointer"
+                        className="h-4 w-4 text-emerald-500 focus:ring-emerald-400 border-gray-300 rounded cursor-pointer"
                         title={
                             !canSelectForPayment(item)
                                 ? '需檢附文件或正確格式的發票號碼'

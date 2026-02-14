@@ -16,7 +16,7 @@ export function ProjectGroupHeader({ group, onToggle, onSelectAll }: ProjectGrou
 
     return (
         <div
-            className={`border-b px-6 py-4 cursor-pointer hover:bg-gray-50 transition-colors ${group.hasRejected ? 'bg-red-50' : ''
+            className={`border-b px-6 py-4 cursor-pointer hover:bg-secondary transition-colors ${group.hasRejected ? 'bg-red-500/10' : ''
                 }`}
             onClick={() => onToggle(group.projectId)}
         >
@@ -26,19 +26,19 @@ export function ProjectGroupHeader({ group, onToggle, onSelectAll }: ProjectGrou
                     {/* Expand/Collapse icon */}
                     <div className="flex-shrink-0">
                         {group.isExpanded ? (
-                            <ChevronDown className="h-5 w-5 text-gray-500" />
+                            <ChevronDown className="h-5 w-5 text-muted-foreground" />
                         ) : (
-                            <ChevronRight className="h-5 w-5 text-gray-500" />
+                            <ChevronRight className="h-5 w-5 text-muted-foreground" />
                         )}
                     </div>
 
                     {/* Project icon */}
-                    <FolderOpen className="h-5 w-5 text-indigo-500 flex-shrink-0" />
+                    <FolderOpen className="h-5 w-5 text-emerald-400 flex-shrink-0" />
 
                     {/* Project name and client */}
                     <div className="flex-1 min-w-0">
                         <div className="flex items-center space-x-2">
-                            <h3 className="font-semibold text-gray-900 truncate">
+                            <h3 className="font-semibold text-foreground truncate">
                                 {group.projectName}
                             </h3>
                             {group.hasRejected && (
@@ -49,7 +49,7 @@ export function ProjectGroupHeader({ group, onToggle, onSelectAll }: ProjectGrou
                             )}
                         </div>
                         {group.clientName && (
-                            <p className="text-sm text-gray-500 truncate">
+                            <p className="text-sm text-muted-foreground truncate">
                                 客戶：{group.clientName}
                             </p>
                         )}
@@ -59,12 +59,12 @@ export function ProjectGroupHeader({ group, onToggle, onSelectAll }: ProjectGrou
                 {/* Right side: Stats */}
                 <div className="flex items-center space-x-4 ml-4" onClick={(e) => e.stopPropagation()}>
                     {/* Items count */}
-                    <div className="text-sm text-gray-600">
+                    <div className="text-sm text-muted-foreground">
                         <span className="font-medium">{group.totalItems}</span> 個項目
                     </div>
 
                     {/* Total cost */}
-                    <div className="text-sm font-semibold text-gray-900">
+                    <div className="text-sm font-semibold text-foreground">
                         NT$ {group.totalCost.toLocaleString()}
                     </div>
 
@@ -101,9 +101,9 @@ export function ProjectGroupHeader({ group, onToggle, onSelectAll }: ProjectGrou
 
             {/* Progress bar */}
             {!group.hasRejected && completionPercentage > 0 && completionPercentage < 100 && (
-                <div className="mt-3 w-full bg-gray-200 rounded-full h-2">
+                <div className="mt-3 w-full bg-muted rounded-full h-2">
                     <div
-                        className="bg-indigo-600 h-2 rounded-full transition-all duration-300"
+                        className="bg-emerald-600 h-2 rounded-full transition-all duration-300"
                         style={{ width: `${completionPercentage}%` }}
                     />
                 </div>

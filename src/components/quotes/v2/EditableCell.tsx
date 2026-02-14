@@ -66,7 +66,7 @@ export function EditableCell({
                     onBlur={handleBlur}
                     onKeyDown={handleKeyDown}
                     className={cn(
-                        "w-full h-full p-1 bg-white border border-blue-500 rounded focus:outline-none text-sm",
+                        "w-full h-full p-1 bg-card border border-blue-500 rounded focus:outline-none text-sm",
                         className
                     )}
                 >
@@ -103,12 +103,12 @@ export function EditableCell({
             <div
                 onClick={() => setIsEditing(true)}
                 className={cn(
-                    "w-full h-full min-h-[2rem] flex items-center px-2 cursor-pointer hover:bg-gray-50 rounded text-sm",
+                    "w-full h-full min-h-[2rem] flex items-center px-2 cursor-pointer hover:bg-secondary rounded text-sm",
                     selectedOption?.color, // Apply color if available
                     className
                 )}
             >
-                {selectedOption ? selectedOption.label : <span className="text-gray-400">{placeholder || '未設定'}</span>}
+                {selectedOption ? selectedOption.label : <span className="text-muted-foreground">{placeholder || '未設定'}</span>}
             </div>
         )
     }
@@ -117,8 +117,8 @@ export function EditableCell({
         <div
             onClick={() => setIsEditing(true)}
             className={cn(
-                "w-full h-full min-h-[2rem] flex items-center px-2 cursor-pointer hover:bg-gray-50 rounded text-sm truncate",
-                !value && "text-gray-400",
+                "w-full h-full min-h-[2rem] flex items-center px-2 cursor-pointer hover:bg-secondary rounded text-sm truncate",
+                !value && "text-muted-foreground",
                 className
             )}
         >

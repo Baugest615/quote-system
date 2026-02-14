@@ -324,7 +324,7 @@ export default function ViewQuotePage() {
       {/* 操作按鈕區域 */}
       <div className="flex justify-between items-center print:hidden">
         <div>
-          <Link href="/dashboard/quotes" className="text-sm text-gray-500 hover:text-indigo-600 flex items-center mb-2">
+          <Link href="/dashboard/quotes" className="text-sm text-muted-foreground hover:text-emerald-400 flex items-center mb-2">
             <ArrowLeft className="h-4 w-4 mr-1" /> 返回列表
           </Link>
           <h1 className="text-3xl font-bold">檢視報價單</h1>
@@ -344,7 +344,7 @@ export default function ViewQuotePage() {
                 variant="outline"
                 disabled={isProcessing}
                 onClick={() => setShowStampSettings(true)}
-                className={sealStampConfig.enabled ? 'border-indigo-500 text-indigo-600' : ''}
+                className={sealStampConfig.enabled ? 'border-emerald-500 text-emerald-400' : ''}
               >
                 <Stamp className="mr-2 h-4 w-4" /> 騎縫章設定
               </Button>
@@ -370,50 +370,50 @@ export default function ViewQuotePage() {
         <SealStampManager config={sealStampConfig} onChange={handleSealStampConfigChange} />
       </Modal>
 
-      <div id="printable-quote" className="relative bg-white p-8 md:p-12 rounded-lg shadow-md border text-[13px] leading-relaxed">
+      <div id="printable-quote" className="relative bg-card p-8 md:p-12 rounded-lg shadow-md border text-[13px] leading-relaxed">
         <img src="/watermark-an.png" alt="watermark" className="absolute inset-0 w-full h-full opacity-5 object-contain z-0 pdf-watermark" />
         <div className="text-center mb-4 pb-2 border-b">
           <img src="/logo.png" alt="安安娛樂 LOGO" className="h-10 w-auto" />
           <h1 className="text-xl font-bold">安安娛樂有限公司委刊專案契約書</h1>
         </div>
 
-        <table className="w-full text-sm mb-8 border border-gray-300">
+        <table className="w-full text-sm mb-8 border border-border">
           <tbody>
             <tr className="border-b">
-              <td className="p-2 font-bold bg-gray-50 whitespace-nowrap w-[120px]">專案名稱：</td>
+              <td className="p-2 font-bold bg-secondary whitespace-nowrap w-[120px]">專案名稱：</td>
               <td className="p-2 col-span-3" colSpan={3}>
                 <div className="flex justify-between items-center">
                   <span>{quote.project_name}</span>
-                  <span className="text-sm text-gray-600 whitespace-nowrap">
+                  <span className="text-sm text-muted-foreground whitespace-nowrap">
                     開立時間：{quote.created_at ? new Date(quote.created_at).toLocaleDateString() : 'N/A'}
                   </span>
                 </div>
               </td>
             </tr>
             <tr className="border-b">
-              <td className="p-2 font-bold bg-gray-50 whitespace-nowrap w-[120px]">委刊客戶：</td>
+              <td className="p-2 font-bold bg-secondary whitespace-nowrap w-[120px]">委刊客戶：</td>
               <td className="p-2">{quote.clients?.name || 'N/A'}</td>
-              <td className="p-2 font-bold bg-gray-50 whitespace-nowrap w-[120px]">客戶聯絡人：</td>
+              <td className="p-2 font-bold bg-secondary whitespace-nowrap w-[120px]">客戶聯絡人：</td>
               <td className="p-2">{quote.client_contact}</td>
             </tr>
             <tr className="border-b">
-              <td className="p-2 font-bold bg-gray-50 whitespace-nowrap w-[120px]">統一編號：</td>
+              <td className="p-2 font-bold bg-secondary whitespace-nowrap w-[120px]">統一編號：</td>
               <td className="p-2">{quote.clients?.tin || 'N/A'}</td>
-              <td className="p-2 font-bold bg-gray-50 whitespace-nowrap w-[120px]">聯絡人電話：</td>
+              <td className="p-2 font-bold bg-secondary whitespace-nowrap w-[120px]">聯絡人電話：</td>
               <td className="p-2">{quote.contact_phone || quote.clients?.phone || 'N/A'}</td>
             </tr>
             <tr className="border-b">
-              <td className="p-2 font-bold bg-gray-50 whitespace-nowrap w-[120px]">地址：</td>
+              <td className="p-2 font-bold bg-secondary whitespace-nowrap w-[120px]">地址：</td>
               <td className="p-2">{quote.clients?.address || 'N/A'}</td>
-              <td className="p-2 font-bold bg-gray-50 whitespace-nowrap w-[120px]">電子郵件：</td>
+              <td className="p-2 font-bold bg-secondary whitespace-nowrap w-[120px]">電子郵件：</td>
               <td className="p-2">{quote.contact_email || quote.clients?.email || 'N/A'}</td>
             </tr>
           </tbody>
         </table>
 
-        <table className="w-full border border-gray-300 mb-6 text-xs">
+        <table className="w-full border border-border mb-6 text-xs">
           <thead>
-            <tr className="bg-gray-50">
+            <tr className="bg-secondary">
               <th className="border p-2 text-center">分類</th>
               <th className="border p-2 text-center">KOL</th>
               <th className="border p-2 text-center">服務內容</th>
@@ -434,7 +434,7 @@ export default function ViewQuotePage() {
                   {/* 分類欄位 - 使用 rowSpan 合併 */}
                   {showCategory && (
                     <td
-                      className="border p-2 text-center align-middle font-medium bg-gray-50"
+                      className="border p-2 text-center align-middle font-medium bg-secondary"
                       rowSpan={row.categoryRowSpan}
                     >
                       {row.item.category || 'N/A'}
@@ -475,12 +475,12 @@ export default function ViewQuotePage() {
             <tr>
               <td className="w-2/3 pr-8 align-top">
                 <div className="border p-4 h-full">
-                  <h3 className="text-sm font-bold mb-3 bg-gray-50 p-2 -m-4 mb-3 border-b">【廣告費之支付約定】</h3>
+                  <h3 className="text-sm font-bold mb-3 bg-secondary p-2 -m-4 mb-3 border-b">【廣告費之支付約定】</h3>
                   <div className="text-[10px] leading-normal space-y-2">
                     <p><strong>1.</strong> 本次廣告行銷費用由委託公司負責繳付，所有費用代收百分之五的營業稅。銀⾏⼿續費由⽀付⽅負擔。</p>
                     <p><strong>2.</strong> 本公司應於執行到期日開立當月份發票予委刊客戶，委刊客戶應於收到發票時，按發票日期月結30日依發票所載之金額匯入本公司指定帳戶如下。</p>
                     <p><strong>3.</strong> 所有報酬及因本服務契約書產⽣之相關費⽤均以本服務契約書內載明之幣值及約定付款⽇付款。</p>
-                    <div className="mt-3 bg-gray-50 p-3 rounded border text-xs">
+                    <div className="mt-3 bg-secondary p-3 rounded border text-xs">
                       <table className="w-full">
                         <tbody>
                           <tr>
@@ -503,8 +503,8 @@ export default function ViewQuotePage() {
                     {hasDiscountPrice ? (
                       <>
                         <tr>
-                          <td className="border p-2 font-bold bg-gray-50">未稅小計</td>
-                          <td className="border p-2 text-right text-gray-500 relative">
+                          <td className="border p-2 font-bold bg-secondary">未稅小計</td>
+                          <td className="border p-2 text-right text-muted-foreground relative">
 
                             ${quote.subtotal_untaxed?.toLocaleString() || '0'}
 
@@ -517,7 +517,7 @@ export default function ViewQuotePage() {
                           </td>
                         </tr>
                         <tr>
-                          <td className="border p-2 font-bold bg-gray-50">營業稅 (5%)</td>
+                          <td className="border p-2 font-bold bg-secondary">營業稅 (5%)</td>
                           <td className="border p-2 text-right">
                             ${discountedTax.toLocaleString()}
                           </td>
@@ -532,13 +532,13 @@ export default function ViewQuotePage() {
                     ) : (
                       <>
                         <tr>
-                          <td className="border p-2 font-bold bg-gray-50">未稅小計</td>
+                          <td className="border p-2 font-bold bg-secondary">未稅小計</td>
                           <td className="border p-2 text-right">
                             ${quote.subtotal_untaxed?.toLocaleString() || '0'}
                           </td>
                         </tr>
                         <tr>
-                          <td className="border p-2 font-bold bg-gray-50">營業稅 (5%)</td>
+                          <td className="border p-2 font-bold bg-secondary">營業稅 (5%)</td>
                           <td className="border p-2 text-right">
                             ${quote.tax?.toLocaleString() || '0'}
                           </td>
@@ -560,16 +560,16 @@ export default function ViewQuotePage() {
 
         <div className="text-xs space-y-4 whitespace-pre-wrap">
           <div className="border p-4 break-inside-avoid">
-            <h3 className="text-sm font-bold mb-3 bg-gray-50 p-2 -m-4 mb-3 border-b">【合約約定】</h3>
+            <h3 className="text-sm font-bold mb-3 bg-secondary p-2 -m-4 mb-3 border-b">【合約約定】</h3>
             <p className="text-[10px] leading-normal">{contractAgreement}</p>
           </div>
           <div className="border p-4 break-inside-avoid">
-            <h3 className="text-sm font-bold mb-3 bg-gray-50 p-2 -m-4 mb-3 border-b">【保密協議】</h3>
+            <h3 className="text-sm font-bold mb-3 bg-secondary p-2 -m-4 mb-3 border-b">【保密協議】</h3>
             <p className="text-[10px] leading-normal">{confidentialityAgreement}</p>
           </div>
           {quote.remarks && (
             <div className="border p-4 break-inside-avoid">
-              <h3 className="text-sm font-bold mb-3 bg-gray-50 p-2 -m-4 mb-3 border-b">【補充協議】</h3>
+              <h3 className="text-sm font-bold mb-3 bg-secondary p-2 -m-4 mb-3 border-b">【補充協議】</h3>
               <p className="text-[10px] leading-normal">{quote.remarks}</p>
             </div>
           )}
@@ -597,7 +597,7 @@ export default function ViewQuotePage() {
       {/* 🔧 隱藏的 PDF 專用區塊 - 供 html2pdf.js 使用（無 rowSpan 避免跑版） */}
       <div
         id="pdf-printable"
-        className="fixed -left-[9999px] top-0 bg-white"
+        className="fixed -left-[9999px] top-0 bg-card"
         style={{ width: '210mm', padding: '15mm' }}
       >
         <img src="/watermark-an.png" alt="watermark" className="absolute inset-0 w-full h-full opacity-5 object-contain z-0 pdf-watermark" />
@@ -606,35 +606,35 @@ export default function ViewQuotePage() {
           <h1 className="text-xl font-bold">安安娛樂有限公司委刊專案契約書</h1>
         </div>
 
-        <table className="w-full text-sm mb-8 border border-gray-300">
+        <table className="w-full text-sm mb-8 border border-border">
           <tbody>
             <tr className="border-b">
-              <td className="p-2 font-bold bg-gray-50 whitespace-nowrap w-[120px]">專案名稱：</td>
+              <td className="p-2 font-bold bg-secondary whitespace-nowrap w-[120px]">專案名稱：</td>
               <td className="p-2" colSpan={3}>
                 <div className="flex justify-between items-center">
                   <span>{quote.project_name}</span>
-                  <span className="text-sm text-gray-600 whitespace-nowrap">
+                  <span className="text-sm text-muted-foreground whitespace-nowrap">
                     開立時間：{quote.created_at ? new Date(quote.created_at).toLocaleDateString() : 'N/A'}
                   </span>
                 </div>
               </td>
             </tr>
             <tr className="border-b">
-              <td className="p-2 font-bold bg-gray-50 whitespace-nowrap w-[120px]">委刊客戶：</td>
+              <td className="p-2 font-bold bg-secondary whitespace-nowrap w-[120px]">委刊客戶：</td>
               <td className="p-2">{quote.clients?.name || 'N/A'}</td>
-              <td className="p-2 font-bold bg-gray-50 whitespace-nowrap w-[120px]">客戶聯絡人：</td>
+              <td className="p-2 font-bold bg-secondary whitespace-nowrap w-[120px]">客戶聯絡人：</td>
               <td className="p-2">{quote.client_contact}</td>
             </tr>
             <tr className="border-b">
-              <td className="p-2 font-bold bg-gray-50 whitespace-nowrap w-[120px]">統一編號：</td>
+              <td className="p-2 font-bold bg-secondary whitespace-nowrap w-[120px]">統一編號：</td>
               <td className="p-2">{quote.clients?.tin || 'N/A'}</td>
-              <td className="p-2 font-bold bg-gray-50 whitespace-nowrap w-[120px]">聯絡人電話：</td>
+              <td className="p-2 font-bold bg-secondary whitespace-nowrap w-[120px]">聯絡人電話：</td>
               <td className="p-2">{quote.contact_phone || quote.clients?.phone || 'N/A'}</td>
             </tr>
             <tr className="border-b">
-              <td className="p-2 font-bold bg-gray-50 whitespace-nowrap w-[120px]">地址：</td>
+              <td className="p-2 font-bold bg-secondary whitespace-nowrap w-[120px]">地址：</td>
               <td className="p-2">{quote.clients?.address || 'N/A'}</td>
-              <td className="p-2 font-bold bg-gray-50 whitespace-nowrap w-[120px]">電子郵件：</td>
+              <td className="p-2 font-bold bg-secondary whitespace-nowrap w-[120px]">電子郵件：</td>
               <td className="p-2">{quote.contact_email || quote.clients?.email || 'N/A'}</td>
             </tr>
           </tbody>
@@ -649,12 +649,12 @@ export default function ViewQuotePage() {
             <tr>
               <td className="w-2/3 pr-8 align-top">
                 <div className="border p-4 h-full">
-                  <h3 className="text-sm font-bold mb-3 bg-gray-50 p-2 -m-4 mb-3 border-b">【廣告費之支付約定】</h3>
+                  <h3 className="text-sm font-bold mb-3 bg-secondary p-2 -m-4 mb-3 border-b">【廣告費之支付約定】</h3>
                   <div className="text-[10px] leading-normal space-y-2">
                     <p><strong>1.</strong> 本次廣告行銷費用由委託公司負責繳付，所有費用代收百分之五的營業稅。銀⾏⼿續費由⽀付⽅負擔。</p>
                     <p><strong>2.</strong> 本公司應於執行到期日開立當月份發票予委刊客戶，委刊客戶應於收到發票時，按發票日期月結30日依發票所載之金額匯入本公司指定帳戶如下。</p>
                     <p><strong>3.</strong> 所有報酬及因本服務契約書產⽣之相關費⽤均以本服務契約書內載明之幣值及約定付款⽇付款。</p>
-                    <div className="mt-3 bg-gray-50 p-3 rounded border text-xs">
+                    <div className="mt-3 bg-secondary p-3 rounded border text-xs">
                       <p>銀行名稱：{companyBankInfo.bankName}　｜　銀行帳號：{companyBankInfo.accountNumber}</p>
                       <p>分行名稱：{companyBankInfo.branchName}　｜　帳戶名稱：{companyBankInfo.accountName}</p>
                     </div>
@@ -662,19 +662,19 @@ export default function ViewQuotePage() {
                 </div>
               </td>
               <td className="w-1/3 align-top">
-                <table className="w-full border border-gray-300 text-sm">
+                <table className="w-full border border-border text-sm">
                   <tbody>
                     {hasDiscountPrice ? (
                       <>
-                        <tr className="border-b"><td className="p-2 font-bold bg-gray-50">未稅小計</td><td className="p-2 text-right line-through text-gray-400">${quote.subtotal_untaxed?.toLocaleString()}</td></tr>
+                        <tr className="border-b"><td className="p-2 font-bold bg-secondary">未稅小計</td><td className="p-2 text-right line-through text-muted-foreground">${quote.subtotal_untaxed?.toLocaleString()}</td></tr>
                         <tr className="border-b bg-blue-50"><td className="p-2 font-bold">未稅優惠</td><td className="p-2 text-right text-blue-600 font-bold">${quote.discounted_price?.toLocaleString()}</td></tr>
-                        <tr className="border-b"><td className="p-2 font-bold bg-gray-50">營業稅(5%)</td><td className="p-2 text-right">${discountedTax.toLocaleString()}</td></tr>
+                        <tr className="border-b"><td className="p-2 font-bold bg-secondary">營業稅(5%)</td><td className="p-2 text-right">${discountedTax.toLocaleString()}</td></tr>
                         <tr className="bg-red-50"><td className="p-2 font-bold">含稅總計</td><td className="p-2 text-right text-red-600 text-lg font-bold">${discountedGrandTotal.toLocaleString()}</td></tr>
                       </>
                     ) : (
                       <>
-                        <tr className="border-b"><td className="p-2 font-bold bg-gray-50">未稅小計</td><td className="p-2 text-right">${quote.subtotal_untaxed?.toLocaleString()}</td></tr>
-                        <tr className="border-b"><td className="p-2 font-bold bg-gray-50">營業稅(5%)</td><td className="p-2 text-right">${quote.tax?.toLocaleString()}</td></tr>
+                        <tr className="border-b"><td className="p-2 font-bold bg-secondary">未稅小計</td><td className="p-2 text-right">${quote.subtotal_untaxed?.toLocaleString()}</td></tr>
+                        <tr className="border-b"><td className="p-2 font-bold bg-secondary">營業稅(5%)</td><td className="p-2 text-right">${quote.tax?.toLocaleString()}</td></tr>
                         <tr className="bg-red-50"><td className="p-2 font-bold">含稅總計</td><td className="p-2 text-right text-red-600 text-lg font-bold">${quote.grand_total_taxed?.toLocaleString()}</td></tr>
                       </>
                     )}
@@ -689,19 +689,19 @@ export default function ViewQuotePage() {
         <div className="space-y-4 break-inside-avoid">
           {contractAgreement && (
             <div className="border p-4">
-              <h3 className="text-sm font-bold mb-3 bg-gray-50 p-2 -m-4 mb-3 border-b">【合約約定】</h3>
+              <h3 className="text-sm font-bold mb-3 bg-secondary p-2 -m-4 mb-3 border-b">【合約約定】</h3>
               <p className="text-[10px] leading-normal whitespace-pre-wrap">{contractAgreement}</p>
             </div>
           )}
           {confidentialityAgreement && (
             <div className="border p-4">
-              <h3 className="text-sm font-bold mb-3 bg-gray-50 p-2 -m-4 mb-3 border-b">【保密協議】</h3>
+              <h3 className="text-sm font-bold mb-3 bg-secondary p-2 -m-4 mb-3 border-b">【保密協議】</h3>
               <p className="text-[10px] leading-normal whitespace-pre-wrap">{confidentialityAgreement}</p>
             </div>
           )}
           {quote.remarks && (
             <div className="border p-4">
-              <h3 className="text-sm font-bold mb-3 bg-gray-50 p-2 -m-4 mb-3 border-b">【補充協議】</h3>
+              <h3 className="text-sm font-bold mb-3 bg-secondary p-2 -m-4 mb-3 border-b">【補充協議】</h3>
               <p className="text-[10px] leading-normal">{quote.remarks}</p>
             </div>
           )}

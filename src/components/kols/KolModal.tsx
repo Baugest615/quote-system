@@ -52,7 +52,7 @@ interface KolModalProps {
 const SocialInput = ({ name, icon: Icon, register, placeholder }: { name: keyof KolFormData['social_links']; icon: React.ElementType; register: any; placeholder: string }) => (
   <div className="relative">
     <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
-      <Icon className="h-5 w-5 text-gray-400" />
+      <Icon className="h-5 w-5 text-muted-foreground" />
     </div>
     <Input {...register(`social_links.${name}`)} placeholder={placeholder} className="pl-10" />
   </div>
@@ -118,7 +118,7 @@ export function KolModal({ isOpen, onClose, onSave, kol, kolTypes, serviceTypes 
 
         {/* 基本資訊區塊 */}
         <div className="space-y-4">
-          <h4 className="text-md font-semibold text-gray-700 border-b pb-2">基本資訊</h4>
+          <h4 className="text-md font-semibold text-foreground/70 border-b pb-2">基本資訊</h4>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2">
             <div>
               <label className="text-sm font-medium">KOL 類型</label>
@@ -141,7 +141,7 @@ export function KolModal({ isOpen, onClose, onSave, kol, kolTypes, serviceTypes 
 
         {/* 服務項目與價格區塊 */}
         <div className="space-y-4">
-          <h4 className="text-md font-semibold text-gray-700 border-b pb-2">服務項目與價格</h4>
+          <h4 className="text-md font-semibold text-foreground/70 border-b pb-2">服務項目與價格</h4>
           <div className="space-y-3 pt-2">
             {fields.map((field, index) => (
               <div key={field.id} className="flex items-center space-x-2">
@@ -163,7 +163,7 @@ export function KolModal({ isOpen, onClose, onSave, kol, kolTypes, serviceTypes 
 
         {/* 社群平台連結區塊 */}
         <div className="space-y-4">
-          <h4 className="text-md font-semibold text-gray-700 border-b pb-2">社群平台連結</h4>
+          <h4 className="text-md font-semibold text-foreground/70 border-b pb-2">社群平台連結</h4>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2">
             <SocialInput name="fb" icon={Facebook} register={register} placeholder="Facebook URL" />
             <SocialInput name="ig" icon={Instagram} register={register} placeholder="Instagram URL" />
@@ -176,11 +176,11 @@ export function KolModal({ isOpen, onClose, onSave, kol, kolTypes, serviceTypes 
 
         {/* 銀行帳號資訊區塊 */}
         <div className="space-y-4">
-          <h4 className="text-md font-semibold text-gray-700 border-b pb-2">銀行帳號資訊</h4>
+          <h4 className="text-md font-semibold text-foreground/70 border-b pb-2">銀行帳號資訊</h4>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4 pt-2">
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700">帳戶類型</label>
+                <label className="block text-sm font-medium text-foreground/70">帳戶類型</label>
                 <div className="mt-2 flex space-x-4">
                   <label className="inline-flex items-center"><input type="radio" {...register('bank_info.bankType')} value="individual" className="form-radio" /> <span className="ml-2">勞報</span></label>
                   <label className="inline-flex items-center"><input type="radio" {...register('bank_info.bankType')} value="company" className="form-radio" /> <span className="ml-2">公司行號</span></label>

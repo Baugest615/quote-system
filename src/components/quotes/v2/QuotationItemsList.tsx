@@ -331,25 +331,25 @@ export function QuotationItemsList({ quotationId, onUpdate }: QuotationItemsList
         kols.map(k => ({ label: k.name, value: k.id, subLabel: k.real_name || undefined })),
         [kols])
 
-    if (loading) return <div className="p-4 flex justify-center"><Loader2 className="animate-spin h-5 w-5 text-gray-400" /></div>
+    if (loading) return <div className="p-4 flex justify-center"><Loader2 className="animate-spin h-5 w-5 text-muted-foreground" /></div>
 
     return (
         <div
-            className="bg-gray-50 p-4 rounded-lg border border-gray-200 shadow-inner outline-none"
+            className="bg-secondary p-4 rounded-lg border border-border shadow-inner outline-none"
             onPaste={handlePaste} // 監聽貼上事件
             tabIndex={0} // 讓 div 可以接收焦點
         >
             <div className="flex justify-between items-center mb-3">
-                <h4 className="text-sm font-semibold text-gray-700">
+                <h4 className="text-sm font-semibold text-foreground/70">
                     成本明細 (報價項目)
-                    <span className="ml-2 text-xs font-normal text-gray-500 hidden sm:inline">
+                    <span className="ml-2 text-xs font-normal text-muted-foreground hidden sm:inline">
                         (支援 Excel 貼上: 類別 | KOL | 服務 | 數量 | 單價 | 成本)
                     </span>
                 </h4>
                 <div className="flex space-x-2">
                     {isDirty && (
                         <>
-                            <Button size="sm" variant="ghost" onClick={handleCancel} disabled={isSaving} className="h-7 text-xs text-gray-500 hover:text-gray-700">
+                            <Button size="sm" variant="ghost" onClick={handleCancel} disabled={isSaving} className="h-7 text-xs text-muted-foreground hover:text-foreground/70">
                                 <XCircle className="h-3 w-3 mr-1" /> 取消
                             </Button>
                             <Button size="sm" onClick={handleSave} disabled={isSaving} className="h-7 text-xs bg-green-600 hover:bg-green-700 text-white">
@@ -375,7 +375,7 @@ export function QuotationItemsList({ quotationId, onUpdate }: QuotationItemsList
                         title="貼上 Excel 資料"
                     >
                         <div className="space-y-4">
-                            <p className="text-sm text-gray-500">
+                            <p className="text-sm text-muted-foreground">
                                 請將 Excel 資料複製並貼上到下方區域。<br />
                                 格式順序：類別 | KOL | 服務 | 數量 | 單價 | 成本
                             </p>
@@ -399,8 +399,8 @@ export function QuotationItemsList({ quotationId, onUpdate }: QuotationItemsList
             </div>
 
             <div className="overflow-x-auto">
-                <table className="w-full text-sm bg-white border rounded-md overflow-hidden">
-                    <thead className="bg-gray-100 text-gray-600">
+                <table className="w-full text-sm bg-card border rounded-md overflow-hidden">
+                    <thead className="bg-secondary/50 text-muted-foreground">
                         <tr>
                             <th className="px-3 py-2 text-left w-32">類別</th>
                             <th className="px-3 py-2 text-left w-40">KOL</th>
@@ -412,7 +412,7 @@ export function QuotationItemsList({ quotationId, onUpdate }: QuotationItemsList
                             <th className="px-3 py-2 text-center w-10"></th>
                         </tr>
                     </thead>
-                    <tbody className="divide-y divide-gray-100">
+                    <tbody className="divide-y divide-border/50">
                         {items.map((item) => {
                             const selectedKol = kols.find(k => k.id === item.kol_id)
                             const serviceOptions = selectedKol?.kol_services.map(s => ({
@@ -422,8 +422,8 @@ export function QuotationItemsList({ quotationId, onUpdate }: QuotationItemsList
                             })) || []
 
                             return (
-                                <tr key={item.id} className="hover:bg-blue-50/30 group">
-                                    <td className="border-r border-gray-100 p-0">
+                                <tr key={item.id} className="hover:bg-accent/30 group">
+                                    <td className="border-r border-border/50 p-0">
                                         <SearchableSelectCell
                                             value={item.category}
                                             onChange={(val) => handleUpdateItem(item.id, { category: val })}
@@ -433,7 +433,7 @@ export function QuotationItemsList({ quotationId, onUpdate }: QuotationItemsList
                                             allowCustomValue={true}
                                         />
                                     </td>
-                                    <td className="border-r border-gray-100 p-0">
+                                    <td className="border-r border-border/50 p-0">
                                         <SearchableSelectCell
                                             value={item.kol_id}
                                             displayValue={selectedKol?.name}
@@ -443,7 +443,7 @@ export function QuotationItemsList({ quotationId, onUpdate }: QuotationItemsList
                                             className="px-3 py-2 font-medium text-blue-600"
                                         />
                                     </td>
-                                    <td className="border-r border-gray-100 p-0">
+                                    <td className="border-r border-border/50 p-0">
                                         <SearchableSelectCell
                                             value={item.service}
                                             onChange={(val, price) => handleServiceChange(item.id, val, price)}
@@ -453,7 +453,7 @@ export function QuotationItemsList({ quotationId, onUpdate }: QuotationItemsList
                                             allowCustomValue={true}
                                         />
                                     </td>
-                                    <td className="border-r border-gray-100 p-0">
+                                    <td className="border-r border-border/50 p-0">
                                         <EditableCell
                                             value={item.quantity}
                                             type="number"
@@ -461,7 +461,7 @@ export function QuotationItemsList({ quotationId, onUpdate }: QuotationItemsList
                                             className="px-3 py-2 text-right"
                                         />
                                     </td>
-                                    <td className="border-r border-gray-100 p-0">
+                                    <td className="border-r border-border/50 p-0">
                                         <EditableCell
                                             value={item.price}
                                             type="number"
@@ -469,15 +469,15 @@ export function QuotationItemsList({ quotationId, onUpdate }: QuotationItemsList
                                             className="px-3 py-2 text-right"
                                         />
                                     </td>
-                                    <td className="border-r border-gray-100 p-0">
+                                    <td className="border-r border-border/50 p-0">
                                         <EditableCell
                                             value={item.cost}
                                             type="number"
                                             onChange={(val) => handleUpdateItem(item.id, { cost: Number(val) })}
-                                            className="px-3 py-2 text-right text-gray-600"
+                                            className="px-3 py-2 text-right text-muted-foreground"
                                         />
                                     </td>
-                                    <td className="px-3 py-2 text-right font-medium text-gray-700">
+                                    <td className="px-3 py-2 text-right font-medium text-foreground/70">
                                         {(item.quantity * item.price).toLocaleString()}
                                     </td>
                                     <td className="px-1 py-1 text-center">
@@ -487,7 +487,7 @@ export function QuotationItemsList({ quotationId, onUpdate }: QuotationItemsList
                                             className={`h-6 w-6 p-0 ${
                                                 // @ts-ignore
                                                 item.payment_requests?.some((pr: any) => pr.verification_status !== 'rejected')
-                                                    ? 'text-gray-300 cursor-not-allowed'
+                                                    ? 'text-muted-foreground cursor-not-allowed'
                                                     : 'opacity-0 group-hover:opacity-100 text-red-400 hover:text-red-600'
                                                 }`}
                                             onClick={() => handleDeleteItem(item.id)}
@@ -510,7 +510,7 @@ export function QuotationItemsList({ quotationId, onUpdate }: QuotationItemsList
                         })}
                         {items.length === 0 && (
                             <tr>
-                                <td colSpan={8} className="px-3 py-8 text-center text-gray-400 italic">
+                                <td colSpan={8} className="px-3 py-8 text-center text-muted-foreground italic">
                                     尚無項目，請點擊上方按鈕新增，或直接貼上 Excel 資料 (Ctrl+V)
                                 </td>
                             </tr>
