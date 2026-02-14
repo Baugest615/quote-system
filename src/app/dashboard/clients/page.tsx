@@ -6,7 +6,7 @@ import supabase from '@/lib/supabase/client'
 import { Database } from '@/types/database.types'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { ClientModal } from '@/components/clients/ClientModal'
+import { ClientModal, type ClientFormData } from '@/components/clients/ClientModal'
 import { PlusCircle, Edit, Trash2, Search, Users, Mail, Phone, Star } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -127,8 +127,10 @@ export default function ClientsPage() {
     setSelectedClient(null)
   }
 
-  const handleSaveClient = async (formData: any, id?: string) => {
+  const handleSaveClient = async (formData: ClientFormData, id?: string) => {
     try {
+      // 為了向後相容性，從聯絡人陣列取得主要聯絡人資訊
+      const primaryContact = formData.contacts?.find(c => c.is_primary) || formData.contacts?.[0]
       const dataToSave = {
         name: formData.name,
         phone: formData.phone || null,
@@ -136,10 +138,9 @@ export default function ClientsPage() {
         tin: formData.tin || null,
         invoice_title: formData.invoice_title || null,
         bank_info: formData.bank_info || null,
-        contacts: formData.contacts || [], // 儲存JSONB陣列
-        // 為了向後相容性，同時更新單一聯絡人欄位
-        contact_person: formData.contact_person || null,
-        email: formData.email || null,
+        contacts: formData.contacts || [],
+        contact_person: primaryContact?.name || null,
+        email: primaryContact?.email || null,
       }
 
       if (id) {
@@ -160,9 +161,9 @@ export default function ClientsPage() {
       }
 
       await fetchClients()
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('儲存客戶失敗:', error)
-      toast.error(`儲存失敗: ${error.message}`)
+      toast.error(`儲存失敗: ${error instanceof Error ? error.message : String(error)}`)
     }
   }
 
@@ -174,9 +175,9 @@ export default function ClientsPage() {
 
         toast.success('客戶已刪除')
         await fetchClients()
-      } catch (error: any) {
+      } catch (error: unknown) {
         console.error('刪除客戶失敗:', error)
-        toast.error(`刪除失敗: ${error.message}`)
+        toast.error(`刪除失敗: ${error instanceof Error ? error.message : String(error)}`)
       }
     }
   }

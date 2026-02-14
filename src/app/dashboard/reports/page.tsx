@@ -76,9 +76,9 @@ export default function ReportsPage() {
         generateReportData(quotationsData as QuotationWithDetails[], kolsData || [])
       }
       
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error fetching data:', error)
-      setError(error.message)
+      setError(error instanceof Error ? error.message : String(error))
       toast.error("Failed to fetch report data.") // 【修正】使用 toast
     } finally {
       setLoading(false)

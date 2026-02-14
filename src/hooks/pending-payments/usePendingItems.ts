@@ -131,8 +131,8 @@ export function usePendingItems() {
             }).sort((a, b) => (a.rejection_reason ? -1 : 1));
 
             setItems(finalProcessedItems);
-        } catch (error: any) {
-            toast.error('載入資料失敗: ' + error.message);
+        } catch (error: unknown) {
+            toast.error('載入資料失敗: ' + (error instanceof Error ? error.message : String(error)));
         } finally {
             setLoading(false);
         }

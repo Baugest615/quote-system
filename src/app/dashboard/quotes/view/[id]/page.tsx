@@ -287,9 +287,9 @@ export default function ViewQuotePage() {
       document.body.removeChild(link);
       window.URL.revokeObjectURL(url);
 
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('PDF 匯出錯誤:', error);
-      alert('PDF 生成失敗：' + error.message);
+      alert('PDF 生成失敗：' + (error instanceof Error ? error.message : String(error)));
     } finally {
       setIsProcessing(false);
     }

@@ -15,7 +15,7 @@ import {
   TableBody,
   TableCell,
 } from '@/components/ui/table'
-import { ClientModal } from '@/components/clients/ClientModal'
+import { ClientModal, type ClientFormData } from '@/components/clients/ClientModal'
 import { Edit, Trash2, Plus, Search } from 'lucide-react'
 
 type Client = Database['public']['Tables']['clients']['Row']
@@ -68,7 +68,7 @@ export function ClientsTable() {
   }
 
   const handleSaveClient = async (
-    formData: any, // 保持寬鬆以接收來自 Modal 的資料
+    formData: ClientFormData,
     id?: string
   ) => {
     const dataToSave = {

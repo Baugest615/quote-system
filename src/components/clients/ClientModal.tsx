@@ -60,12 +60,12 @@ const clientSchema = z.object({
   contacts: z.array(contactSchema).min(1, '至少需要一位聯絡人'),
 })
 
-type ClientFormData = z.infer<typeof clientSchema>
+export type ClientFormData = z.infer<typeof clientSchema>
 
 interface ClientModalProps {
   isOpen: boolean
   onClose: () => void
-  onSave: (clientData: any, id?: string) => Promise<void>
+  onSave: (clientData: ClientFormData, id?: string) => Promise<void>
   client?: Client | null
 }
 
@@ -191,7 +191,7 @@ export function ClientModal({ isOpen, onClose, onSave, client }: ClientModalProp
       // 安全解析銀行資訊
       let bankInfo: BankInfo = {}
       if (client.bank_info && typeof client.bank_info === 'object' && !Array.isArray(client.bank_info)) {
-        const bank = client.bank_info as any
+        const bank = client.bank_info as Record<string, string>
         bankInfo = {
           bankName: bank.bankName || '',
           branchName: bank.branchName || '',

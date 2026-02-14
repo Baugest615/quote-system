@@ -2,6 +2,7 @@
 // Puppeteer PDF 生成 API - 兼容 Vercel 部署
 import { NextRequest, NextResponse } from 'next/server';
 import puppeteer, { Browser, Page } from 'puppeteer-core';
+import { createServerClient } from '@/lib/supabase/server';
 
 // 動態 import @sparticuz/chromium 避免本地開發問題
 async function getBrowser(): Promise<Browser> {
@@ -50,6 +51,14 @@ async function getBrowser(): Promise<Browser> {
 }
 
 export async function POST(request: NextRequest) {
+    // 驗證使用者身份
+    const supabase = await createServerClient();
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+
+    if (authError || !user) {
+        return NextResponse.json({ error: '未授權：請先登入' }, { status: 401 });
+    }
+
     let browser: Browser | null = null;
 
     try {

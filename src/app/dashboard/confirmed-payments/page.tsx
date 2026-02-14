@@ -189,9 +189,9 @@ export default function ConfirmedPaymentsPage() {
       toast.success('清單已退回，相關項目已回到「請款申請」頁面。')
       refresh()
 
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('退回請款清單失敗:', error)
-      toast.error('操作失敗: ' + error.message)
+      toast.error('操作失敗: ' + (error instanceof Error ? error.message : String(error)))
     }
   }
 

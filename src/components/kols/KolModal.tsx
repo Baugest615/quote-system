@@ -1,6 +1,6 @@
 'use client'
 
-import { useForm, useFieldArray } from 'react-hook-form'
+import { useForm, useFieldArray, type UseFormRegister } from 'react-hook-form'
 import { Modal } from '@/components/ui/modal'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
@@ -15,7 +15,7 @@ type ServiceType = Database['public']['Tables']['service_types']['Row']
 type KolService = Database['public']['Tables']['kol_services']['Row']
 
 // 表單資料的 TypeScript 介面
-interface KolFormData {
+export interface KolFormData {
   name: string
   real_name: string | null
   type_id: string | null
@@ -49,7 +49,7 @@ interface KolModalProps {
 }
 
 // 建立一個帶有圖示的 Input 子元件，方便重用
-const SocialInput = ({ name, icon: Icon, register, placeholder }: { name: keyof KolFormData['social_links']; icon: React.ElementType; register: any; placeholder: string }) => (
+const SocialInput = ({ name, icon: Icon, register, placeholder }: { name: keyof KolFormData['social_links']; icon: React.ElementType; register: UseFormRegister<KolFormData>; placeholder: string }) => (
   <div className="relative">
     <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
       <Icon className="h-5 w-5 text-muted-foreground" />
@@ -83,8 +83,8 @@ export function KolModal({ isOpen, onClose, onSave, kol, kolTypes, serviceTypes 
           name: kol.name,
           real_name: kol.real_name,
           type_id: kol.type_id,
-          social_links: (kol.social_links as any) || {},
-          bank_info: (kol.bank_info as any) || { bankType: 'individual' },
+          social_links: (kol.social_links as KolFormData['social_links']) || {},
+          bank_info: (kol.bank_info as KolFormData['bank_info']) || { bankType: 'individual' },
           services: kol.kol_services.length > 0 ? kol.kol_services : [{ service_type_id: '', price: 0 }],
         })
       } else {

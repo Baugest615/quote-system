@@ -1,6 +1,7 @@
 // src/app/layout.tsx
 import type { Metadata } from 'next'
 import { Noto_Sans_TC, Plus_Jakarta_Sans } from 'next/font/google'
+import { Providers } from './providers'
 import './globals.css'
 
 const notoSansTC = Noto_Sans_TC({
@@ -38,7 +39,9 @@ export default function RootLayout({
   return (
     <html lang="zh-TW" className="dark">
       <body className={`${notoSansTC.variable} ${plusJakartaSans.variable} font-sans`}>
-        {children}
+        <Providers>
+          {children}
+        </Providers>
       </body>
     </html>
   )

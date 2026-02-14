@@ -13,6 +13,7 @@ import {
     validateMergeOperation
 } from '@/lib/payments/validation'
 import { PAYMENT_COLORS, CONFIRM_MESSAGES, SUCCESS_MESSAGES } from '@/lib/payments/constants'
+import type { PaymentAttachment } from '@/lib/payments/types'
 
 export interface UsePendingMergeReturn<T> {
     // 狀態
@@ -36,12 +37,12 @@ export interface UsePendingMergeReturn<T> {
  */
 export function usePendingMerge<T extends {
     id: string
-    kols?: { bank_info: any } | null
+    kols?: { bank_info: unknown } | null
     merge_group_id?: string | null
     is_merge_leader?: boolean
     merge_color?: string
     payment_request_id?: string | null
-    attachments?: any[]
+    attachments?: PaymentAttachment[]
     invoice_number_input?: string | null
 }>(
     items: T[],
@@ -184,8 +185,8 @@ export function usePendingMerge<T extends {
             }))
 
             toast.success(SUCCESS_MESSAGES.unmerge)
-        } catch (error: any) {
-            toast.error("解除合併失敗: " + error.message)
+        } catch (error: unknown) {
+            toast.error("解除合併失敗: " + (error instanceof Error ? error.message : String(error)))
         }
     }, [items, setItems])
 

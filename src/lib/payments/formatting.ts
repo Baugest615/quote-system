@@ -222,7 +222,7 @@ export function formatBankAccount(accountNumber: string, visibleDigits: number =
  * @param bankInfo 銀行資訊物件
  * @returns 格式化後的字串
  */
-export function formatBankInfo(bankInfo: any): string {
+export function formatBankInfo(bankInfo: { bank_name?: string; branch_name?: string; account_number?: string } | null | undefined): string {
     if (!bankInfo) return '-'
 
     const parts = []

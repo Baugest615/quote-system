@@ -141,8 +141,8 @@ export function useMergeOperations(
             }))
 
             toast.success(`已解除合併`)
-        } catch (error: any) {
-            toast.error("解除合併失敗: " + error.message)
+        } catch (error: unknown) {
+            toast.error("解除合併失敗: " + (error instanceof Error ? error.message : String(error)))
         }
     }, [items, setItems])
 

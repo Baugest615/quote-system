@@ -88,8 +88,8 @@ export function ExportControls({ confirmation, settingsMap }: ExportControlsProp
             document.body.removeChild(link)
 
             toast.success('CSV檔案已下載')
-        } catch (error: any) {
-            toast.error('匯出失敗: ' + error.message)
+        } catch (error: unknown) {
+            toast.error('匯出失敗: ' + (error instanceof Error ? error.message : String(error)))
         }
     }
 

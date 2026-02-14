@@ -71,8 +71,8 @@ export function usePaymentSubmission(
 
             toast.success(`✅ 已成功提交 ${selectedItems.length} 筆請款申請`)
             await fetchPendingItems()
-        } catch (error: any) {
-            toast.error(error.message || '提交請款申請失敗')
+        } catch (error: unknown) {
+            toast.error((error instanceof Error ? error.message : String(error)) || '提交請款申請失敗')
         } finally {
             setLoading(false)
         }

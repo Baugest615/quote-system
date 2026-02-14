@@ -1,4 +1,5 @@
 import { PaymentConfirmationItem } from '@/lib/payments/types'
+import { type KolBankInfo } from '@/types/schemas'
 
 interface PaymentRecordRowProps {
     item: PaymentConfirmationItem
@@ -22,7 +23,7 @@ export function PaymentRecordRow({ item }: PaymentRecordRowProps) {
     }
 
     if (!remittanceName && kol) {
-        const bankInfo = kol.bank_info || {}
+        const bankInfo = (kol.bank_info || {}) as KolBankInfo
         if (bankInfo.bankType === 'company') {
             // Fallback to KOL name if company account name is missing
             remittanceName = bankInfo.companyAccountName || kol.name

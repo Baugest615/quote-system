@@ -5,7 +5,7 @@ import supabase from '@/lib/supabase/client'
 import { Database } from '@/types/database.types'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { KolModal } from '@/components/kols/KolModal'
+import { KolModal, type KolFormData } from '@/components/kols/KolModal'
 import { PlusCircle, Edit, Trash2, Facebook, Instagram, Youtube, Twitch, Twitter, Link as LinkIcon, Search, ChevronDown, ChevronRight } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
@@ -91,7 +91,7 @@ export default function KolsPage() {
   }
 
   // 步驟 4: 統一儲存成功訊息
-  const handleSaveKol = async (formData: any, id?: string) => {
+  const handleSaveKol = async (formData: KolFormData, id?: string) => {
     const { services, ...kolData } = formData
     try {
       let kolId = id;
@@ -109,8 +109,8 @@ export default function KolsPage() {
       if (deleteError) throw deleteError
 
       const servicesToInsert = services
-        .filter((s: any) => s.service_type_id && s.price != null)
-        .map((s: any) => ({ kol_id: kolId, service_type_id: s.service_type_id, price: s.price }))
+        .filter(s => s.service_type_id && s.price != null)
+        .map(s => ({ kol_id: kolId, service_type_id: s.service_type_id!, price: s.price! }))
 
       if (servicesToInsert.length > 0) {
         const { error: serviceError } = await supabase.from('kol_services').insert(servicesToInsert)
@@ -121,8 +121,8 @@ export default function KolsPage() {
 
       await fetchData()
       handleCloseModal()
-    } catch (error: any) {
-      toast.error('儲存 KOL 失敗: ' + error.message)
+    } catch (error: unknown) {
+      toast.error('儲存 KOL 失敗: ' + (error instanceof Error ? error.message : String(error)))
     }
   }
 

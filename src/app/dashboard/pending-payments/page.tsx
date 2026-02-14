@@ -184,8 +184,8 @@ export default function PendingPaymentsPage() {
       }).sort((a, b) => (a.rejection_reason ? -1 : 1));
 
       setItems(finalProcessedItems);
-    } catch (error: any) {
-      toast.error('載入資料失敗: ' + error.message);
+    } catch (error: unknown) {
+      toast.error('載入資料失敗: ' + (error instanceof Error ? error.message : String(error)));
     } finally {
       setLoading(false);
     }
@@ -227,8 +227,8 @@ export default function PendingPaymentsPage() {
       ));
 
       toast.success('已儲存');
-    } catch (error: any) {
-      toast.error('儲存失敗: ' + error.message);
+    } catch (error: unknown) {
+      toast.error('儲存失敗: ' + (error instanceof Error ? error.message : String(error)));
     }
   };
 
@@ -293,8 +293,8 @@ export default function PendingPaymentsPage() {
 
           toast.success('附件狀態已同步至資料庫。');
         }
-      } catch (error: any) {
-        toast.error('同步附件狀態至資料庫失敗: ' + error.message);
+      } catch (error: unknown) {
+        toast.error('同步附件狀態至資料庫失敗: ' + (error instanceof Error ? error.message : String(error)));
         fetchPendingItems();
       }
     }
@@ -338,8 +338,8 @@ export default function PendingPaymentsPage() {
 
           if (error) throw error;
         }
-      } catch (error: any) {
-        toast.error('同步發票號碼至資料庫失敗: ' + error.message);
+      } catch (error: unknown) {
+        toast.error('同步發票號碼至資料庫失敗: ' + (error instanceof Error ? error.message : String(error)));
       }
     }
   };
@@ -376,8 +376,8 @@ export default function PendingPaymentsPage() {
       setSelectedMergeType(null);
       setIsMergeMode(false);
       fetchPendingItems();
-    } catch (error: any) {
-      toast.error('合併失敗: ' + error.message);
+    } catch (error: unknown) {
+      toast.error('合併失敗: ' + (error instanceof Error ? error.message : String(error)));
     }
   };
 
@@ -391,8 +391,8 @@ export default function PendingPaymentsPage() {
 
       toast.success('已解除合併');
       fetchPendingItems();
-    } catch (error: any) {
-      toast.error('解除合併失敗: ' + error.message);
+    } catch (error: unknown) {
+      toast.error('解除合併失敗: ' + (error instanceof Error ? error.message : String(error)));
     }
   };
 
@@ -502,8 +502,8 @@ export default function PendingPaymentsPage() {
 
       toast.success('送出請款申請成功');
       fetchPendingItems();
-    } catch (error: any) {
-      toast.error('送出失敗: ' + error.message);
+    } catch (error: unknown) {
+      toast.error('送出失敗: ' + (error instanceof Error ? error.message : String(error)));
     }
   };
 

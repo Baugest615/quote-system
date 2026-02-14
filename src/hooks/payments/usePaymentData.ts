@@ -49,8 +49,8 @@ export function usePaymentData<T>(
             const result = await fetchFunction()
             setData(result)
             options.onSuccess?.()
-        } catch (err: any) {
-            const error = err instanceof Error ? err : new Error(err.message || '未知錯誤')
+        } catch (err: unknown) {
+            const error = err instanceof Error ? err : new Error(typeof err === 'object' && err !== null && 'message' in err ? String((err as any).message) : '未知錯誤')
             setError(error)
             toast.error('載入資料失敗: ' + error.message)
             options.onError?.(error)

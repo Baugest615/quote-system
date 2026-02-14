@@ -5,16 +5,16 @@ import { Input } from '@/components/ui/input'
 import { PortalDropdown } from '@/components/ui/portal-dropdown'
 import { cn } from '@/lib/utils'
 
-interface Option {
+interface Option<T = unknown> {
     label: string
     value: string
     subLabel?: string
-    data?: any
+    data?: T
 }
 
 interface SearchableSelectCellProps {
     value: string | null
-    onChange: (value: string, data?: any) => void
+    onChange: (value: string, data?: unknown) => void
     options: Option[]
     placeholder?: string
     className?: string

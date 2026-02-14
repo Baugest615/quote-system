@@ -187,8 +187,8 @@ export function validateItemForSubmission(item: {
  * @returns 是否可合併
  */
 export function canMergeItems(
-    item1: { kols?: { bank_info: any } | null },
-    item2: { kols?: { bank_info: any } | null }
+    item1: { kols?: { bank_info: unknown } | null },
+    item2: { kols?: { bank_info: unknown } | null }
 ): boolean {
     const bankInfo1 = item1.kols?.bank_info
     const bankInfo2 = item2.kols?.bank_info
@@ -203,7 +203,7 @@ export function canMergeItems(
  * @param items 要合併的項目
  * @returns 錯誤訊息或 null
  */
-export function validateMergeOperation(items: Array<{ kols?: { bank_info: any } | null }>): string | null {
+export function validateMergeOperation(items: Array<{ kols?: { bank_info: unknown } | null }>): string | null {
     if (items.length < 2) {
         return '請選擇至少兩筆資料進行合併'
     }
@@ -227,7 +227,7 @@ export function validateMergeOperation(items: Array<{ kols?: { bank_info: any } 
  * @returns 錯誤訊息或 null
  */
 export function validateBatchVerification(
-    items: any[],
+    items: unknown[],
     action: 'approve' | 'reject'
 ): string | null {
     if (items.length === 0) {
@@ -249,7 +249,7 @@ export function validateBatchVerification(
  * @param value 值
  * @returns 錯誤訊息或 null
  */
-export function validateRequired(value: any): string | null {
+export function validateRequired(value: unknown): string | null {
     if (value === null || value === undefined || value === '') {
         return ERROR_MESSAGES.validation.required
     }

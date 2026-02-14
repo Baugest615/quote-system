@@ -1,7 +1,7 @@
 // 統一的請款系統類型定義
 // 所有請款相關頁面共用的類型
 
-import { Database } from '@/types/database.types'
+import { Database, Json } from '@/types/database.types'
 
 // ==================== 基礎類型 ====================
 
@@ -28,7 +28,7 @@ export interface BasePaymentItem {
         id: string
         name: string
         real_name: string | null
-        bank_info: any
+        bank_info: Json
     } | null
     service: string
     quantity: number
@@ -209,7 +209,7 @@ export type VerificationAction = 'approve' | 'reject' | 'revert'
 export interface BatchOperation<T> {
     items: T[]
     action: string
-    metadata?: Record<string, any>
+    metadata?: Record<string, unknown>
 }
 
 // ==================== 統計相關 ====================

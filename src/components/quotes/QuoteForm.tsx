@@ -303,9 +303,9 @@ export default function QuoteForm({ initialData }: QuoteFormProps) {
 
       router.push('/dashboard/quotes');
       router.refresh();
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Save failed:', error);
-      toast.error('儲存失敗: ' + error.message);
+      toast.error('儲存失敗: ' + (error instanceof Error ? error.message : String(error)));
     }
   };
 

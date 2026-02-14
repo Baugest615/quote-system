@@ -51,9 +51,10 @@ const FileViewerModal = ({ isOpen, onClose, request }: {
       } else {
         window.open(data.signedUrl, '_blank')
       }
-    } catch (error: any) {
-      setDownloadError(error.message)
-      toast.error(`檔案操作失敗: ${error.message}`)
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : String(error)
+      setDownloadError(message)
+      toast.error(`檔案操作失敗: ${message}`)
     }
   }
 
@@ -212,8 +213,8 @@ export default function PaymentRequestsPage() {
 
       toast.success('已核准請款申請')
       refresh()
-    } catch (error: any) {
-      toast.error('核准失敗: ' + error.message)
+    } catch (error: unknown) {
+      toast.error('核准失敗: ' + (error instanceof Error ? error.message : String(error)))
     }
   }
 
@@ -234,8 +235,8 @@ export default function PaymentRequestsPage() {
 
       toast.success('已駁回請款申請')
       refresh()
-    } catch (error: any) {
-      toast.error('駁回失敗: ' + error.message)
+    } catch (error: unknown) {
+      toast.error('駁回失敗: ' + (error instanceof Error ? error.message : String(error)))
     }
   }
 

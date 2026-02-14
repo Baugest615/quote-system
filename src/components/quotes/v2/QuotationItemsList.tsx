@@ -238,9 +238,9 @@ export function QuotationItemsList({ quotationId, onUpdate }: QuotationItemsList
             await fetchItems() // 重新載入以獲取最新 ID 和狀態
             if (onUpdate) onUpdate() // 通知父層更新總金額
 
-        } catch (error: any) {
+        } catch (error: unknown) {
             console.error('Save error:', error)
-            toast.error('儲存失敗: ' + error.message)
+            toast.error('儲存失敗: ' + (error instanceof Error ? error.message : String(error)))
         } finally {
             setIsSaving(false)
         }
@@ -446,7 +446,7 @@ export function QuotationItemsList({ quotationId, onUpdate }: QuotationItemsList
                                     <td className="border-r border-border/50 p-0">
                                         <SearchableSelectCell
                                             value={item.service}
-                                            onChange={(val, price) => handleServiceChange(item.id, val, price)}
+                                            onChange={(val, price) => handleServiceChange(item.id, val, price as number | undefined)}
                                             options={serviceOptions}
                                             placeholder={item.kol_id ? "選擇服務" : "請先選 KOL"}
                                             className="px-3 py-2"
