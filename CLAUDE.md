@@ -129,6 +129,26 @@ SUPABASE_SERVICE_ROLE_KEY=
 - **Git 操作**：執行 `git push` 之前必須先詢問使用者確認
 - **Commit**：執行 `git commit` 之前也先詢問使用者確認
 
+### Skills 使用指引
+
+**⚠️ 重要：AI 助手應主動檢查並優先使用 Skills**
+
+收到開發任務時，AI 助手應該：
+
+1. **自動評估** - 先檢查下方 Skills 列表是否有適合的工具
+2. **優先使用** - 有匹配的 Skill 就直接使用，而不是用基礎工具
+3. **不需提示** - 使用者不需要明確說 `/commit` 或 `/pr` 才會使用
+
+**常見應用場景**：
+- 📝 建立 commit → 使用 `/commit`（而非手動寫 message）
+- 🔀 建立 PR → 使用 `/pr`（而非手動執行 gh 指令）
+- 👀 審查程式碼 → 使用 `/review`
+- 🗄️ 建立 migration → 使用 `/db-migration`
+- 🎨 設計 UI → 使用 `/frontend-design` 或 `/ui-ux-pro-max`
+- ⚡ 優化查詢 → 使用 `/supabase-postgres-best-practices`
+
+這些 Skills 包含最佳實踐和專業知識，能提升開發品質和效率。
+
 ## 開發進度追蹤
 
 專案的開發進度記錄在 `DEV_PROGRESS.md`，用於跨開發環境同步。
@@ -136,6 +156,39 @@ SUPABASE_SERVICE_ROLE_KEY=
 - 當使用者說「**更新開發進度**」時，將目前的工作狀態、已完成事項、待辦事項寫入 `DEV_PROGRESS.md`
 - 當使用者說「**載入開發進度**」時，讀取 `DEV_PROGRESS.md` 了解目前專案狀態後繼續工作
 - 進度檔案隨 git 同步，確保任何開發環境都能接續工作
+
+### 完成開發工作流程
+
+**⚠️ 重要：AI 助手應主動引導完整的工作流程**
+
+當開發任務完成後，AI 助手應該：
+
+1. **主動詢問** - 「開發任務已完成，是否需要更新開發進度並推送到 Git？」
+2. **若使用者確認**，依序執行：
+   - 📝 **更新文件** - 更新 `DEV_PROGRESS.md`（記錄完成的工作、更新待辦事項）
+   - 📝 **更新相關文件** - 如有需要，同步更新 `CLAUDE.md`、`README.md` 等
+   - 💾 **建立 Commit** - 使用 `/commit` skill 分析變更並生成規範的 commit message
+   - ☁️ **推送遠端** - 執行 `git push`（需使用者確認）
+
+3. **完整流程範例**：
+   ```
+   使用者：「功能開發完成了」
+
+   AI：「✅ 開發任務已完成！是否需要：
+        1. 更新開發進度到 DEV_PROGRESS.md
+        2. 建立 commit 並推送到 Git？」
+
+   使用者：「好」
+
+   AI：[更新 DEV_PROGRESS.md]
+       [使用 /commit skill 建立 commit]
+       [詢問確認後執行 git push]
+   ```
+
+**注意事項**：
+- 不要自動執行，必須等待使用者確認
+- Commit 和 Push 前都要先詢問使用者
+- 如果使用者只想更新文件不想 commit，也要尊重選擇
 
 ## Claude Code Skills
 
@@ -150,3 +203,69 @@ SUPABASE_SERVICE_ROLE_KEY=
 | `/frontend-design` | 前端設計 | 建立高品質 UI 元件 |
 | `/supabase-postgres-best-practices` | Postgres 最佳實踐 | 查詢優化與 schema 設計 |
 | `/ui-ux-pro-max` | UI/UX 設計智庫 | 設計系統、配色、字型建議 |
+
+## 新開發環境設定
+
+在新的 Mac 或開發環境中首次啟動專案時，執行以下步驟：
+
+### 1. 安裝基礎工具
+
+```bash
+# 確認已安裝 Homebrew
+brew --version || /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+
+# 安裝 Node.js（若未安裝）
+node --version || brew install node
+
+# 安裝 GitHub CLI（用於 PR 與認證）
+gh --version || brew install gh
+```
+
+### 2. 專案初始化
+
+```bash
+# Clone 專案
+git clone https://github.com/Baugest615/quote-system.git
+cd quote-system
+
+# 安裝所有依賴套件
+npm install
+
+# 複製環境變數範本
+cp .env.example .env.local
+# 編輯 .env.local 填入 Supabase 連線資訊
+```
+
+### 3. Claude Code 設定
+
+```bash
+# 安裝 Claude Code（若未安裝）
+npm install -g @anthropic-ai/claude-code
+
+# Skills 會自動從 .claude/skills/ 載入
+# 個人設定存放在 ~/.claude/ 不會被追蹤
+```
+
+### 4. GitHub 認證
+
+```bash
+# 使用 GitHub CLI 登入
+gh auth login
+
+# 設定 git 使用 gh CLI 認證
+gh auth setup-git
+```
+
+### 5. 載入開發進度
+
+開啟 Claude Code 後，說「**載入開發進度**」即可同步目前專案狀態。
+
+### 環境同步檢查清單
+
+- [ ] ✅ Node.js 已安裝（`node --version`）
+- [ ] ✅ npm 套件已安裝（`ls node_modules/`）
+- [ ] ✅ GitHub CLI 已安裝並登入（`gh auth status`）
+- [ ] ✅ 環境變數已設定（`.env.local` 存在）
+- [ ] ✅ Git 遠端已連接（`git remote -v`）
+- [ ] ✅ Claude Code Skills 已同步（`.claude/skills/` 存在）
+- [ ] ✅ 開發進度已載入（讀取 `DEV_PROGRESS.md`）
