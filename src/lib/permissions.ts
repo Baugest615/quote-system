@@ -79,6 +79,7 @@ export function getRoleDisplayName(role: UserRole): string {
  */
 export function usePermission() {
   const [userRole, setUserRole] = useState<UserRole | null>(null)
+  const [userId, setUserId] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -93,9 +94,12 @@ export function usePermission() {
 
         if (!user) {
           setUserRole(null)
+          setUserId(null)
           setLoading(false)
           return
         }
+
+        setUserId(user.id)
 
         // 從資料庫取得用戶角色
         const { data: profile, error: profileError } = await supabase
@@ -122,6 +126,7 @@ export function usePermission() {
 
   return {
     userRole,
+    userId,
     loading,
     error,
     // 權限檢查方法

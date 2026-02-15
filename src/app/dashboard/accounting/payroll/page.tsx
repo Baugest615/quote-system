@@ -4,14 +4,15 @@ import { useEffect, useState, useCallback, useMemo } from 'react'
 import { usePermission } from '@/lib/permissions'
 import supabase from '@/lib/supabase/client'
 import { toast } from 'sonner'
-import { Plus, Search, Users, Pencil, Trash2, ChevronLeft, Table2 } from 'lucide-react'
+import { Plus, Search, Users, Pencil, Trash2, ChevronLeft, Table2, Calculator, Info } from 'lucide-react'
 import AccountingLoadingGuard from '@/components/accounting/AccountingLoadingGuard'
 import AccountingModal from '@/components/accounting/AccountingModal'
 import Pagination from '@/components/accounting/Pagination'
 import SpreadsheetEditor from '@/components/accounting/SpreadsheetEditor'
 import Link from 'next/link'
-import type { AccountingPayroll } from '@/types/custom.types'
+import type { AccountingPayroll, Employee } from '@/types/custom.types'
 import type { SpreadsheetColumn, BatchSaveResult, RowError } from '@/lib/spreadsheet-utils'
+import { calculateInsurance, calculateNetSalary, calculateCompanyTotal, type InsuranceCalculation } from '@/lib/accounting/insurance-calculator'
 
 const PAGE_SIZE = 20
 const CURRENT_YEAR = new Date().getFullYear()
@@ -21,6 +22,7 @@ const emptyForm = (): Partial<AccountingPayroll> => ({
   year: CURRENT_YEAR,
   payment_date: null,
   salary_month: '',
+  employee_id: null,
   employee_name: '',
   base_salary: 0,
   meal_allowance: 0,
@@ -35,6 +37,11 @@ const emptyForm = (): Partial<AccountingPayroll> => ({
   severance_fund: 0,
   retirement_fund: 0,
   company_total: 0,
+  insurance_grade: null,
+  insurance_salary: null,
+  labor_rate: null,
+  health_rate: null,
+  pension_rate: null,
   note: '',
 })
 
@@ -52,6 +59,12 @@ export default function AccountingPayrollPage() {
   const [saving, setSaving] = useState(false)
   const [currentPage, setCurrentPage] = useState(1)
   const [isSpreadsheetMode, setIsSpreadsheetMode] = useState(false)
+
+  // 員工資料
+  const [employees, setEmployees] = useState<Employee[]>([])
+  const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null)
+  const [insuranceCalc, setInsuranceCalc] = useState<InsuranceCalculation | null>(null)
+  const [calculating, setCalculating] = useState(false)
 
   const spreadsheetColumns = useMemo<SpreadsheetColumn<AccountingPayroll>[]>(() => [
     { key: 'salary_month', label: '記帳月份', type: 'select',
@@ -92,6 +105,20 @@ export default function AccountingPayrollPage() {
       setLoading(false)
     }
   }, [year])
+
+  const fetchEmployees = useCallback(async () => {
+    try {
+      const { data, error } = await supabase
+        .from('employees')
+        .select('*')
+        .eq('status', '在職')
+        .order('name')
+      if (error) throw error
+      setEmployees(data || [])
+    } catch (err) {
+      console.error('載入員工資料失敗:', err)
+    }
+  }, [])
 
   const handleAutoCalcPayroll = useCallback((row: Partial<AccountingPayroll>) => {
     const personalTotal = (row.labor_insurance_personal || 0) + (row.health_insurance_personal || 0)
@@ -135,8 +162,11 @@ export default function AccountingPayrollPage() {
   }, [year, fetchRecords])
 
   useEffect(() => {
-    if (!permLoading && isAdmin) fetchRecords()
-  }, [permLoading, isAdmin, fetchRecords])
+    if (!permLoading && isAdmin) {
+      fetchRecords()
+      fetchEmployees()
+    }
+  }, [permLoading, isAdmin, fetchRecords, fetchEmployees])
 
   useEffect(() => {
     const q = search.toLowerCase()
@@ -146,6 +176,60 @@ export default function AccountingPayrollPage() {
     ))
     setCurrentPage(1)
   }, [search, records])
+
+  // 選擇員工後自動計算
+  const handleSelectEmployee = async (employeeId: string) => {
+    if (!employeeId) {
+      setSelectedEmployee(null)
+      setInsuranceCalc(null)
+      return
+    }
+
+    const employee = employees.find(e => e.id === employeeId)
+    if (!employee) return
+
+    setSelectedEmployee(employee)
+    setCalculating(true)
+
+    try {
+      // 計算勞健保
+      const calc = await calculateInsurance(employeeId)
+      if (calc) {
+        setInsuranceCalc(calc)
+        // 自動帶入計算結果
+        updateForm({
+          employee_id: employeeId,
+          employee_name: employee.name,
+          base_salary: employee.base_salary,
+          meal_allowance: employee.meal_allowance,
+          insurance_grade: calc.insuranceGrade,
+          insurance_salary: calc.insuranceSalary,
+          labor_rate: calc.laborRate,
+          health_rate: calc.healthRate,
+          pension_rate: calc.pensionRate,
+          labor_insurance_personal: calc.laborInsuranceEmployee,
+          health_insurance_personal: calc.healthInsuranceEmployee,
+          labor_insurance_company: calc.laborInsuranceCompany,
+          health_insurance_company: calc.healthInsuranceCompany,
+          severance_fund: calc.occupationalInjuryFee + calc.employmentStabilizationFee,
+          retirement_fund: calc.retirementFund,
+        })
+      } else {
+        toast.error('無法計算勞健保，請檢查員工投保級距設定')
+        updateForm({
+          employee_id: employeeId,
+          employee_name: employee.name,
+          base_salary: employee.base_salary,
+          meal_allowance: employee.meal_allowance,
+        })
+      }
+    } catch (error) {
+      console.error('計算勞健保失敗:', error)
+      toast.error('計算勞健保失敗')
+    } finally {
+      setCalculating(false)
+    }
+  }
 
   // 自動計算個人負擔總額與實領薪資
   const recalcPersonal = (f: Partial<AccountingPayroll>): Partial<AccountingPayroll> => {
@@ -161,7 +245,7 @@ export default function AccountingPayrollPage() {
   }
 
   const handleSave = async () => {
-    if (!form.employee_name?.trim()) return toast.error('請填寫員工姓名')
+    if (!form.employee_name?.trim()) return toast.error('請選擇員工或填寫員工姓名')
     setSaving(true)
     try {
       const { data: { user } } = await supabase.auth.getUser()
@@ -176,6 +260,8 @@ export default function AccountingPayrollPage() {
         toast.success('已新增薪資記錄')
       }
       setIsModalOpen(false)
+      setSelectedEmployee(null)
+      setInsuranceCalc(null)
       fetchRecords()
     } catch (err) {
       console.error('薪資儲存失敗:', err)
@@ -193,7 +279,16 @@ export default function AccountingPayrollPage() {
     fetchRecords()
   }
 
+  const handleOpenModal = () => {
+    setEditing(null)
+    setForm(emptyForm())
+    setSelectedEmployee(null)
+    setInsuranceCalc(null)
+    setIsModalOpen(true)
+  }
+
   const fmt = (n: number) => new Intl.NumberFormat('zh-TW').format(n)
+  const fmtRate = (n: number) => `${(n * 100).toFixed(2)}%`
 
   if (permLoading || loading) return <AccountingLoadingGuard loading={true} isAdmin={true} />
   if (!hasRole('Admin')) return <AccountingLoadingGuard loading={false} isAdmin={false} />
@@ -241,11 +336,18 @@ export default function AccountingPayrollPage() {
             className="w-full pl-9 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
         </div>
         {!isSpreadsheetMode && (
-          <button onClick={() => { setEditing(null); setForm(emptyForm()); setIsModalOpen(true) }}
-            className="flex items-center gap-2 bg-purple-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-purple-700 transition-colors">
-            <Plus className="w-4 h-4" />
-            新增薪資
-          </button>
+          <>
+            <Link href="/dashboard/accounting/employees"
+              className="flex items-center gap-2 bg-gray-100 text-gray-700 px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-200 transition-colors">
+              <Users className="w-4 h-4" />
+              員工管理
+            </Link>
+            <button onClick={handleOpenModal}
+              className="flex items-center gap-2 bg-purple-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-purple-700 transition-colors">
+              <Plus className="w-4 h-4" />
+              新增薪資
+            </button>
+          </>
         )}
         <button
           onClick={() => setIsSpreadsheetMode(!isSpreadsheetMode)}
@@ -361,7 +463,7 @@ export default function AccountingPayrollPage() {
           </div>
         }
       >
-        <div className="space-y-4">
+        <div className="space-y-4 max-h-[70vh] overflow-y-auto pr-2">
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-medium text-gray-600 mb-1">年度</label>
@@ -379,11 +481,43 @@ export default function AccountingPayrollPage() {
                   </select>
                 </div>
               </div>
+
+              {/* 員工選擇器 */}
+              {!editing && (
+                <div className="bg-blue-50 rounded-lg p-4 border-2 border-blue-200">
+                  <label className="block text-sm font-medium text-blue-900 mb-2 flex items-center gap-2">
+                    <Calculator className="w-4 h-4" />
+                    選擇員工（自動計算薪資與勞健保）
+                  </label>
+                  <select
+                    value={form.employee_id || ''}
+                    onChange={(e) => handleSelectEmployee(e.target.value)}
+                    disabled={calculating}
+                    className="w-full border-2 border-blue-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white disabled:opacity-50"
+                  >
+                    <option value="">-- 選擇員工 --</option>
+                    {employees.map(e => (
+                      <option key={e.id} value={e.id}>
+                        {e.name} {e.employee_number ? `(${e.employee_number})` : ''} - {e.position || '無職位'} - 本薪 {fmt(e.base_salary)}
+                      </option>
+                    ))}
+                  </select>
+                  {calculating && <p className="text-xs text-blue-600 mt-2">計算中...</p>}
+                  {!form.employee_id && (
+                    <p className="text-xs text-gray-500 mt-2 flex items-start gap-1">
+                      <Info className="w-3 h-3 mt-0.5 flex-shrink-0" />
+                      選擇員工後，系統會自動帶入本薪、津貼並計算勞健保費用
+                    </p>
+                  )}
+                </div>
+              )}
+
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-medium text-gray-600 mb-1">員工姓名 *</label>
                   <input type="text" value={form.employee_name || ''} onChange={(e) => updateForm({ employee_name: e.target.value })}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="姓名" />
+                    disabled={!!form.employee_id}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100" placeholder="姓名" />
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-gray-600 mb-1">匯出日</label>
@@ -391,39 +525,117 @@ export default function AccountingPayrollPage() {
                     className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
                 </div>
               </div>
-              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide pt-2">員工薪資</p>
-              <div className="grid grid-cols-2 gap-4">
-                {numField('本薪', 'base_salary')}
-                {numField('伙食津貼', 'meal_allowance')}
-                {numField('各項獎金', 'bonus')}
-                {numField('各種代扣', 'deduction')}
-              </div>
-              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide pt-2">個人勞健保負擔</p>
-              <div className="grid grid-cols-2 gap-4">
-                {numField('勞保個人負擔', 'labor_insurance_personal')}
-                {numField('健保個人負擔', 'health_insurance_personal')}
-              </div>
-              <div className="grid grid-cols-2 gap-4 bg-purple-50 rounded-lg p-3">
+
+              {/* 基本薪資（鎖定） */}
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide pt-2">基本薪資（從員工資料帶入）</p>
+              <div className="grid grid-cols-2 gap-4 bg-gray-50 rounded-lg p-3">
                 <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1 flex items-center gap-1">
+                    本薪
+                    <span className="text-xs text-gray-400">🔒</span>
+                  </label>
+                  <input type="number" value={form.base_salary || ''} readOnly
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm bg-gray-100 cursor-not-allowed" />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1 flex items-center gap-1">
+                    伙食津貼
+                    <span className="text-xs text-gray-400">🔒</span>
+                  </label>
+                  <input type="number" value={form.meal_allowance || ''} readOnly
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm bg-gray-100 cursor-not-allowed" />
+                </div>
+              </div>
+              <p className="text-xs text-gray-500 -mt-2 flex items-start gap-1">
+                <Info className="w-3 h-3 mt-0.5 flex-shrink-0" />
+                若要調整本薪或津貼，請至「員工管理」頁面修改
+              </p>
+
+              {/* 當月調整項目 */}
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide pt-2">當月調整項目</p>
+              <div className="grid grid-cols-2 gap-4">
+                {numField('各項獎金（加班費、績效等）', 'bonus')}
+                {numField('各種代扣（預借款、保費等）', 'deduction')}
+              </div>
+
+              {/* 勞健保計算明細 */}
+              {insuranceCalc && (
+                <div className="bg-gradient-to-br from-blue-50 to-purple-50 rounded-lg p-4 border-2 border-blue-200">
+                  <p className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+                    <Calculator className="w-4 h-4" />
+                    勞健保計算明細（自動計算）
+                  </p>
+                  <div className="grid grid-cols-2 gap-3 text-xs">
+                    <div className="bg-white rounded p-2">
+                      <p className="text-gray-500">投保級距</p>
+                      <p className="font-semibold text-gray-800">第 {insuranceCalc.insuranceGrade} 級</p>
+                    </div>
+                    <div className="bg-white rounded p-2">
+                      <p className="text-gray-500">投保薪資</p>
+                      <p className="font-semibold text-gray-800">NT$ {fmt(insuranceCalc.insuranceSalary)}</p>
+                    </div>
+                    <div className="bg-white rounded p-2">
+                      <p className="text-gray-500">勞保（個人 {fmtRate(insuranceCalc.laborRate)}）</p>
+                      <p className="font-semibold text-red-600">-NT$ {fmt(insuranceCalc.laborInsuranceEmployee)}</p>
+                    </div>
+                    <div className="bg-white rounded p-2">
+                      <p className="text-gray-500">健保（個人 {fmtRate(insuranceCalc.healthRate)}）</p>
+                      <p className="font-semibold text-red-600">-NT$ {fmt(insuranceCalc.healthInsuranceEmployee)}</p>
+                    </div>
+                    <div className="bg-white rounded p-2">
+                      <p className="text-gray-500">勞保（公司）</p>
+                      <p className="font-semibold text-blue-600">NT$ {fmt(insuranceCalc.laborInsuranceCompany)}</p>
+                    </div>
+                    <div className="bg-white rounded p-2">
+                      <p className="text-gray-500">健保（公司）</p>
+                      <p className="font-semibold text-blue-600">NT$ {fmt(insuranceCalc.healthInsuranceCompany)}</p>
+                    </div>
+                    <div className="bg-white rounded p-2">
+                      <p className="text-gray-500">勞退（公司 {fmtRate(insuranceCalc.pensionRate)}）</p>
+                      <p className="font-semibold text-blue-600">NT$ {fmt(insuranceCalc.retirementFund)}</p>
+                    </div>
+                    <div className="bg-white rounded p-2">
+                      <p className="text-gray-500">職災 + 就安</p>
+                      <p className="font-semibold text-blue-600">NT$ {fmt(insuranceCalc.occupationalInjuryFee + insuranceCalc.employmentStabilizationFee)}</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* 手動調整勞健保（編輯模式或未選員工） */}
+              {!insuranceCalc && (
+                <>
+                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide pt-2">個人勞健保負擔</p>
+                  <div className="grid grid-cols-2 gap-4">
+                    {numField('勞保個人負擔', 'labor_insurance_personal')}
+                    {numField('健保個人負擔', 'health_insurance_personal')}
+                  </div>
+                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide pt-2">公司勞健保負擔</p>
+                  <div className="grid grid-cols-2 gap-4">
+                    {numField('勞保公司負擔', 'labor_insurance_company')}
+                    {numField('健保公司負擔', 'health_insurance_company')}
+                    {numField('工資墊償金', 'severance_fund')}
+                    {numField('勞工退休金', 'retirement_fund')}
+                  </div>
+                </>
+              )}
+
+              {/* 計算結果 */}
+              <div className="grid grid-cols-2 gap-4 pt-2">
+                <div className="bg-purple-50 rounded-lg p-3">
                   <p className="text-xs text-purple-600">個人負擔總額（自動）</p>
                   <p className="text-lg font-bold text-purple-700">NT$ {fmt(form.personal_total || 0)}</p>
                 </div>
-                <div>
+                <div className="bg-purple-50 rounded-lg p-3">
                   <p className="text-xs text-purple-600">實領薪資（自動）</p>
                   <p className="text-lg font-bold text-purple-700">NT$ {fmt(form.net_salary || 0)}</p>
                 </div>
-              </div>
-              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide pt-2">公司勞健保負擔</p>
-              <div className="grid grid-cols-2 gap-4">
-                {numField('勞保公司負擔', 'labor_insurance_company')}
-                {numField('健保公司負擔', 'health_insurance_company')}
-                {numField('工資墊償金', 'severance_fund')}
-                {numField('勞工退休金', 'retirement_fund')}
               </div>
               <div className="bg-blue-50 rounded-lg p-3">
                 <p className="text-xs text-blue-600">公司支出總額（自動）</p>
                 <p className="text-lg font-bold text-blue-700">NT$ {fmt(form.company_total || 0)}</p>
               </div>
+
               <div>
                 <label className="block text-xs font-medium text-gray-600 mb-1">備註</label>
                 <textarea value={form.note || ''} onChange={(e) => updateForm({ note: e.target.value })}

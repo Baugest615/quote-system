@@ -50,6 +50,7 @@ export const PAGE_KEYS = {
   CONFIRMED_PAYMENTS: 'confirmed_payments',
   SETTINGS: 'settings',
   ACCOUNTING: 'accounting',
+  MY_SALARY: 'my_salary',
 } as const
 
 // 頁面權限配置
@@ -133,6 +134,14 @@ export const PAGE_PERMISSIONS: Record<string, PageConfig> = {
     allowedFunctions: ['view', 'create', 'update', 'delete', 'export'],
     route: '/dashboard/accounting',
     icon: 'BookOpen'
+  },
+  [PAGE_KEYS.MY_SALARY]: {
+    key: PAGE_KEYS.MY_SALARY,
+    name: '我的薪資',
+    allowedRoles: [USER_ROLES.ADMIN, USER_ROLES.EDITOR, USER_ROLES.MEMBER],
+    allowedFunctions: ['view'],
+    route: '/dashboard/my-salary',
+    icon: 'User'
   },
 }
 
@@ -267,6 +276,7 @@ export interface AccountingPayroll {
   year: number
   payment_date: string | null
   salary_month: string | null
+  employee_id: string | null
   employee_name: string
   base_salary: number
   meal_allowance: number
@@ -281,8 +291,88 @@ export interface AccountingPayroll {
   severance_fund: number
   retirement_fund: number
   company_total: number
+  insurance_grade: number | null
+  insurance_salary: number | null
+  labor_rate: number | null
+  health_rate: number | null
+  pension_rate: number | null
   note: string | null
   created_by: string | null
+  created_at: string
+  updated_at: string
+}
+
+// ===== 員工管理相關類型 =====
+
+export const EMPLOYMENT_TYPES = ['全職', '兼職', '約聘', '實習'] as const
+export type EmploymentType = typeof EMPLOYMENT_TYPES[number]
+
+export const EMPLOYEE_STATUS = ['在職', '留停', '離職'] as const
+export type EmployeeStatus = typeof EMPLOYEE_STATUS[number]
+
+export const GENDER_OPTIONS = ['男', '女', '其他'] as const
+export type Gender = typeof GENDER_OPTIONS[number]
+
+export interface Employee {
+  id: string
+  // 基本資料
+  name: string
+  id_number: string | null
+  birth_date: string | null
+  gender: Gender | null
+  phone: string | null
+  email: string | null
+  address: string | null
+  emergency_contact: string | null
+  emergency_phone: string | null
+  // 僱用資料
+  employee_number: string | null
+  hire_date: string
+  resignation_date: string | null
+  position: string | null
+  department: string | null
+  employment_type: EmploymentType
+  status: EmployeeStatus
+  // 薪資資料
+  base_salary: number
+  meal_allowance: number
+  insurance_grade: number | null
+  has_labor_insurance: boolean
+  has_health_insurance: boolean
+  // 銀行資料
+  bank_name: string | null
+  bank_branch: string | null
+  bank_account: string | null
+  // 備註
+  note: string | null
+  // 系統欄位
+  created_by: string | null
+  created_at: string
+  updated_at: string
+}
+
+// ===== 勞健保費率相關類型 =====
+
+export interface InsuranceRateTable {
+  id: string
+  grade: number
+  monthly_salary: number
+  labor_rate_total: number
+  labor_rate_employee: number
+  labor_rate_company: number
+  labor_rate_government: number
+  health_rate_total: number
+  health_rate_employee: number
+  health_rate_company: number
+  health_rate_government: number
+  supplementary_rate: number
+  pension_rate_company: number
+  pension_rate_employee: number
+  occupational_injury_rate: number
+  employment_stabilization_rate: number
+  effective_date: string
+  expiry_date: string | null
+  note: string | null
   created_at: string
   updated_at: string
 }

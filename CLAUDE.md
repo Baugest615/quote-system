@@ -77,6 +77,23 @@ src/
 - 必須包含 RLS policies
 - 標準欄位: `id` (UUID), `created_at`, `updated_at`
 
+### RLS 政策標準（已完成標準化 2026-02-16）
+
+**命名規範**：`{table}_{operation}_{scope}_policy`
+- 範例：`kols_select_authenticated_policy`、`quotations_update_authorized_policy`
+
+**權限函式**：統一使用 `get_my_role()` 取得當前用戶角色
+
+**標準模板**：
+- **核心業務表**（kols, quotations, clients）：SELECT 全部 / INSERT+UPDATE Admin+Editor+Member / DELETE Admin
+- **字典表**（kol_services, kol_types, service_types, quote_categories, quotation_items）：SELECT 全部 / INSERT+UPDATE Admin+Editor / DELETE Admin
+- **財務表**（payment_requests, payment_confirmations, payment_confirmation_items）：SELECT 全部 / INSERT+UPDATE+DELETE Admin+Editor
+- **人事表**（employees）：Admin 可全部操作，其他角色僅讀取在職員工（特殊設計 2 個 SELECT 政策）
+- **會計表**（accounting_expenses, accounting_payroll, accounting_sales）：所有登入用戶可 CRUD
+- **敏感資料**（insurance_rate_tables）：SELECT 全部 / INSERT+UPDATE+DELETE Admin
+
+**建立新表時**：請參考上述模板建立對應的 4 個政策（SELECT, INSERT, UPDATE, DELETE），特殊需求請說明
+
 ### 主要資料表
 
 | 資料表 | 說明 |

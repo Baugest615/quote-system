@@ -123,6 +123,33 @@ src/
 - 命名格式: `YYYYMMDD[HHMMSS]_description.sql`
 - 所有資料表使用 snake_case，必須包含 RLS policies
 
+### RLS 政策標準（2026-02-16 已完成標準化）
+
+本專案的 RLS (Row Level Security) 政策已完成全面整理與標準化：
+
+**標準命名格式**：`{table}_{operation}_{scope}_policy`
+- 範例：`kols_select_authenticated_policy`、`quotations_insert_authorized_policy`
+
+**權限函式**：統一使用 `get_my_role()` 取得當前用戶角色
+
+**政策模板**：
+| 表類型 | SELECT | INSERT/UPDATE | DELETE |
+|--------|--------|---------------|---------|
+| 核心業務表 | 所有登入用戶 | Admin + Editor + Member | Admin |
+| 字典表 | 所有登入用戶 | Admin + Editor | Admin |
+| 財務表 | 所有登入用戶 | Admin + Editor | Admin + Editor |
+| 人事表 | 分級權限* | Admin | Admin |
+| 會計表 | 所有登入用戶 | 所有登入用戶 | 所有登入用戶 |
+| 敏感資料 | 所有登入用戶 | Admin | Admin |
+
+*人事表（employees）特殊設計：
+- Admin 可讀取所有員工（含離職）
+- 其他角色僅可讀取在職員工
+
+**已標準化表格（16 張）**：kols, quotations, clients, kol_services, kol_types, service_types, quote_categories, quotation_items, payment_requests, payment_confirmations, payment_confirmation_items, employees, accounting_expenses, accounting_payroll, accounting_sales, insurance_rate_tables
+
+**詳細報告**：完整的 RLS 整理記錄請見 `DEV_PROGRESS.md` 與 `/tmp/ultimate_completion_report.md`
+
 ## 開發指南
 
 ### 環境需求
