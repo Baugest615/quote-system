@@ -127,7 +127,10 @@ export default async function PrintQuotePage({ params, searchParams }: PageProps
                 <title>報價單 - {quote.project_name}</title>
                 <style>{`
           * { margin: 0; padding: 0; box-sizing: border-box; }
-          body { font-family: 'Microsoft JhengHei', 'PingFang TC', sans-serif; font-size: 13px; line-height: 1.5; color: #1f2937; }
+          body, #printable-quote, #printable-quote * {
+            font-family: 'PingFang TC', 'Noto Sans TC', 'Microsoft JhengHei', 'Apple LiGothic', system-ui, sans-serif !important;
+          }
+          body { font-size: 13px; line-height: 1.5; color: #1f2937; }
           .container { padding: 0; background: white; }
           .header { text-align: center; margin-bottom: 12px; padding-bottom: 8px; border-bottom: 1px solid #e5e7eb; }
           .header img { height: 36px; }

@@ -10,12 +10,28 @@ async function getBrowser(): Promise<Browser> {
     const puppeteerPath = process.env.PUPPETEER_EXECUTABLE_PATH;
 
     if (isDev) {
-        // 本地開發：使用系統的 Chrome
-        const executablePath = process.platform === 'win32'
-            ? 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe'
+        // 本地開發：自動偵測可用的 Chromium 核心瀏覽器
+        const { existsSync } = await import('fs');
+        const candidates: string[] = process.platform === 'win32'
+            ? [
+                'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
+                'C:\\Program Files\\BraveSoftware\\Brave-Browser\\Application\\brave.exe',
+                'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe',
+            ]
             : process.platform === 'darwin'
-                ? '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'
-                : '/usr/bin/google-chrome';
+                ? [
+                    '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
+                    '/Applications/Brave Browser.app/Contents/MacOS/Brave Browser',
+                    '/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge',
+                    '/Applications/Chromium.app/Contents/MacOS/Chromium',
+                ]
+                : ['/usr/bin/google-chrome', '/usr/bin/chromium-browser', '/usr/bin/chromium'];
+
+        const executablePath = candidates.find(p => existsSync(p));
+        if (!executablePath) {
+            throw new Error(`找不到 Chromium 核心瀏覽器。請安裝 Chrome、Brave 或 Edge，或設定 PUPPETEER_EXECUTABLE_PATH 環境變數。`);
+        }
+        console.log(`[PDF API] Using local browser: ${executablePath}`);
 
         return puppeteer.launch({
             headless: true,
@@ -103,7 +119,45 @@ export async function POST(request: NextRequest) {
             throw e;
         }
 
-        // 生成 PDF
+        // 將 #printable-quote 直接搬到 body 下，保留 <style> 標籤
+        await page.evaluate(() => {
+            const el = document.getElementById('printable-quote');
+            if (el) {
+                // 先收集所有 <style> 元素（包含 print page 的 inline CSS）
+                const styles = Array.from(document.querySelectorAll('style'));
+                document.body.innerHTML = '';
+                // 先放回所有樣式
+                styles.forEach(s => document.body.appendChild(s));
+                // 再放入報價單內容
+                document.body.appendChild(el);
+            }
+        });
+
+        // 注入 PDF 專用樣式：白底 + CJK 字體
+        await page.addStyleTag({
+            content: `
+                html, body {
+                    background: white !important;
+                    color: #1f2937 !important;
+                    margin: 0 !important;
+                    padding: 0 !important;
+                }
+                #printable-quote {
+                    width: 100% !important;
+                    max-width: 100% !important;
+                    padding: 0 !important;
+                    margin: 0 !important;
+                }
+                body, body *, #printable-quote, #printable-quote * {
+                    font-family: 'Heiti TC', 'Apple LiGothic', 'STHeiti', 'PingFang TC',
+                                 'Noto Sans TC', 'Microsoft JhengHei', system-ui, sans-serif !important;
+                }
+            `
+        });
+
+        // 等待字體載入完成
+        await page.evaluate(() => document.fonts.ready);
+
         // 生成 PDF
         const pdfBuffer = await page.pdf({
             format: 'A4',

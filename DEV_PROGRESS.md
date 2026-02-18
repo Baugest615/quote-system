@@ -1,9 +1,30 @@
 # 開發進度追蹤
 
-> 最後更新：2026-02-16
+> 最後更新：2026-02-19
 > 分支：`feature/v2.1-accounting-and-ui`
 
 ## 已完成
+
+### 報價單檢視頁面暗色主題優化 & PDF 生成修復（2026-02-19）
+- [x] **檢視頁面顏色修正**：暗色主題下有色區塊（藍/紅背景）難以閱讀
+  - `bg-blue-50` → `bg-blue-500/10 text-blue-400`（未稅優惠、KOL 欄位）
+  - `bg-red-50` → `bg-red-500/10 text-red-400`（含稅總計）
+  - 僅修改畫面顯示區 `#printable-quote`，PDF 隱藏區保持白底配色不變
+- [x] **PDF 瀏覽器自動偵測**：新 Mac 無 Chrome，改為自動偵測可用 Chromium 瀏覽器
+  - 支援 Chrome、Brave、Edge、Chromium（macOS / Windows / Linux）
+  - 不影響部署環境（Railway Docker 使用 `PUPPETEER_EXECUTABLE_PATH`）
+- [x] **PDF 中文字體修復**：Brave headless 模式下 PingFang TC 不可用導致中文消失
+  - 偵測到 Brave headless 可用字體：Heiti TC、Apple LiGothic、STHeiti
+  - 使用 `page.addStyleTag()` 注入 CJK 字體覆寫（避免 Next.js root layout 字體衝突）
+- [x] **PDF 白底修正**：暗色主題背景滲入 PDF，注入 `background: white !important`
+- [x] **PDF A4 版面修復**：內容未展開至 A4 全寬
+  - 使用 `page.evaluate()` 將 `#printable-quote` 搬到 body 下，移除 root layout 包裝
+  - 保留所有 `<style>` 標籤避免 CSS 規則遺失
+
+修改檔案：
+- `src/app/dashboard/quotes/view/[id]/page.tsx`（暗色主題配色）
+- `src/app/api/pdf/generate/route.ts`（瀏覽器偵測、DOM 操作、字體注入）
+- `src/app/print/quote/[id]/page.tsx`（字體宣告更新）
 
 ### CLAUDE.md 文件完善（2026-02-16 晚間）
 - [x] 新增 Skills 使用指引章節
@@ -104,7 +125,8 @@
 - `npm run build` 通過，零型別錯誤
 - 儀表板已改版為 Executive Overview 風格，含圖表與待辦事項
 - **✅ RLS 政策整理已完成**：16 張核心表 100% 標準化
-- 所有 RLS 整理腳本已在資料庫執行成功
+- **✅ 報價單檢視頁面暗色主題配色已修正**
+- **✅ PDF 生成已修復**：支援多瀏覽器自動偵測、中文字體、白底、A4 全寬
 - **✅ CLAUDE.md 文件已完善**：Skills 使用指引、工作流程、環境設定完整
 - **✅ GitHub CLI 已設定**：認證完成，可直接推送
 - 開發時若遇 `.next` 快取問題，刪除 `.next` 資料夾後重啟即可

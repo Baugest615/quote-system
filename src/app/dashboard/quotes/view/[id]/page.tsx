@@ -444,7 +444,7 @@ export default function ViewQuotePage() {
                   {/* KOL欄位 - 使用 rowSpan 合併 */}
                   {showKol && (
                     <td
-                      className="border p-2 text-center align-middle font-medium bg-blue-50"
+                      className="border p-2 text-center align-middle font-medium bg-blue-500/10 text-blue-400"
                       rowSpan={row.kolRowSpan}
                     >
                       {row.item.kols?.name || 'N/A'}
@@ -511,8 +511,8 @@ export default function ViewQuotePage() {
                           </td>
                         </tr>
                         <tr>
-                          <td className="border p-2 font-bold bg-blue-50">未稅優惠</td>
-                          <td className="border p-2 text-right font-bold text-blue-600">
+                          <td className="border p-2 font-bold bg-blue-500/10 text-blue-400">未稅優惠</td>
+                          <td className="border p-2 text-right font-bold text-blue-400">
                             ${quote.discounted_price?.toLocaleString() || '0'}
                           </td>
                         </tr>
@@ -523,8 +523,8 @@ export default function ViewQuotePage() {
                           </td>
                         </tr>
                         <tr>
-                          <td className="border p-2 font-bold bg-red-50">含稅總計</td>
-                          <td className="border p-2 text-right font-bold text-red-600">
+                          <td className="border p-2 font-bold bg-red-500/10 text-red-400">含稅總計</td>
+                          <td className="border p-2 text-right font-bold text-red-400">
                             ${discountedGrandTotal.toLocaleString()}
                           </td>
                         </tr>
@@ -544,8 +544,8 @@ export default function ViewQuotePage() {
                           </td>
                         </tr>
                         <tr>
-                          <td className="border p-2 font-bold bg-red-50">含稅總計</td>
-                          <td className="border p-2 text-right font-bold text-red-600">
+                          <td className="border p-2 font-bold bg-red-500/10 text-red-400">含稅總計</td>
+                          <td className="border p-2 text-right font-bold text-red-400">
                             ${quote.grand_total_taxed?.toLocaleString() || '0'}
                           </td>
                         </tr>
