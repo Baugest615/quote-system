@@ -150,7 +150,7 @@ export default function MySalaryPage() {
   }, [permLoading, userId, fetchMyData])
 
   if (permLoading || loading) {
-    return <AccountingLoadingGuard />
+    return <AccountingLoadingGuard loading={true} isAdmin={true} />
   }
 
   if (!employee) {
