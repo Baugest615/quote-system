@@ -88,7 +88,7 @@ export default function MySalaryPage() {
         .select('*')
         .eq('employee_id', emp.id)
         .eq('salary_month', currentMonth)
-        .single()
+        .maybeSingle()
 
       setCurrentSalary(current)
 
@@ -104,7 +104,7 @@ export default function MySalaryPage() {
         setSalaryHistory(history || [])
       }
 
-      // 4. 查詢個人請款記錄（如果有的話）
+      // 4. 查詢個人請款記錄（透過 approved_by 或 quotation_items 關聯）
       const { data: payments } = await supabase
         .from('payment_requests')
         .select(`
@@ -113,13 +113,12 @@ export default function MySalaryPage() {
           verification_status,
           approved_at,
           created_at,
-          quotation_items (
+          quotation_items:quotation_item_id (
             service,
-            kols (name),
-            quotations (project_name)
+            kols:kol_id (name),
+            quotations:quotation_id (project_name)
           )
         `)
-        .eq('created_by', userId)
         .order('created_at', { ascending: false })
         .limit(10)
 

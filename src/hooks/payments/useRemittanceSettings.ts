@@ -1,11 +1,9 @@
 import { useState, useCallback, useRef, useEffect } from 'react'
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
+import supabase from '@/lib/supabase/client'
 import { RemittanceSettings } from '@/lib/payments/types'
-import { Database } from '@/types/database.types'
 
 export const useRemittanceSettings = (confirmationId: string, initialSettings: RemittanceSettings | null) => {
     const [settings, setSettings] = useState<RemittanceSettings>(initialSettings || {})
-    const supabase = createClientComponentClient<Database>()
     const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
     // Sync state with props when data is loaded/refreshed
