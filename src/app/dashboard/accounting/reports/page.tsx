@@ -94,44 +94,44 @@ export default function AccountingReportsPage() {
     '勞務報酬': 'bg-purple-400',
     '其他支出': 'bg-yellow-400',
     '公司相關': 'bg-green-400',
-    '沖帳免付': 'bg-gray-400',
+    '沖帳免付': 'bg-muted-foreground',
   }
 
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-3">
-        <Link href="/dashboard/accounting" className="text-gray-400 hover:text-gray-600">
+        <Link href="/dashboard/accounting" className="text-muted-foreground/60 hover:text-muted-foreground">
           <ChevronLeft className="w-5 h-5" />
         </Link>
         <FileText className="w-7 h-7 text-indigo-600" />
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">歷年報表</h1>
-          <p className="text-sm text-gray-500">年度比較與趨勢分析</p>
+          <h1 className="text-2xl font-bold text-foreground">歷年報表</h1>
+          <p className="text-sm text-muted-foreground">年度比較與趨勢分析</p>
         </div>
       </div>
 
       {loading ? (
         <div className="grid gap-4">
-          {[...Array(3)].map((_, i) => <div key={i} className="h-24 bg-gray-100 rounded-xl animate-pulse" />)}
+          {[...Array(3)].map((_, i) => <div key={i} className="h-24 bg-muted rounded-xl animate-pulse" />)}
         </div>
       ) : summaries.length === 0 ? (
-        <div className="text-center py-16 text-gray-400">
-          <FileText className="w-12 h-12 mx-auto mb-3 text-gray-300" />
+        <div className="text-center py-16 text-muted-foreground/60">
+          <FileText className="w-12 h-12 mx-auto mb-3 text-muted-foreground/60" />
           <p>目前尚無歷年資料</p>
           <p className="text-sm mt-1">請先在各模組中新增資料</p>
         </div>
       ) : (
         <>
           {/* 年度比較橫條圖 */}
-          <div className="bg-white rounded-xl border border-gray-200 p-5">
-            <h2 className="font-semibold text-gray-800 mb-4">年度銷售收入比較</h2>
+          <div className="bg-card rounded-xl border border-border p-5">
+            <h2 className="font-semibold text-foreground mb-4">年度銷售收入比較</h2>
             <div className="space-y-3">
               {summaries.map(s => (
                 <div key={s.year} className="flex items-center gap-3">
-                  <span className="w-14 text-sm font-medium text-gray-600 text-right">{s.year}</span>
-                  <div className="flex-1 bg-gray-100 rounded-full h-6 overflow-hidden">
+                  <span className="w-14 text-sm font-medium text-muted-foreground text-right">{s.year}</span>
+                  <div className="flex-1 bg-muted rounded-full h-6 overflow-hidden">
                     <div
-                      className="h-full bg-blue-500 rounded-full flex items-center justify-end pr-2 transition-all duration-500"
+                      className="h-full bg-primary rounded-full flex items-center justify-end pr-2 transition-all duration-500"
                       style={{ width: `${(s.totalSales / maxSales) * 100}%` }}
                     >
                       {s.totalSales / maxSales > 0.2 && (
@@ -140,7 +140,7 @@ export default function AccountingReportsPage() {
                     </div>
                   </div>
                   {s.totalSales / maxSales <= 0.2 && (
-                    <span className="text-sm text-gray-600">NT$ {fmt(s.totalSales)}</span>
+                    <span className="text-sm text-muted-foreground">NT$ {fmt(s.totalSales)}</span>
                   )}
                 </div>
               ))}
@@ -148,14 +148,14 @@ export default function AccountingReportsPage() {
           </div>
 
           {/* 年度摘要表格 */}
-          <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-            <div className="px-5 py-4 border-b border-gray-100">
-              <h2 className="font-semibold text-gray-800">年度損益比較</h2>
+          <div className="bg-card rounded-xl border border-border overflow-hidden">
+            <div className="px-5 py-4 border-b border-border/50">
+              <h2 className="font-semibold text-foreground">年度損益比較</h2>
             </div>
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="bg-gray-50 text-gray-600 text-xs">
+                  <tr className="bg-muted text-muted-foreground text-xs">
                     <th className="text-left px-4 py-3">年度</th>
                     <th className="text-right px-4 py-3">銷售收入</th>
                     <th className="text-right px-4 py-3">支出成本</th>
@@ -172,20 +172,20 @@ export default function AccountingReportsPage() {
                       ? ((s.totalSales - prev.totalSales) / prev.totalSales)
                       : null
                     return (
-                      <tr key={s.year} className="border-t border-gray-100 hover:bg-gray-50">
-                        <td className="px-4 py-3 font-semibold text-gray-800">{s.year} 年</td>
-                        <td className="px-4 py-3 text-right text-blue-600">NT$ {fmt(s.totalSales)}</td>
-                        <td className="px-4 py-3 text-right text-red-500">NT$ {fmt(s.totalExpenses)}</td>
-                        <td className="px-4 py-3 text-right text-purple-500">NT$ {fmt(s.totalPayroll)}</td>
-                        <td className={`px-4 py-3 text-right font-semibold ${s.totalProfit >= 0 ? 'text-green-600' : 'text-orange-600'}`}>
+                      <tr key={s.year} className="border-t border-border/50 hover:bg-accent">
+                        <td className="px-4 py-3 font-semibold text-foreground">{s.year} 年</td>
+                        <td className="px-4 py-3 text-right text-primary">NT$ {fmt(s.totalSales)}</td>
+                        <td className="px-4 py-3 text-right text-destructive">NT$ {fmt(s.totalExpenses)}</td>
+                        <td className="px-4 py-3 text-right text-chart-5">NT$ {fmt(s.totalPayroll)}</td>
+                        <td className={`px-4 py-3 text-right font-semibold ${s.totalProfit >= 0 ? 'text-success' : 'text-orange-600'}`}>
                           NT$ {fmt(s.totalProfit)}
                         </td>
-                        <td className={`px-4 py-3 text-right font-medium ${s.avgMargin >= 0.3 ? 'text-green-600' : s.avgMargin >= 0.15 ? 'text-yellow-600' : 'text-red-500'}`}>
+                        <td className={`px-4 py-3 text-right font-medium ${s.avgMargin >= 0.3 ? 'text-success' : s.avgMargin >= 0.15 ? 'text-yellow-600' : 'text-destructive'}`}>
                           {s.totalSales > 0 ? pct(s.avgMargin) : '-'}
                         </td>
                         <td className="px-4 py-3 text-center">
                           {yoy !== null ? (
-                            <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${yoy >= 0 ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                            <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${yoy >= 0 ? 'bg-success/10 text-success' : 'bg-destructive/10 text-destructive'}`}>
                               {yoy >= 0 ? '▲' : '▼'} {Math.abs(yoy * 100).toFixed(1)}%
                             </span>
                           ) : '-'}
@@ -204,15 +204,15 @@ export default function AccountingReportsPage() {
             if (yearBreakdown.length === 0) return null
             const totalExpType = yearBreakdown.reduce((t, b) => t + b.amount, 0)
             return (
-              <div key={`breakdown-${s.year}`} className="bg-white rounded-xl border border-gray-200 p-5">
-                <h3 className="font-semibold text-gray-800 mb-3">{s.year} 年支出結構</h3>
+              <div key={`breakdown-${s.year}`} className="bg-card rounded-xl border border-border p-5">
+                <h3 className="font-semibold text-foreground mb-3">{s.year} 年支出結構</h3>
                 <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
                   {yearBreakdown.sort((a, b) => b.amount - a.amount).map(b => (
                     <div key={b.type} className="text-center">
-                      <div className={`w-3 h-3 rounded-full mx-auto mb-1 ${EXPENSE_COLORS[b.type] || 'bg-gray-400'}`} />
-                      <p className="text-xs text-gray-500">{b.type}</p>
-                      <p className="text-sm font-semibold text-gray-800">NT$ {fmt(b.amount)}</p>
-                      <p className="text-xs text-gray-400">{totalExpType > 0 ? pct(b.amount / totalExpType) : '0%'}</p>
+                      <div className={`w-3 h-3 rounded-full mx-auto mb-1 ${EXPENSE_COLORS[b.type] || 'bg-muted-foreground'}`} />
+                      <p className="text-xs text-muted-foreground">{b.type}</p>
+                      <p className="text-sm font-semibold text-foreground">NT$ {fmt(b.amount)}</p>
+                      <p className="text-xs text-muted-foreground/60">{totalExpType > 0 ? pct(b.amount / totalExpType) : '0%'}</p>
                     </div>
                   ))}
                 </div>

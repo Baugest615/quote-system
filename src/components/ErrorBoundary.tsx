@@ -49,7 +49,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
             此區域發生了非預期的錯誤，請嘗試重新載入。若問題持續，請聯繫系統管理員。
           </p>
           {process.env.NODE_ENV === 'development' && this.state.error && (
-            <pre className="bg-muted p-4 rounded-lg text-sm text-red-400 mb-6 max-w-lg overflow-auto">
+            <pre className="bg-muted p-4 rounded-lg text-sm text-destructive mb-6 max-w-lg overflow-auto">
               {this.state.error.message}
             </pre>
           )}

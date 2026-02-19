@@ -1,271 +1,100 @@
-# Quote System - 報價管理系統
+# CLAUDE.md — AI 助手開發規則
 
-## 專案概述
+> 本文件專供 Claude Code 使用。專案介紹、技術架構、環境設定請參閱 [README.md](README.md)。
 
-企業級報價管理系統，支援客戶管理、KOL 管理、報價單生成、請款流程、會計模組等完整業務功能。
+## AI 行為規則
 
-## 技術架構
+- **語言**：一律使用繁體中文回覆
+- **Git commit**：執行前必須先詢問使用者確認
+- **Git push**：執行前必須先詢問使用者確認
+- **Commit 格式**：`<type>: <description>`（feat / fix / refactor / chore / docs）
 
-- **前端**: Next.js 14 (App Router) + TypeScript + Tailwind CSS
-- **UI**: Shadcn/ui + Radix UI + Lucide React + Framer Motion
-- **後端**: Supabase (PostgreSQL + Auth + Storage + RLS)
-- **PDF**: jsPDF + pdf-lib + Puppeteer (Docker 環境)
-- **表單**: React Hook Form + Zod
-- **部署**: Docker (standalone output) / Vercel
+## Skills 使用指引
 
-## 常用指令
+收到開發任務時，AI 助手應 **主動評估並優先使用** 對應的 Skill，不需使用者提示：
 
-```bash
-npm run dev           # 開發模式
-npm run build         # 建置生產版本
-npm run lint          # ESLint 檢查
-npm run type-check    # TypeScript 型別檢查
-npm run test          # 執行測試
-npx supabase db push  # 推送 migration 到 Supabase
-```
+| 場景 | Skill |
+|------|-------|
+| 建立 commit | `/commit` |
+| 建立 PR | `/pr` |
+| Code review | `/review` |
+| 建立 migration | `/db-migration` |
+| 設計 UI 元件 | `/frontend-design` 或 `/ui-ux-pro-max` |
+| 優化 Postgres 查詢 | `/supabase-postgres-best-practices` |
 
-## 目錄結構
+## 開發工作流程
+
+### 開發進度同步
+
+進度記錄在 `DEV_PROGRESS.md`，隨 git 同步：
+- 使用者說「**載入開發進度**」→ 讀取 `DEV_PROGRESS.md` 後繼續工作
+- 使用者說「**更新開發進度**」→ 將工作狀態寫入 `DEV_PROGRESS.md`
+
+### 任務完成後
+
+主動詢問使用者：「是否需要更新開發進度並推送到 Git？」
+
+若使用者確認，依序執行：
+1. 更新 `DEV_PROGRESS.md`
+2. 使用 `/commit` 建立 commit（需確認）
+3. 執行 `git push`（需確認）
+
+## 關鍵路徑速查
 
 ```
 src/
-├── app/                    # Next.js App Router 頁面
-│   ├── api/                # API Routes
-│   ├── auth/login/         # 登入頁
-│   ├── dashboard/          # 主要功能區
-│   │   ├── clients/        # 客戶管理
-│   │   ├── kols/           # KOL 管理
-│   │   ├── quotes/         # 報價單（列表/新增/編輯/檢視）
-│   │   ├── pending-payments/     # 待請款管理
-│   │   ├── payment-requests/     # 請款申請審核
-│   │   ├── confirmed-payments/   # 已確認請款清單
-│   │   ├── accounting/           # 會計模組
-│   │   │   ├── projects/         # 專案損益
-│   │   │   ├── reports/          # 財務報表
-│   │   │   ├── calculator/       # 計算器
-│   │   │   ├── payroll/          # 薪資管理
-│   │   │   ├── sales/            # 銷售分析
-│   │   │   └── expenses/         # 費用管理
-│   │   ├── reports/        # 報表分析
-│   │   └── settings/       # 系統設定
-│   └── print/              # 列印頁面
-├── components/             # React 元件
-│   ├── ui/                 # Shadcn/ui 基礎元件
-│   ├── dashboard/          # 儀表板元件（Sidebar 等）
-│   ├── clients/            # 客戶相關元件
-│   ├── kols/               # KOL 相關元件
-│   ├── quotes/             # 報價單元件（含 v2 DataGrid）
-│   ├── accounting/         # 會計模組元件
-│   ├── pdf/                # PDF 相關元件
-│   └── settings/           # 設定元件
-├── hooks/                  # 自訂 Hooks
-│   └── accounting/         # 會計模組 Hooks
-├── lib/                    # 工具函式庫
-│   ├── supabase/           # Supabase 客戶端
-│   ├── pdf/                # PDF 生成器
-│   ├── accounting/         # 會計邏輯
-│   └── spreadsheet-utils.ts
-└── types/                  # TypeScript 型別
-    ├── database.types.ts   # Supabase 自動生成型別
-    └── custom.types.ts     # 自訂業務型別
+├── app/dashboard/          # 頁面（clients, kols, quotes, accounting 等）
+├── components/ui/          # Shadcn/ui 基礎元件
+├── components/quotes/v2/   # 報價單 DataGrid（QuotesDataGrid, QuotationItemsList）
+├── components/accounting/  # 會計模組元件（SpreadsheetEditor, AccountingModal）
+├── hooks/                  # React Query hooks
+├── lib/supabase/           # Supabase 客戶端
+├── lib/permissions.ts      # 權限邏輯（usePermission hook）
+├── types/custom.types.ts   # 頁面定義、角色、權限設定
+└── types/database.types.ts # Supabase 自動生成型別
 ```
-
-## 資料庫
-
-- Migration 檔案位於 `supabase/migrations/`
-- 命名格式: `YYYYMMDD[HHMMSS]_description.sql`
-- 所有資料表使用 snake_case
-- 必須包含 RLS policies
-- 標準欄位: `id` (UUID), `created_at`, `updated_at`
-
-### RLS 政策標準（已完成標準化 2026-02-16）
-
-**命名規範**：`{table}_{operation}_{scope}_policy`
-- 範例：`kols_select_authenticated_policy`、`quotations_update_authorized_policy`
-
-**權限函式**：統一使用 `get_my_role()` 取得當前用戶角色
-
-**標準模板**：
-- **核心業務表**（kols, quotations, clients）：SELECT 全部 / INSERT+UPDATE Admin+Editor+Member / DELETE Admin
-- **字典表**（kol_services, kol_types, service_types, quote_categories, quotation_items）：SELECT 全部 / INSERT+UPDATE Admin+Editor / DELETE Admin
-- **財務表**（payment_requests, payment_confirmations, payment_confirmation_items）：SELECT 全部 / INSERT+UPDATE+DELETE Admin+Editor
-- **人事表**（employees）：Admin 可全部操作，其他角色僅讀取在職員工（特殊設計 2 個 SELECT 政策）
-- **會計表**（accounting_expenses, accounting_payroll, accounting_sales）：所有登入用戶可 CRUD
-- **敏感資料**（insurance_rate_tables）：SELECT 全部 / INSERT+UPDATE+DELETE Admin
-
-**建立新表時**：請參考上述模板建立對應的 4 個政策（SELECT, INSERT, UPDATE, DELETE），特殊需求請說明
-
-### 主要資料表
-
-| 資料表 | 說明 |
-|--------|------|
-| `users` / `user_roles` | 使用者與角色 (Admin/Editor/Member) |
-| `clients` | 客戶資料 |
-| `kols` | KOL 資料 |
-| `quotations` | 報價單 |
-| `quotation_items` | 報價單項目 |
-| `payment_requests` | 請款申請 |
-| `payment_confirmations` | 請款確認 |
 
 ## 編碼規範
 
-- TypeScript 嚴格模式，避免使用 `any`
-- 變數和函式使用英文命名
-- 元件使用 PascalCase，hooks 使用 camelCase
-- 遵循 ESLint + Prettier 規則
-- 提交訊息格式: `<type>: <description>`（feat/fix/refactor/chore 等）
-- 權限: Admin 完整存取 / Editor 可編輯 / Member 唯讀
+- TypeScript 嚴格模式，避免 `any`
+- 元件 PascalCase、hooks camelCase、變數函式英文命名
+- 遵循 ESLint + Prettier
+- 權限三級：Admin（完整存取）/ Editor（可編輯）/ Member（唯讀）
 
-## 環境變數
+## 資料庫規範
 
-```
-NEXT_PUBLIC_SUPABASE_URL=
-NEXT_PUBLIC_SUPABASE_ANON_KEY=
-SUPABASE_SERVICE_ROLE_KEY=
-```
+- Migration：`supabase/migrations/YYYYMMDD[HHMMSS]_description.sql`
+- 資料表 snake_case，標準欄位：`id`（UUID）、`created_at`、`updated_at`
+- 權限函式：`get_my_role()`
 
-## AI 助手偏好設定
+### RLS 政策模板（建立新表時必須遵循）
 
-- **語言**：一律使用繁體中文回覆
-- **Git 操作**：執行 `git push` 之前必須先詢問使用者確認
-- **Commit**：執行 `git commit` 之前也先詢問使用者確認
+命名：`{table}_{operation}_{scope}_policy`
 
-### Skills 使用指引
+| 表類型 | SELECT | INSERT/UPDATE | DELETE |
+|--------|--------|---------------|--------|
+| 核心業務表（kols, quotations, clients） | 全部 | Admin+Editor+Member | Admin |
+| 字典表（kol_services, service_types 等） | 全部 | Admin+Editor | Admin |
+| 財務表（payment_requests 等） | 全部 | Admin+Editor | Admin+Editor |
+| 人事表（employees）| 分級* | Admin | Admin |
+| 會計表（accounting_*） | 全部 | 全部 | 全部 |
+| 敏感資料（insurance_rate_tables） | 全部 | Admin | Admin |
 
-**⚠️ 重要：AI 助手應主動檢查並優先使用 Skills**
+*employees 特殊：Admin 看全部、其他僅看在職（2 個 SELECT 政策）
 
-收到開發任務時，AI 助手應該：
+## UI/UX 規範
 
-1. **自動評估** - 先檢查下方 Skills 列表是否有適合的工具
-2. **優先使用** - 有匹配的 Skill 就直接使用，而不是用基礎工具
-3. **不需提示** - 使用者不需要明確說 `/commit` 或 `/pr` 才會使用
+- 深色模式唯一（`class="dark"`），不支援淺色切換
+- 使用 CSS 變數主題色（`bg-card`、`text-foreground`、`text-muted-foreground`）
+- 語義色彩：`primary`、`destructive`、`warning`、`success`、`info`
+- KPI 卡片色彩：`chart-1`（綠）、`chart-3`（紅）、`chart-4`（藍）、`chart-5`（紫）
+- PDF/列印元件（`src/components/pdf/`、`src/app/print/`）故意使用淺色，**不修改**
+- 載入狀態使用 `Skeleton` 元件，空狀態使用 `EmptyState` 元件
 
-**常見應用場景**：
-- 📝 建立 commit → 使用 `/commit`（而非手動寫 message）
-- 🔀 建立 PR → 使用 `/pr`（而非手動執行 gh 指令）
-- 👀 審查程式碼 → 使用 `/review`
-- 🗄️ 建立 migration → 使用 `/db-migration`
-- 🎨 設計 UI → 使用 `/frontend-design` 或 `/ui-ux-pro-max`
-- ⚡ 優化查詢 → 使用 `/supabase-postgres-best-practices`
+## 業務名詞對照
 
-這些 Skills 包含最佳實踐和專業知識，能提升開發品質和效率。
-
-## 開發進度追蹤
-
-專案的開發進度記錄在 `DEV_PROGRESS.md`，用於跨開發環境同步。
-
-- 當使用者說「**更新開發進度**」時，將目前的工作狀態、已完成事項、待辦事項寫入 `DEV_PROGRESS.md`
-- 當使用者說「**載入開發進度**」時，讀取 `DEV_PROGRESS.md` 了解目前專案狀態後繼續工作
-- 進度檔案隨 git 同步，確保任何開發環境都能接續工作
-
-### 完成開發工作流程
-
-**⚠️ 重要：AI 助手應主動引導完整的工作流程**
-
-當開發任務完成後，AI 助手應該：
-
-1. **主動詢問** - 「開發任務已完成，是否需要更新開發進度並推送到 Git？」
-2. **若使用者確認**，依序執行：
-   - 📝 **更新文件** - 更新 `DEV_PROGRESS.md`（記錄完成的工作、更新待辦事項）
-   - 📝 **更新相關文件** - 如有需要，同步更新 `CLAUDE.md`、`README.md` 等
-   - 💾 **建立 Commit** - 使用 `/commit` skill 分析變更並生成規範的 commit message
-   - ☁️ **推送遠端** - 執行 `git push`（需使用者確認）
-
-3. **完整流程範例**：
-   ```
-   使用者：「功能開發完成了」
-
-   AI：「✅ 開發任務已完成！是否需要：
-        1. 更新開發進度到 DEV_PROGRESS.md
-        2. 建立 commit 並推送到 Git？」
-
-   使用者：「好」
-
-   AI：[更新 DEV_PROGRESS.md]
-       [使用 /commit skill 建立 commit]
-       [詢問確認後執行 git push]
-   ```
-
-**注意事項**：
-- 不要自動執行，必須等待使用者確認
-- Commit 和 Push 前都要先詢問使用者
-- 如果使用者只想更新文件不想 commit，也要尊重選擇
-
-## Claude Code Skills
-
-此專案包含以下 Claude Code skills（位於 `.claude/skills/`）：
-
-| Skill | 說明 | 用法 |
-|-------|------|------|
-| `/commit` | 智能 Git commit | 分析變更生成規範 commit message |
-| `/pr` | 自動建立 Pull Request | 分析分支差異，用 gh CLI 建立 PR |
-| `/review` | Code Review | 全面審查邏輯、效能、安全性 |
-| `/db-migration` | 資料庫 Migration | 生成 Supabase migration SQL |
-| `/frontend-design` | 前端設計 | 建立高品質 UI 元件 |
-| `/supabase-postgres-best-practices` | Postgres 最佳實踐 | 查詢優化與 schema 設計 |
-| `/ui-ux-pro-max` | UI/UX 設計智庫 | 設計系統、配色、字型建議 |
-
-## 新開發環境設定
-
-在新的 Mac 或開發環境中首次啟動專案時，執行以下步驟：
-
-### 1. 安裝基礎工具
-
-```bash
-# 確認已安裝 Homebrew
-brew --version || /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-
-# 安裝 Node.js（若未安裝）
-node --version || brew install node
-
-# 安裝 GitHub CLI（用於 PR 與認證）
-gh --version || brew install gh
-```
-
-### 2. 專案初始化
-
-```bash
-# Clone 專案
-git clone https://github.com/Baugest615/quote-system.git
-cd quote-system
-
-# 安裝所有依賴套件
-npm install
-
-# 複製環境變數範本
-cp .env.example .env.local
-# 編輯 .env.local 填入 Supabase 連線資訊
-```
-
-### 3. Claude Code 設定
-
-```bash
-# 安裝 Claude Code（若未安裝）
-npm install -g @anthropic-ai/claude-code
-
-# Skills 會自動從 .claude/skills/ 載入
-# 個人設定存放在 ~/.claude/ 不會被追蹤
-```
-
-### 4. GitHub 認證
-
-```bash
-# 使用 GitHub CLI 登入
-gh auth login
-
-# 設定 git 使用 gh CLI 認證
-gh auth setup-git
-```
-
-### 5. 載入開發進度
-
-開啟 Claude Code 後，說「**載入開發進度**」即可同步目前專案狀態。
-
-### 環境同步檢查清單
-
-- [ ] ✅ Node.js 已安裝（`node --version`）
-- [ ] ✅ npm 套件已安裝（`ls node_modules/`）
-- [ ] ✅ GitHub CLI 已安裝並登入（`gh auth status`）
-- [ ] ✅ 環境變數已設定（`.env.local` 存在）
-- [ ] ✅ Git 遠端已連接（`git remote -v`）
-- [ ] ✅ Claude Code Skills 已同步（`.claude/skills/` 存在）
-- [ ] ✅ 開發進度已載入（讀取 `DEV_PROGRESS.md`）
+| 介面顯示 | 資料庫欄位/表名 | 說明 |
+|----------|----------------|------|
+| KOL/服務 | `kols` 表 | 報價對象（含 KOL 以外的服務） |
+| 執行內容 | `service_types` 表 | 具體服務項目 |
+| KOL/服務管理 | `/dashboard/kols` | 側邊欄選單名稱 |

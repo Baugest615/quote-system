@@ -20,27 +20,27 @@ export default function AccountingLoadingGuard({ loading, isAdmin, children, ske
       <div className="space-y-6 animate-pulse">
         {/* 標題列 skeleton */}
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 bg-gray-200 rounded-lg" />
+          <div className="w-8 h-8 bg-muted rounded-lg" />
           <div>
-            <div className="h-7 w-36 bg-gray-200 rounded mb-1" />
-            <div className="h-4 w-24 bg-gray-100 rounded" />
+            <div className="h-7 w-36 bg-muted rounded mb-1" />
+            <div className="h-4 w-24 bg-muted/50 rounded" />
           </div>
         </div>
         {/* 統計卡片 skeleton */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           {[...Array(4)].map((_, i) => (
-            <div key={i} className="h-24 bg-gray-200 rounded-xl" />
+            <div key={i} className="h-24 bg-muted rounded-xl" />
           ))}
         </div>
         {/* 表格 skeleton */}
-        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-          <div className="h-10 bg-gray-100 border-b border-gray-200" />
+        <div className="bg-card rounded-xl border border-border overflow-hidden">
+          <div className="h-10 bg-muted border-b border-border" />
           {[...Array(skeletonRows)].map((_, i) => (
-            <div key={i} className="flex gap-4 px-4 py-3 border-b border-gray-100 last:border-0">
-              <div className="h-4 bg-gray-100 rounded flex-1" />
-              <div className="h-4 bg-gray-100 rounded w-24" />
-              <div className="h-4 bg-gray-100 rounded w-20" />
-              <div className="h-4 bg-gray-100 rounded w-16" />
+            <div key={i} className="flex gap-4 px-4 py-3 border-b border-border/50 last:border-0">
+              <div className="h-4 bg-muted/50 rounded flex-1" />
+              <div className="h-4 bg-muted/50 rounded w-24" />
+              <div className="h-4 bg-muted/50 rounded w-20" />
+              <div className="h-4 bg-muted/50 rounded w-16" />
             </div>
           ))}
         </div>
@@ -50,8 +50,8 @@ export default function AccountingLoadingGuard({ loading, isAdmin, children, ske
 
   if (!isAdmin) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[60vh] text-gray-500">
-        <Shield className="w-16 h-16 mb-4 text-gray-300" />
+      <div className="flex flex-col items-center justify-center min-h-[60vh] text-muted-foreground">
+        <Shield className="w-16 h-16 mb-4 text-muted-foreground/50" />
         <p className="text-lg font-medium">此頁面僅限管理員存取</p>
       </div>
     )

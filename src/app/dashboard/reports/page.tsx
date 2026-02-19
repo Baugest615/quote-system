@@ -8,11 +8,12 @@ import { Button } from '@/components/ui/button'
 import { Database } from '@/types/database.types'
 import { formatCurrency, formatDate, exportToCSV } from '@/lib/utils'
 import { toast } from 'sonner' // 【修正】加入了 toast 的 import
+import { SkeletonPageHeader, SkeletonStatCards, SkeletonTable } from '@/components/ui/Skeleton'
 
 // 定義從資料庫來的型別
 type Quotation = Database['public']['Tables']['quotations']['Row']
 type Client = Database['public']['Tables']['clients']['Row']
-type KOL = Database['public']['Tables']['kols']['Row']
+type KOL = Pick<Database['public']['Tables']['kols']['Row'], 'id' | 'name'>
 type QuotationItem = Database['public']['Tables']['quotation_items']['Row']
 
 // 組合型別，讓報價單包含客戶和項目詳情
@@ -53,33 +54,37 @@ export default function ReportsPage() {
   const fetchData = async () => {
     try {
       setLoading(true)
-      
-      const { data: quotationsData, error: quotationsError } = await supabase
-        .from('quotations')
-        .select(`*, clients(id, name), quotation_items(*)`)
-        .gte('created_at', dateRange.start)
-        .lte('created_at', dateRange.end + 'T23:59:59')
-        .order('created_at', { ascending: false })
 
-      if (quotationsError) throw quotationsError
+      // 並行載入報價單與 KOL（只取 id + name）
+      const [quotationsRes, kolsRes] = await Promise.all([
+        supabase
+          .from('quotations')
+          .select(`*, clients(id, name), quotation_items(*)`)
+          .gte('created_at', dateRange.start)
+          .lte('created_at', dateRange.end + 'T23:59:59')
+          .order('created_at', { ascending: false }),
+        supabase
+          .from('kols')
+          .select('id, name'),
+      ])
 
-      const { data: kolsData, error: kolsError } = await supabase
-        .from('kols')
-        .select('*')
+      if (quotationsRes.error) throw quotationsRes.error
+      if (kolsRes.error) throw kolsRes.error
 
-      if (kolsError) throw kolsError
+      const quotationsData = quotationsRes.data
+      const kolsData = kolsRes.data
 
       setQuotations((quotationsData as QuotationWithDetails[]) || [])
       setKols(kolsData || [])
-      
+
       if (quotationsData) {
         generateReportData(quotationsData as QuotationWithDetails[], kolsData || [])
       }
-      
+
     } catch (error: unknown) {
       console.error('Error fetching data:', error)
       setError(error instanceof Error ? error.message : String(error))
-      toast.error("Failed to fetch report data.") // 【修正】使用 toast
+      toast.error("載入報表資料失敗")
     } finally {
       setLoading(false)
     }
@@ -231,8 +236,10 @@ export default function ReportsPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-emerald-500"></div>
+      <div className="min-h-screen bg-secondary p-6 space-y-6">
+        <SkeletonPageHeader />
+        <SkeletonStatCards count={4} />
+        <SkeletonTable rows={8} columns={5} />
       </div>
     )
   }
@@ -258,7 +265,7 @@ export default function ReportsPage() {
               </Button>
               <Button 
                 onClick={handleExportCSV}
-                className="bg-green-600 hover:bg-green-700"
+                className="bg-success hover:bg-success/90"
                 disabled={!quotations.length}
               >
                 � 匯出 CSV
@@ -273,8 +280,8 @@ export default function ReportsPage() {
         <div className="px-4 py-6 sm:px-0">
 
           {error && (
-            <div className="bg-red-50 border border-red-200 rounded-md p-4 mb-6">
-              <div className="text-sm text-red-700">{error}</div>
+            <div className="bg-destructive/15 border border-destructive/25 rounded-md p-4 mb-6">
+              <div className="text-sm text-destructive">{error}</div>
             </div>
           )}
 
@@ -291,7 +298,7 @@ export default function ReportsPage() {
                     type="date"
                     value={dateRange.start}
                     onChange={(e) => setDateRange({...dateRange, start: e.target.value})}
-                    className="mt-1 block w-full rounded-md border-border shadow-sm focus:border-emerald-500 focus:ring-emerald-400 sm:text-sm px-3 py-2 border"
+                    className="mt-1 block w-full rounded-md border-border shadow-sm focus:border-primary focus:ring-primary sm:text-sm px-3 py-2 border"
                   />
                 </div>
                 <div>
@@ -300,7 +307,7 @@ export default function ReportsPage() {
                     type="date"
                     value={dateRange.end}
                     onChange={(e) => setDateRange({...dateRange, end: e.target.value})}
-                    className="mt-1 block w-full rounded-md border-border shadow-sm focus:border-emerald-500 focus:ring-emerald-400 sm:text-sm px-3 py-2 border"
+                    className="mt-1 block w-full rounded-md border-border shadow-sm focus:border-primary focus:ring-primary sm:text-sm px-3 py-2 border"
                   />
                 </div>
               </div>
@@ -410,8 +417,8 @@ export default function ReportsPage() {
                             </div>
                             <div className="flex items-center space-x-2">
                               <div className="w-20 bg-muted rounded-full h-2">
-                                <div 
-                                  className="bg-emerald-600 h-2 rounded-full" 
+                                <div
+                                  className="bg-primary h-2 rounded-full"
                                   style={{ width: `${percentage}%` }}
                                 ></div>
                               </div>
@@ -464,7 +471,7 @@ export default function ReportsPage() {
                         {reportData.topClients.map((client, index) => (
                           <div key={client.client} className="flex items-center justify-between">
                             <div className="flex items-center space-x-3">
-                              <span className="flex-shrink-0 w-6 h-6 bg-emerald-500/10 rounded-full flex items-center justify-center text-xs font-medium text-emerald-400">
+                              <span className="flex-shrink-0 w-6 h-6 bg-primary/10 rounded-full flex items-center justify-center text-xs font-medium text-primary">
                                 {index + 1}
                               </span>
                               <div>
@@ -495,7 +502,7 @@ export default function ReportsPage() {
                         {reportData.topKols.map((kol, index) => (
                           <div key={kol.kol} className="flex items-center justify-between">
                             <div className="flex items-center space-x-3">
-                              <span className="flex-shrink-0 w-6 h-6 bg-purple-100 rounded-full flex items-center justify-center text-xs font-medium text-purple-800">
+                              <span className="flex-shrink-0 w-6 h-6 bg-chart-4/15 rounded-full flex items-center justify-center text-xs font-medium text-chart-4">
                                 {index + 1}
                               </span>
                               <div>
@@ -524,7 +531,7 @@ export default function ReportsPage() {
                     <p className="text-sm text-muted-foreground">暫無服務數據</p>
                   ) : (
                     <div className="overflow-x-auto">
-                      <table className="min-w-full divide-y divide-gray-200">
+                      <table className="min-w-full divide-y divide-border">
                         <thead className="bg-secondary">
                           <tr>
                             <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
@@ -541,7 +548,7 @@ export default function ReportsPage() {
                             </th>
                           </tr>
                         </thead>
-                        <tbody className="bg-card divide-y divide-gray-200">
+                        <tbody className="bg-card divide-y divide-border">
                           {reportData.serviceTypeBreakdown.map((service, index) => (
                             <tr key={service.service}>
                               <td className="px-6 py-4 whitespace-nowrap text-sm text-foreground">

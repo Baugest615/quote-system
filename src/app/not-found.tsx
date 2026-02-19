@@ -13,13 +13,13 @@ export default function NotFound() {
         <div className="space-y-4">
           <Link 
             href="/auth/login" 
-            className="block w-full bg-emerald-600 text-white py-2 px-4 rounded-md hover:bg-emerald-700 transition-colors"
+            className="block w-full bg-primary text-white py-2 px-4 rounded-md hover:bg-primary/90 transition-colors"
           >
             前往登入頁面
           </Link>
           <Link 
             href="/" 
-            className="block w-full bg-muted text-foreground py-2 px-4 rounded-md hover:bg-gray-300 transition-colors"
+            className="block w-full bg-muted text-foreground py-2 px-4 rounded-md hover:bg-accent transition-colors"
           >
             返回首頁
           </Link>

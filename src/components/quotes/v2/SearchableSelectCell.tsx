@@ -112,7 +112,7 @@ export function SearchableSelectCell({
                     onChange={(e) => setSearchTerm(e.target.value)}
                     onKeyDown={handleKeyDown}
                     className={cn(
-                        "w-full h-8 p-1 text-sm rounded-none border-blue-500 focus:ring-0",
+                        "w-full h-8 p-1 text-sm rounded-none border-ring focus:ring-0",
                         className
                     )}
                     placeholder={placeholder}
@@ -120,7 +120,7 @@ export function SearchableSelectCell({
                 <PortalDropdown
                     isOpen={isOpen}
                     triggerRef={containerRef}
-                    className="portal-dropdown-content max-h-60 w-64 overflow-y-auto bg-card border shadow-lg rounded-md z-[9999]"
+                    className="portal-dropdown-content max-h-60 w-64 overflow-y-auto bg-card border shadow-lg rounded-md z-[60]"
                 >
                     {filteredOptions.length > 0 ? (
                         filteredOptions.map((opt) => (

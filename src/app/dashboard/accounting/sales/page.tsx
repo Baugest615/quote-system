@@ -9,6 +9,7 @@ import AccountingLoadingGuard from '@/components/accounting/AccountingLoadingGua
 import AccountingModal from '@/components/accounting/AccountingModal'
 import Pagination from '@/components/accounting/Pagination'
 import SpreadsheetEditor from '@/components/accounting/SpreadsheetEditor'
+import { EmptyState } from '@/components/ui/EmptyState'
 import Link from 'next/link'
 import type { AccountingSale } from '@/types/custom.types'
 import type { SpreadsheetColumn, BatchSaveResult, RowError } from '@/lib/spreadsheet-utils'
@@ -200,13 +201,13 @@ export default function AccountingSalesPage() {
     <div className="space-y-6">
       {/* 頁首 */}
       <div className="flex items-center gap-3">
-        <Link href="/dashboard/accounting" className="text-gray-400 hover:text-gray-600">
+        <Link href="/dashboard/accounting" className="text-muted-foreground/60 hover:text-muted-foreground">
           <ChevronLeft className="w-5 h-5" />
         </Link>
-        <Receipt className="w-7 h-7 text-blue-600" />
+        <Receipt className="w-7 h-7 text-primary" />
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">銷項管理</h1>
-          <p className="text-sm text-gray-500">發票開立記錄</p>
+          <h1 className="text-2xl font-bold text-foreground">銷項管理</h1>
+          <p className="text-sm text-muted-foreground">發票開立記錄</p>
         </div>
       </div>
 
@@ -215,26 +216,26 @@ export default function AccountingSalesPage() {
         <select
           value={year}
           onChange={(e) => setYear(Number(e.target.value))}
-          className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="border border-border rounded-lg px-3 py-2 text-sm bg-card focus:outline-none focus:ring-2 focus:ring-ring"
         >
           {[CURRENT_YEAR, CURRENT_YEAR - 1, CURRENT_YEAR - 2].map(y => (
             <option key={y} value={y}>{y} 年</option>
           ))}
         </select>
         <div className="relative flex-1 min-w-48">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground/60" />
           <input
             type="text"
             placeholder="搜尋案件名稱、客戶、發票號碼..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-9 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full pl-9 pr-4 py-2 border border-border rounded-lg text-sm bg-card focus:outline-none focus:ring-2 focus:ring-ring"
           />
         </div>
         {!isSpreadsheetMode && (
           <button
             onClick={openCreate}
-            className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors"
+            className="flex items-center gap-2 bg-primary text-primary-foreground px-4 py-2 rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors"
           >
             <Plus className="w-4 h-4" />
             新增銷項
@@ -244,8 +245,8 @@ export default function AccountingSalesPage() {
           onClick={() => setIsSpreadsheetMode(!isSpreadsheetMode)}
           className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
             isSpreadsheetMode
-              ? 'bg-blue-100 text-blue-700 border border-blue-300'
-              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              ? 'bg-primary/10 text-primary border border-primary/30'
+              : 'bg-muted text-foreground hover:bg-accent'
           }`}
         >
           <Table2 className="w-4 h-4" />
@@ -268,29 +269,29 @@ export default function AccountingSalesPage() {
       <>
       {/* 統計卡片 */}
       <div className="grid grid-cols-3 gap-4">
-        <div className="bg-blue-50 rounded-xl p-4 text-center">
-          <p className="text-xs text-blue-500 mb-1">銷售額（未稅）</p>
-          <p className="text-lg font-bold text-blue-700">NT$ {fmt(totalSales)}</p>
+        <div className="bg-chart-4/10 rounded-xl p-4 text-center">
+          <p className="text-xs text-chart-4/70 mb-1">銷售額（未稅）</p>
+          <p className="text-lg font-bold text-chart-4">NT$ {fmt(totalSales)}</p>
         </div>
-        <div className="bg-gray-50 rounded-xl p-4 text-center">
-          <p className="text-xs text-gray-500 mb-1">稅額</p>
-          <p className="text-lg font-bold text-gray-700">NT$ {fmt(totalTax)}</p>
+        <div className="bg-muted rounded-xl p-4 text-center">
+          <p className="text-xs text-muted-foreground mb-1">稅額</p>
+          <p className="text-lg font-bold text-foreground">NT$ {fmt(totalTax)}</p>
         </div>
-        <div className="bg-green-50 rounded-xl p-4 text-center">
-          <p className="text-xs text-green-500 mb-1">發票總金額（含稅）</p>
-          <p className="text-lg font-bold text-green-700">NT$ {fmt(totalAmount)}</p>
+        <div className="bg-chart-1/10 rounded-xl p-4 text-center">
+          <p className="text-xs text-chart-1/70 mb-1">發票總金額（含稅）</p>
+          <p className="text-lg font-bold text-chart-1">NT$ {fmt(totalAmount)}</p>
         </div>
       </div>
 
       {/* 表格 */}
-      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+      <div className="bg-card rounded-xl border border-border overflow-hidden">
         {loading ? (
-          <div className="p-8 text-center text-gray-400">載入中...</div>
+          <div className="p-8 text-center text-muted-foreground/60">載入中...</div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="bg-gray-50 text-gray-600 text-xs">
+                <tr className="bg-muted text-muted-foreground text-xs">
                   <th className="text-left px-4 py-3">發票月份</th>
                   <th className="text-left px-4 py-3">案件名稱</th>
                   <th className="text-left px-4 py-3">開立對象</th>
@@ -304,26 +305,26 @@ export default function AccountingSalesPage() {
               </thead>
               <tbody>
                 {filtered.length === 0 ? (
-                  <tr><td colSpan={9} className="text-center py-12 text-gray-400">尚無資料</td></tr>
+                  <tr><td colSpan={9}><EmptyState type="no-data" icon={Receipt} title="尚無銷售記錄" description="新增第一筆銷售記錄開始追蹤" /></td></tr>
                 ) : filtered.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE).map(r => (
-                  <tr key={r.id} className="border-t border-gray-100 hover:bg-gray-50">
-                    <td className="px-4 py-3 text-gray-600">{r.invoice_month || '-'}</td>
-                    <td className="px-4 py-3 font-medium text-gray-800">
+                  <tr key={r.id} className="border-t border-border/50 hover:bg-accent">
+                    <td className="px-4 py-3 text-muted-foreground">{r.invoice_month || '-'}</td>
+                    <td className="px-4 py-3 font-medium text-foreground">
                       {r.project_name}
-                      {r.quotation_id && <span className="ml-1.5 text-[10px] text-blue-500 bg-blue-50 px-1 py-0.5 rounded" title="由報價單自動建立">自動</span>}
+                      {r.quotation_id && <span className="ml-1.5 text-[10px] text-primary bg-primary/10 px-1 py-0.5 rounded" title="由報價單自動建立">自動</span>}
                     </td>
-                    <td className="px-4 py-3 text-gray-600">{r.client_name || '-'}</td>
-                    <td className="px-4 py-3 text-right text-blue-600">NT$ {fmt(r.sales_amount || 0)}</td>
-                    <td className="px-4 py-3 text-right text-gray-500">NT$ {fmt(r.tax_amount || 0)}</td>
-                    <td className="px-4 py-3 text-right font-medium text-green-600">NT$ {fmt(r.total_amount || 0)}</td>
-                    <td className="px-4 py-3 text-gray-600 font-mono text-xs">{r.invoice_number || '-'}</td>
-                    <td className="px-4 py-3 text-gray-600">{r.actual_receipt_date || '-'}</td>
+                    <td className="px-4 py-3 text-muted-foreground">{r.client_name || '-'}</td>
+                    <td className="px-4 py-3 text-right text-chart-4">NT$ {fmt(r.sales_amount || 0)}</td>
+                    <td className="px-4 py-3 text-right text-muted-foreground">NT$ {fmt(r.tax_amount || 0)}</td>
+                    <td className="px-4 py-3 text-right font-medium text-success">NT$ {fmt(r.total_amount || 0)}</td>
+                    <td className="px-4 py-3 text-muted-foreground font-mono text-xs">{r.invoice_number || '-'}</td>
+                    <td className="px-4 py-3 text-muted-foreground">{r.actual_receipt_date || '-'}</td>
                     <td className="px-4 py-3">
                       <div className="flex items-center justify-center gap-2">
-                        <button onClick={() => openEdit(r)} className="p-1.5 text-gray-400 hover:text-blue-600 rounded hover:bg-blue-50">
+                        <button onClick={() => openEdit(r)} className="p-1.5 text-muted-foreground/60 hover:text-primary rounded hover:bg-primary/10">
                           <Pencil className="w-4 h-4" />
                         </button>
-                        <button onClick={() => handleDelete(r.id)} className="p-1.5 text-gray-400 hover:text-red-600 rounded hover:bg-red-50">
+                        <button onClick={() => handleDelete(r.id)} className="p-1.5 text-muted-foreground/60 hover:text-destructive rounded hover:bg-destructive/10">
                           <Trash2 className="w-4 h-4" />
                         </button>
                       </div>
@@ -350,13 +351,13 @@ export default function AccountingSalesPage() {
         title={editing ? '編輯銷項記錄' : '新增銷項記錄'}
         footer={
           <div className="flex justify-end gap-3">
-            <button onClick={() => setIsModalOpen(false)} className="px-4 py-2 text-sm text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-100">
+            <button onClick={() => setIsModalOpen(false)} className="px-4 py-2 text-sm text-muted-foreground border border-border rounded-lg hover:bg-accent">
               取消
             </button>
             <button
               onClick={handleSave}
               disabled={saving}
-              className="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+              className="px-4 py-2 text-sm bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 disabled:opacity-50"
             >
               {saving ? '儲存中...' : '儲存'}
             </button>
@@ -366,21 +367,21 @@ export default function AccountingSalesPage() {
         <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">年度</label>
+                  <label className="block text-xs font-medium text-muted-foreground mb-1">年度</label>
                   <select
                     value={form.year}
                     onChange={(e) => setForm(f => ({ ...f, year: Number(e.target.value) }))}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full border border-border rounded-lg px-3 py-2 text-sm bg-card focus:outline-none focus:ring-2 focus:ring-ring"
                   >
                     {[CURRENT_YEAR, CURRENT_YEAR - 1, CURRENT_YEAR - 2].map(y => <option key={y} value={y}>{y}</option>)}
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">發票月份</label>
+                  <label className="block text-xs font-medium text-muted-foreground mb-1">發票月份</label>
                   <select
                     value={form.invoice_month || ''}
                     onChange={(e) => setForm(f => ({ ...f, invoice_month: e.target.value }))}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full border border-border rounded-lg px-3 py-2 text-sm bg-card focus:outline-none focus:ring-2 focus:ring-ring"
                   >
                     <option value="">-- 選擇月份 --</option>
                     {MONTH_OPTIONS.map(m => <option key={m} value={`${form.year}年${m}`}>{form.year}年{m}</option>)}
@@ -388,94 +389,94 @@ export default function AccountingSalesPage() {
                 </div>
               </div>
               <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">案件名稱 *</label>
+                <label className="block text-xs font-medium text-muted-foreground mb-1">案件名稱 *</label>
                 <input
                   type="text"
                   value={form.project_name || ''}
                   onChange={(e) => setForm(f => ({ ...f, project_name: e.target.value }))}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full border border-border rounded-lg px-3 py-2 text-sm bg-card focus:outline-none focus:ring-2 focus:ring-ring"
                   placeholder="請輸入案件名稱"
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">開立對象（客戶名稱）</label>
+                <label className="block text-xs font-medium text-muted-foreground mb-1">開立對象（客戶名稱）</label>
                 <input
                   type="text"
                   value={form.client_name || ''}
                   onChange={(e) => setForm(f => ({ ...f, client_name: e.target.value }))}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full border border-border rounded-lg px-3 py-2 text-sm bg-card focus:outline-none focus:ring-2 focus:ring-ring"
                   placeholder="請輸入客戶名稱"
                 />
               </div>
               <div className="grid grid-cols-3 gap-4">
                 <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">銷售額（未稅）</label>
+                  <label className="block text-xs font-medium text-muted-foreground mb-1">銷售額（未稅）</label>
                   <input
                     type="number"
                     value={form.sales_amount || ''}
                     onChange={(e) => handleSalesAmountChange(Number(e.target.value))}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full border border-border rounded-lg px-3 py-2 text-sm bg-card focus:outline-none focus:ring-2 focus:ring-ring"
                     placeholder="0"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">稅額（自動計算 5%）</label>
+                  <label className="block text-xs font-medium text-muted-foreground mb-1">稅額（自動計算 5%）</label>
                   <input
                     type="number"
                     value={form.tax_amount || ''}
                     onChange={(e) => setForm(f => ({ ...f, tax_amount: Number(e.target.value), total_amount: (f.sales_amount || 0) + Number(e.target.value) }))}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full border border-border rounded-lg px-3 py-2 text-sm bg-card focus:outline-none focus:ring-2 focus:ring-ring"
                     placeholder="0"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">發票總金額（含稅）</label>
+                  <label className="block text-xs font-medium text-muted-foreground mb-1">發票總金額（含稅）</label>
                   <input
                     type="number"
                     value={form.total_amount || ''}
                     onChange={(e) => setForm(f => ({ ...f, total_amount: Number(e.target.value) }))}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full border border-border rounded-lg px-3 py-2 text-sm bg-card focus:outline-none focus:ring-2 focus:ring-ring"
                     placeholder="0"
                   />
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">發票號碼</label>
+                  <label className="block text-xs font-medium text-muted-foreground mb-1">發票號碼</label>
                   <input
                     type="text"
                     value={form.invoice_number || ''}
                     onChange={(e) => setForm(f => ({ ...f, invoice_number: e.target.value }))}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full border border-border rounded-lg px-3 py-2 text-sm font-mono bg-card focus:outline-none focus:ring-2 focus:ring-ring"
                     placeholder="如 AB-12345678"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">發票開立日</label>
+                  <label className="block text-xs font-medium text-muted-foreground mb-1">發票開立日</label>
                   <input
                     type="date"
                     value={form.invoice_date || ''}
                     onChange={(e) => setForm(f => ({ ...f, invoice_date: e.target.value }))}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full border border-border rounded-lg px-3 py-2 text-sm bg-card focus:outline-none focus:ring-2 focus:ring-ring"
                   />
                 </div>
               </div>
               <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">實際入帳日</label>
+                <label className="block text-xs font-medium text-muted-foreground mb-1">實際入帳日</label>
                 <input
                   type="date"
                   value={form.actual_receipt_date || ''}
                   onChange={(e) => setForm(f => ({ ...f, actual_receipt_date: e.target.value }))}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full border border-border rounded-lg px-3 py-2 text-sm bg-card focus:outline-none focus:ring-2 focus:ring-ring"
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">備註</label>
+                <label className="block text-xs font-medium text-muted-foreground mb-1">備註</label>
                 <textarea
                   value={form.note || ''}
                   onChange={(e) => setForm(f => ({ ...f, note: e.target.value }))}
                   rows={2}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full border border-border rounded-lg px-3 py-2 text-sm bg-card focus:outline-none focus:ring-2 focus:ring-ring"
                   placeholder="選填備註"
                 />
               </div>

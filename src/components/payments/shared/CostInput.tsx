@@ -103,7 +103,7 @@ export function CostInput({
                 placeholder={placeholder}
                 className={cn(
                     'text-right',
-                    hasError && 'border-red-500 focus:border-red-500 focus:ring-red-500',
+                    hasError && 'border-destructive focus:border-destructive focus:ring-destructive',
                     className
                 )}
                 min={min}
@@ -111,7 +111,7 @@ export function CostInput({
                 step="0.01"
             />
             {hasError && (
-                <div className="absolute -bottom-5 left-0 flex items-center text-xs text-red-600">
+                <div className="absolute -bottom-5 left-0 flex items-center text-xs text-destructive">
                     <AlertCircle className="h-3 w-3 mr-1" />
                     {error}
                 </div>

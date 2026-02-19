@@ -5,6 +5,7 @@ import { useParams } from 'next/navigation'
 import supabase from '@/lib/supabase/client'
 import QuoteForm from '@/components/quotes/QuoteForm'
 import { Database } from '@/types/database.types'
+import { SkeletonCard } from '@/components/ui/Skeleton'
 
 type Quotation = Database['public']['Tables']['quotations']['Row']
 type QuotationItem = Database['public']['Tables']['quotation_items']['Row']
@@ -38,7 +39,12 @@ export default function EditQuotePage() {
   }, [id])
 
   if (loading) {
-    return <div>讀取報價單資料中...</div>
+    return (
+      <div className="space-y-6 max-w-4xl mx-auto">
+        <SkeletonCard lines={4} />
+        <SkeletonCard lines={6} />
+      </div>
+    )
   }
 
   if (!quote) {

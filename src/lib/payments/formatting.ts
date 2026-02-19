@@ -277,9 +277,9 @@ export function generateExportFilename(prefix: string, extension: string): strin
  * @returns Tailwind 顏色類別
  */
 export function getAmountColorClass(amount: number, threshold: number = 10000): string {
-    if (amount >= threshold * 10) return 'text-red-600 font-bold'
+    if (amount >= threshold * 10) return 'text-destructive font-bold'
     if (amount >= threshold) return 'text-orange-600 font-semibold'
-    return 'text-gray-900'
+    return 'text-foreground'
 }
 
 /**
@@ -288,7 +288,7 @@ export function getAmountColorClass(amount: number, threshold: number = 10000): 
  * @returns Tailwind 顏色類別
  */
 export function getCompletionColorClass(percentage: number): string {
-    if (percentage === 100) return 'text-green-600'
+    if (percentage === 100) return 'text-success'
     if (percentage >= 50) return 'text-yellow-600'
-    return 'text-red-600'
+    return 'text-destructive'
 }

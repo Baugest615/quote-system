@@ -25,7 +25,7 @@ export function ApprovalControls({
             <div className="flex items-center space-x-4">
                 <div className="flex items-center space-x-2">
                     <span className="text-sm font-medium text-foreground/70">
-                        已選擇: <span className="text-emerald-400">{selectedCount}</span> 筆
+                        已選擇: <span className="text-primary">{selectedCount}</span> 筆
                     </span>
                 </div>
 
@@ -36,7 +36,7 @@ export function ApprovalControls({
                         size="sm"
                         onClick={onBatchApprove}
                         disabled={selectedCount === 0 || isProcessing}
-                        className="bg-green-600 hover:bg-green-700 text-white"
+                        className="bg-success hover:bg-success/90 text-white"
                     >
                         <CheckCircle className="h-4 w-4 mr-1.5" />
                         批量核准

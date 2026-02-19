@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Search, PlusCircle, Filter, ChevronLeft, ChevronRight, Calendar, DollarSign } from 'lucide-react'
 import { QuotesDataGrid } from '@/components/quotes/v2/QuotesDataGrid'
+import { SkeletonTable } from '@/components/ui/Skeleton'
 
 // 類型定義 (與 V1 保持一致)
 type Quotation = Database['public']['Tables']['quotations']['Row']
@@ -51,19 +52,27 @@ export default function QuotesV2Page() {
     // 狀態選項
     const statusOptions = [
         { value: '草稿', label: '草稿', color: 'bg-secondary/50 text-foreground' },
-        { value: '待簽約', label: '待簽約', color: 'bg-yellow-100 text-yellow-800' },
-        { value: '已簽約', label: '已簽約', color: 'bg-green-100 text-green-800' },
-        { value: '已歸檔', label: '已歸檔', color: 'bg-blue-100 text-blue-800' }
+        { value: '待簽約', label: '待簽約', color: 'bg-warning/15 text-warning' },
+        { value: '已簽約', label: '已簽約', color: 'bg-success/15 text-success' },
+        { value: '已歸檔', label: '已歸檔', color: 'bg-info/15 text-info' }
     ]
 
-    // 資料獲取
-    const fetchData = useCallback(async () => {
+    // 總筆數 (伺服器端分頁用)
+    const [totalCount, setTotalCount] = useState(0)
+
+    // 資料獲取 (伺服器端分頁)
+    const fetchData = useCallback(async (page?: number) => {
         setLoading(true)
+        const p = page ?? currentPage
+        const from = (p - 1) * itemsPerPage
+        const to = from + itemsPerPage - 1
+
         const [quotationsRes, clientsRes] = await Promise.all([
             supabase
                 .from('quotations')
-                .select('*, clients(*)')
-                .order('created_at', { ascending: false }),
+                .select('*, clients(*)', { count: 'exact' })
+                .order('created_at', { ascending: false })
+                .range(from, to),
             supabase
                 .from('clients')
                 .select('*')
@@ -74,6 +83,7 @@ export default function QuotesV2Page() {
             console.error('Error fetching quotations:', quotationsRes.error)
         } else {
             setQuotations(quotationsRes.data as QuotationWithClient[])
+            setTotalCount(quotationsRes.count ?? 0)
         }
 
         if (clientsRes.error) {
@@ -83,7 +93,8 @@ export default function QuotesV2Page() {
         }
 
         setLoading(false)
-    }, [])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [currentPage])
 
     useEffect(() => {
         fetchData()
@@ -163,17 +174,13 @@ export default function QuotesV2Page() {
         return result
     }, [quotations, searchTerm, filters])
 
-    // 分頁邏輯
-    const totalPages = Math.ceil(filteredQuotations.length / itemsPerPage)
-    const paginatedQuotations = useMemo(() => {
-        const startIndex = (currentPage - 1) * itemsPerPage
-        return filteredQuotations.slice(startIndex, startIndex + itemsPerPage)
-    }, [filteredQuotations, currentPage])
+    // 分頁邏輯 (伺服器端分頁，前端篩選在當頁資料上)
+    const totalPages = Math.ceil(totalCount / itemsPerPage)
 
-    // 當篩選條件改變時，重置回第一頁
-    useEffect(() => {
-        setCurrentPage(1)
-    }, [searchTerm, filters])
+    // 換頁時重新從伺服器撈資料
+    const handlePageChange = useCallback((page: number) => {
+        setCurrentPage(page)
+    }, [])
 
     return (
         <div className="h-[calc(100vh-4rem)] flex flex-col space-y-4 p-6 bg-secondary">
@@ -182,7 +189,7 @@ export default function QuotesV2Page() {
                 <div className="flex items-center space-x-4">
                     <h1 className="text-2xl font-bold text-foreground">報價單管理</h1>
                     <div className="text-sm text-muted-foreground">
-                        共 {filteredQuotations.length} 筆專案
+                        共 {totalCount} 筆專案
                     </div>
                 </div>
 
@@ -202,7 +209,7 @@ export default function QuotesV2Page() {
                     <Button
                         variant="outline"
                         onClick={() => setShowFilters(!showFilters)}
-                        className={hasActiveFilters ? 'border-blue-500 text-blue-600' : ''}
+                        className={hasActiveFilters ? 'border-primary text-primary' : ''}
                     >
                         <Filter className="mr-2 h-4 w-4" />
                         篩選 {hasActiveFilters && `(${Object.values(filters).flat().filter(Boolean).length})`}
@@ -236,7 +243,7 @@ export default function QuotesV2Page() {
                                                     setFilters(prev => ({ ...prev, status: prev.status.filter(s => s !== option.value) }))
                                                 }
                                             }}
-                                            className="mr-2 rounded border-border text-emerald-400 focus:ring-emerald-400"
+                                            className="mr-2 rounded border-border text-primary focus:ring-ring"
                                         />
                                         <span className="text-sm">{option.label}</span>
                                     </label>
@@ -249,7 +256,7 @@ export default function QuotesV2Page() {
                             <label className="block text-sm font-medium text-foreground/70 mb-2">客戶</label>
                             <select
                                 multiple
-                                className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-border focus:outline-none focus:ring-emerald-400 focus:border-emerald-500 sm:text-sm rounded-md h-32"
+                                className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-border bg-card focus:outline-none focus:ring-ring focus:border-primary sm:text-sm rounded-md h-32"
                                 value={filters.clientIds}
                                 onChange={(e) => {
                                     const selectedOptions = Array.from(e.target.selectedOptions, option => option.value)
@@ -336,12 +343,12 @@ export default function QuotesV2Page() {
             {/* Data Grid 區域 */}
             <div className="flex-1 overflow-hidden bg-card rounded-lg shadow-sm border">
                 {loading ? (
-                    <div className="flex items-center justify-center h-full">
-                        <div className="text-muted-foreground">讀取中...</div>
+                    <div className="p-4">
+                        <SkeletonTable rows={10} columns={7} />
                     </div>
                 ) : (
                     <QuotesDataGrid
-                        data={paginatedQuotations}
+                        data={filteredQuotations}
                         clients={clients}
                         onRefresh={fetchData}
                     />
@@ -352,13 +359,13 @@ export default function QuotesV2Page() {
             {totalPages > 1 && (
                 <div className="flex items-center justify-between bg-card p-4 rounded-lg shadow-sm border">
                     <div className="text-sm text-muted-foreground">
-                        顯示 {((currentPage - 1) * itemsPerPage) + 1} 至 {Math.min(currentPage * itemsPerPage, filteredQuotations.length)} 筆，共 {filteredQuotations.length} 筆
+                        顯示 {((currentPage - 1) * itemsPerPage) + 1} 至 {Math.min(currentPage * itemsPerPage, totalCount)} 筆，共 {totalCount} 筆
                     </div>
                     <div className="flex items-center space-x-2">
                         <Button
                             variant="outline"
                             size="sm"
-                            onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                            onClick={() => handlePageChange(Math.max(currentPage - 1, 1))}
                             disabled={currentPage === 1}
                         >
                             <ChevronLeft className="h-4 w-4" /> 上一頁
@@ -369,7 +376,7 @@ export default function QuotesV2Page() {
                         <Button
                             variant="outline"
                             size="sm"
-                            onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                            onClick={() => handlePageChange(Math.min(currentPage + 1, totalPages))}
                             disabled={currentPage === totalPages}
                         >
                             下一頁 <ChevronRight className="h-4 w-4" />

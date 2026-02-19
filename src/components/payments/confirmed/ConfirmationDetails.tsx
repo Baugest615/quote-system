@@ -38,11 +38,11 @@ export function ConfirmationDetails({ confirmation, settings, updateSettings, ge
                 return (
                     <div key={groupIndex} className="border rounded-lg overflow-hidden shadow-none bg-card">
                         {/* 匯款戶名標題與設定區 */}
-                        <div className="bg-blue-50 border-b p-4">
+                        <div className="bg-info/10 border-b p-4">
                             <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
                                 {/* 左側：基本資訊 */}
                                 <div className="flex items-start space-x-3">
-                                    <User className="h-6 w-6 text-blue-600 mt-1" />
+                                    <User className="h-6 w-6 text-info mt-1" />
                                     <div>
                                         <div className="font-semibold text-lg text-foreground">
                                             {group.remittanceName}
@@ -62,17 +62,17 @@ export function ConfirmationDetails({ confirmation, settings, updateSettings, ge
                                 </div>
 
                                 {/* 右側：付款試算設定 */}
-                                <div className="bg-card/60 rounded-lg p-3 border border-blue-100">
-                                    <div className="flex items-center gap-2 mb-2 text-blue-800 font-medium text-sm">
+                                <div className="bg-card/60 rounded-lg p-3 border border-info/25">
+                                    <div className="flex items-center gap-2 mb-2 text-info font-medium text-sm">
                                         <Calculator className="h-4 w-4" />
                                         付款試算設定
                                     </div>
                                     <div className="flex flex-wrap items-center gap-4 text-sm">
                                         {/* 匯費設定 */}
-                                        <label className="flex items-center gap-2 cursor-pointer hover:text-blue-700 transition-colors">
+                                        <label className="flex items-center gap-2 cursor-pointer hover:text-info/80 transition-colors">
                                             <input
                                                 type="checkbox"
-                                                className="rounded border-border text-blue-600 focus:ring-blue-500"
+                                                className="rounded border-border text-info focus:ring-info"
                                                 checked={settings.hasRemittanceFee}
                                                 onChange={(e) => updateSettings(group.remittanceName, { hasRemittanceFee: e.target.checked })}
                                             />
@@ -83,30 +83,30 @@ export function ConfirmationDetails({ confirmation, settings, updateSettings, ge
                                                 <span className="text-muted-foreground">$</span>
                                                 <input
                                                     type="number"
-                                                    className="w-16 h-7 text-sm border-border rounded focus:ring-blue-500 focus:border-blue-500 px-2 py-0"
+                                                    className="w-16 h-7 text-sm border-border rounded focus:ring-info focus:border-info px-2 py-0"
                                                     value={settings.remittanceFeeAmount}
                                                     onChange={(e) => updateSettings(group.remittanceName, { remittanceFeeAmount: Number(e.target.value) })}
                                                 />
                                             </div>
                                         )}
 
-                                        <div className="w-px h-4 bg-gray-300 mx-1 hidden md:block"></div>
+                                        <div className="w-px h-4 bg-border mx-1 hidden md:block"></div>
 
                                         {/* 稅務設定 */}
-                                        <label className="flex items-center gap-2 cursor-pointer hover:text-blue-700 transition-colors">
+                                        <label className="flex items-center gap-2 cursor-pointer hover:text-info/80 transition-colors">
                                             <input
                                                 type="checkbox"
-                                                className="rounded border-border text-blue-600 focus:ring-blue-500"
+                                                className="rounded border-border text-info focus:ring-info"
                                                 checked={settings.hasTax}
                                                 onChange={(e) => updateSettings(group.remittanceName, { hasTax: e.target.checked })}
                                             />
                                             <span>代扣所得稅 (10%)</span>
                                         </label>
 
-                                        <label className="flex items-center gap-2 cursor-pointer hover:text-blue-700 transition-colors">
+                                        <label className="flex items-center gap-2 cursor-pointer hover:text-info/80 transition-colors">
                                             <input
                                                 type="checkbox"
-                                                className="rounded border-border text-blue-600 focus:ring-blue-500"
+                                                className="rounded border-border text-info focus:ring-info"
                                                 checked={settings.hasInsurance}
                                                 onChange={(e) => updateSettings(group.remittanceName, { hasInsurance: e.target.checked })}
                                             />
@@ -123,13 +123,13 @@ export function ConfirmationDetails({ confirmation, settings, updateSettings, ge
                                 <thead className="bg-secondary">
                                     <tr>
                                         <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">專案名稱</th>
-                                        <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">KOL</th>
-                                        <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">服務項目</th>
+                                        <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">KOL/服務</th>
+                                        <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">執行內容</th>
                                         <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">匯款戶名</th>
                                         <th className="px-4 py-3 text-right text-xs font-medium text-muted-foreground uppercase tracking-wider">匯款金額</th>
                                     </tr>
                                 </thead>
-                                <tbody className="bg-card divide-y divide-gray-200">
+                                <tbody className="bg-card divide-y divide-border">
                                     {group.items.map((item) => (
                                         <PaymentRecordRow key={item.id} item={item} />
                                     ))}
@@ -146,28 +146,28 @@ export function ConfirmationDetails({ confirmation, settings, updateSettings, ge
 
                                     {/* 扣除項 */}
                                     {settings.hasRemittanceFee && (
-                                        <tr className="text-red-600">
+                                        <tr className="text-destructive">
                                             <td colSpan={4} className="px-4 py-1 text-right">扣除：匯費</td>
                                             <td className="px-4 py-1 text-right">- NT$ {fee.toLocaleString()}</td>
                                         </tr>
                                     )}
                                     {settings.hasTax && (
-                                        <tr className="text-red-600">
+                                        <tr className="text-destructive">
                                             <td colSpan={4} className="px-4 py-1 text-right">扣除：所得稅 (10%)</td>
                                             <td className="px-4 py-1 text-right">- NT$ {tax.toLocaleString()}</td>
                                         </tr>
                                     )}
                                     {settings.hasInsurance && (
-                                        <tr className="text-red-600">
+                                        <tr className="text-destructive">
                                             <td colSpan={4} className="px-4 py-1 text-right">扣除：二代健保 (2.11%)</td>
                                             <td className="px-4 py-1 text-right">- NT$ {insurance.toLocaleString()}</td>
                                         </tr>
                                     )}
 
                                     {/* 實付金額 */}
-                                    <tr className="bg-blue-50/50 border-t border-blue-100">
-                                        <td colSpan={4} className="px-4 py-3 text-right text-blue-800 font-bold">實付金額 (Net Payment)</td>
-                                        <td className="px-4 py-3 text-right text-blue-700 font-bold text-lg">
+                                    <tr className="bg-info/10 border-t border-info/25">
+                                        <td colSpan={4} className="px-4 py-3 text-right text-info font-bold">實付金額 (Net Payment)</td>
+                                        <td className="px-4 py-3 text-right text-info font-bold text-lg">
                                             NT$ {netTotal.toLocaleString()}
                                         </td>
                                     </tr>

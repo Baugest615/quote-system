@@ -5,12 +5,12 @@
 [![Supabase](https://img.shields.io/badge/Supabase-2.39-green)](https://supabase.com/)
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-3.4-38B2AC)](https://tailwindcss.com/)
 
-現代化的企業級報價管理系統，支援客戶管理、KOL管理、報價單生成、請款流程、會計模組等完整業務功能。使用 Next.js 14 (App Router) 和 Supabase 建構的全端應用程式。
+現代化的企業級報價管理系統，支援客戶管理、KOL/服務管理、報價單生成、請款流程、會計模組等完整業務功能。使用 Next.js 14 (App Router) 和 Supabase 建構的全端應用程式。
 
 ## 主要功能
 
 - **客戶管理** — 完整的客戶資料管理，包含聯絡資訊、發票資料、銀行資訊
-- **KOL管理** — KOL資料庫管理，包含社群連結、服務類型、價格設定
+- **KOL/服務管理** — KOL/服務資料庫管理，包含社群連結、執行內容、價格設定
 - **報價單管理** — 動態報價單建立、編輯、檢視與PDF匯出
 - **請款流程管理** — 完整的請款申請、審核、確認流程
 - **會計模組** — 專案損益、財務報表、薪資管理、銷售分析、費用管理
@@ -58,7 +58,7 @@ src/
 │   ├── print/                    # 列印頁面
 │   └── dashboard/                # 主要功能區
 │       ├── clients/              # 客戶管理
-│       ├── kols/                 # KOL 管理
+│       ├── kols/                 # KOL/服務管理
 │       ├── quotes/               # 報價單（列表/新增/編輯/檢視）
 │       ├── pending-payments/     # 待請款管理
 │       ├── payment-requests/     # 請款申請審核
@@ -208,7 +208,7 @@ npm run db:types       # 生成資料庫型別定義
 ### 基本操作
 
 ```
-登入 → 儀表板 → 新增客戶/KOL → 建立報價單 → 簽約 → 請款 → 確認付款
+登入 → 儀表板 → 新增客戶/KOL/服務 → 建立報價單 → 簽約 → 請款 → 確認付款
 ```
 
 ### 請款流程
@@ -297,4 +297,4 @@ MIT License
 ---
 
 最後更新: 2026 年 2 月
-專案版本: v2.0.1
+專案版本: v2.1

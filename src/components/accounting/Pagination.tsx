@@ -41,21 +41,21 @@ export default function Pagination({
   }
 
   return (
-    <div className="flex items-center justify-between px-4 py-3 border-t border-gray-100">
-      <p className="text-xs text-gray-500">
+    <div className="flex items-center justify-between px-4 py-3 border-t border-border">
+      <p className="text-xs text-muted-foreground">
         顯示第 {start}-{end} 筆，共 {totalItems} 筆
       </p>
       <div className="flex items-center gap-1">
         <button
           onClick={() => onPageChange(currentPage - 1)}
           disabled={currentPage <= 1}
-          className="p-1.5 rounded-md text-gray-400 hover:text-gray-600 hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+          className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-accent disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
         >
           <ChevronLeft className="w-4 h-4" />
         </button>
         {getPageNumbers().map((page, i) =>
           page === '...' ? (
-            <span key={`dots-${i}`} className="px-1 text-gray-400 text-xs">...</span>
+            <span key={`dots-${i}`} className="px-1 text-muted-foreground text-xs">...</span>
           ) : (
             <button
               key={page}
@@ -63,8 +63,8 @@ export default function Pagination({
               className={cn(
                 "w-7 h-7 rounded-md text-xs font-medium transition-colors",
                 currentPage === page
-                  ? 'bg-blue-600 text-white'
-                  : 'text-gray-600 hover:bg-gray-100'
+                  ? 'bg-primary text-primary-foreground'
+                  : 'text-muted-foreground hover:bg-accent'
               )}
             >
               {page}
@@ -74,7 +74,7 @@ export default function Pagination({
         <button
           onClick={() => onPageChange(currentPage + 1)}
           disabled={currentPage >= totalPages}
-          className="p-1.5 rounded-md text-gray-400 hover:text-gray-600 hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+          className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-accent disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
         >
           <ChevronRight className="w-4 h-4" />
         </button>

@@ -119,10 +119,11 @@ export function QuotationItemsList({ quotationId, onUpdate }: QuotationItemsList
     }
 
     // 服務變更處理
-    const handleServiceChange = (itemId: string, serviceName: string, price?: number) => {
+    const handleServiceChange = (itemId: string, serviceName: string, data?: { price: number; cost: number }) => {
         const updates: Partial<QuotationItem> = { service: serviceName }
-        if (price !== undefined) {
-            updates.price = price
+        if (data) {
+            updates.price = data.price
+            updates.cost = data.cost
         }
         handleUpdateItem(itemId, updates)
     }
@@ -182,6 +183,61 @@ export function QuotationItemsList({ quotationId, onUpdate }: QuotationItemsList
     const handleSave = async () => {
         setIsSaving(true)
         try {
+            // 0. 自動建立新服務類型與 KOL 服務關聯
+            for (const item of items) {
+                if (!item.kol_id || !item.service?.trim()) continue
+
+                const kol = kols.find(k => k.id === item.kol_id)
+                if (!kol) continue
+
+                // 檢查該 KOL 是否已有此服務
+                const hasService = kol.kol_services.some(
+                    s => s.service_types?.name === item.service.trim()
+                )
+                if (hasService) continue
+
+                // 查詢或建立 service_type
+                let serviceTypeId: string
+                const { data: existingST } = await supabase
+                    .from('service_types')
+                    .select('id')
+                    .eq('name', item.service.trim())
+                    .maybeSingle()
+
+                if (existingST) {
+                    serviceTypeId = existingST.id
+                } else {
+                    const { data: newST, error } = await supabase
+                        .from('service_types')
+                        .insert({ name: item.service.trim() })
+                        .select()
+                        .single()
+                    if (error) {
+                        console.error(`建立服務類型失敗:`, error)
+                        continue
+                    }
+                    serviceTypeId = newST.id
+                }
+
+                // 確認 kol_service 關聯不存在後建立
+                const { data: existingLink } = await supabase
+                    .from('kol_services')
+                    .select('id')
+                    .eq('kol_id', item.kol_id)
+                    .eq('service_type_id', serviceTypeId)
+                    .maybeSingle()
+
+                if (!existingLink) {
+                    await supabase.from('kol_services').insert({
+                        kol_id: item.kol_id,
+                        service_type_id: serviceTypeId,
+                        price: Number(item.price) || 0,
+                        cost: Number(item.cost) || 0,
+                    })
+                    toast.success(`已自動建立 KOL 服務「${item.service.trim()}」`)
+                }
+            }
+
             // 1. 執行刪除
             if (deletedItemIds.size > 0) {
                 const { error } = await supabase
@@ -191,7 +247,6 @@ export function QuotationItemsList({ quotationId, onUpdate }: QuotationItemsList
                 if (error) throw error
             }
 
-            // 2. 執行新增與更新
             // 2. 執行新增與更新
             const itemsToUpsert = items.map(item => {
                 // 移除 created_at，讓資料庫處理 (新增時 default now()，更新時不變)
@@ -235,7 +290,12 @@ export function QuotationItemsList({ quotationId, onUpdate }: QuotationItemsList
             if (updateError) throw updateError
 
             toast.success('儲存成功')
-            await fetchItems() // 重新載入以獲取最新 ID 和狀態
+            // 重新載入項目和 KOL 資料（反映新建立的服務）
+            const [, kolsRes] = await Promise.all([
+                fetchItems(),
+                supabase.from('kols').select('*, kol_services(*, service_types(*))').order('name'),
+            ])
+            if (kolsRes.data) setKols(kolsRes.data as KolWithServices[])
             if (onUpdate) onUpdate() // 通知父層更新總金額
 
         } catch (error: unknown) {
@@ -265,7 +325,7 @@ export function QuotationItemsList({ quotationId, onUpdate }: QuotationItemsList
             // 簡單處理 tab 分隔，若有更複雜的 CSV 格式可能需要專門的 parser
             const cols = row.split('\t')
 
-            // 假設順序：類別 | KOL | 服務 | 數量 | 單價 | 成本
+            // 假設順序：類別 | KOL/服務 | 執行內容 | 數量 | 單價 | 成本
             const category = cols[0]?.trim() || null
             const kolName = cols[1]?.trim() || null
             const service = cols[2]?.trim() || ''
@@ -343,7 +403,7 @@ export function QuotationItemsList({ quotationId, onUpdate }: QuotationItemsList
                 <h4 className="text-sm font-semibold text-foreground/70">
                     成本明細 (報價項目)
                     <span className="ml-2 text-xs font-normal text-muted-foreground hidden sm:inline">
-                        (支援 Excel 貼上: 類別 | KOL | 服務 | 數量 | 單價 | 成本)
+                        (支援 Excel 貼上: 類別 | KOL/服務 | 執行內容 | 數量 | 單價 | 成本)
                     </span>
                 </h4>
                 <div className="flex space-x-2">
@@ -352,7 +412,7 @@ export function QuotationItemsList({ quotationId, onUpdate }: QuotationItemsList
                             <Button size="sm" variant="ghost" onClick={handleCancel} disabled={isSaving} className="h-7 text-xs text-muted-foreground hover:text-foreground/70">
                                 <XCircle className="h-3 w-3 mr-1" /> 取消
                             </Button>
-                            <Button size="sm" onClick={handleSave} disabled={isSaving} className="h-7 text-xs bg-green-600 hover:bg-green-700 text-white">
+                            <Button size="sm" onClick={handleSave} disabled={isSaving} className="h-7 text-xs bg-primary hover:bg-primary/90 text-primary-foreground">
                                 {isSaving ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Save className="h-3 w-3 mr-1" />}
                                 儲存變更
                             </Button>
@@ -377,7 +437,7 @@ export function QuotationItemsList({ quotationId, onUpdate }: QuotationItemsList
                         <div className="space-y-4">
                             <p className="text-sm text-muted-foreground">
                                 請將 Excel 資料複製並貼上到下方區域。<br />
-                                格式順序：類別 | KOL | 服務 | 數量 | 單價 | 成本
+                                格式順序：類別 | KOL/服務 | 執行內容 | 數量 | 單價 | 成本
                             </p>
                             <Textarea
                                 placeholder="在此貼上資料..."
@@ -403,8 +463,8 @@ export function QuotationItemsList({ quotationId, onUpdate }: QuotationItemsList
                     <thead className="bg-secondary/50 text-muted-foreground">
                         <tr>
                             <th className="px-3 py-2 text-left w-32">類別</th>
-                            <th className="px-3 py-2 text-left w-40">KOL</th>
-                            <th className="px-3 py-2 text-left min-w-[160px]">服務項目</th>
+                            <th className="px-3 py-2 text-left w-40">KOL/服務</th>
+                            <th className="px-3 py-2 text-left min-w-[160px]">執行內容</th>
                             <th className="px-3 py-2 text-right w-20">數量</th>
                             <th className="px-3 py-2 text-right w-24">單價</th>
                             <th className="px-3 py-2 text-right w-24">成本</th>
@@ -418,7 +478,7 @@ export function QuotationItemsList({ quotationId, onUpdate }: QuotationItemsList
                             const serviceOptions = selectedKol?.kol_services.map(s => ({
                                 label: s.service_types?.name || '未知服務',
                                 value: s.service_types?.name || '',
-                                data: s.price
+                                data: { price: s.price, cost: s.cost }
                             })) || []
 
                             return (
@@ -439,16 +499,16 @@ export function QuotationItemsList({ quotationId, onUpdate }: QuotationItemsList
                                             displayValue={selectedKol?.name}
                                             onChange={(val) => handleKolChange(item.id, val)}
                                             options={kolOptions}
-                                            placeholder="搜尋 KOL"
-                                            className="px-3 py-2 font-medium text-blue-600"
+                                            placeholder="搜尋 KOL/服務"
+                                            className="px-3 py-2 font-medium text-primary"
                                         />
                                     </td>
                                     <td className="border-r border-border/50 p-0">
                                         <SearchableSelectCell
                                             value={item.service}
-                                            onChange={(val, price) => handleServiceChange(item.id, val, price as number | undefined)}
+                                            onChange={(val, data) => handleServiceChange(item.id, val, data as { price: number; cost: number } | undefined)}
                                             options={serviceOptions}
-                                            placeholder={item.kol_id ? "選擇服務" : "請先選 KOL"}
+                                            placeholder={item.kol_id ? "選擇執行內容" : "請先選 KOL/服務"}
                                             className="px-3 py-2"
                                             allowCustomValue={true}
                                         />
@@ -488,7 +548,7 @@ export function QuotationItemsList({ quotationId, onUpdate }: QuotationItemsList
                                                 // @ts-ignore
                                                 item.payment_requests?.some((pr: any) => pr.verification_status !== 'rejected')
                                                     ? 'text-muted-foreground cursor-not-allowed'
-                                                    : 'opacity-0 group-hover:opacity-100 text-red-400 hover:text-red-600'
+                                                    : 'opacity-0 group-hover:opacity-100 text-destructive/70 hover:text-destructive'
                                                 }`}
                                             onClick={() => handleDeleteItem(item.id)}
                                             disabled={

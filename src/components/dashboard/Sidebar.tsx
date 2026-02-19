@@ -322,7 +322,7 @@ export default function Sidebar() {
 
       {/* 行動裝置：Overlay 側滑選單 */}
       {isMobile && isMobileOpen && (
-        <div className="fixed inset-0 z-[9999]">
+        <div className="fixed inset-0 z-[60]">
           {/* 半透明遮罩 */}
           <div
             className="absolute inset-0 bg-black/60 backdrop-blur-sm"

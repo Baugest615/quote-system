@@ -29,12 +29,12 @@ export function PaymentStats({ confirmations }: PaymentStatsProps) {
                 <div className="flex items-center justify-between">
                     <div>
                         <p className="text-sm font-medium text-muted-foreground">總確認金額</p>
-                        <p className="text-2xl font-bold text-blue-600 mt-1">
+                        <p className="text-2xl font-bold text-info mt-1">
                             NT$ {stats.totalAmount.toLocaleString()}
                         </p>
                     </div>
-                    <div className="bg-sky-500/15 p-2 rounded-full">
-                        <DollarSign className="h-6 w-6 text-blue-500" />
+                    <div className="bg-info/15 p-2 rounded-full">
+                        <DollarSign className="h-6 w-6 text-info" />
                     </div>
                 </div>
             </div>
@@ -43,12 +43,12 @@ export function PaymentStats({ confirmations }: PaymentStatsProps) {
                 <div className="flex items-center justify-between">
                     <div>
                         <p className="text-sm font-medium text-muted-foreground">本月確認金額</p>
-                        <p className="text-2xl font-bold text-green-600 mt-1">
+                        <p className="text-2xl font-bold text-success mt-1">
                             NT$ {stats.thisMonthAmount.toLocaleString()}
                         </p>
                     </div>
-                    <div className="bg-emerald-500/15 p-2 rounded-full">
-                        <Calendar className="h-6 w-6 text-green-500" />
+                    <div className="bg-success/15 p-2 rounded-full">
+                        <Calendar className="h-6 w-6 text-success" />
                     </div>
                 </div>
             </div>
@@ -64,8 +64,8 @@ export function PaymentStats({ confirmations }: PaymentStatsProps) {
                             共 {stats.totalItems} 個項目
                         </p>
                     </div>
-                    <div className="bg-purple-500/15 p-2 rounded-full">
-                        <FileText className="h-6 w-6 text-purple-500" />
+                    <div className="bg-chart-4/15 p-2 rounded-full">
+                        <FileText className="h-6 w-6 text-chart-4" />
                     </div>
                 </div>
             </div>
@@ -74,12 +74,12 @@ export function PaymentStats({ confirmations }: PaymentStatsProps) {
                 <div className="flex items-center justify-between">
                     <div>
                         <p className="text-sm font-medium text-muted-foreground">平均單筆金額</p>
-                        <p className="text-2xl font-bold text-orange-600 mt-1">
+                        <p className="text-2xl font-bold text-warning mt-1">
                             NT$ {averageAmount.toLocaleString()}
                         </p>
                     </div>
-                    <div className="bg-orange-500/15 p-2 rounded-full">
-                        <TrendingUp className="h-6 w-6 text-orange-500" />
+                    <div className="bg-warning/15 p-2 rounded-full">
+                        <TrendingUp className="h-6 w-6 text-warning" />
                     </div>
                 </div>
             </div>

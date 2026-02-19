@@ -6,6 +6,7 @@ import supabase from '@/lib/supabase/client'
 import { toast } from 'sonner'
 import { BarChart3, ChevronLeft, Search } from 'lucide-react'
 import AccountingLoadingGuard from '@/components/accounting/AccountingLoadingGuard'
+import { EmptyState } from '@/components/ui/EmptyState'
 import Link from 'next/link'
 
 const CURRENT_YEAR = new Date().getFullYear()
@@ -100,40 +101,40 @@ export default function AccountingProjectsPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-3">
-        <Link href="/dashboard/accounting" className="text-gray-400 hover:text-gray-600">
+        <Link href="/dashboard/accounting" className="text-muted-foreground/60 hover:text-muted-foreground">
           <ChevronLeft className="w-5 h-5" />
         </Link>
-        <BarChart3 className="w-7 h-7 text-green-600" />
+        <BarChart3 className="w-7 h-7 text-chart-1" />
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">專案損益</h1>
-          <p className="text-sm text-gray-500">各案件收支毛利分析</p>
+          <h1 className="text-2xl font-bold text-foreground">專案損益</h1>
+          <p className="text-sm text-muted-foreground">各案件收支毛利分析</p>
         </div>
       </div>
 
       <div className="flex flex-wrap items-center gap-3">
         <select value={year} onChange={(e) => setYear(Number(e.target.value))}
-          className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+          className="border border-border rounded-lg px-3 py-2 text-sm bg-card focus:outline-none focus:ring-2 focus:ring-ring">
           {[CURRENT_YEAR, CURRENT_YEAR - 1, CURRENT_YEAR - 2].map(y => <option key={y} value={y}>{y} 年</option>)}
         </select>
         <select value={sortBy} onChange={(e) => setSortBy(e.target.value as any)}
-          className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+          className="border border-border rounded-lg px-3 py-2 text-sm bg-card focus:outline-none focus:ring-2 focus:ring-ring">
           <option value="total_sales">依銷售額排序</option>
           <option value="profit">依利潤排序</option>
           <option value="margin">依毛利率排序</option>
         </select>
         <div className="relative flex-1 min-w-48">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground/60" />
           <input type="text" placeholder="搜尋專案名稱..." value={search} onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-9 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+            className="w-full pl-9 pr-4 py-2 border border-border rounded-lg text-sm bg-card focus:outline-none focus:ring-2 focus:ring-ring" />
         </div>
       </div>
 
       <div className="grid grid-cols-4 gap-4">
         {[
-          { label: '總銷售收入', value: fmt(totalSales), color: 'bg-blue-50 text-blue-700' },
-          { label: '總支出成本', value: fmt(totalExpenses), color: 'bg-red-50 text-red-700' },
-          { label: '整體利潤', value: fmt(totalProfit), color: totalProfit >= 0 ? 'bg-green-50 text-green-700' : 'bg-orange-50 text-orange-700' },
-          { label: '平均毛利率', value: pct(avgMargin), color: 'bg-purple-50 text-purple-700' },
+          { label: '總銷售收入', value: fmt(totalSales), color: 'bg-chart-4/10 text-chart-4' },
+          { label: '總支出成本', value: fmt(totalExpenses), color: 'bg-chart-3/10 text-chart-3' },
+          { label: '整體利潤', value: fmt(totalProfit), color: totalProfit >= 0 ? 'bg-chart-1/10 text-chart-1' : 'bg-warning/10 text-warning' },
+          { label: '平均毛利率', value: pct(avgMargin), color: 'bg-chart-5/10 text-chart-5' },
         ].map(({ label, value, color }) => (
           <div key={label} className={`rounded-xl p-4 text-center ${color}`}>
             <p className="text-xs font-medium mb-1 opacity-70">{label}</p>
@@ -142,14 +143,14 @@ export default function AccountingProjectsPage() {
         ))}
       </div>
 
-      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+      <div className="bg-card rounded-xl border border-border overflow-hidden">
         {loading ? (
-          <div className="p-8 text-center text-gray-400">載入中...</div>
+          <div className="p-8 text-center text-muted-foreground/60">載入中...</div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="bg-gray-50 text-gray-600 text-xs">
+                <tr className="bg-muted text-muted-foreground text-xs">
                   <th className="text-left px-4 py-3">專案名稱</th>
                   <th className="text-right px-4 py-3">銷售收入</th>
                   <th className="text-right px-4 py-3">支出成本</th>
@@ -160,23 +161,23 @@ export default function AccountingProjectsPage() {
               </thead>
               <tbody>
                 {filtered.length === 0 ? (
-                  <tr><td colSpan={6} className="text-center py-12 text-gray-400">尚無資料</td></tr>
+                  <tr><td colSpan={6}><EmptyState type="no-data" icon={BarChart3} title="尚無專案損益資料" description="有銷售或支出記錄後將自動顯示" /></td></tr>
                 ) : filtered.map(p => (
-                  <tr key={p.project_name} className="border-t border-gray-100 hover:bg-gray-50">
-                    <td className="px-4 py-3 font-medium text-gray-800 max-w-64 truncate">{p.project_name}</td>
-                    <td className="px-4 py-3 text-right text-blue-600">{p.total_sales > 0 ? `NT$ ${fmt(p.total_sales)}` : '-'}</td>
-                    <td className="px-4 py-3 text-right text-red-500">{p.total_expenses > 0 ? `NT$ ${fmt(p.total_expenses)}` : '-'}</td>
-                    <td className={`px-4 py-3 text-right font-semibold ${p.profit >= 0 ? 'text-green-600' : 'text-orange-600'}`}>
+                  <tr key={p.project_name} className="border-t border-border/50 hover:bg-accent">
+                    <td className="px-4 py-3 font-medium text-foreground max-w-64 truncate">{p.project_name}</td>
+                    <td className="px-4 py-3 text-right text-chart-4">{p.total_sales > 0 ? `NT$ ${fmt(p.total_sales)}` : '-'}</td>
+                    <td className="px-4 py-3 text-right text-destructive">{p.total_expenses > 0 ? `NT$ ${fmt(p.total_expenses)}` : '-'}</td>
+                    <td className={`px-4 py-3 text-right font-semibold ${p.profit >= 0 ? 'text-chart-1' : 'text-warning'}`}>
                       NT$ {fmt(p.profit)}
                     </td>
-                    <td className={`px-4 py-3 text-right font-medium ${p.margin >= 0.3 ? 'text-green-600' : p.margin >= 0.15 ? 'text-yellow-600' : 'text-red-500'}`}>
+                    <td className={`px-4 py-3 text-right font-medium ${p.margin >= 0.3 ? 'text-chart-1' : p.margin >= 0.15 ? 'text-warning' : 'text-destructive'}`}>
                       {p.total_sales > 0 ? pct(p.margin) : '-'}
                     </td>
                     <td className="px-4 py-3">
                       {p.total_sales > 0 && (
-                        <div className="w-full bg-gray-200 rounded-full h-2">
+                        <div className="w-full bg-muted rounded-full h-2">
                           <div
-                            className={`h-2 rounded-full ${p.margin >= 0.3 ? 'bg-green-500' : p.margin >= 0.15 ? 'bg-yellow-500' : 'bg-red-400'}`}
+                            className={`h-2 rounded-full ${p.margin >= 0.3 ? 'bg-success' : p.margin >= 0.15 ? 'bg-warning' : 'bg-destructive'}`}
                             style={{ width: `${Math.max(0, Math.min(100, p.margin * 100))}%` }}
                           />
                         </div>

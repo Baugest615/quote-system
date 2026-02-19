@@ -116,7 +116,7 @@ export function QuoteContactsSelector({
               )}
             />
             {errors.client_id && (
-              <p className="text-red-500 text-xs mt-1">{errors.client_id.message}</p>
+              <p className="text-destructive text-xs mt-1">{errors.client_id.message}</p>
             )}
           </div>
 
@@ -169,7 +169,7 @@ export function QuoteContactsSelector({
             )}
             
             {errors.selected_contact && (
-              <p className="text-red-500 text-xs mt-1">{errors.selected_contact.message}</p>
+              <p className="text-destructive text-xs mt-1">{errors.selected_contact.message}</p>
             )}
           </div>
         </div>

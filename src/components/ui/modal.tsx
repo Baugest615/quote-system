@@ -22,7 +22,7 @@ export function Modal({ isOpen, onClose, title, children, maxWidth = 'sm:max-w-l
           leaveFrom="opacity-100"
           leaveTo="opacity-0"
         >
-          <div className="fixed inset-0 bg-secondary0 bg-opacity-75 transition-opacity" />
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm transition-opacity" />
         </Transition.Child>
 
         <div className="fixed inset-0 z-50 overflow-y-auto">
@@ -37,7 +37,7 @@ export function Modal({ isOpen, onClose, title, children, maxWidth = 'sm:max-w-l
               leaveTo="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
             >
               {/* 將 maxWidth 應用到 Dialog.Panel */}
-              <Dialog.Panel className={`relative transform overflow-hidden rounded-lg bg-card text-left shadow-xl transition-all sm:my-8 sm:w-full ${maxWidth}`}>
+              <Dialog.Panel className={`relative transform overflow-hidden rounded-lg bg-card border border-border text-left shadow-xl transition-all sm:my-8 sm:w-full ${maxWidth}`}>
                 <div className="bg-card px-4 pb-4 pt-5 sm:p-6 sm:pb-4">
                   <div className="sm:flex sm:items-start">
                     <div className="mt-3 text-center sm:mt-0 sm:text-left w-full">

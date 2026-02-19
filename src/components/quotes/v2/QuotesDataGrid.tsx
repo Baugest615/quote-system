@@ -5,13 +5,15 @@ import { useRouter } from 'next/navigation'
 import supabase from '@/lib/supabase/client'
 import { Database } from '@/types/database.types'
 import { Button } from '@/components/ui/button'
-import { ChevronRight, ChevronDown, Trash2, ExternalLink, CheckCircle, UploadCloud } from 'lucide-react'
+import { ChevronRight, ChevronDown, Trash2, ExternalLink, CheckCircle, UploadCloud, FileText } from 'lucide-react'
 import { EditableCell } from './EditableCell'
 import { QuotationItemsList } from './QuotationItemsList'
 import { FileModal } from '@/components/quotes/FileModal'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import { handleQuotationAccountingSync } from '@/lib/accounting/sync-quote-accounting'
+import { handleKolPriceSync } from '@/lib/kol/sync-kol-prices'
+import { EmptyState } from '@/components/ui/EmptyState'
 import type { QuotationWithClient } from '@/app/dashboard/quotes/page'
 
 interface QuotesDataGridProps {
@@ -31,9 +33,9 @@ export function QuotesDataGrid({ data, clients, onRefresh }: QuotesDataGridProps
     // 狀態選項
     const statusOptions = [
         { value: '草稿', label: '草稿', color: 'bg-secondary/50 text-foreground' },
-        { value: '待簽約', label: '待簽約', color: 'bg-yellow-100 text-yellow-800' },
-        { value: '已簽約', label: '已簽約', color: 'bg-green-100 text-green-800' },
-        { value: '已歸檔', label: '已歸檔', color: 'bg-blue-100 text-blue-800' }
+        { value: '待簽約', label: '待簽約', color: 'bg-warning/15 text-warning' },
+        { value: '已簽約', label: '已簽約', color: 'bg-success/15 text-success' },
+        { value: '已歸檔', label: '已歸檔', color: 'bg-info/15 text-info' }
     ]
 
     // 客戶選項
@@ -80,10 +82,11 @@ export function QuotesDataGrid({ data, clients, onRefresh }: QuotesDataGridProps
         } else {
             toast.success('已更新')
 
-            // 狀態變更時自動同步帳務記錄
+            // 狀態變更時自動同步帳務記錄 + KOL 服務價格
             if (field === 'status') {
                 const oldStatus = data.find(q => q.id === id)?.status
                 await handleQuotationAccountingSync(id, value as string, oldStatus)
+                await handleKolPriceSync(id, value as string, oldStatus)
             }
 
             onRefresh()
@@ -114,7 +117,7 @@ export function QuotesDataGrid({ data, clients, onRefresh }: QuotesDataGridProps
             <Button
                 variant="ghost"
                 size="sm"
-                className={cn("h-8 w-8 p-0", hasFile ? "text-green-600" : "text-muted-foreground")}
+                className={cn("h-8 w-8 p-0", hasFile ? "text-success" : "text-muted-foreground")}
                 onClick={(e) => {
                     e.stopPropagation()
                     setSelectedQuote(quote)
@@ -132,13 +135,13 @@ export function QuotesDataGrid({ data, clients, onRefresh }: QuotesDataGridProps
             {/* 表頭 (移動到 scroll container 內以支援水平捲動同步，並保持 sticky) */}
             <div className="flex bg-secondary/50 border-b font-medium text-sm text-muted-foreground sticky top-0 z-10 min-w-max">
                 <div className="w-10 p-3 flex-shrink-0"></div>
-                <div className="w-32 p-3 flex-shrink-0">ID</div>
-                <div className="w-32 p-3 flex-shrink-0">日期</div>
-                <div className="w-[200px] flex-1 p-3">專案名稱</div>
-                <div className="w-48 p-3 flex-shrink-0">客戶</div>
-                <div className="w-32 p-3 flex-shrink-0 text-right">總金額</div>
-                <div className="w-32 p-3 flex-shrink-0">狀態</div>
-                <div className="w-32 p-3 flex-shrink-0 text-center">操作</div>
+                <div className="w-28 p-3 flex-shrink-0">ID</div>
+                <div className="w-28 p-3 flex-shrink-0">日期</div>
+                <div className="w-[280px] flex-1 p-3">專案名稱</div>
+                <div className="w-56 p-3 flex-shrink-0">客戶</div>
+                <div className="w-28 p-3 flex-shrink-0 text-right">總金額</div>
+                <div className="w-24 p-3 flex-shrink-0">狀態</div>
+                <div className="w-28 p-3 flex-shrink-0 text-center">操作</div>
             </div>
 
             {/* 表格內容 */}
@@ -165,17 +168,17 @@ export function QuotesDataGrid({ data, clients, onRefresh }: QuotesDataGridProps
                                 </div>
 
                                 {/* ID (唯讀) */}
-                                <div className="w-32 p-3 flex-shrink-0 text-xs font-mono text-muted-foreground truncate" title={quote.id}>
+                                <div className="w-28 p-3 flex-shrink-0 text-xs font-mono text-muted-foreground truncate" title={quote.id}>
                                     {quote.id.slice(0, 8)}...
                                 </div>
 
                                 {/* 日期 (唯讀) */}
-                                <div className="w-32 p-3 flex-shrink-0 text-sm text-muted-foreground">
+                                <div className="w-28 p-3 flex-shrink-0 text-sm text-muted-foreground">
                                     {new Date(quote.created_at || '').toLocaleDateString('zh-TW')}
                                 </div>
 
                                 {/* 專案名稱 (可編輯) */}
-                                <div className="w-[200px] flex-1 p-2">
+                                <div className="w-[280px] flex-1 p-2">
                                     <EditableCell
                                         value={quote.project_name}
                                         onChange={(val) => handleUpdateQuotation(quote.id, 'project_name', val)}
@@ -184,7 +187,7 @@ export function QuotesDataGrid({ data, clients, onRefresh }: QuotesDataGridProps
                                 </div>
 
                                 {/* 客戶 (可編輯 - 下拉) */}
-                                <div className="w-48 p-2 flex-shrink-0">
+                                <div className="w-56 p-2 flex-shrink-0">
                                     <EditableCell
                                         value={quote.client_id}
                                         type="select"
@@ -194,12 +197,12 @@ export function QuotesDataGrid({ data, clients, onRefresh }: QuotesDataGridProps
                                 </div>
 
                                 {/* 總金額 (唯讀 - 自動計算) */}
-                                <div className="w-32 p-3 flex-shrink-0 text-right font-mono font-medium text-foreground/70">
+                                <div className="w-28 p-3 flex-shrink-0 text-right font-mono font-medium text-foreground/70">
                                     {total.toLocaleString()}
                                 </div>
 
                                 {/* 狀態 (可編輯 - 下拉) */}
-                                <div className="w-32 p-2 flex-shrink-0">
+                                <div className="w-24 p-2 flex-shrink-0">
                                     <EditableCell
                                         value={quote.status}
                                         type="select"
@@ -210,7 +213,7 @@ export function QuotesDataGrid({ data, clients, onRefresh }: QuotesDataGridProps
                                 </div>
 
                                 {/* 操作 */}
-                                <div className="w-32 p-2 flex-shrink-0 flex justify-center space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                <div className="w-28 p-2 flex-shrink-0 flex justify-center space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
                                     {renderAttachmentButton(quote)}
                                     <Button
                                         variant="ghost"
@@ -219,7 +222,7 @@ export function QuotesDataGrid({ data, clients, onRefresh }: QuotesDataGridProps
                                         onClick={() => router.push(`/dashboard/quotes/view/${quote.id}`)}
                                         title="檢視詳情"
                                     >
-                                        <ExternalLink className="h-4 w-4 text-blue-500" />
+                                        <ExternalLink className="h-4 w-4 text-info" />
                                     </Button>
                                     <Button
                                         variant="ghost"
@@ -228,7 +231,7 @@ export function QuotesDataGrid({ data, clients, onRefresh }: QuotesDataGridProps
                                         onClick={() => handleDelete(quote.id)}
                                         title="刪除"
                                     >
-                                        <Trash2 className="h-4 w-4 text-red-500" />
+                                        <Trash2 className="h-4 w-4 text-destructive" />
                                     </Button>
                                 </div>
                             </div>
@@ -247,9 +250,12 @@ export function QuotesDataGrid({ data, clients, onRefresh }: QuotesDataGridProps
                 })}
 
                 {data.length === 0 && (
-                    <div className="p-8 text-center text-muted-foreground">
-                        沒有資料
-                    </div>
+                    <EmptyState
+                        type="no-data"
+                        icon={FileText}
+                        title="沒有報價單"
+                        description="新增第一筆報價單開始使用"
+                    />
                 )}
             </div>
 

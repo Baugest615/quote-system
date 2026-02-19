@@ -26,7 +26,7 @@ export function LoadingState({
 }: LoadingStateProps) {
     const content = (
         <div className={cn('flex flex-col items-center justify-center', className)}>
-            <Loader2 className={cn('animate-spin text-emerald-400', SIZE_CONFIG[size])} />
+            <Loader2 className={cn('animate-spin text-primary', SIZE_CONFIG[size])} />
             {message && (
                 <p className="mt-4 text-sm text-muted-foreground">{message}</p>
             )}

@@ -60,7 +60,7 @@ export function ProjectHeader<T>({
                     )}
 
                     {/* Project icon */}
-                    <FolderOpen className="h-5 w-5 text-emerald-400 flex-shrink-0" />
+                    <FolderOpen className="h-5 w-5 text-primary flex-shrink-0" />
 
                     {/* Project info */}
                     <div className="flex-1 min-w-0">
@@ -105,7 +105,7 @@ export function ProjectHeader<T>({
                     </div>
                     <div className="w-full bg-muted rounded-full h-2 overflow-hidden">
                         <div
-                            className="bg-green-500 h-full transition-all duration-300 ease-out"
+                            className="bg-success h-full transition-all duration-300 ease-out"
                             style={{ width: `${completionPercentage}%` }}
                         />
                     </div>

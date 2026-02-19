@@ -278,7 +278,7 @@ export function ClientModal({ isOpen, onClose, onSave, client }: ClientModalProp
     return (
       <Modal isOpen={isOpen} onClose={onClose} title="載入中...">
         <div className="flex justify-center items-center h-32">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-500"></div>
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
         </div>
       </Modal>
     )
@@ -295,7 +295,7 @@ export function ClientModal({ isOpen, onClose, onSave, client }: ClientModalProp
         {/* 公司資訊區塊 */}
         <div className="space-y-4">
           <div className="flex items-center space-x-2">
-            <Building2 className="h-5 w-5 text-emerald-400" />
+            <Building2 className="h-5 w-5 text-primary" />
             <h4 className="text-md font-semibold text-foreground/80 border-b pb-2 flex-1">公司資訊</h4>
           </div>
 
@@ -303,7 +303,7 @@ export function ClientModal({ isOpen, onClose, onSave, client }: ClientModalProp
             <div>
               <label className="block text-sm font-medium">公司名稱 (必填)</label>
               <Input {...register('name')} className="mt-1" />
-              {errors.name && <p className="text-red-500 text-xs mt-1">{errors.name.message}</p>}
+              {errors.name && <p className="text-destructive text-xs mt-1">{errors.name.message}</p>}
             </div>
 
             <div>
@@ -314,7 +314,7 @@ export function ClientModal({ isOpen, onClose, onSave, client }: ClientModalProp
             <div className="md:col-span-2">
               <label className="block text-sm font-medium">公司地址 (必填)</label>
               <Input {...register('address')} className="mt-1" />
-              {errors.address && <p className="text-red-500 text-xs mt-1">{errors.address.message}</p>}
+              {errors.address && <p className="text-destructive text-xs mt-1">{errors.address.message}</p>}
             </div>
           </div>
         </div>
@@ -323,7 +323,7 @@ export function ClientModal({ isOpen, onClose, onSave, client }: ClientModalProp
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-2">
-              <User className="h-5 w-5 text-emerald-400" />
+              <User className="h-5 w-5 text-primary" />
               <h4 className="text-md font-semibold text-foreground/80">聯絡人資訊</h4>
             </div>
             <Button
@@ -344,7 +344,7 @@ export function ClientModal({ isOpen, onClose, onSave, client }: ClientModalProp
               return (
                 <div
                   key={field.id}
-                  className={`p-4 border rounded-lg transition-colors ${isPrimary ? 'border-emerald-500/30 bg-emerald-500/5' : 'border-border bg-card'
+                  className={`p-4 border rounded-lg transition-colors ${isPrimary ? 'border-primary/30 bg-primary/5' : 'border-border bg-card'
                     }`}
                 >
                   <div className="flex items-center justify-between mb-3">
@@ -353,7 +353,7 @@ export function ClientModal({ isOpen, onClose, onSave, client }: ClientModalProp
                         聯絡人 #{index + 1}
                       </span>
                       {isPrimary && (
-                        <div className="flex items-center space-x-1 px-2 py-1 text-xs bg-emerald-500/10 text-emerald-400 rounded-full">
+                        <div className="flex items-center space-x-1 px-2 py-1 text-xs bg-primary/10 text-primary rounded-full">
                           <Star className="h-3 w-3 fill-current" />
                           <span>主要聯絡人</span>
                         </div>
@@ -380,7 +380,7 @@ export function ClientModal({ isOpen, onClose, onSave, client }: ClientModalProp
                           variant="outline"
                           size="sm"
                           onClick={() => remove(index)}
-                          className="text-red-600 hover:text-red-700"
+                          className="text-destructive hover:text-destructive/80"
                         >
                           <Trash2 className="h-3 w-3" />
                         </Button>
@@ -397,7 +397,7 @@ export function ClientModal({ isOpen, onClose, onSave, client }: ClientModalProp
                         placeholder="請輸入聯絡人姓名"
                       />
                       {errors.contacts?.[index]?.name && (
-                        <p className="text-red-500 text-xs mt-1">
+                        <p className="text-destructive text-xs mt-1">
                           {errors.contacts[index]?.name?.message}
                         </p>
                       )}
@@ -421,7 +421,7 @@ export function ClientModal({ isOpen, onClose, onSave, client }: ClientModalProp
                         placeholder="example@company.com"
                       />
                       {errors.contacts?.[index]?.email && (
-                        <p className="text-red-500 text-xs mt-1">
+                        <p className="text-destructive text-xs mt-1">
                           {errors.contacts[index]?.email?.message}
                         </p>
                       )}
@@ -442,7 +442,7 @@ export function ClientModal({ isOpen, onClose, onSave, client }: ClientModalProp
           </div>
 
           {errors.contacts && (
-            <p className="text-red-500 text-xs">
+            <p className="text-destructive text-xs">
               {errors.contacts.message}
             </p>
           )}

@@ -9,6 +9,7 @@ import AccountingLoadingGuard from '@/components/accounting/AccountingLoadingGua
 import AccountingModal from '@/components/accounting/AccountingModal'
 import Pagination from '@/components/accounting/Pagination'
 import SpreadsheetEditor from '@/components/accounting/SpreadsheetEditor'
+import { EmptyState } from '@/components/ui/EmptyState'
 import Link from 'next/link'
 import type { AccountingPayroll, Employee } from '@/types/custom.types'
 import type { SpreadsheetColumn, BatchSaveResult, RowError } from '@/lib/spreadsheet-utils'
@@ -299,12 +300,12 @@ export default function AccountingPayrollPage() {
 
   const numField = (label: string, key: keyof AccountingPayroll) => (
     <div>
-      <label className="block text-xs font-medium text-gray-600 mb-1">{label}</label>
+      <label className="block text-xs font-medium text-muted-foreground mb-1">{label}</label>
       <input
         type="number"
         value={(form[key] as number) || ''}
         onChange={(e) => updateForm({ [key]: Number(e.target.value) })}
-        className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+        className="w-full border border-border rounded-lg px-3 py-2 text-sm bg-card focus:outline-none focus:ring-2 focus:ring-ring"
         placeholder="0"
       />
     </div>
@@ -314,36 +315,36 @@ export default function AccountingPayrollPage() {
     <div className="space-y-6">
       {/* 頁首 */}
       <div className="flex items-center gap-3">
-        <Link href="/dashboard/accounting" className="text-gray-400 hover:text-gray-600">
+        <Link href="/dashboard/accounting" className="text-muted-foreground/60 hover:text-muted-foreground">
           <ChevronLeft className="w-5 h-5" />
         </Link>
-        <Users className="w-7 h-7 text-purple-600" />
+        <Users className="w-7 h-7 text-chart-5" />
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">人事薪資</h1>
-          <p className="text-sm text-gray-500">員工薪資與勞健保記錄</p>
+          <h1 className="text-2xl font-bold text-foreground">人事薪資</h1>
+          <p className="text-sm text-muted-foreground">員工薪資與勞健保記錄</p>
         </div>
       </div>
 
       {/* 操作列 */}
       <div className="flex flex-wrap items-center gap-3">
         <select value={year} onChange={(e) => setYear(Number(e.target.value))}
-          className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+          className="border border-border rounded-lg px-3 py-2 text-sm bg-card focus:outline-none focus:ring-2 focus:ring-ring">
           {[CURRENT_YEAR, CURRENT_YEAR - 1, CURRENT_YEAR - 2].map(y => <option key={y} value={y}>{y} 年</option>)}
         </select>
         <div className="relative flex-1 min-w-48">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground/60" />
           <input type="text" placeholder="搜尋員工姓名、月份..." value={search} onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-9 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+            className="w-full pl-9 pr-4 py-2 border border-border rounded-lg text-sm bg-card focus:outline-none focus:ring-2 focus:ring-ring" />
         </div>
         {!isSpreadsheetMode && (
           <>
             <Link href="/dashboard/accounting/employees"
-              className="flex items-center gap-2 bg-gray-100 text-gray-700 px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-200 transition-colors">
+              className="flex items-center gap-2 bg-muted text-foreground px-4 py-2 rounded-lg text-sm font-medium hover:bg-accent transition-colors">
               <Users className="w-4 h-4" />
               員工管理
             </Link>
             <button onClick={handleOpenModal}
-              className="flex items-center gap-2 bg-purple-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-purple-700 transition-colors">
+              className="flex items-center gap-2 bg-chart-5 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-chart-5/90 transition-colors">
               <Plus className="w-4 h-4" />
               新增薪資
             </button>
@@ -353,8 +354,8 @@ export default function AccountingPayrollPage() {
           onClick={() => setIsSpreadsheetMode(!isSpreadsheetMode)}
           className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
             isSpreadsheetMode
-              ? 'bg-purple-100 text-purple-700 border border-purple-300'
-              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              ? 'bg-chart-5/10 text-chart-5 border border-chart-5/30'
+              : 'bg-muted text-foreground hover:bg-accent'
           }`}
         >
           <Table2 className="w-4 h-4" />
@@ -377,29 +378,29 @@ export default function AccountingPayrollPage() {
       <>
       {/* 統計 */}
       <div className="grid grid-cols-3 gap-4">
-        <div className="bg-purple-50 rounded-xl p-4 text-center">
-          <p className="text-xs text-purple-500 mb-1">員工實領總額</p>
-          <p className="text-lg font-bold text-purple-700">NT$ {fmt(totalNetSalary)}</p>
+        <div className="bg-chart-5/10 rounded-xl p-4 text-center">
+          <p className="text-xs text-chart-5/70 mb-1">員工實領總額</p>
+          <p className="text-lg font-bold text-chart-5">NT$ {fmt(totalNetSalary)}</p>
         </div>
-        <div className="bg-blue-50 rounded-xl p-4 text-center">
-          <p className="text-xs text-blue-500 mb-1">公司勞健保負擔</p>
-          <p className="text-lg font-bold text-blue-700">NT$ {fmt(totalCompany)}</p>
+        <div className="bg-chart-4/10 rounded-xl p-4 text-center">
+          <p className="text-xs text-chart-4/70 mb-1">公司勞健保負擔</p>
+          <p className="text-lg font-bold text-chart-4">NT$ {fmt(totalCompany)}</p>
         </div>
-        <div className="bg-gray-100 rounded-xl p-4 text-center">
-          <p className="text-xs text-gray-500 mb-1">公司人事費用總計</p>
-          <p className="text-lg font-bold text-gray-700">NT$ {fmt(totalCost)}</p>
+        <div className="bg-muted rounded-xl p-4 text-center">
+          <p className="text-xs text-muted-foreground mb-1">公司人事費用總計</p>
+          <p className="text-lg font-bold text-foreground">NT$ {fmt(totalCost)}</p>
         </div>
       </div>
 
       {/* 表格 */}
-      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+      <div className="bg-card rounded-xl border border-border overflow-hidden">
         {loading ? (
-          <div className="p-8 text-center text-gray-400">載入中...</div>
+          <div className="p-8 text-center text-muted-foreground/60">載入中...</div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="bg-gray-50 text-gray-600 text-xs">
+                <tr className="bg-muted text-muted-foreground text-xs">
                   <th className="text-left px-4 py-3">記帳月份</th>
                   <th className="text-left px-4 py-3">員工姓名</th>
                   <th className="text-right px-4 py-3">本薪</th>
@@ -413,23 +414,23 @@ export default function AccountingPayrollPage() {
               </thead>
               <tbody>
                 {filtered.length === 0 ? (
-                  <tr><td colSpan={9} className="text-center py-12 text-gray-400">尚無資料</td></tr>
+                  <tr><td colSpan={9}><EmptyState type="no-data" icon={Users} title="尚無薪資記錄" description="新增第一筆薪資記錄開始追蹤" /></td></tr>
                 ) : filtered.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE).map(r => (
-                  <tr key={r.id} className="border-t border-gray-100 hover:bg-gray-50">
-                    <td className="px-4 py-3 text-gray-600">{r.salary_month || '-'}</td>
-                    <td className="px-4 py-3 font-medium text-gray-800">{r.employee_name}</td>
-                    <td className="px-4 py-3 text-right text-gray-700">NT$ {fmt(r.base_salary || 0)}</td>
-                    <td className="px-4 py-3 text-right text-blue-600">{r.bonus > 0 ? `NT$ ${fmt(r.bonus)}` : '-'}</td>
-                    <td className="px-4 py-3 text-right text-red-500">NT$ {fmt(r.personal_total || 0)}</td>
-                    <td className="px-4 py-3 text-right font-semibold text-purple-700">NT$ {fmt(r.net_salary || 0)}</td>
-                    <td className="px-4 py-3 text-right text-gray-500">NT$ {fmt(r.company_total || 0)}</td>
-                    <td className="px-4 py-3 text-gray-500 text-xs max-w-32 truncate">{r.note || '-'}</td>
+                  <tr key={r.id} className="border-t border-border/50 hover:bg-accent">
+                    <td className="px-4 py-3 text-muted-foreground">{r.salary_month || '-'}</td>
+                    <td className="px-4 py-3 font-medium text-foreground">{r.employee_name}</td>
+                    <td className="px-4 py-3 text-right text-foreground">NT$ {fmt(r.base_salary || 0)}</td>
+                    <td className="px-4 py-3 text-right text-chart-4">{r.bonus > 0 ? `NT$ ${fmt(r.bonus)}` : '-'}</td>
+                    <td className="px-4 py-3 text-right text-destructive">NT$ {fmt(r.personal_total || 0)}</td>
+                    <td className="px-4 py-3 text-right font-semibold text-chart-5">NT$ {fmt(r.net_salary || 0)}</td>
+                    <td className="px-4 py-3 text-right text-muted-foreground">NT$ {fmt(r.company_total || 0)}</td>
+                    <td className="px-4 py-3 text-muted-foreground text-xs max-w-32 truncate">{r.note || '-'}</td>
                     <td className="px-4 py-3">
                       <div className="flex items-center justify-center gap-2">
-                        <button onClick={() => { setEditing(r); setForm({ ...r }); setIsModalOpen(true) }} className="p-1.5 text-gray-400 hover:text-blue-600 rounded hover:bg-blue-50">
+                        <button onClick={() => { setEditing(r); setForm({ ...r }); setIsModalOpen(true) }} className="p-1.5 text-muted-foreground/60 hover:text-primary rounded hover:bg-primary/10">
                           <Pencil className="w-4 h-4" />
                         </button>
-                        <button onClick={() => handleDelete(r.id)} className="p-1.5 text-gray-400 hover:text-red-600 rounded hover:bg-red-50">
+                        <button onClick={() => handleDelete(r.id)} className="p-1.5 text-muted-foreground/60 hover:text-destructive rounded hover:bg-destructive/10">
                           <Trash2 className="w-4 h-4" />
                         </button>
                       </div>
@@ -456,8 +457,8 @@ export default function AccountingPayrollPage() {
         title={editing ? '編輯薪資記錄' : '新增薪資記錄'}
         footer={
           <div className="flex justify-end gap-3">
-            <button onClick={() => setIsModalOpen(false)} className="px-4 py-2 text-sm text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-100">取消</button>
-            <button onClick={handleSave} disabled={saving} className="px-4 py-2 text-sm bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50">
+            <button onClick={() => setIsModalOpen(false)} className="px-4 py-2 text-sm text-muted-foreground border border-border rounded-lg hover:bg-accent">取消</button>
+            <button onClick={handleSave} disabled={saving} className="px-4 py-2 text-sm bg-chart-5 text-white rounded-lg hover:bg-chart-5/90 disabled:opacity-50">
               {saving ? '儲存中...' : '儲存'}
             </button>
           </div>
@@ -466,16 +467,16 @@ export default function AccountingPayrollPage() {
         <div className="space-y-4 max-h-[70vh] overflow-y-auto pr-2">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">年度</label>
+                  <label className="block text-xs font-medium text-muted-foreground mb-1">年度</label>
                   <select value={form.year} onChange={(e) => updateForm({ year: Number(e.target.value) })}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    className="w-full border border-border rounded-lg px-3 py-2 text-sm bg-card focus:outline-none focus:ring-2 focus:ring-ring">
                     {[CURRENT_YEAR, CURRENT_YEAR - 1, CURRENT_YEAR - 2].map(y => <option key={y} value={y}>{y}</option>)}
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">記帳月份</label>
+                  <label className="block text-xs font-medium text-muted-foreground mb-1">記帳月份</label>
                   <select value={form.salary_month || ''} onChange={(e) => updateForm({ salary_month: e.target.value })}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    className="w-full border border-border rounded-lg px-3 py-2 text-sm bg-card focus:outline-none focus:ring-2 focus:ring-ring">
                     <option value="">-- 選擇月份 --</option>
                     {MONTH_OPTIONS.map(m => <option key={m} value={`${form.year}年${m}`}>{form.year}年{m}</option>)}
                   </select>
@@ -484,8 +485,8 @@ export default function AccountingPayrollPage() {
 
               {/* 員工選擇器 */}
               {!editing && (
-                <div className="bg-blue-50 rounded-lg p-4 border-2 border-blue-200">
-                  <label className="block text-sm font-medium text-blue-900 mb-2 flex items-center gap-2">
+                <div className="bg-primary/10 rounded-lg p-4 border-2 border-primary/20">
+                  <label className="block text-sm font-medium text-foreground mb-2 flex items-center gap-2">
                     <Calculator className="w-4 h-4" />
                     選擇員工（自動計算薪資與勞健保）
                   </label>
@@ -493,7 +494,7 @@ export default function AccountingPayrollPage() {
                     value={form.employee_id || ''}
                     onChange={(e) => handleSelectEmployee(e.target.value)}
                     disabled={calculating}
-                    className="w-full border-2 border-blue-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white disabled:opacity-50"
+                    className="w-full border-2 border-primary/30 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring bg-card disabled:opacity-50"
                   >
                     <option value="">-- 選擇員工 --</option>
                     {employees.map(e => (
@@ -502,9 +503,9 @@ export default function AccountingPayrollPage() {
                       </option>
                     ))}
                   </select>
-                  {calculating && <p className="text-xs text-blue-600 mt-2">計算中...</p>}
+                  {calculating && <p className="text-xs text-primary mt-2">計算中...</p>}
                   {!form.employee_id && (
-                    <p className="text-xs text-gray-500 mt-2 flex items-start gap-1">
+                    <p className="text-xs text-muted-foreground mt-2 flex items-start gap-1">
                       <Info className="w-3 h-3 mt-0.5 flex-shrink-0" />
                       選擇員工後，系統會自動帶入本薪、津貼並計算勞健保費用
                     </p>
@@ -514,45 +515,45 @@ export default function AccountingPayrollPage() {
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">員工姓名 *</label>
+                  <label className="block text-xs font-medium text-muted-foreground mb-1">員工姓名 *</label>
                   <input type="text" value={form.employee_name || ''} onChange={(e) => updateForm({ employee_name: e.target.value })}
                     disabled={!!form.employee_id}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100" placeholder="姓名" />
+                    className="w-full border border-border rounded-lg px-3 py-2 text-sm bg-card focus:outline-none focus:ring-2 focus:ring-ring disabled:bg-muted" placeholder="姓名" />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">匯出日</label>
+                  <label className="block text-xs font-medium text-muted-foreground mb-1">匯出日</label>
                   <input type="date" value={form.payment_date || ''} onChange={(e) => updateForm({ payment_date: e.target.value })}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                    className="w-full border border-border rounded-lg px-3 py-2 text-sm bg-card focus:outline-none focus:ring-2 focus:ring-ring" />
                 </div>
               </div>
 
               {/* 基本薪資（鎖定） */}
-              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide pt-2">基本薪資（從員工資料帶入）</p>
-              <div className="grid grid-cols-2 gap-4 bg-gray-50 rounded-lg p-3">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide pt-2">基本薪資（從員工資料帶入）</p>
+              <div className="grid grid-cols-2 gap-4 bg-muted/50 rounded-lg p-3">
                 <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1 flex items-center gap-1">
+                  <label className="block text-xs font-medium text-muted-foreground mb-1 flex items-center gap-1">
                     本薪
-                    <span className="text-xs text-gray-400">🔒</span>
+                    <span className="text-xs text-muted-foreground/60">🔒</span>
                   </label>
                   <input type="number" value={form.base_salary || ''} readOnly
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm bg-gray-100 cursor-not-allowed" />
+                    className="w-full border border-border rounded-lg px-3 py-2 text-sm bg-muted cursor-not-allowed" />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1 flex items-center gap-1">
+                  <label className="block text-xs font-medium text-muted-foreground mb-1 flex items-center gap-1">
                     伙食津貼
-                    <span className="text-xs text-gray-400">🔒</span>
+                    <span className="text-xs text-muted-foreground/60">🔒</span>
                   </label>
                   <input type="number" value={form.meal_allowance || ''} readOnly
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm bg-gray-100 cursor-not-allowed" />
+                    className="w-full border border-border rounded-lg px-3 py-2 text-sm bg-muted cursor-not-allowed" />
                 </div>
               </div>
-              <p className="text-xs text-gray-500 -mt-2 flex items-start gap-1">
+              <p className="text-xs text-muted-foreground -mt-2 flex items-start gap-1">
                 <Info className="w-3 h-3 mt-0.5 flex-shrink-0" />
                 若要調整本薪或津貼，請至「員工管理」頁面修改
               </p>
 
               {/* 當月調整項目 */}
-              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide pt-2">當月調整項目</p>
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide pt-2">當月調整項目</p>
               <div className="grid grid-cols-2 gap-4">
                 {numField('各項獎金（加班費、績效等）', 'bonus')}
                 {numField('各種代扣（預借款、保費等）', 'deduction')}
@@ -560,43 +561,43 @@ export default function AccountingPayrollPage() {
 
               {/* 勞健保計算明細 */}
               {insuranceCalc && (
-                <div className="bg-gradient-to-br from-blue-50 to-purple-50 rounded-lg p-4 border-2 border-blue-200">
-                  <p className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+                <div className="bg-gradient-to-br from-primary/10 to-chart-5/10 rounded-lg p-4 border-2 border-primary/20">
+                  <p className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
                     <Calculator className="w-4 h-4" />
                     勞健保計算明細（自動計算）
                   </p>
                   <div className="grid grid-cols-2 gap-3 text-xs">
-                    <div className="bg-white rounded p-2">
-                      <p className="text-gray-500">投保級距</p>
-                      <p className="font-semibold text-gray-800">第 {insuranceCalc.insuranceGrade} 級</p>
+                    <div className="bg-card rounded p-2">
+                      <p className="text-muted-foreground">投保級距</p>
+                      <p className="font-semibold text-foreground">第 {insuranceCalc.insuranceGrade} 級</p>
                     </div>
-                    <div className="bg-white rounded p-2">
-                      <p className="text-gray-500">投保薪資</p>
-                      <p className="font-semibold text-gray-800">NT$ {fmt(insuranceCalc.insuranceSalary)}</p>
+                    <div className="bg-card rounded p-2">
+                      <p className="text-muted-foreground">投保薪資</p>
+                      <p className="font-semibold text-foreground">NT$ {fmt(insuranceCalc.insuranceSalary)}</p>
                     </div>
-                    <div className="bg-white rounded p-2">
-                      <p className="text-gray-500">勞保（個人 {fmtRate(insuranceCalc.laborRate)}）</p>
-                      <p className="font-semibold text-red-600">-NT$ {fmt(insuranceCalc.laborInsuranceEmployee)}</p>
+                    <div className="bg-card rounded p-2">
+                      <p className="text-muted-foreground">勞保（個人 {fmtRate(insuranceCalc.laborRate)}）</p>
+                      <p className="font-semibold text-destructive">-NT$ {fmt(insuranceCalc.laborInsuranceEmployee)}</p>
                     </div>
-                    <div className="bg-white rounded p-2">
-                      <p className="text-gray-500">健保（個人 {fmtRate(insuranceCalc.healthRate)}）</p>
-                      <p className="font-semibold text-red-600">-NT$ {fmt(insuranceCalc.healthInsuranceEmployee)}</p>
+                    <div className="bg-card rounded p-2">
+                      <p className="text-muted-foreground">健保（個人 {fmtRate(insuranceCalc.healthRate)}）</p>
+                      <p className="font-semibold text-destructive">-NT$ {fmt(insuranceCalc.healthInsuranceEmployee)}</p>
                     </div>
-                    <div className="bg-white rounded p-2">
-                      <p className="text-gray-500">勞保（公司）</p>
-                      <p className="font-semibold text-blue-600">NT$ {fmt(insuranceCalc.laborInsuranceCompany)}</p>
+                    <div className="bg-card rounded p-2">
+                      <p className="text-muted-foreground">勞保（公司）</p>
+                      <p className="font-semibold text-chart-4">NT$ {fmt(insuranceCalc.laborInsuranceCompany)}</p>
                     </div>
-                    <div className="bg-white rounded p-2">
-                      <p className="text-gray-500">健保（公司）</p>
-                      <p className="font-semibold text-blue-600">NT$ {fmt(insuranceCalc.healthInsuranceCompany)}</p>
+                    <div className="bg-card rounded p-2">
+                      <p className="text-muted-foreground">健保（公司）</p>
+                      <p className="font-semibold text-chart-4">NT$ {fmt(insuranceCalc.healthInsuranceCompany)}</p>
                     </div>
-                    <div className="bg-white rounded p-2">
-                      <p className="text-gray-500">勞退（公司 {fmtRate(insuranceCalc.pensionRate)}）</p>
-                      <p className="font-semibold text-blue-600">NT$ {fmt(insuranceCalc.retirementFund)}</p>
+                    <div className="bg-card rounded p-2">
+                      <p className="text-muted-foreground">勞退（公司 {fmtRate(insuranceCalc.pensionRate)}）</p>
+                      <p className="font-semibold text-chart-4">NT$ {fmt(insuranceCalc.retirementFund)}</p>
                     </div>
-                    <div className="bg-white rounded p-2">
-                      <p className="text-gray-500">職災 + 就安</p>
-                      <p className="font-semibold text-blue-600">NT$ {fmt(insuranceCalc.occupationalInjuryFee + insuranceCalc.employmentStabilizationFee)}</p>
+                    <div className="bg-card rounded p-2">
+                      <p className="text-muted-foreground">職災 + 就安</p>
+                      <p className="font-semibold text-chart-4">NT$ {fmt(insuranceCalc.occupationalInjuryFee + insuranceCalc.employmentStabilizationFee)}</p>
                     </div>
                   </div>
                 </div>
@@ -605,12 +606,12 @@ export default function AccountingPayrollPage() {
               {/* 手動調整勞健保（編輯模式或未選員工） */}
               {!insuranceCalc && (
                 <>
-                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide pt-2">個人勞健保負擔</p>
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide pt-2">個人勞健保負擔</p>
                   <div className="grid grid-cols-2 gap-4">
                     {numField('勞保個人負擔', 'labor_insurance_personal')}
                     {numField('健保個人負擔', 'health_insurance_personal')}
                   </div>
-                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide pt-2">公司勞健保負擔</p>
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide pt-2">公司勞健保負擔</p>
                   <div className="grid grid-cols-2 gap-4">
                     {numField('勞保公司負擔', 'labor_insurance_company')}
                     {numField('健保公司負擔', 'health_insurance_company')}
@@ -622,24 +623,24 @@ export default function AccountingPayrollPage() {
 
               {/* 計算結果 */}
               <div className="grid grid-cols-2 gap-4 pt-2">
-                <div className="bg-purple-50 rounded-lg p-3">
-                  <p className="text-xs text-purple-600">個人負擔總額（自動）</p>
-                  <p className="text-lg font-bold text-purple-700">NT$ {fmt(form.personal_total || 0)}</p>
+                <div className="bg-chart-5/10 rounded-lg p-3">
+                  <p className="text-xs text-chart-5">個人負擔總額（自動）</p>
+                  <p className="text-lg font-bold text-chart-5">NT$ {fmt(form.personal_total || 0)}</p>
                 </div>
-                <div className="bg-purple-50 rounded-lg p-3">
-                  <p className="text-xs text-purple-600">實領薪資（自動）</p>
-                  <p className="text-lg font-bold text-purple-700">NT$ {fmt(form.net_salary || 0)}</p>
+                <div className="bg-chart-5/10 rounded-lg p-3">
+                  <p className="text-xs text-chart-5">實領薪資（自動）</p>
+                  <p className="text-lg font-bold text-chart-5">NT$ {fmt(form.net_salary || 0)}</p>
                 </div>
               </div>
-              <div className="bg-blue-50 rounded-lg p-3">
-                <p className="text-xs text-blue-600">公司支出總額（自動）</p>
-                <p className="text-lg font-bold text-blue-700">NT$ {fmt(form.company_total || 0)}</p>
+              <div className="bg-chart-4/10 rounded-lg p-3">
+                <p className="text-xs text-chart-4">公司支出總額（自動）</p>
+                <p className="text-lg font-bold text-chart-4">NT$ {fmt(form.company_total || 0)}</p>
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">備註</label>
+                <label className="block text-xs font-medium text-muted-foreground mb-1">備註</label>
                 <textarea value={form.note || ''} onChange={(e) => updateForm({ note: e.target.value })}
-                  rows={2} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="如：股份代扣、特殊說明等" />
+                  rows={2} className="w-full border border-border rounded-lg px-3 py-2 text-sm bg-card focus:outline-none focus:ring-2 focus:ring-ring" placeholder="如：股份代扣、特殊說明等" />
               </div>
         </div>
       </AccountingModal>

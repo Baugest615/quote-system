@@ -213,8 +213,8 @@ export default async function PrintQuotePage({ params, searchParams }: PageProps
                         <thead>
                             <tr>
                                 <th style={{ width: '12%' }}>分類</th>
-                                <th style={{ width: '14%' }}>KOL</th>
-                                <th style={{ width: '30%' }}>服務內容</th>
+                                <th style={{ width: '14%' }}>KOL/服務</th>
+                                <th style={{ width: '30%' }}>執行內容</th>
                                 <th style={{ width: '14%' }}>單價</th>
                                 <th style={{ width: '10%' }}>數量</th>
                                 <th style={{ width: '14%' }}>合計</th>

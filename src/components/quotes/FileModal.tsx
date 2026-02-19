@@ -303,8 +303,8 @@ export function FileModal({ isOpen, onClose, quote, onUpdate }: FileModalProps) 
               <div className="flex items-start justify-between mb-3">
                 <div className="flex items-center flex-1 min-w-0">
                   <div className="flex-shrink-0 mr-3">
-                    {fileType === 'image' && <div className="w-8 h-8 bg-green-100 rounded flex items-center justify-center">🖼️</div>}
-                    {fileType === 'document' && <div className="w-8 h-8 bg-blue-100 rounded flex items-center justify-center">📄</div>}
+                    {fileType === 'image' && <div className="w-8 h-8 bg-success/15 rounded flex items-center justify-center">🖼️</div>}
+                    {fileType === 'document' && <div className="w-8 h-8 bg-info/15 rounded flex items-center justify-center">📄</div>}
                     {fileType === 'spreadsheet' && <div className="w-8 h-8 bg-yellow-100 rounded flex items-center justify-center">📊</div>}
                     {fileType === 'file' && <div className="w-8 h-8 bg-muted rounded flex items-center justify-center">📎</div>}
                   </div>
@@ -320,7 +320,7 @@ export function FileModal({ isOpen, onClose, quote, onUpdate }: FileModalProps) 
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="text-red-500 hover:text-red-700 hover:bg-red-500/10 ml-3"
+                  className="text-destructive hover:text-destructive/80 hover:bg-destructive/10 ml-3"
                   onClick={handleFileDelete}
                 >
                   <Trash2 className="h-4 w-4" />
@@ -359,8 +359,8 @@ export function FileModal({ isOpen, onClose, quote, onUpdate }: FileModalProps) 
               </div>
 
               {downloadError && (
-                <div className="mt-3 bg-red-500/10 border border-red-500/30 rounded-md p-2">
-                  <p className="text-sm text-red-400">{downloadError}</p>
+                <div className="mt-3 bg-destructive/10 border border-destructive/30 rounded-md p-2">
+                  <p className="text-sm text-destructive">{downloadError}</p>
                 </div>
               )}
             </div>
@@ -387,18 +387,18 @@ export function FileModal({ isOpen, onClose, quote, onUpdate }: FileModalProps) 
             ref={fileInputRef}
             onChange={handleFileUpload}
             disabled={uploading}
-            className="block w-full text-sm text-muted-foreground file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-emerald-500/10 file:text-emerald-400 hover:file:bg-emerald-500/20"
+            className="block w-full text-sm text-muted-foreground file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-emerald-500/10 file:text-primary hover:file:bg-emerald-500/20"
             accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.gif,.txt,.zip,.rar"
           />
           {uploading && (
-            <div className="mt-2 flex items-center text-sm text-emerald-400">
+            <div className="mt-2 flex items-center text-sm text-primary">
               <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-emerald-500 mr-2"></div>
               上傳中，請稍候...
             </div>
           )}
           {uploadError && (
-            <div className="mt-2 bg-red-500/10 border border-red-500/30 rounded-md p-2">
-              <p className="text-sm text-red-400">{uploadError}</p>
+            <div className="mt-2 bg-destructive/10 border border-destructive/30 rounded-md p-2">
+              <p className="text-sm text-destructive">{uploadError}</p>
             </div>
           )}
         </div>

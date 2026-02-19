@@ -30,7 +30,7 @@ export function ConfirmationRow({ confirmation, onToggleExpansion, onRevert }: C
                         <ChevronDown className="h-5 w-5 text-muted-foreground" /> :
                         <ChevronRight className="h-5 w-5 text-muted-foreground" />
                     }
-                    <FileText className="h-5 w-5 text-blue-500" />
+                    <FileText className="h-5 w-5 text-info" />
                     <div>
                         <div className="font-medium text-foreground">請款清單 - {confirmation.confirmation_date}</div>
                         <div className="text-sm text-muted-foreground">

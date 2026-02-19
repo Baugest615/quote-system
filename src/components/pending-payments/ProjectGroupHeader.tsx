@@ -16,7 +16,7 @@ export function ProjectGroupHeader({ group, onToggle, onSelectAll }: ProjectGrou
 
     return (
         <div
-            className={`border-b px-6 py-4 cursor-pointer hover:bg-secondary transition-colors ${group.hasRejected ? 'bg-red-500/10' : ''
+            className={`border-b px-6 py-4 cursor-pointer hover:bg-secondary transition-colors ${group.hasRejected ? 'bg-destructive/10' : ''
                 }`}
             onClick={() => onToggle(group.projectId)}
         >
@@ -33,7 +33,7 @@ export function ProjectGroupHeader({ group, onToggle, onSelectAll }: ProjectGrou
                     </div>
 
                     {/* Project icon */}
-                    <FolderOpen className="h-5 w-5 text-emerald-400 flex-shrink-0" />
+                    <FolderOpen className="h-5 w-5 text-primary flex-shrink-0" />
 
                     {/* Project name and client */}
                     <div className="flex-1 min-w-0">
@@ -42,7 +42,7 @@ export function ProjectGroupHeader({ group, onToggle, onSelectAll }: ProjectGrou
                                 {group.projectName}
                             </h3>
                             {group.hasRejected && (
-                                <span className="flex items-center text-xs text-red-600">
+                                <span className="flex items-center text-xs text-destructive">
                                     <AlertCircle className="h-3 w-3 mr-1" />
                                     有駁回項目
                                 </span>
@@ -103,7 +103,7 @@ export function ProjectGroupHeader({ group, onToggle, onSelectAll }: ProjectGrou
             {!group.hasRejected && completionPercentage > 0 && completionPercentage < 100 && (
                 <div className="mt-3 w-full bg-muted rounded-full h-2">
                     <div
-                        className="bg-emerald-600 h-2 rounded-full transition-all duration-300"
+                        className="bg-primary h-2 rounded-full transition-all duration-300"
                         style={{ width: `${completionPercentage}%` }}
                     />
                 </div>

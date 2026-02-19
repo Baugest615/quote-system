@@ -16,7 +16,7 @@ import { toast } from 'sonner'
 import { Database } from '@/types/database.types'
 import { PendingPaymentItem, PendingPaymentAttachment } from '@/lib/payments/types'
 
-const MERGE_COLORS = ['bg-red-100', 'bg-blue-100', 'bg-green-100', 'bg-yellow-100', 'bg-purple-100', 'bg-pink-100']
+const MERGE_COLORS = ['bg-chart-3/15', 'bg-chart-4/15', 'bg-chart-1/15', 'bg-chart-2/15', 'bg-chart-5/15', 'bg-destructive/15']
 
 const isValidInvoiceFormat = (invoiceNumber: string | null | undefined): boolean => {
   if (!invoiceNumber) return false;
@@ -37,27 +37,30 @@ export default function PendingPaymentsPage() {
   const fetchPendingItems = useCallback(async () => {
     setLoading(true)
     try {
-      // 1. Fetch rejected requests
-      const { data: rejectedRequests, error: rejectedError } = await supabase
-        .from('payment_requests')
-        .select(`*, quotation_items:quotation_item_id (*, quotations:quotation_id(*, clients:client_id(name)), kols:kol_id(id, name, real_name, bank_info))`)
-        .eq('verification_status', 'rejected')
-      if (rejectedError) throw new Error(`獲取駁回項目失敗: ${rejectedError.message}`);
+      // 並行載入三個資料來源
+      const [rejectedRes, draftRes, availableRes] = await Promise.all([
+        supabase
+          .from('payment_requests')
+          .select(`*, quotation_items:quotation_item_id (*, quotations:quotation_id(*, clients:client_id(name)), kols:kol_id(id, name, real_name, bank_info))`)
+          .eq('verification_status', 'rejected'),
+        supabase
+          .from('payment_requests')
+          .select(`*, quotation_items:quotation_item_id (*, quotations:quotation_id(*, clients:client_id(name)), kols:kol_id(id, name, real_name, bank_info))`)
+          .eq('verification_status', 'pending')
+          .is('request_date', null),
+        supabase.rpc('get_available_pending_payments'),
+      ])
 
-      // 2. Fetch draft requests (pending status with null request_date)
-      const { data: draftRequests, error: draftError } = await supabase
-        .from('payment_requests')
-        .select(`*, quotation_items:quotation_item_id (*, quotations:quotation_id(*, clients:client_id(name)), kols:kol_id(id, name, real_name, bank_info))`)
-        .eq('verification_status', 'pending')
-        .is('request_date', null)
-      if (draftError) throw new Error(`獲取草稿項目失敗: ${draftError.message}`);
+      if (rejectedRes.error) throw new Error(`獲取駁回項目失敗: ${rejectedRes.error.message}`);
+      if (draftRes.error) throw new Error(`獲取草稿項目失敗: ${draftRes.error.message}`);
+      if (availableRes.error) throw new Error(`獲取全新項目失敗: ${availableRes.error.message}`);
+
+      const rejectedRequests = rejectedRes.data;
+      const draftRequests = draftRes.data;
+      const availableItemsData = availableRes.data;
 
       const rejectedItemIds = new Set(rejectedRequests?.map(req => req.quotation_item_id) || []);
       const draftItemIds = new Set(draftRequests?.map(req => req.quotation_item_id) || []);
-
-      // 3. Fetch available items from RPC
-      const { data: availableItemsData, error: itemsError } = await supabase.rpc('get_available_pending_payments');
-      if (itemsError) throw new Error(`獲取全新項目失敗: ${itemsError.message}`);
 
       // Filter out items that are already rejected or in draft
       const availableItems = (availableItemsData as any[]).filter(item =>
@@ -525,7 +528,7 @@ export default function PendingPaymentsPage() {
                 合併模式
               </Button>
             )}
-            <Button onClick={handleSubmitPayment} disabled={!items.some(i => i.is_selected)} className="bg-emerald-600 hover:bg-emerald-700 text-white">
+            <Button onClick={handleSubmitPayment} disabled={!items.some(i => i.is_selected)} className="bg-primary hover:bg-primary/90 text-primary-foreground">
               <CheckCircle className="w-4 h-4 mr-2" />
               送出請款
             </Button>
@@ -533,19 +536,19 @@ export default function PendingPaymentsPage() {
         </div>
 
         {isMergeMode && (
-          <div className="flex flex-wrap items-center gap-2 bg-emerald-500/10 px-4 py-3 rounded-lg border border-emerald-500/20 animate-in fade-in slide-in-from-top-2">
-            <span className="text-sm text-emerald-400 font-medium">
+          <div className="flex flex-wrap items-center gap-2 bg-primary/10 px-4 py-3 rounded-lg border border-primary/20 animate-in fade-in slide-in-from-top-2">
+            <span className="text-sm text-primary font-medium">
               {selectedForMerge.length > 0 ? `已選擇 ${selectedForMerge.length} 筆` : '請選擇合併項目'}
             </span>
             <select
-              className="text-sm border-border bg-secondary text-foreground rounded-md focus:border-emerald-500 focus:ring-emerald-500"
+              className="text-sm border-border bg-secondary text-foreground rounded-md focus:border-primary focus:ring-primary"
               value={selectedMergeType || ''}
               onChange={(e) => setSelectedMergeType(e.target.value as 'account')}
             >
               <option value="">選擇合併類型...</option>
               <option value="account">帳號合併</option>
             </select>
-            <Button size="sm" onClick={handleMergeSubmit} disabled={!selectedMergeType || selectedForMerge.length < 2} className="bg-emerald-600 hover:bg-emerald-700 text-white">
+            <Button size="sm" onClick={handleMergeSubmit} disabled={!selectedMergeType || selectedForMerge.length < 2} className="bg-primary hover:bg-primary/90 text-primary-foreground">
               <Unlink className="w-4 h-4 mr-2" />
               確認合併
             </Button>
@@ -563,7 +566,7 @@ export default function PendingPaymentsPage() {
         <div className="relative w-full sm:max-w-xs">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
           <Input
-            placeholder="搜尋專案、KOL、服務..."
+            placeholder="搜尋專案、KOL/服務、執行內容..."
             className="pl-10 bg-secondary border-border w-full"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}

@@ -38,7 +38,7 @@ export function RequestItemRow({
     return (
         <tr className={cn(
             "hover:bg-secondary transition-colors",
-            isSelected && "bg-blue-50/50"
+            isSelected && "bg-info/10"
         )}>
             {/* 選取框 */}
             <td className="px-4 py-4 align-top w-10">
@@ -47,7 +47,7 @@ export function RequestItemRow({
                     checked={isSelected}
                     onChange={(e) => onSelect(e.target.checked)}
                     disabled={isProcessing}
-                    className="h-4 w-4 text-emerald-400 focus:ring-emerald-400 border-border rounded mt-1"
+                    className="h-4 w-4 text-primary focus:ring-primary border-border rounded mt-1"
                 />
             </td>
 
@@ -59,7 +59,7 @@ export function RequestItemRow({
                         申請日期: {new Date(item.request_date || '').toLocaleDateString('zh-TW')}
                     </span>
                     {item.merge_group_id && (
-                        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800 w-fit">
+                        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-info/15 text-info w-fit">
                             合併申請 {item.is_merge_leader ? '(主)' : ''}
                         </span>
                     )}
@@ -117,7 +117,7 @@ export function RequestItemRow({
                                 size="sm"
                                 onClick={() => onApprove(item)}
                                 disabled={isProcessing}
-                                className="bg-green-600 hover:bg-green-700 text-white w-20 h-8 text-xs"
+                                className="bg-success hover:bg-success/90 text-white w-20 h-8 text-xs"
                             >
                                 <CheckCircle className="h-3 w-3 mr-1" />
                                 核准

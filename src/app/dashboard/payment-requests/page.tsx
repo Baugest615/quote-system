@@ -61,7 +61,7 @@ const FileViewerModal = ({ isOpen, onClose, request }: {
   return (
     <Modal isOpen={isOpen} onClose={onClose} title={`檢視附件 - ${request.quotations?.project_name || '未命名專案'}`}>
       <div className="space-y-4">
-        {downloadError && <div className="bg-red-50 border border-red-200 rounded-md p-3 text-sm text-red-800">{downloadError}</div>}
+        {downloadError && <div className="bg-destructive/10 border border-destructive/30 rounded-md p-3 text-sm text-destructive">{downloadError}</div>}
         {request.attachments && request.attachments.length > 0 ? (
           <div className="space-y-2 max-h-96 overflow-y-auto">
             {request.attachments.map((file, index) => (
@@ -341,7 +341,7 @@ export default function PaymentRequestsPage() {
             <Input
               id="search-requests"
               name="search"
-              placeholder="搜尋專案、KOL、服務項目..."
+              placeholder="搜尋專案、KOL/服務、執行內容..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="pl-10"
@@ -373,7 +373,7 @@ export default function PaymentRequestsPage() {
                     type="checkbox"
                     checked={selectedItems.size > 0 && selectedItems.size === filteredItems.length}
                     onChange={(e) => e.target.checked ? selectAll() : deselectAll()}
-                    className="h-4 w-4 text-emerald-400 focus:ring-emerald-400 border-border rounded"
+                    className="h-4 w-4 text-primary focus:ring-ring border-border rounded"
                   />
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">專案資訊</th>

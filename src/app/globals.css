@@ -35,6 +35,14 @@
     --chart-3: 0 84% 60%;
     --chart-4: 199 89% 48%;
     --chart-5: 270 67% 55%;
+
+    /* 語義色彩 */
+    --warning: 38 92% 50%;
+    --warning-foreground: 38 92% 12%;
+    --success: 160 84% 39%;
+    --success-foreground: 160 84% 95%;
+    --info: 199 89% 48%;
+    --info-foreground: 199 89% 12%;
   }
 }
 
@@ -61,7 +69,7 @@
 
 /* 移除舊有的 class，統一使用 Tailwind */
 .form-input {
-  @apply block w-full rounded-md border-0 py-1.5 text-foreground bg-secondary shadow-sm ring-1 ring-inset ring-border placeholder:text-muted-foreground focus:ring-2 focus:ring-inset focus:ring-emerald-500 sm:text-sm sm:leading-6;
+  @apply block w-full rounded-md border-0 py-1.5 text-foreground bg-secondary shadow-sm ring-1 ring-inset ring-border placeholder:text-muted-foreground focus:ring-2 focus:ring-inset focus:ring-ring sm:text-sm sm:leading-6;
 }
 
 .btn {
@@ -79,7 +87,7 @@
 
 /* 新增報價單表單的 Radio Button 樣式 */
 .form-radio {
-  @apply h-4 w-4 text-emerald-500 border-border focus:ring-emerald-400;
+  @apply h-4 w-4 text-primary border-border focus:ring-ring;
 }
 
 /* 新增 PDF 與列印專用樣式 */
@@ -115,7 +123,7 @@
 
 /* 下拉選單定位樣式 */
 .dropdown-fixed {
-  @apply fixed z-[99999] bg-popover border border-border rounded-md shadow-xl;
+  @apply fixed z-[60] bg-popover border border-border rounded-md shadow-xl;
   box-shadow: 0 10px 25px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
 }
 
@@ -164,7 +172,7 @@
 
 /* 複選框樣式 */
 .form-checkbox {
-  @apply h-4 w-4 text-emerald-500 border-border rounded focus:ring-emerald-400;
+  @apply h-4 w-4 text-primary border-border rounded focus:ring-ring;
 }
 
 /* 【新增】PDF 簽章區塊樣式 */

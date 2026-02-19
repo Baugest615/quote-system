@@ -96,7 +96,7 @@ export function ItemRow({
                         size="sm"
                         onClick={handleSave}
                         disabled={isSaving}
-                        className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground hover:bg-emerald-500/10"
+                        className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground hover:bg-primary/10"
                         title="儲存"
                     >
                         <Save className="h-3.5 w-3.5" />
@@ -112,14 +112,14 @@ export function ItemRow({
                             type="checkbox"
                             checked={selectedForMerge.includes(item.id)}
                             onChange={(e) => onMergeSelection(item.id, e.target.checked)}
-                            className="mr-1 h-3.5 w-3.5 rounded border-border text-emerald-500 focus:ring-emerald-400"
+                            className="mr-1 h-3.5 w-3.5 rounded border-border text-primary focus:ring-primary"
                         />
                         <span className="text-xs text-muted-foreground">選擇合併</span>
                     </label>
                 )}
                 {item.merge_group_id && (
                     <div className="text-xs flex items-center">
-                        <span className="bg-blue-100 px-1.5 py-0.5 rounded text-[10px]">
+                        <span className="bg-info/15 px-1.5 py-0.5 rounded text-[10px]">
                             合併{item.is_merge_leader && ' (主)'}
                         </span>
                         {item.is_merge_leader && (
@@ -127,7 +127,7 @@ export function ItemRow({
                                 variant="ghost"
                                 size="sm"
                                 onClick={() => onUnmerge(item.merge_group_id!)}
-                                className="ml-1 h-5 w-5 p-0 text-orange-500 hover:text-orange-700"
+                                className="ml-1 h-5 w-5 p-0 text-warning hover:text-warning/80"
                                 title="解除合併"
                             >
                                 <Trash2 className="h-3 w-3" />
@@ -146,7 +146,7 @@ export function ItemRow({
                                 variant="outline"
                                 size="sm"
                                 onClick={() => onOpenFileModal(item)}
-                                className={`h-8 w-8 p-0 flex-shrink-0 ${displayItem.attachments?.length > 0 ? 'text-emerald-400 border-emerald-500/30 bg-emerald-500/10' : 'text-muted-foreground'}`}
+                                className={`h-8 w-8 p-0 flex-shrink-0 ${displayItem.attachments?.length > 0 ? 'text-primary border-primary/30 bg-primary/10' : 'text-muted-foreground'}`}
                                 title={displayItem.attachments?.length > 0 ? `${displayItem.attachments.length} 個檔案` : '上傳/管理檔案'}
                             >
                                 <Paperclip className="h-4 w-4" />
@@ -157,13 +157,13 @@ export function ItemRow({
                                 onChange={(e) => onInvoiceNumberChange(item.id, e.target.value)}
                                 className={`flex-1 text-xs h-8 ${displayItem.invoice_number_input &&
                                     !isValidInvoiceFormat(displayItem.invoice_number_input)
-                                    ? 'border-red-500 focus:border-red-500 focus:ring-red-500'
+                                    ? 'border-destructive focus:border-destructive focus:ring-destructive'
                                     : ''
                                     }`}
                             />
                         </div>
                         {canSelectForPayment(item) && (
-                            <div className="flex items-center text-green-600 mt-1 text-xs font-medium pl-1">
+                            <div className="flex items-center text-success mt-1 text-xs font-medium pl-1">
                                 <CheckCircle className="h-3 w-3 mr-1" />
                                 <span>已備妥</span>
                             </div>
@@ -180,7 +180,7 @@ export function ItemRow({
                         checked={item.is_selected}
                         onChange={(e) => onPaymentSelection(item.id, e.target.checked)}
                         disabled={!canSelectForPayment(item)}
-                        className="h-4 w-4 text-emerald-500 focus:ring-emerald-400 border-gray-300 rounded cursor-pointer"
+                        className="h-4 w-4 text-primary focus:ring-primary border-border rounded cursor-pointer"
                         title={
                             !canSelectForPayment(item)
                                 ? '需檢附文件或正確格式的發票號碼'

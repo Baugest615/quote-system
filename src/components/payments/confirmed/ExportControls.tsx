@@ -23,8 +23,8 @@ export function ExportControls({ confirmation, settingsMap }: ExportControlsProp
                 '匯款戶名',
                 '銀行資訊',
                 '專案名稱',
-                'KOL',
-                '服務項目',
+                'KOL/服務',
+                '執行內容',
                 '原始金額',
                 '小計',
                 '代扣所得稅',
@@ -98,7 +98,7 @@ export function ExportControls({ confirmation, settingsMap }: ExportControlsProp
             variant="outline"
             size="sm"
             onClick={handleExport}
-            className="text-green-600 hover:text-green-700"
+            className="text-success hover:text-success/80"
         >
             <Download className="h-4 w-4 mr-1" />
             CSV

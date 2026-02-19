@@ -73,7 +73,7 @@ export const PAGE_PERMISSIONS: Record<string, PageConfig> = {
   },
   [PAGE_KEYS.KOLS]: {
     key: PAGE_KEYS.KOLS,
-    name: 'KOL管理',
+    name: 'KOL/服務管理',
     allowedRoles: [USER_ROLES.ADMIN, USER_ROLES.EDITOR, USER_ROLES.MEMBER],
     allowedFunctions: ['create', 'read', 'update', 'delete', 'export'],
     route: '/dashboard/kols',

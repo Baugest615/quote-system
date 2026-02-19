@@ -1,9 +1,10 @@
 'use client'
 
 import { useState, useCallback, useRef, useEffect, useMemo } from 'react'
-import { Plus, Save, X, Undo2, Trash2, Table2 } from 'lucide-react'
+import { Plus, Save, X, Undo2, Trash2, Table2, ClipboardList } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
+import { EmptyState } from '@/components/ui/EmptyState'
 import {
   type SpreadsheetColumn,
   type SpreadsheetRow,
@@ -37,15 +38,15 @@ interface SpreadsheetEditorProps<T extends { id: string }> {
 
 const ROW_STATUS_CLASSES: Record<RowStatus, string> = {
   clean: '',
-  new: 'bg-green-50 border-l-4 border-l-green-400',
-  modified: 'bg-yellow-50 border-l-4 border-l-yellow-400',
-  deleted: 'bg-red-50/60 border-l-4 border-l-red-400',
+  new: 'bg-success/10 border-l-4 border-l-success',
+  modified: 'bg-warning/10 border-l-4 border-l-warning',
+  deleted: 'bg-destructive/10 border-l-4 border-l-destructive',
 }
 
 const ACCENT_COLORS = {
-  blue: { btn: 'bg-blue-600 hover:bg-blue-700', ring: 'ring-blue-500' },
-  red: { btn: 'bg-red-600 hover:bg-red-700', ring: 'ring-red-500' },
-  purple: { btn: 'bg-purple-600 hover:bg-purple-700', ring: 'ring-purple-500' },
+  blue: { btn: 'bg-info hover:bg-info/90', ring: 'ring-info' },
+  red: { btn: 'bg-destructive hover:bg-destructive/90', ring: 'ring-destructive' },
+  purple: { btn: 'bg-chart-5 hover:bg-chart-5/90', ring: 'ring-chart-5' },
 }
 
 // ---------------------------------------------------------------------------
@@ -384,15 +385,15 @@ export default function SpreadsheetEditor<T extends { id: string }>({
   return (
     <div className="space-y-3">
       {/* Toolbar */}
-      <div className="flex flex-wrap items-center gap-2 bg-white border border-gray-200 rounded-xl px-4 py-3">
-        <div className="flex items-center gap-2 text-sm font-medium text-gray-700">
+      <div className="flex flex-wrap items-center gap-2 bg-card border border-border rounded-xl px-4 py-3">
+        <div className="flex items-center gap-2 text-sm font-medium text-foreground">
           <Table2 className="w-4 h-4" />
           <span>試算表模式</span>
         </div>
         <div className="flex-1" />
         <button
           onClick={addRow}
-          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-foreground bg-muted hover:bg-accent rounded-lg transition-colors"
         >
           <Plus className="w-3.5 h-3.5" />
           新增列
@@ -400,7 +401,7 @@ export default function SpreadsheetEditor<T extends { id: string }>({
         {deletedCount > 0 && (
           <button
             onClick={undoAllDeleted}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-orange-700 bg-orange-50 hover:bg-orange-100 rounded-lg transition-colors"
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-warning bg-warning/10 hover:bg-warning/20 rounded-lg transition-colors"
           >
             <Undo2 className="w-3.5 h-3.5" />
             復原刪除 ({deletedCount})
@@ -410,7 +411,7 @@ export default function SpreadsheetEditor<T extends { id: string }>({
           <>
             <button
               onClick={discardAll}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-muted-foreground border border-border rounded-lg hover:bg-accent transition-colors"
             >
               放棄變更
             </button>
@@ -429,7 +430,7 @@ export default function SpreadsheetEditor<T extends { id: string }>({
         )}
         <button
           onClick={handleClose}
-          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-accent rounded-lg transition-colors"
         >
           <X className="w-3.5 h-3.5" />
           離開
@@ -439,23 +440,23 @@ export default function SpreadsheetEditor<T extends { id: string }>({
       {/* Spreadsheet table */}
       <div
         ref={containerRef}
-        className="bg-white rounded-xl border border-gray-200 overflow-hidden"
+        className="bg-card rounded-xl border border-border overflow-hidden"
         onPaste={handlePaste}
         tabIndex={0}
       >
         <div className="overflow-x-auto">
           <table className="w-full text-sm border-collapse">
             <thead>
-              <tr className="bg-gray-50 text-gray-600 text-xs sticky top-0 z-20">
-                <th className="px-2 py-2.5 text-center w-10 text-gray-400">#</th>
+              <tr className="bg-muted text-muted-foreground text-xs sticky top-0 z-20">
+                <th className="px-2 py-2.5 text-center w-10 text-muted-foreground/60">#</th>
                 {columns.map((col, ci) => (
                   <th
                     key={String(col.key)}
                     className={cn('px-2 py-2.5 text-left whitespace-nowrap', col.width)}
                   >
                     {col.label}
-                    {col.required && <span className="text-red-400 ml-0.5">*</span>}
-                    {col.readOnly && <span className="text-gray-400 ml-1 text-[10px]">自動</span>}
+                    {col.required && <span className="text-destructive ml-0.5">*</span>}
+                    {col.readOnly && <span className="text-muted-foreground/60 ml-1 text-[10px]">自動</span>}
                   </th>
                 ))}
                 <th className="px-2 py-2.5 text-center w-12"></th>
@@ -464,8 +465,13 @@ export default function SpreadsheetEditor<T extends { id: string }>({
             <tbody>
               {visibleRows.length === 0 ? (
                 <tr>
-                  <td colSpan={columns.length + 2} className="text-center py-12 text-gray-400">
-                    尚無資料，點擊「新增列」或直接貼上資料
+                  <td colSpan={columns.length + 2}>
+                    <EmptyState
+                      type="no-data"
+                      icon={ClipboardList}
+                      title="尚無資料"
+                      description="點擊「新增列」或直接貼上資料"
+                    />
                   </td>
                 </tr>
               ) : (
@@ -473,13 +479,13 @@ export default function SpreadsheetEditor<T extends { id: string }>({
                   <tr
                     key={row.tempId}
                     className={cn(
-                      'border-t border-gray-100 transition-colors',
+                      'border-t border-border/50 transition-colors',
                       ROW_STATUS_CLASSES[row.status],
-                      row.errors.length > 0 && 'bg-red-50 border-l-4 border-l-red-500'
+                      row.errors.length > 0 && 'bg-destructive/10 border-l-4 border-l-destructive'
                     )}
                   >
                     {/* Row number */}
-                    <td className="px-2 py-1 text-center text-xs text-gray-400 tabular-nums">
+                    <td className="px-2 py-1 text-center text-xs text-muted-foreground/60 tabular-nums">
                       {ri + 1}
                     </td>
 
@@ -494,7 +500,7 @@ export default function SpreadsheetEditor<T extends { id: string }>({
                         return (
                           <td
                             key={String(col.key)}
-                            className={cn('px-2 py-1 text-gray-500 italic bg-gray-50/50', col.width)}
+                            className={cn('px-2 py-1 text-muted-foreground italic bg-muted/30', col.width)}
                             title="自動計算"
                           >
                             <span className="text-xs tabular-nums">
@@ -510,7 +516,7 @@ export default function SpreadsheetEditor<T extends { id: string }>({
                           className={cn(
                             'px-0.5 py-0.5',
                             col.width,
-                            isRequired && 'bg-red-100/50'
+                            isRequired && 'bg-destructive/10'
                           )}
                           onClick={() => setActiveCell({ row: ri, col: ci })}
                         >
@@ -527,8 +533,8 @@ export default function SpreadsheetEditor<T extends { id: string }>({
                               className={cn(
                                 'w-full h-8 px-1.5 text-xs border rounded transition-all bg-transparent',
                                 isActive
-                                  ? `ring-2 ${accent.ring} border-transparent bg-white`
-                                  : 'border-transparent hover:border-gray-300'
+                                  ? `ring-2 ${accent.ring} border-transparent bg-card`
+                                  : 'border-transparent hover:border-border'
                               )}
                             >
                               <option value="">--</option>
@@ -550,8 +556,8 @@ export default function SpreadsheetEditor<T extends { id: string }>({
                               className={cn(
                                 'w-full h-8 px-1.5 text-xs border rounded transition-all bg-transparent',
                                 isActive
-                                  ? `ring-2 ${accent.ring} border-transparent bg-white`
-                                  : 'border-transparent hover:border-gray-300'
+                                  ? `ring-2 ${accent.ring} border-transparent bg-card`
+                                  : 'border-transparent hover:border-border'
                               )}
                             />
                           ) : col.type === 'number' ? (
@@ -568,8 +574,8 @@ export default function SpreadsheetEditor<T extends { id: string }>({
                               className={cn(
                                 'w-full h-8 px-1.5 text-xs text-right border rounded transition-all bg-transparent tabular-nums',
                                 isActive
-                                  ? `ring-2 ${accent.ring} border-transparent bg-white`
-                                  : 'border-transparent hover:border-gray-300'
+                                  ? `ring-2 ${accent.ring} border-transparent bg-card`
+                                  : 'border-transparent hover:border-border'
                               )}
                               placeholder="0"
                             />
@@ -587,8 +593,8 @@ export default function SpreadsheetEditor<T extends { id: string }>({
                               className={cn(
                                 'w-full h-8 px-1.5 text-xs border rounded transition-all bg-transparent',
                                 isActive
-                                  ? `ring-2 ${accent.ring} border-transparent bg-white`
-                                  : 'border-transparent hover:border-gray-300'
+                                  ? `ring-2 ${accent.ring} border-transparent bg-card`
+                                  : 'border-transparent hover:border-border'
                               )}
                             />
                           )}
@@ -600,7 +606,7 @@ export default function SpreadsheetEditor<T extends { id: string }>({
                     <td className="px-1 py-1 text-center">
                       <button
                         onClick={() => toggleDelete(ri)}
-                        className="p-1 text-gray-400 hover:text-red-500 rounded hover:bg-red-50 transition-colors"
+                        className="p-1 text-muted-foreground hover:text-destructive rounded hover:bg-destructive/10 transition-colors"
                         title="刪除此列"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
@@ -615,24 +621,24 @@ export default function SpreadsheetEditor<T extends { id: string }>({
       </div>
 
       {/* Legend */}
-      <div className="flex items-center gap-4 text-[10px] text-gray-400 px-1">
+      <div className="flex items-center gap-4 text-[10px] text-muted-foreground/60 px-1">
         <span className="flex items-center gap-1">
-          <span className="w-2.5 h-2.5 rounded-sm bg-green-200 border border-green-400" />
+          <span className="w-2.5 h-2.5 rounded-sm bg-success/30 border border-success" />
           新增列
         </span>
         <span className="flex items-center gap-1">
-          <span className="w-2.5 h-2.5 rounded-sm bg-yellow-200 border border-yellow-400" />
+          <span className="w-2.5 h-2.5 rounded-sm bg-warning/30 border border-warning" />
           已修改
         </span>
         <span className="flex items-center gap-1">
-          <span className="w-2.5 h-2.5 rounded-sm bg-red-200 border border-red-400" />
+          <span className="w-2.5 h-2.5 rounded-sm bg-destructive/30 border border-destructive" />
           待刪除
         </span>
         <span className="flex items-center gap-1">
-          <span className="w-2.5 h-2.5 rounded-sm bg-red-100 border border-red-500" />
+          <span className="w-2.5 h-2.5 rounded-sm bg-destructive/20 border border-destructive" />
           驗證錯誤
         </span>
-        <span className="ml-auto text-gray-400">支援從 Excel 直接貼上（Ctrl+V）</span>
+        <span className="ml-auto text-muted-foreground/60">支援從 Excel 直接貼上（Ctrl+V）</span>
       </div>
     </div>
   )

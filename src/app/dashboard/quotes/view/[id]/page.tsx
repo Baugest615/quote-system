@@ -14,6 +14,7 @@ import { SealStampConfig, SealStampManager } from '@/components/pdf/SealStampMan
 import { ElectronicSealManager } from '@/components/pdf/ElectronicSealManager';
 import { QuotePrintableTable } from '@/components/pdf/QuotePrintableTable';
 import { usePermission } from '@/lib/permissions';
+import { Skeleton, SkeletonCard } from '@/components/ui/Skeleton';
 
 type Quotation = Database['public']['Tables']['quotations']['Row'];
 type QuotationItem = Database['public']['Tables']['quotation_items']['Row'];
@@ -302,7 +303,16 @@ export default function ViewQuotePage() {
     transform: `translate(${electronicSealConfig.offsetX}in, ${electronicSealConfig.offsetY}in) rotate(${electronicSealConfig.rotation}deg)`,
   };
 
-  if (loading) return <div>讀取中...</div>;
+  if (loading) return (
+    <div className="space-y-6 max-w-4xl mx-auto">
+      <div className="flex items-center gap-4">
+        <Skeleton className="h-9 w-20 rounded-md" />
+        <Skeleton className="h-8 w-64" />
+      </div>
+      <SkeletonCard lines={5} />
+      <SkeletonCard lines={8} />
+    </div>
+  );
   if (!quote) return <div>找不到報價單資料。</div>;
 
   const termsParts = quote.terms ? quote.terms.split('保密協議：') : [''];
@@ -324,7 +334,7 @@ export default function ViewQuotePage() {
       {/* 操作按鈕區域 */}
       <div className="flex justify-between items-center print:hidden">
         <div>
-          <Link href="/dashboard/quotes" className="text-sm text-muted-foreground hover:text-emerald-400 flex items-center mb-2">
+          <Link href="/dashboard/quotes" className="text-sm text-muted-foreground hover:text-primary flex items-center mb-2">
             <ArrowLeft className="h-4 w-4 mr-1" /> 返回列表
           </Link>
           <h1 className="text-3xl font-bold">檢視報價單</h1>
@@ -336,7 +346,7 @@ export default function ViewQuotePage() {
                 variant="outline"
                 disabled={isProcessing}
                 onClick={() => setShowElectronicSealSettings(true)}
-                className={electronicSealConfig.enabled ? 'border-green-500 text-green-600' : ''}
+                className={electronicSealConfig.enabled ? 'border-success text-success' : ''}
               >
                 <UserCheck className="mr-2 h-4 w-4" /> 電子用印
               </Button>
@@ -344,7 +354,7 @@ export default function ViewQuotePage() {
                 variant="outline"
                 disabled={isProcessing}
                 onClick={() => setShowStampSettings(true)}
-                className={sealStampConfig.enabled ? 'border-emerald-500 text-emerald-400' : ''}
+                className={sealStampConfig.enabled ? 'border-primary text-primary' : ''}
               >
                 <Stamp className="mr-2 h-4 w-4" /> 騎縫章設定
               </Button>
@@ -415,8 +425,8 @@ export default function ViewQuotePage() {
           <thead>
             <tr className="bg-secondary">
               <th className="border p-2 text-center">分類</th>
-              <th className="border p-2 text-center">KOL</th>
-              <th className="border p-2 text-center">服務內容</th>
+              <th className="border p-2 text-center">KOL/服務</th>
+              <th className="border p-2 text-center">執行內容</th>
               <th className="border p-2 text-center">單價</th>
               <th className="border p-2 text-center">數量</th>
               <th className="border p-2 text-center">合計</th>
@@ -444,7 +454,7 @@ export default function ViewQuotePage() {
                   {/* KOL欄位 - 使用 rowSpan 合併 */}
                   {showKol && (
                     <td
-                      className="border p-2 text-center align-middle font-medium bg-blue-500/10 text-blue-400"
+                      className="border p-2 text-center align-middle font-medium bg-info/10 text-info"
                       rowSpan={row.kolRowSpan}
                     >
                       {row.item.kols?.name || 'N/A'}
@@ -511,8 +521,8 @@ export default function ViewQuotePage() {
                           </td>
                         </tr>
                         <tr>
-                          <td className="border p-2 font-bold bg-blue-500/10 text-blue-400">未稅優惠</td>
-                          <td className="border p-2 text-right font-bold text-blue-400">
+                          <td className="border p-2 font-bold bg-info/10 text-info">未稅優惠</td>
+                          <td className="border p-2 text-right font-bold text-info">
                             ${quote.discounted_price?.toLocaleString() || '0'}
                           </td>
                         </tr>
@@ -523,8 +533,8 @@ export default function ViewQuotePage() {
                           </td>
                         </tr>
                         <tr>
-                          <td className="border p-2 font-bold bg-red-500/10 text-red-400">含稅總計</td>
-                          <td className="border p-2 text-right font-bold text-red-400">
+                          <td className="border p-2 font-bold bg-destructive/10 text-destructive">含稅總計</td>
+                          <td className="border p-2 text-right font-bold text-destructive">
                             ${discountedGrandTotal.toLocaleString()}
                           </td>
                         </tr>
@@ -544,8 +554,8 @@ export default function ViewQuotePage() {
                           </td>
                         </tr>
                         <tr>
-                          <td className="border p-2 font-bold bg-red-500/10 text-red-400">含稅總計</td>
-                          <td className="border p-2 text-right font-bold text-red-400">
+                          <td className="border p-2 font-bold bg-destructive/10 text-destructive">含稅總計</td>
+                          <td className="border p-2 text-right font-bold text-destructive">
                             ${quote.grand_total_taxed?.toLocaleString() || '0'}
                           </td>
                         </tr>
@@ -667,15 +677,15 @@ export default function ViewQuotePage() {
                     {hasDiscountPrice ? (
                       <>
                         <tr className="border-b"><td className="p-2 font-bold bg-secondary">未稅小計</td><td className="p-2 text-right line-through text-muted-foreground">${quote.subtotal_untaxed?.toLocaleString()}</td></tr>
-                        <tr className="border-b bg-blue-50"><td className="p-2 font-bold">未稅優惠</td><td className="p-2 text-right text-blue-600 font-bold">${quote.discounted_price?.toLocaleString()}</td></tr>
+                        <tr className="border-b bg-info/10"><td className="p-2 font-bold">未稅優惠</td><td className="p-2 text-right text-info font-bold">${quote.discounted_price?.toLocaleString()}</td></tr>
                         <tr className="border-b"><td className="p-2 font-bold bg-secondary">營業稅(5%)</td><td className="p-2 text-right">${discountedTax.toLocaleString()}</td></tr>
-                        <tr className="bg-red-50"><td className="p-2 font-bold">含稅總計</td><td className="p-2 text-right text-red-600 text-lg font-bold">${discountedGrandTotal.toLocaleString()}</td></tr>
+                        <tr className="bg-destructive/10"><td className="p-2 font-bold">含稅總計</td><td className="p-2 text-right text-destructive text-lg font-bold">${discountedGrandTotal.toLocaleString()}</td></tr>
                       </>
                     ) : (
                       <>
                         <tr className="border-b"><td className="p-2 font-bold bg-secondary">未稅小計</td><td className="p-2 text-right">${quote.subtotal_untaxed?.toLocaleString()}</td></tr>
                         <tr className="border-b"><td className="p-2 font-bold bg-secondary">營業稅(5%)</td><td className="p-2 text-right">${quote.tax?.toLocaleString()}</td></tr>
-                        <tr className="bg-red-50"><td className="p-2 font-bold">含稅總計</td><td className="p-2 text-right text-red-600 text-lg font-bold">${quote.grand_total_taxed?.toLocaleString()}</td></tr>
+                        <tr className="bg-destructive/10"><td className="p-2 font-bold">含稅總計</td><td className="p-2 text-right text-destructive text-lg font-bold">${quote.grand_total_taxed?.toLocaleString()}</td></tr>
                       </>
                     )}
                   </tbody>

@@ -88,7 +88,7 @@ export default function LoginPage() {
                   </div>
                   
                   {error && (
-                      <p className="text-sm text-red-500">{error}</p>
+                      <p className="text-sm text-destructive">{error}</p>
                   )}
 
                   <Button type="submit" className="w-full !mt-8">

@@ -9,6 +9,8 @@ import { Input } from '@/components/ui/input'
 import { ClientModal, type ClientFormData } from '@/components/clients/ClientModal'
 import { PlusCircle, Edit, Trash2, Search, Users, Mail, Phone, Star } from 'lucide-react'
 import { toast } from 'sonner'
+import { SkeletonPageHeader, SkeletonStatCards, SkeletonTable } from '@/components/ui/Skeleton'
+import { EmptyState } from '@/components/ui/EmptyState'
 
 type Client = Database['public']['Tables']['clients']['Row']
 
@@ -190,7 +192,13 @@ export default function ClientsPage() {
     return contacts.length
   }
 
-  if (loading) return <div>讀取中...</div>
+  if (loading) return (
+    <div className="bg-card rounded-xl border border-border p-4 sm:p-6 space-y-6">
+      <SkeletonPageHeader />
+      <SkeletonStatCards count={3} />
+      <SkeletonTable rows={8} columns={5} />
+    </div>
+  )
 
   return (
     <div className="bg-card rounded-xl border border-border p-4 sm:p-6">
@@ -207,7 +215,7 @@ export default function ClientsPage() {
               className="pl-10 bg-secondary border-border"
             />
           </div>
-          <Button onClick={() => handleOpenModal()} className="bg-emerald-600 hover:bg-emerald-700 text-white">
+          <Button onClick={() => handleOpenModal()} className="bg-primary hover:bg-primary/90 text-primary-foreground">
             <PlusCircle className="mr-2 h-4 w-4" /> 新增客戶
           </Button>
         </div>
@@ -252,7 +260,7 @@ export default function ClientsPage() {
                 <tr key={client.id} className="border-b border-border hover:bg-muted/50 transition-colors">
                   <td className="p-4">
                     <div>
-                      <div className="text-sm font-semibold text-emerald-400">{client.name}</div>
+                      <div className="text-sm font-semibold text-primary">{client.name}</div>
                       <div className="text-xs text-muted-foreground">{client.address}</div>
                     </div>
                   </td>
@@ -285,7 +293,7 @@ export default function ClientsPage() {
                             <Mail className="h-3 w-3 mr-1" />
                             <a
                               href={`mailto:${primaryContact.email}`}
-                              className="hover:text-emerald-400 truncate max-w-[150px]"
+                              className="hover:text-primary truncate max-w-[150px]"
                               title={primaryContact.email}
                             >
                               {primaryContact.email}
@@ -297,7 +305,7 @@ export default function ClientsPage() {
                             <Phone className="h-3 w-3 mr-1" />
                             <a
                               href={`tel:${primaryContact.phone}`}
-                              className="hover:text-emerald-400"
+                              className="hover:text-primary"
                             >
                               {primaryContact.phone}
                             </a>
@@ -317,7 +325,7 @@ export default function ClientsPage() {
                       <Users className="h-4 w-4 text-muted-foreground" />
                       <span className="text-sm text-foreground/80">{contactCount}</span>
                       {contactCount > 1 && (
-                        <span className="text-xs text-emerald-400 bg-emerald-500/10 px-1 rounded">
+                        <span className="text-xs text-primary bg-primary/10 px-1 rounded">
                           多窗口
                         </span>
                       )}
@@ -330,7 +338,7 @@ export default function ClientsPage() {
                         variant="outline"
                         size="sm"
                         onClick={() => handleOpenModal(client)}
-                        className="text-emerald-400 hover:text-emerald-300 border-border"
+                        className="text-primary hover:text-primary/80 border-border"
                         title="編輯客戶資料"
                       >
                         <Edit className="h-3 w-3" />
@@ -339,7 +347,7 @@ export default function ClientsPage() {
                         variant="outline"
                         size="sm"
                         onClick={() => handleDeleteClient(client.id)}
-                        className="text-rose-400 hover:text-rose-300 border-border"
+                        className="text-destructive hover:text-destructive/80 border-border"
                         title="刪除客戶"
                       >
                         <Trash2 className="h-3 w-3" />
@@ -353,19 +361,21 @@ export default function ClientsPage() {
         </table>
 
         {filteredClients.length === 0 && !loading && (
-          <div className="text-center py-8 text-muted-foreground">
-            {searchTerm ? (
-              <div>
-                <p>找不到符合條件的客戶</p>
-                <p className="text-sm mt-1">嘗試搜尋公司名稱、聯絡人姓名或電子郵件</p>
-              </div>
-            ) : (
-              <div>
-                <p>尚未新增任何客戶</p>
-                <p className="text-sm mt-1">點擊上方「新增客戶」開始建立客戶資料</p>
-              </div>
-            )}
-          </div>
+          searchTerm ? (
+            <EmptyState
+              type="no-results"
+              title="找不到符合條件的客戶"
+              description="嘗試搜尋公司名稱、聯絡人姓名或電子郵件"
+            />
+          ) : (
+            <EmptyState
+              type="no-data"
+              icon={Users}
+              title="尚未新增任何客戶"
+              description="點擊上方「新增客戶」開始建立客戶資料"
+              action={{ label: '新增客戶', onClick: () => handleOpenModal() }}
+            />
+          )
         )}
 
         {/* 顯示所有聯絡人的詳細資訊（可選，展開式） */}

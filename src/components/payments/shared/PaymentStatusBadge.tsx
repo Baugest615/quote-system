@@ -30,32 +30,32 @@ export interface PaymentStatusBadgeProps {
 const STATUS_CONFIG = {
     pending: {
         label: '待審核',
-        color: 'bg-yellow-100 text-yellow-800 border-yellow-200',
+        color: 'bg-warning/15 text-warning border-warning/25',
         icon: Clock
     },
     approved: {
         label: '已核准',
-        color: 'bg-green-100 text-green-800 border-green-200',
+        color: 'bg-success/15 text-success border-success/25',
         icon: CheckCircle
     },
     rejected: {
         label: '已駁回',
-        color: 'bg-red-100 text-red-800 border-red-200',
+        color: 'bg-destructive/15 text-destructive border-destructive/25',
         icon: XCircle
     },
     confirmed: {
         label: '已確認',
-        color: 'bg-blue-100 text-blue-800 border-blue-200',
+        color: 'bg-info/15 text-info border-info/25',
         icon: Receipt
     },
     ready: {
         label: '已備妥',
-        color: 'bg-green-100 text-green-800 border-green-200',
+        color: 'bg-success/15 text-success border-success/25',
         icon: FileCheck
     },
     incomplete: {
         label: '待補件',
-        color: 'bg-orange-100 text-orange-800 border-orange-200',
+        color: 'bg-warning/15 text-warning border-warning/25',
         icon: AlertCircle
     }
 } as const

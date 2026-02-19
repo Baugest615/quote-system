@@ -5,7 +5,7 @@ import supabase from '@/lib/supabase/client'
 import { toast } from 'sonner'
 import type { PendingPaymentItem } from '@/lib/payments/types'
 
-const MERGE_COLORS = ['bg-red-100', 'bg-blue-100', 'bg-green-100', 'bg-yellow-100', 'bg-purple-100', 'bg-pink-100']
+const MERGE_COLORS = ['bg-chart-3/15', 'bg-chart-4/15', 'bg-chart-1/15', 'bg-chart-2/15', 'bg-chart-5/15', 'bg-destructive/15']
 
 export function useMergeOperations(
     items: PendingPaymentItem[],

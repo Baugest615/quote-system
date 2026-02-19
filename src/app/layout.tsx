@@ -20,7 +20,7 @@ const plusJakartaSans = Plus_Jakarta_Sans({
 
 export const metadata: Metadata = {
   title: '報價管理系統',
-  description: '現代化的報價管理系統，支援客戶管理、KOL管理、報價單生成等功能',
+  description: '現代化的報價管理系統，支援客戶管理、KOL/服務管理、報價單生成等功能',
   icons: {
     icon: '/favicon.ico',
   },

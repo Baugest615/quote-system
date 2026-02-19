@@ -8,6 +8,7 @@ import { usePermission } from '@/lib/permissions' // 步驟 1: 引入權限 Hook
 import Link from 'next/link' // 步驟 2: 引入 Link 元件
 import { Button } from '@/components/ui/button' // 步驟 2: 引入 Button 元件
 import { Shield } from 'lucide-react' // 步驟 2: 引入圖示
+import { Skeleton, SkeletonCard } from '@/components/ui/Skeleton'
 
 type ServiceType = Database['public']['Tables']['service_types']['Row']
 type QuoteCategory = Database['public']['Tables']['quote_categories']['Row']
@@ -64,7 +65,16 @@ export default function SettingsPage() {
     }
   }
   
-  if (loading) return <div>讀取設定資料中...</div>
+  if (loading) return (
+    <div className="space-y-6">
+      <Skeleton className="h-8 w-32" />
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <SkeletonCard lines={4} />
+        <SkeletonCard lines={4} />
+        <SkeletonCard lines={4} />
+      </div>
+    </div>
+  )
 
   return (
     <div className="space-y-6">
@@ -77,14 +87,14 @@ export default function SettingsPage() {
             <div className="flex items-start justify-between">
               <div>
                 <h2 className="text-xl font-bold mb-2 flex items-center">
-                  <Shield className="mr-2 h-5 w-5 text-red-600" />
+                  <Shield className="mr-2 h-5 w-5 text-destructive" />
                   權限管理
                 </h2>
                 <p className="text-sm text-muted-foreground">
                   管理使用者帳號的角色與系統存取權限。
                 </p>
               </div>
-              <span className="text-xs font-semibold text-red-600 bg-red-100 px-2 py-1 rounded-full">
+              <span className="text-xs font-semibold text-destructive bg-destructive/10 px-2 py-1 rounded-full">
                 Admin Only
               </span>
             </div>

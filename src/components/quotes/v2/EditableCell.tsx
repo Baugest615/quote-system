@@ -66,7 +66,7 @@ export function EditableCell({
                     onBlur={handleBlur}
                     onKeyDown={handleKeyDown}
                     className={cn(
-                        "w-full h-full p-1 bg-card border border-blue-500 rounded focus:outline-none text-sm",
+                        "w-full h-full p-1 bg-card border border-ring rounded focus:outline-none text-sm",
                         className
                     )}
                 >
@@ -89,7 +89,7 @@ export function EditableCell({
                 onBlur={handleBlur}
                 onKeyDown={handleKeyDown}
                 className={cn(
-                    "w-full h-8 p-1 text-sm rounded-none border-blue-500 focus:ring-0",
+                    "w-full h-8 p-1 text-sm rounded-none border-ring focus:ring-0",
                     className
                 )}
             />
@@ -102,9 +102,10 @@ export function EditableCell({
         return (
             <div
                 onClick={() => setIsEditing(true)}
+                title={selectedOption?.label}
                 className={cn(
-                    "w-full h-full min-h-[2rem] flex items-center px-2 cursor-pointer hover:bg-secondary rounded text-sm",
-                    selectedOption?.color, // Apply color if available
+                    "w-full h-full min-h-[2rem] flex items-center px-2 cursor-pointer hover:bg-secondary rounded text-sm truncate",
+                    selectedOption?.color,
                     className
                 )}
             >
@@ -113,16 +114,18 @@ export function EditableCell({
         )
     }
 
+    const displayText = type === 'number' && value ? Number(value).toLocaleString() : (value || placeholder || '空')
     return (
         <div
             onClick={() => setIsEditing(true)}
+            title={value ? String(value) : undefined}
             className={cn(
                 "w-full h-full min-h-[2rem] flex items-center px-2 cursor-pointer hover:bg-secondary rounded text-sm truncate",
                 !value && "text-muted-foreground",
                 className
             )}
         >
-            {type === 'number' && value ? Number(value).toLocaleString() : (value || placeholder || '空')}
+            {displayText}
         </div>
     )
 }

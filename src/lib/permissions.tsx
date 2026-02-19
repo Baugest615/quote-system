@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, createContext, useContext, useCallback, useMemo } from 'react'
 import supabase from '@/lib/supabase/client'
 import {
   UserRole,
@@ -72,71 +72,118 @@ export function getRoleDisplayName(role: UserRole): string {
   return roleNames[role] || '未知角色'
 }
 
-// ===== React Hook =====
+// ===== Permission Context (全局快取，只查一次 DB) =====
+
+interface PermissionContextType {
+  userRole: UserRole | null
+  userId: string | null
+  loading: boolean
+  error: string | null
+}
+
+const PermissionContext = createContext<PermissionContextType>({
+  userRole: null,
+  userId: null,
+  loading: true,
+  error: null,
+})
 
 /**
- * usePermission Hook - 提供權限檢查功能
+ * PermissionProvider - 在 layout 層級包裹，整個 session 只查一次角色
  */
-export function usePermission() {
-  const [userRole, setUserRole] = useState<UserRole | null>(null)
-  const [userId, setUserId] = useState<string | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+export function PermissionProvider({ children }: { children: React.ReactNode }) {
+  const [state, setState] = useState<PermissionContextType>({
+    userRole: null,
+    userId: null,
+    loading: true,
+    error: null,
+  })
 
   useEffect(() => {
     async function fetchUserRole() {
       try {
         const { data: { user }, error: authError } = await supabase.auth.getUser()
-
-        if (authError) {
-          throw authError
-        }
+        if (authError) throw authError
 
         if (!user) {
-          setUserRole(null)
-          setUserId(null)
-          setLoading(false)
+          setState({ userRole: null, userId: null, loading: false, error: null })
           return
         }
 
-        setUserId(user.id)
-
-        // 從資料庫取得用戶角色
         const { data: profile, error: profileError } = await supabase
           .from('profiles')
           .select('role')
           .eq('id', user.id)
           .single()
 
-        if (profileError) {
-          throw profileError
-        }
+        if (profileError) throw profileError
 
-        setUserRole(profile?.role || null)
+        setState({
+          userRole: profile?.role || null,
+          userId: user.id,
+          loading: false,
+          error: null,
+        })
       } catch (err) {
         console.error('Error fetching user role:', err)
-        setError(err instanceof Error ? err.message : '取得用戶權限失敗')
-      } finally {
-        setLoading(false)
+        setState(prev => ({
+          ...prev,
+          loading: false,
+          error: err instanceof Error ? err.message : '取得用戶權限失敗',
+        }))
       }
     }
 
     fetchUserRole()
   }, [])
 
-  return {
+  return (
+    <PermissionContext.Provider value={state}>
+      {children}
+    </PermissionContext.Provider>
+  )
+}
+
+// ===== React Hook =====
+
+/**
+ * usePermission Hook - 從 Context 讀取快取的權限（不再每次查 DB）
+ */
+export function usePermission() {
+  const { userRole, userId, loading, error } = useContext(PermissionContext)
+
+  const checkPageAccessFn = useCallback(
+    (pageKey: string) => checkPageAccess(pageKey, userRole || undefined),
+    [userRole]
+  )
+  const checkFunctionAccessFn = useCallback(
+    (pageKey: string, functionName: string) => checkFunctionAccess(pageKey, functionName, userRole || undefined),
+    [userRole]
+  )
+  const getAllowedPagesFn = useCallback(
+    () => userRole ? getAllowedPages(userRole) : [],
+    [userRole]
+  )
+  const hasRoleFn = useCallback(
+    (requiredRole: UserRole) => hasRole(requiredRole, userRole || undefined),
+    [userRole]
+  )
+  const getRoleDisplayNameFn = useCallback(
+    () => userRole ? getRoleDisplayName(userRole) : '未登入',
+    [userRole]
+  )
+
+  return useMemo(() => ({
     userRole,
     userId,
     loading,
     error,
-    // 權限檢查方法
-    checkPageAccess: (pageKey: string) => checkPageAccess(pageKey, userRole || undefined),
-    checkFunctionAccess: (pageKey: string, functionName: string) =>
-      checkFunctionAccess(pageKey, functionName, userRole || undefined),
-    getAllowedPages: () => userRole ? getAllowedPages(userRole) : [],
-    hasRole: (requiredRole: UserRole) => hasRole(requiredRole, userRole || undefined),
-    getRoleDisplayName: () => userRole ? getRoleDisplayName(userRole) : '未登入',
-  }
+    checkPageAccess: checkPageAccessFn,
+    checkFunctionAccess: checkFunctionAccessFn,
+    getAllowedPages: getAllowedPagesFn,
+    hasRole: hasRoleFn,
+    getRoleDisplayName: getRoleDisplayNameFn,
+  }), [userRole, userId, loading, error, checkPageAccessFn, checkFunctionAccessFn, getAllowedPagesFn, hasRoleFn, getRoleDisplayNameFn])
 }
 
 /**

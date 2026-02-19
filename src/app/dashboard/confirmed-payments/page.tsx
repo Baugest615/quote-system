@@ -206,7 +206,7 @@ export default function ConfirmedPaymentsPage() {
           <p className="text-muted-foreground mt-1">檢視和管理已確認的請款清單</p>
         </div>
         <div className="flex space-x-2">
-          <Button onClick={() => refresh()} variant="outline" disabled={loading} className="text-blue-600 hover:text-blue-700">
+          <Button onClick={() => refresh()} variant="outline" disabled={loading} className="text-info hover:text-info/80">
             <RefreshCw className="h-4 w-4 mr-2" />重新載入
           </Button>
         </div>
@@ -216,11 +216,11 @@ export default function ConfirmedPaymentsPage() {
       <PaymentStats confirmations={filteredConfirmations} />
 
       {/* 控制列 */}
-      <div className="flex flex-col md:flex-row gap-4 items-center justify-between bg-card p-4 rounded-lg shadow-none border border-gray-100">
+      <div className="flex flex-col md:flex-row gap-4 items-center justify-between bg-card p-4 rounded-lg shadow-none border border-border">
         <div className="relative flex-1 w-full md:max-w-md">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
           <Input
-            placeholder="搜尋日期、專案名稱、KOL名稱或服務項目..."
+            placeholder="搜尋日期、專案名稱、KOL/服務或執行內容..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="pl-10"

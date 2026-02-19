@@ -13,7 +13,7 @@ type QuotationItemWithDetails = (Database['public']['Tables']['quotation_items']
     kols: Pick<Database['public']['Tables']['kols']['Row'], 'id' | 'name' | 'real_name' | 'bank_info'> | null
 });
 
-const MERGE_COLORS = ['bg-red-100', 'bg-blue-100', 'bg-green-100', 'bg-yellow-100', 'bg-purple-100', 'bg-pink-100']
+const MERGE_COLORS = ['bg-chart-3/15', 'bg-chart-4/15', 'bg-chart-1/15', 'bg-chart-2/15', 'bg-chart-5/15', 'bg-destructive/15']
 
 export function usePendingItems() {
     const [items, setItems] = useState<PendingPaymentItem[]>([])

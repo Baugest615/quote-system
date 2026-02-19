@@ -9,6 +9,7 @@ import AccountingLoadingGuard from '@/components/accounting/AccountingLoadingGua
 import AccountingModal from '@/components/accounting/AccountingModal'
 import Pagination from '@/components/accounting/Pagination'
 import SpreadsheetEditor from '@/components/accounting/SpreadsheetEditor'
+import { EmptyState } from '@/components/ui/EmptyState'
 import Link from 'next/link'
 import type { AccountingExpense } from '@/types/custom.types'
 import { EXPENSE_TYPES, ACCOUNTING_SUBJECTS } from '@/types/custom.types'
@@ -19,11 +20,11 @@ const CURRENT_YEAR = new Date().getFullYear()
 const MONTH_OPTIONS = ['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月']
 
 const EXPENSE_TYPE_COLORS: Record<string, string> = {
-  '專案支出': 'bg-blue-100 text-blue-700',
-  '勞務報酬': 'bg-purple-100 text-purple-700',
-  '其他支出': 'bg-yellow-100 text-yellow-700',
-  '公司相關': 'bg-green-100 text-green-700',
-  '沖帳免付': 'bg-gray-100 text-gray-600',
+  '專案支出': 'bg-blue-100 text-blue-700 dark:bg-blue-500/20 dark:text-blue-400',
+  '勞務報酬': 'bg-purple-100 text-purple-700 dark:bg-purple-500/20 dark:text-purple-400',
+  '其他支出': 'bg-yellow-100 text-yellow-700 dark:bg-yellow-500/20 dark:text-yellow-400',
+  '公司相關': 'bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-400',
+  '沖帳免付': 'bg-muted text-muted-foreground',
 }
 
 const emptyForm = (): Partial<AccountingExpense> => ({
@@ -201,13 +202,13 @@ export default function AccountingExpensesPage() {
     <div className="space-y-6">
       {/* 頁首 */}
       <div className="flex items-center gap-3">
-        <Link href="/dashboard/accounting" className="text-gray-400 hover:text-gray-600">
+        <Link href="/dashboard/accounting" className="text-muted-foreground/60 hover:text-muted-foreground">
           <ChevronLeft className="w-5 h-5" />
         </Link>
-        <TrendingDown className="w-7 h-7 text-red-600" />
+        <TrendingDown className="w-7 h-7 text-destructive" />
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">進項管理</h1>
-          <p className="text-sm text-gray-500">各類支出記錄</p>
+          <h1 className="text-2xl font-bold text-foreground">進項管理</h1>
+          <p className="text-sm text-muted-foreground">各類支出記錄</p>
         </div>
       </div>
 
@@ -216,7 +217,7 @@ export default function AccountingExpensesPage() {
         <select
           value={year}
           onChange={(e) => setYear(Number(e.target.value))}
-          className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="border border-border rounded-lg px-3 py-2 text-sm bg-card focus:outline-none focus:ring-2 focus:ring-ring"
         >
           {[CURRENT_YEAR, CURRENT_YEAR - 1, CURRENT_YEAR - 2].map(y => (
             <option key={y} value={y}>{y} 年</option>
@@ -225,25 +226,25 @@ export default function AccountingExpensesPage() {
         <select
           value={typeFilter}
           onChange={(e) => setTypeFilter(e.target.value)}
-          className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="border border-border rounded-lg px-3 py-2 text-sm bg-card focus:outline-none focus:ring-2 focus:ring-ring"
         >
           <option value="all">所有類型</option>
           {EXPENSE_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
         </select>
         <div className="relative flex-1 min-w-48">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground/60" />
           <input
             type="text"
             placeholder="搜尋專案、廠商、發票號碼..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-9 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full pl-9 pr-4 py-2 border border-border rounded-lg text-sm bg-card focus:outline-none focus:ring-2 focus:ring-ring"
           />
         </div>
         {!isSpreadsheetMode && (
           <button
             onClick={() => { setEditing(null); setForm(emptyForm()); setIsModalOpen(true) }}
-            className="flex items-center gap-2 bg-red-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-red-700 transition-colors"
+            className="flex items-center gap-2 bg-destructive text-destructive-foreground px-4 py-2 rounded-lg text-sm font-medium hover:bg-destructive/90 transition-colors"
           >
             <Plus className="w-4 h-4" />
             新增進項
@@ -253,8 +254,8 @@ export default function AccountingExpensesPage() {
           onClick={() => setIsSpreadsheetMode(!isSpreadsheetMode)}
           className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
             isSpreadsheetMode
-              ? 'bg-red-100 text-red-700 border border-red-300'
-              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              ? 'bg-destructive/10 text-destructive border border-destructive/30'
+              : 'bg-muted text-foreground hover:bg-accent'
           }`}
         >
           <Table2 className="w-4 h-4" />
@@ -285,29 +286,29 @@ export default function AccountingExpensesPage() {
               key={t}
               onClick={() => setTypeFilter(typeFilter === t ? 'all' : t)}
               className={`rounded-xl p-3 text-center cursor-pointer transition-all border-2 ${
-                typeFilter === t ? 'border-red-400' : 'border-transparent'
-              } ${EXPENSE_TYPE_COLORS[t] || 'bg-gray-50 text-gray-600'}`}
+                typeFilter === t ? 'border-destructive/40' : 'border-transparent'
+              } ${EXPENSE_TYPE_COLORS[t] || 'bg-muted text-muted-foreground'}`}
             >
               <p className="text-xs font-medium mb-1">{t}</p>
               <p className="text-sm font-bold">{fmt(total)}</p>
             </div>
           )
         })}
-        <div className="rounded-xl p-3 text-center bg-red-50">
-          <p className="text-xs font-medium text-red-600 mb-1">顯示筆數</p>
-          <p className="text-sm font-bold text-red-700">{filtered.length} 筆 / NT$ {fmt(totalAmount)}</p>
+        <div className="rounded-xl p-3 text-center bg-chart-3/10">
+          <p className="text-xs font-medium text-chart-3 mb-1">顯示筆數</p>
+          <p className="text-sm font-bold text-chart-3">{filtered.length} 筆 / NT$ {fmt(totalAmount)}</p>
         </div>
       </div>
 
       {/* 表格 */}
-      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+      <div className="bg-card rounded-xl border border-border overflow-hidden">
         {loading ? (
-          <div className="p-8 text-center text-gray-400">載入中...</div>
+          <div className="p-8 text-center text-muted-foreground/60">載入中...</div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="bg-gray-50 text-gray-600 text-xs">
+                <tr className="bg-muted text-muted-foreground text-xs">
                   <th className="text-left px-4 py-3">支出月份</th>
                   <th className="text-left px-4 py-3">支出種類</th>
                   <th className="text-left px-4 py-3">會計科目</th>
@@ -321,30 +322,30 @@ export default function AccountingExpensesPage() {
               </thead>
               <tbody>
                 {filtered.length === 0 ? (
-                  <tr><td colSpan={9} className="text-center py-12 text-gray-400">尚無資料</td></tr>
+                  <tr><td colSpan={9}><EmptyState type="no-data" icon={TrendingDown} title="尚無支出記錄" description="新增第一筆支出記錄開始追蹤" /></td></tr>
                 ) : filtered.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE).map(r => (
-                  <tr key={r.id} className="border-t border-gray-100 hover:bg-gray-50">
-                    <td className="px-4 py-3 text-gray-600">{r.expense_month || '-'}</td>
+                  <tr key={r.id} className="border-t border-border/50 hover:bg-accent">
+                    <td className="px-4 py-3 text-muted-foreground">{r.expense_month || '-'}</td>
                     <td className="px-4 py-3">
-                      <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${EXPENSE_TYPE_COLORS[r.expense_type] || 'bg-gray-100 text-gray-600'}`}>
+                      <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${EXPENSE_TYPE_COLORS[r.expense_type] || 'bg-muted text-muted-foreground'}`}>
                         {r.expense_type}
                       </span>
                     </td>
-                    <td className="px-4 py-3 text-gray-600">{r.accounting_subject || '-'}</td>
-                    <td className="px-4 py-3 font-medium text-gray-800">
+                    <td className="px-4 py-3 text-muted-foreground">{r.accounting_subject || '-'}</td>
+                    <td className="px-4 py-3 font-medium text-foreground">
                       {r.vendor_name || '-'}
-                      {r.payment_request_id && <span className="ml-1.5 text-[10px] text-red-500 bg-red-50 px-1 py-0.5 rounded" title="由請款核准自動建立">自動</span>}
+                      {r.payment_request_id && <span className="ml-1.5 text-[10px] text-destructive bg-destructive/10 px-1 py-0.5 rounded" title="由請款核准自動建立">自動</span>}
                     </td>
-                    <td className="px-4 py-3 text-right text-red-600">NT$ {fmt(r.amount || 0)}</td>
-                    <td className="px-4 py-3 text-right text-gray-700">NT$ {fmt(r.total_amount || 0)}</td>
-                    <td className="px-4 py-3 text-gray-600 max-w-32 truncate">{r.project_name || '-'}</td>
-                    <td className="px-4 py-3 text-gray-600">{r.payment_date || '-'}</td>
+                    <td className="px-4 py-3 text-right text-destructive">NT$ {fmt(r.amount || 0)}</td>
+                    <td className="px-4 py-3 text-right text-foreground">NT$ {fmt(r.total_amount || 0)}</td>
+                    <td className="px-4 py-3 text-muted-foreground max-w-32 truncate">{r.project_name || '-'}</td>
+                    <td className="px-4 py-3 text-muted-foreground">{r.payment_date || '-'}</td>
                     <td className="px-4 py-3">
                       <div className="flex items-center justify-center gap-2">
-                        <button onClick={() => { setEditing(r); setForm({ ...r }); setIsModalOpen(true) }} className="p-1.5 text-gray-400 hover:text-blue-600 rounded hover:bg-blue-50">
+                        <button onClick={() => { setEditing(r); setForm({ ...r }); setIsModalOpen(true) }} className="p-1.5 text-muted-foreground/60 hover:text-primary rounded hover:bg-primary/10">
                           <Pencil className="w-4 h-4" />
                         </button>
-                        <button onClick={() => handleDelete(r.id)} className="p-1.5 text-gray-400 hover:text-red-600 rounded hover:bg-red-50">
+                        <button onClick={() => handleDelete(r.id)} className="p-1.5 text-muted-foreground/60 hover:text-destructive rounded hover:bg-destructive/10">
                           <Trash2 className="w-4 h-4" />
                         </button>
                       </div>
@@ -371,8 +372,8 @@ export default function AccountingExpensesPage() {
         title={editing ? '編輯進項記錄' : '新增進項記錄'}
         footer={
           <div className="flex justify-end gap-3">
-            <button onClick={() => setIsModalOpen(false)} className="px-4 py-2 text-sm text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-100">取消</button>
-            <button onClick={handleSave} disabled={saving} className="px-4 py-2 text-sm bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50">
+            <button onClick={() => setIsModalOpen(false)} className="px-4 py-2 text-sm text-muted-foreground border border-border rounded-lg hover:bg-accent">取消</button>
+            <button onClick={handleSave} disabled={saving} className="px-4 py-2 text-sm bg-destructive text-destructive-foreground rounded-lg hover:bg-destructive/90 disabled:opacity-50">
               {saving ? '儲存中...' : '儲存'}
             </button>
           </div>
@@ -381,16 +382,16 @@ export default function AccountingExpensesPage() {
         <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">年度</label>
+                  <label className="block text-xs font-medium text-muted-foreground mb-1">年度</label>
                   <select value={form.year} onChange={(e) => setForm(f => ({ ...f, year: Number(e.target.value) }))}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    className="w-full border border-border rounded-lg px-3 py-2 text-sm bg-card focus:outline-none focus:ring-2 focus:ring-ring">
                     {[CURRENT_YEAR, CURRENT_YEAR - 1, CURRENT_YEAR - 2].map(y => <option key={y} value={y}>{y}</option>)}
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">支出月份</label>
+                  <label className="block text-xs font-medium text-muted-foreground mb-1">支出月份</label>
                   <select value={form.expense_month || ''} onChange={(e) => setForm(f => ({ ...f, expense_month: e.target.value }))}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    className="w-full border border-border rounded-lg px-3 py-2 text-sm bg-card focus:outline-none focus:ring-2 focus:ring-ring">
                     <option value="">-- 選擇月份 --</option>
                     {MONTH_OPTIONS.map(m => <option key={m} value={`${form.year}年${m}`}>{form.year}年{m}</option>)}
                   </select>
@@ -398,69 +399,69 @@ export default function AccountingExpensesPage() {
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">支出種類 *</label>
+                  <label className="block text-xs font-medium text-muted-foreground mb-1">支出種類 *</label>
                   <select value={form.expense_type || ''} onChange={(e) => setForm(f => ({ ...f, expense_type: e.target.value as any }))}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    className="w-full border border-border rounded-lg px-3 py-2 text-sm bg-card focus:outline-none focus:ring-2 focus:ring-ring">
                     {EXPENSE_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">會計科目</label>
+                  <label className="block text-xs font-medium text-muted-foreground mb-1">會計科目</label>
                   <select value={form.accounting_subject || ''} onChange={(e) => setForm(f => ({ ...f, accounting_subject: e.target.value }))}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    className="w-full border border-border rounded-lg px-3 py-2 text-sm bg-card focus:outline-none focus:ring-2 focus:ring-ring">
                     <option value="">-- 選擇科目 --</option>
                     {ACCOUNTING_SUBJECTS.map(s => <option key={s} value={s}>{s}</option>)}
                   </select>
                 </div>
               </div>
               <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">廠商/付款對象</label>
+                <label className="block text-xs font-medium text-muted-foreground mb-1">廠商/付款對象</label>
                 <input type="text" value={form.vendor_name || ''} onChange={(e) => setForm(f => ({ ...f, vendor_name: e.target.value }))}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="廠商或個人姓名" />
+                  className="w-full border border-border rounded-lg px-3 py-2 text-sm bg-card focus:outline-none focus:ring-2 focus:ring-ring" placeholder="廠商或個人姓名" />
               </div>
               <div className="grid grid-cols-3 gap-4">
                 <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">金額（未稅）</label>
+                  <label className="block text-xs font-medium text-muted-foreground mb-1">金額（未稅）</label>
                   <input type="number" value={form.amount || ''} onChange={(e) => handleAmountChange(Number(e.target.value))}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="0" />
+                    className="w-full border border-border rounded-lg px-3 py-2 text-sm bg-card focus:outline-none focus:ring-2 focus:ring-ring" placeholder="0" />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">稅額</label>
+                  <label className="block text-xs font-medium text-muted-foreground mb-1">稅額</label>
                   <input type="number" value={form.tax_amount || ''} onChange={(e) => setForm(f => ({ ...f, tax_amount: Number(e.target.value), total_amount: (f.amount || 0) + Number(e.target.value) }))}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="0" />
+                    className="w-full border border-border rounded-lg px-3 py-2 text-sm bg-card focus:outline-none focus:ring-2 focus:ring-ring" placeholder="0" />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">總額（含稅）</label>
+                  <label className="block text-xs font-medium text-muted-foreground mb-1">總額（含稅）</label>
                   <input type="number" value={form.total_amount || ''} onChange={(e) => setForm(f => ({ ...f, total_amount: Number(e.target.value) }))}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="0" />
+                    className="w-full border border-border rounded-lg px-3 py-2 text-sm bg-card focus:outline-none focus:ring-2 focus:ring-ring" placeholder="0" />
                 </div>
               </div>
               <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">專案名稱</label>
+                <label className="block text-xs font-medium text-muted-foreground mb-1">專案名稱</label>
                 <input type="text" value={form.project_name || ''} onChange={(e) => setForm(f => ({ ...f, project_name: e.target.value }))}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="對應的專案名稱" />
+                  className="w-full border border-border rounded-lg px-3 py-2 text-sm bg-card focus:outline-none focus:ring-2 focus:ring-ring" placeholder="對應的專案名稱" />
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">匯款日</label>
+                  <label className="block text-xs font-medium text-muted-foreground mb-1">匯款日</label>
                   <input type="date" value={form.payment_date || ''} onChange={(e) => setForm(f => ({ ...f, payment_date: e.target.value }))}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                    className="w-full border border-border rounded-lg px-3 py-2 text-sm bg-card focus:outline-none focus:ring-2 focus:ring-ring" />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">發票號碼</label>
+                  <label className="block text-xs font-medium text-muted-foreground mb-1">發票號碼</label>
                   <input type="text" value={form.invoice_number || ''} onChange={(e) => setForm(f => ({ ...f, invoice_number: e.target.value }))}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="如 AB-12345678" />
+                    className="w-full border border-border rounded-lg px-3 py-2 text-sm font-mono bg-card focus:outline-none focus:ring-2 focus:ring-ring" placeholder="如 AB-12345678" />
                 </div>
               </div>
               <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">發票日期</label>
+                <label className="block text-xs font-medium text-muted-foreground mb-1">發票日期</label>
                 <input type="date" value={form.invoice_date || ''} onChange={(e) => setForm(f => ({ ...f, invoice_date: e.target.value }))}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                  className="w-full border border-border rounded-lg px-3 py-2 text-sm bg-card focus:outline-none focus:ring-2 focus:ring-ring" />
               </div>
               <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">備註</label>
+                <label className="block text-xs font-medium text-muted-foreground mb-1">備註</label>
                 <textarea value={form.note || ''} onChange={(e) => setForm(f => ({ ...f, note: e.target.value }))}
-                  rows={2} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="選填備註" />
+                  rows={2} className="w-full border border-border rounded-lg px-3 py-2 text-sm bg-card focus:outline-none focus:ring-2 focus:ring-ring" placeholder="選填備註" />
               </div>
         </div>
       </AccountingModal>

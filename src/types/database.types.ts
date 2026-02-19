@@ -116,6 +116,8 @@ export type Database = {
           kol_id: string
           service_type_id: string
           price: number
+          cost: number
+          last_quote_info: string | null
           created_at: string | null
           updated_at: string | null
         }
@@ -124,6 +126,8 @@ export type Database = {
           kol_id: string
           service_type_id: string
           price: number
+          cost?: number
+          last_quote_info?: string | null
           created_at?: string | null
           updated_at?: string | null
         }
@@ -132,6 +136,8 @@ export type Database = {
           kol_id?: string
           service_type_id?: string
           price?: number
+          cost?: number
+          last_quote_info?: string | null
           created_at?: string | null
           updated_at?: string | null
         }
@@ -652,6 +658,15 @@ export type Database = {
           p_group_id: string
         }
         Returns: void
+      },
+      // KOL 服務定價同步
+      sync_kol_service_prices_initial: {
+        Args: Record<string, never>
+        Returns: Json
+      },
+      sync_kol_service_prices_from_quotation: {
+        Args: { p_quotation_id: string }
+        Returns: Json
       }
     },
     Enums: {

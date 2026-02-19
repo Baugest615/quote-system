@@ -5,6 +5,45 @@
 
 ## 已完成
 
+### 全專案 UI/UX 全面優化 — 9 階段計畫（2026-02-19）
+
+共修改 **45+ 個檔案**，涵蓋全部 19 個 dashboard 頁面。
+
+- [x] **Phase 0：CSS 變數擴充** — 新增 `--warning`、`--success`、`--info` 語義色彩至 `globals.css` 與 `tailwind.config.js`
+- [x] **Phase 1：共用元件建立**
+  - `StatusBadge.tsx` — 統一所有狀態標籤樣式
+  - `Skeleton.tsx` — 骨架屏載入元件（Skeleton、SkeletonTable、SkeletonStatCards、SkeletonPageHeader、SkeletonCard）
+  - `EmptyState.tsx` — 通用空狀態元件（icon + 標題 + 描述 + 操作按鈕）
+- [x] **Phase 2：核心共用元件修正**（8 個檔案）
+  - EditableCell、QuotesDataGrid、QuotationItemsList、QuoteForm、AccountingModal、AccountingLoadingGuard、SpreadsheetEditor、Pagination
+  - 硬編碼色彩 → CSS 變數主題色
+- [x] **Phase 3：會計模組深色模式**（10 個檔案）
+  - 會計總覽、銷項、進項、薪資、專案損益、計算器、報表、員工、費率表、我的薪資
+  - `bg-white` → `bg-card`、`text-gray-*` → `text-foreground/muted-foreground`
+  - KPI 卡片使用 chart 變數：`bg-chart-4/10 text-chart-4`
+- [x] **Phase 4：其餘頁面修正**（~15 個檔案）
+  - PaymentStatusBadge、clients、kols、reports、quotes、pending-payments 等全部頁面
+  - `emerald-*` → `primary`、`red-*` → `destructive`、`blue-*` → `info`
+- [x] **Phase 5：載入狀態升級為骨架屏**（8 個頁面）
+  - clients、kols、quotes 列表/檢視/編輯、settings、reports、QuoteForm
+  - 「讀取中...」文字 → SkeletonPageHeader + SkeletonStatCards + SkeletonTable 組合
+- [x] **Phase 6：空狀態升級為 EmptyState 元件**（7 個頁面）
+  - clients、QuotesDataGrid、SpreadsheetEditor、accounting（sales/expenses/payroll/projects）
+  - 搜尋無結果 vs 尚無資料 兩種模式
+- [x] **Phase 7：Z-Index 分層標準化**
+  - Sidebar `z-[9999]` → `z-[60]`、SearchableSelectCell `z-[9999]` → `z-[60]`、globals.css `z-[99999]` → `z-[60]`
+- [x] **Phase 8：表單驗證 UX** — QuoteForm 提交失敗時自動捲到第一個錯誤欄位
+- [x] **Phase 9：最終清理審計**（~23 個檔案）
+  - not-found、ErrorBoundary、settings、login、confirmed-payments、FileModal、payment-requests 等
+  - 移除所有剩餘硬編碼色彩（PDF/列印元件除外，故意保持淺色）
+
+新增檔案：
+- `src/components/ui/StatusBadge.tsx`
+- `src/components/ui/Skeleton.tsx`
+- `src/components/ui/EmptyState.tsx`
+
+驗證結果：TypeScript 檢查通過、Production build 成功
+
 ### 報價單檢視頁面暗色主題優化 & PDF 生成修復（2026-02-19）
 - [x] **檢視頁面顏色修正**：暗色主題下有色區塊（藍/紅背景）難以閱讀
   - `bg-blue-50` → `bg-blue-500/10 text-blue-400`（未稅優惠、KOL 欄位）
@@ -123,6 +162,7 @@
 ## 目前狀態
 
 - `npm run build` 通過，零型別錯誤
+- **✅ UI/UX 全面優化已完成**：45+ 檔案、9 階段、全部 19 個 dashboard 頁面統一主題
 - 儀表板已改版為 Executive Overview 風格，含圖表與待辦事項
 - **✅ RLS 政策整理已完成**：16 張核心表 100% 標準化
 - **✅ 報價單檢視頁面暗色主題配色已修正**

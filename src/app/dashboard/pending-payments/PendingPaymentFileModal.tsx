@@ -284,18 +284,18 @@ export function PendingPaymentFileModal({
     <Modal isOpen={isOpen} onClose={handleClose} title={`檔案管理 - ${projectName}`}>
       <div className="space-y-6">
         {/* 檔案概況 */}
-        <div className="bg-blue-50 border border-blue-200 rounded-md p-3">
+        <div className="bg-info/10 border border-info/30 rounded-md p-3">
           <div className="flex items-center justify-between text-sm">
-            <span className="text-blue-800">
+            <span className="text-info">
               已上傳檔案：{attachments.length}/{MAX_FILES}
             </span>
-            <span className="text-blue-800">
+            <span className="text-info">
               總大小：{formatFileSize(currentTotalSize)}/5MB
             </span>
           </div>
-          <div className="mt-2 bg-blue-200 rounded-full h-2">
-            <div 
-              className="bg-blue-500 h-2 rounded-full transition-all duration-300"
+          <div className="mt-2 bg-info/30 rounded-full h-2">
+            <div
+              className="bg-info h-2 rounded-full transition-all duration-300"
               style={{ width: `${Math.min((currentTotalSize / MAX_TOTAL_SIZE) * 100, 100)}%` }}
             />
           </div>
@@ -317,8 +317,8 @@ export function PendingPaymentFileModal({
                     <div className="flex items-center justify-between">
                       <div className="flex items-center flex-1 min-w-0">
                         <div className="flex-shrink-0 mr-3">
-                          {fileType === 'image' && <div className="w-6 h-6 bg-green-100 rounded flex items-center justify-center text-xs">🖼️</div>}
-                          {fileType === 'document' && <div className="w-6 h-6 bg-blue-100 rounded flex items-center justify-center text-xs">📄</div>}
+                          {fileType === 'image' && <div className="w-6 h-6 bg-success/15 rounded flex items-center justify-center text-xs">🖼️</div>}
+                          {fileType === 'document' && <div className="w-6 h-6 bg-info/15 rounded flex items-center justify-center text-xs">📄</div>}
                           {fileType === 'spreadsheet' && <div className="w-6 h-6 bg-yellow-100 rounded flex items-center justify-center text-xs">📊</div>}
                           {fileType === 'file' && <div className="w-6 h-6 bg-secondary/50 rounded flex items-center justify-center text-xs">📎</div>}
                         </div>
@@ -336,7 +336,7 @@ export function PendingPaymentFileModal({
                         <Button 
                           variant="ghost" 
                           size="sm" 
-                          className="h-8 w-8 p-0 text-blue-500 hover:text-blue-700 hover:bg-blue-50" 
+                          className="h-8 w-8 p-0 text-info hover:text-info/80 hover:bg-info/10" 
                           onClick={() => handleFilePreview(attachment)}
                           title="預覽"
                         >
@@ -345,7 +345,7 @@ export function PendingPaymentFileModal({
                         <Button 
                           variant="ghost" 
                           size="sm" 
-                          className="h-8 w-8 p-0 text-green-500 hover:text-green-700 hover:bg-green-50" 
+                          className="h-8 w-8 p-0 text-success hover:text-success/80 hover:bg-success/10" 
                           onClick={() => handleFileDownload(attachment)}
                           title="下載"
                         >
@@ -354,7 +354,7 @@ export function PendingPaymentFileModal({
                         <Button 
                           variant="ghost" 
                           size="sm" 
-                          className="h-8 w-8 p-0 text-red-500 hover:text-red-700 hover:bg-red-50" 
+                          className="h-8 w-8 p-0 text-destructive hover:text-destructive/80 hover:bg-destructive/10" 
                           onClick={() => handleFileDelete(attachment)}
                           title="刪除"
                         >
@@ -393,34 +393,34 @@ export function PendingPaymentFileModal({
             ref={fileInputRef} 
             onChange={handleFileUpload} 
             disabled={uploading || currentTotalSize >= MAX_TOTAL_SIZE} 
-            className="block w-full text-sm text-muted-foreground file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-emerald-500/5 file:text-emerald-400 hover:file:bg-emerald-500/10"
+            className="block w-full text-sm text-muted-foreground file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-emerald-500/5 file:text-primary hover:file:bg-emerald-500/10"
             accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.gif,.txt,.zip,.rar"
           />
           
           {currentTotalSize >= MAX_TOTAL_SIZE && (
-            <div className="mt-2 bg-red-50 border border-red-200 rounded-md p-2">
-              <p className="text-sm text-red-800">
+            <div className="mt-2 bg-destructive/10 border border-destructive/30 rounded-md p-2">
+              <p className="text-sm text-destructive">
                 已達檔案大小上限，請刪除部分檔案後再上傳
               </p>
             </div>
           )}
           
           {uploading && (
-            <div className="mt-2 flex items-center text-sm text-emerald-400">
+            <div className="mt-2 flex items-center text-sm text-primary">
               <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-emerald-500 mr-2"></div>
               上傳中，請稍候...
             </div>
           )}
           
           {uploadError && (
-            <div className="mt-2 bg-red-50 border border-red-200 rounded-md p-2">
-              <p className="text-sm text-red-800">{uploadError}</p>
+            <div className="mt-2 bg-destructive/10 border border-destructive/30 rounded-md p-2">
+              <p className="text-sm text-destructive">{uploadError}</p>
             </div>
           )}
           
           {downloadError && (
-            <div className="mt-2 bg-red-50 border border-red-200 rounded-md p-2">
-              <p className="text-sm text-red-800">{downloadError}</p>
+            <div className="mt-2 bg-destructive/10 border border-destructive/30 rounded-md p-2">
+              <p className="text-sm text-destructive">{downloadError}</p>
             </div>
           )}
         </div>

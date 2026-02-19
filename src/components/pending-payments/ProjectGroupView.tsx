@@ -76,7 +76,7 @@ export function ProjectGroupView({
                             ) : (
                                 <ChevronRight className="h-5 w-5 text-muted-foreground" />
                             )}
-                            <Building2 className="h-5 w-5 text-blue-600" />
+                            <Building2 className="h-5 w-5 text-info" />
                             <div>
                                 <div className="font-medium text-foreground">{group.projectName}</div>
                                 <div className="text-xs text-muted-foreground">
@@ -96,8 +96,8 @@ export function ProjectGroupView({
                             {/* 進度條 */}
                             <div className="w-24 h-2 bg-muted rounded-full overflow-hidden">
                                 <div
-                                    className={`h-full ${group.hasRejected ? 'bg-red-500' :
-                                        group.readyItems === group.totalItems ? 'bg-green-500' : 'bg-blue-500'
+                                    className={`h-full ${group.hasRejected ? 'bg-destructive' :
+                                        group.readyItems === group.totalItems ? 'bg-success' : 'bg-info'
                                         }`}
                                     style={{ width: `${(group.readyItems / group.totalItems) * 100}%` }}
                                 />
@@ -108,7 +108,7 @@ export function ProjectGroupView({
                     {/* 展開的項目列表 */}
                     {group.isExpanded && (
                         <div className="border-t border-border">
-                            <table className="min-w-full divide-y divide-gray-200">
+                            <table className="min-w-full divide-y divide-border">
                                 <thead className="bg-secondary">
                                     <tr>
                                         <th className="px-2 py-2 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider w-24">KOL</th>
@@ -120,7 +120,7 @@ export function ProjectGroupView({
                                         <th className="px-2 py-2 text-center text-xs font-medium text-muted-foreground uppercase tracking-wider w-16">申請付款</th>
                                     </tr>
                                 </thead>
-                                <tbody className="bg-card divide-y divide-gray-200">
+                                <tbody className="bg-card divide-y divide-border">
                                     {group.items.map((item) => {
                                         const displayItem = item.merge_group_id
                                             ? group.items.find(i => i.merge_group_id === item.merge_group_id && i.is_merge_leader) || item

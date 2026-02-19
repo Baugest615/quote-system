@@ -79,7 +79,7 @@ export function SealStampManager({
                 aria-label="騎縫位置選擇"
                 value={config.position}
                 onChange={(e) => onChange({ ...config, position: e.target.value as any })}
-                className="mt-1 block w-full rounded-md border-border shadow-sm focus:border-emerald-500 focus:ring-emerald-500 sm:text-sm px-3 py-2 border bg-card text-foreground"
+                className="mt-1 block w-full rounded-md border-border shadow-sm focus:border-primary focus:ring-ring sm:text-sm px-3 py-2 border bg-card text-foreground"
               >
                 <option value="right">右側騎縫</option>
                 <option value="left">左側騎縫</option>

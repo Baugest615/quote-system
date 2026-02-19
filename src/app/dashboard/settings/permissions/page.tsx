@@ -123,7 +123,7 @@ export default function PermissionManagementPage() {
   const getRoleIcon = (role: UserRole) => {
     switch (role) {
       case 'Admin': return <Crown className="h-4 w-4 text-yellow-600" />
-      case 'Editor': return <Settings className="h-4 w-4 text-blue-600" />
+      case 'Editor': return <Settings className="h-4 w-4 text-info" />
       case 'Member': return <User className="h-4 w-4 text-muted-foreground" />
       default: return <User className="h-4 w-4 text-muted-foreground" />
     }
@@ -178,7 +178,7 @@ export default function PermissionManagementPage() {
         
         {loading ? (
           <div className="flex justify-center items-center h-32">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-info"></div>
           </div>
         ) : (
           <div className="divide-y divide-gray-200">
@@ -211,7 +211,7 @@ export default function PermissionManagementPage() {
                       variant="outline"
                       size="sm"
                       onClick={() => deleteUser(user.id)}
-                      className="text-red-600 hover:text-red-700"
+                      className="text-destructive hover:text-destructive/80"
                     >
                       <Trash2 className="h-4 w-4 mr-1" />
                       刪除
@@ -238,7 +238,7 @@ export default function PermissionManagementPage() {
               <select
                 value={selectedRole}
                 onChange={(e) => setSelectedRole(e.target.value as UserRole)}
-                className="w-full px-3 py-2 border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-ring"
               >
                 <option value="Member">成員</option>
                 <option value="Editor">編輯者</option>
