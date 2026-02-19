@@ -1,7 +1,10 @@
 -- =====================================================
 -- 修復 get_available_pending_payments 函數
 -- quotation_items 表沒有 updated_at 欄位，移除引用
+-- 必須先 DROP 再 CREATE，因為回傳型別有變更
 -- =====================================================
+
+DROP FUNCTION IF EXISTS get_available_pending_payments();
 
 CREATE OR REPLACE FUNCTION get_available_pending_payments()
 RETURNS TABLE(
