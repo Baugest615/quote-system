@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import supabase from '@/lib/supabase/client'
 import { Database } from '@/types/database.types'
 import { toast } from 'sonner'
+import { queryKeys } from '@/lib/queryKeys'
 
 type Kol = Database['public']['Tables']['kols']['Row']
 type KolInsert = Database['public']['Tables']['kols']['Insert']
@@ -11,7 +12,7 @@ type KolUpdate = Database['public']['Tables']['kols']['Update']
 type KolService = Database['public']['Tables']['kol_services']['Row']
 type ServiceType = Database['public']['Tables']['service_types']['Row']
 
-const QUERY_KEY = ['kols']
+const QUERY_KEY = queryKeys.kols
 
 // KOL with services join
 export type KolWithServices = Kol & {

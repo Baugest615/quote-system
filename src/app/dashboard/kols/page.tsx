@@ -1,8 +1,7 @@
 'use client'
 
-import { useState, useEffect, useCallback, Fragment } from 'react'
+import { useState, useMemo, Fragment } from 'react'
 import supabase from '@/lib/supabase/client'
-import { Database } from '@/types/database.types'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { KolModal, type KolFormData } from '@/components/kols/KolModal'
@@ -11,67 +10,30 @@ import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import { runInitialKolPriceSync } from '@/lib/kol/sync-kol-prices'
 import { SkeletonPageHeader, SkeletonTable } from '@/components/ui/Skeleton'
-
-// ... (類型定義維持不變) ...
-type Kol = Database['public']['Tables']['kols']['Row']
-type KolService = Database['public']['Tables']['kol_services']['Row']
-type KolType = Database['public']['Tables']['kol_types']['Row']
-type ServiceType = Database['public']['Tables']['service_types']['Row']
-
-type KolWithDetails = Kol & {
-  kol_services: (KolService & {
-    service_types: ServiceType | null
-  })[]
-}
+import { useKols, type KolWithServices } from '@/hooks/useKols'
+import { useKolTypes, useServiceTypes } from '@/hooks/useReferenceData'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { queryKeys } from '@/lib/queryKeys'
 
 
 export default function KolsPage() {
-  const [kols, setKols] = useState<KolWithDetails[]>([])
-  const [filteredKols, setFilteredKols] = useState<KolWithDetails[]>([])
-  const [kolTypes, setKolTypes] = useState<KolType[]>([])
-  const [serviceTypes, setServiceTypes] = useState<ServiceType[]>([])
-  const [loading, setLoading] = useState(true)
+  const queryClient = useQueryClient()
+  const { data: kols = [], isLoading: kolsLoading } = useKols()
+  const { data: kolTypes = [], isLoading: typesLoading } = useKolTypes()
+  const { data: serviceTypes = [], isLoading: servicesLoading } = useServiceTypes()
+  const loading = kolsLoading || typesLoading || servicesLoading
+
   const [isModalOpen, setIsModalOpen] = useState(false)
-  const [selectedKol, setSelectedKol] = useState<KolWithDetails | null>(null)
+  const [selectedKol, setSelectedKol] = useState<KolWithServices | null>(null)
   const [searchTerm, setSearchTerm] = useState('')
   const [isSyncing, setIsSyncing] = useState(false)
 
   // 展開的行 ID 集合
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set())
 
-  const fetchData = useCallback(async () => {
-    setLoading(true)
-    const [kolsRes, kolTypesRes, serviceTypesRes] = await Promise.all([
-      supabase.from('kols').select('*, kol_services(*, service_types(*))').order('name'),
-      supabase.from('kol_types').select('*').order('name'),
-      supabase.from('service_types').select('*').order('name'),
-    ])
-
-    if (kolsRes.error) {
-      toast.error('讀取 KOL 資料失敗: ' + kolsRes.error.message)
-      setKols([])
-    } else {
-      const fetchedKols = kolsRes.data as KolWithDetails[]
-      setKols(fetchedKols)
-      setFilteredKols(fetchedKols)
-    }
-
-    if (kolTypesRes.error) toast.error('讀取 KOL 類型失敗: ' + kolTypesRes.error.message)
-    else setKolTypes(kolTypesRes.data)
-
-    if (serviceTypesRes.error) toast.error('讀取服務類型失敗: ' + serviceTypesRes.error.message)
-    else setServiceTypes(serviceTypesRes.data)
-
-    setLoading(false)
-  }, [])
-
-  useEffect(() => {
-    fetchData()
-  }, [fetchData])
-
-  useEffect(() => {
+  const filteredKols = useMemo(() => {
     const lowercasedFilter = searchTerm.toLowerCase();
-    const filteredData = kols.filter(kol => {
+    return kols.filter(kol => {
       const kolType = kolTypes.find(t => t.id === kol.type_id);
       return (
         kol.name.toLowerCase().includes(lowercasedFilter) ||
@@ -79,11 +41,9 @@ export default function KolsPage() {
         (kolType && kolType.name.toLowerCase().includes(lowercasedFilter))
       );
     });
-    setFilteredKols(filteredData);
   }, [searchTerm, kols, kolTypes]);
 
-
-  const handleOpenModal = (kol: KolWithDetails | null = null) => {
+  const handleOpenModal = (kol: KolWithServices | null = null) => {
     setSelectedKol(kol)
     setIsModalOpen(true)
   }
@@ -93,9 +53,10 @@ export default function KolsPage() {
     setSelectedKol(null)
   }
 
-  const handleSaveKol = async (formData: KolFormData, id?: string) => {
-    const { services, is_new_type, type_name, ...kolData } = formData
-    try {
+  const saveMutation = useMutation({
+    mutationFn: async ({ formData, id }: { formData: KolFormData; id?: string }) => {
+      const { services, is_new_type, type_name, ...kolData } = formData
+
       // 1. 自動建立新 KOL 類型
       if (is_new_type && type_name?.trim()) {
         const { data: newType, error } = await supabase
@@ -172,25 +133,40 @@ export default function KolsPage() {
         const { error: serviceError } = await supabase.from('kol_services').insert(servicesToInsert)
         if (serviceError) throw serviceError
       }
-
-      toast.success('儲存成功！');
-
-      await fetchData()
+    },
+    onSuccess: () => {
+      toast.success('儲存成功！')
+      queryClient.invalidateQueries({ queryKey: queryKeys.kols })
+      queryClient.invalidateQueries({ queryKey: queryKeys.kolTypes })
+      queryClient.invalidateQueries({ queryKey: queryKeys.serviceTypes })
       handleCloseModal()
-    } catch (error: unknown) {
+    },
+    onError: (error: unknown) => {
       toast.error('儲存 KOL 失敗: ' + (error instanceof Error ? error.message : String(error)))
-    }
+    },
+  })
+
+  const handleSaveKol = async (formData: KolFormData, id?: string) => {
+    await saveMutation.mutateAsync({ formData, id })
   }
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from('kols').delete().eq('id', id)
+      if (error) throw error
+    },
+    onSuccess: () => {
+      toast.success('KOL 已刪除')
+      queryClient.invalidateQueries({ queryKey: queryKeys.kols })
+    },
+    onError: (error: unknown) => {
+      toast.error('刪除 KOL 失敗: ' + (error instanceof Error ? error.message : String(error)))
+    },
+  })
 
   const handleDeleteKol = async (id: string) => {
     if (window.confirm('確定要刪除這筆 KOL/服務嗎？所有相關執行內容也會被刪除。')) {
-      const { error } = await supabase.from('kols').delete().eq('id', id)
-      if (error) {
-        toast.error('刪除 KOL 失敗: ' + error.message)
-      } else {
-        toast.success('KOL 已刪除');
-        await fetchData()
-      }
+      deleteMutation.mutate(id)
     }
   }
 
@@ -210,7 +186,7 @@ export default function KolsPage() {
     const result = await runInitialKolPriceSync()
     if (result.success) {
       toast.success(`同步完成：已更新 ${result.updated} 項服務價格`)
-      await fetchData()
+      queryClient.invalidateQueries({ queryKey: queryKeys.kols })
     } else {
       toast.error('同步失敗: ' + result.message)
     }

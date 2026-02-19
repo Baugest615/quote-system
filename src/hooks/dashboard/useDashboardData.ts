@@ -2,6 +2,7 @@
 
 import { useQuery } from '@tanstack/react-query'
 import supabase from '@/lib/supabase/client'
+import { queryKeys } from '@/lib/queryKeys'
 
 // ---- 型別定義 ----
 
@@ -211,7 +212,7 @@ async function fetchDashboardData(): Promise<DashboardData> {
 
 export function useDashboardData() {
   return useQuery({
-    queryKey: ['dashboard-stats'],
+    queryKey: [...queryKeys.dashboardStats],
     queryFn: fetchDashboardData,
     staleTime: 5 * 60 * 1000,
     refetchOnWindowFocus: true,

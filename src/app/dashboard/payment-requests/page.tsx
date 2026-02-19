@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useCallback, useMemo } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Search, Link as LinkIcon, Eye, Download, AlertCircle } from 'lucide-react'
@@ -10,6 +11,7 @@ import supabase from '@/lib/supabase/client'
 
 // Hooks
 import { usePaymentData } from '@/hooks/payments/usePaymentData'
+import { queryKeys } from '@/lib/queryKeys'
 import { usePaymentFilters } from '@/hooks/payments/usePaymentFilters'
 import { usePaymentActions } from '@/hooks/payments/usePaymentActions'
 
@@ -100,6 +102,7 @@ const FileViewerModal = ({ isOpen, onClose, request }: {
 }
 
 export default function PaymentRequestsPage() {
+  const queryClient = useQueryClient()
   const fetchPaymentRequests = useCallback(async () => {
     const { data, error } = await supabase
       .from('payment_requests')
@@ -160,7 +163,8 @@ export default function PaymentRequestsPage() {
   }, [])
 
   const paymentDataOptions = useMemo(() => ({
-    autoRefresh: false
+    autoRefresh: false,
+    queryKey: [...queryKeys.paymentRequests],
   }), [])
 
   const {
@@ -213,6 +217,10 @@ export default function PaymentRequestsPage() {
 
       toast.success('已核准請款申請')
       refresh()
+      // 跨頁快取失效：核准後影響「已確認請款」和「待請款」
+      queryClient.invalidateQueries({ queryKey: [...queryKeys.confirmedPayments] })
+      queryClient.invalidateQueries({ queryKey: [...queryKeys.pendingPayments] })
+      queryClient.invalidateQueries({ queryKey: [...queryKeys.dashboardStats] })
     } catch (error: unknown) {
       toast.error('核准失敗: ' + (error instanceof Error ? error.message : String(error)))
     }
@@ -235,6 +243,8 @@ export default function PaymentRequestsPage() {
 
       toast.success('已駁回請款申請')
       refresh()
+      // 跨頁快取失效：駁回後影響「待請款」
+      queryClient.invalidateQueries({ queryKey: [...queryKeys.pendingPayments] })
     } catch (error: unknown) {
       toast.error('駁回失敗: ' + (error instanceof Error ? error.message : String(error)))
     }
@@ -276,6 +286,9 @@ export default function PaymentRequestsPage() {
           toast.success(`成功核准 ${selectedItems.size} 筆申請`)
           refresh()
           deselectAll()
+          queryClient.invalidateQueries({ queryKey: [...queryKeys.confirmedPayments] })
+          queryClient.invalidateQueries({ queryKey: [...queryKeys.pendingPayments] })
+          queryClient.invalidateQueries({ queryKey: [...queryKeys.dashboardStats] })
         },
         onError: (error) => toast.error('批量核准失敗: ' + error.message)
       }
@@ -309,6 +322,7 @@ export default function PaymentRequestsPage() {
           toast.success(`成功駁回 ${selectedItems.size} 筆申請`)
           refresh()
           deselectAll()
+          queryClient.invalidateQueries({ queryKey: [...queryKeys.pendingPayments] })
         },
         onError: (error) => toast.error('批量駁回失敗: ' + error.message)
       }

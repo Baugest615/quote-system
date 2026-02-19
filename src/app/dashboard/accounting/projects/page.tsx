@@ -1,8 +1,10 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useState, useMemo } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { usePermission } from '@/lib/permissions'
 import supabase from '@/lib/supabase/client'
+import { queryKeys } from '@/lib/queryKeys'
 import { toast } from 'sonner'
 import { BarChart3, ChevronLeft, Search } from 'lucide-react'
 import AccountingLoadingGuard from '@/components/accounting/AccountingLoadingGuard'
@@ -25,66 +27,40 @@ export default function AccountingProjectsPage() {
   const { userRole, loading: permLoading, hasRole } = usePermission()
   const isAdmin = userRole === 'Admin'
   const [year, setYear] = useState(CURRENT_YEAR)
-  const [projects, setProjects] = useState<ProjectSummary[]>([])
-  const [filtered, setFiltered] = useState<ProjectSummary[]>([])
-  const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [sortBy, setSortBy] = useState<keyof Pick<ProjectSummary, 'total_sales' | 'profit' | 'margin'>>('total_sales')
 
-  const fetchData = useCallback(async () => {
-    setLoading(true)
-    try {
+  const { data: projects = [], isLoading: loading } = useQuery({
+    queryKey: [...queryKeys.accountingProjects(year)],
+    queryFn: async () => {
       const [salesRes, expensesRes] = await Promise.all([
         supabase.from('accounting_sales').select('project_name, sales_amount').eq('year', year),
         supabase.from('accounting_expenses').select('project_name, amount').eq('year', year).not('project_name', 'is', null),
       ])
-
       const sales = salesRes.data || []
       const expenses = expensesRes.data || []
-
-      // 整合所有專案名稱
       const allProjects = new Set([
         ...sales.map(s => s.project_name).filter(Boolean),
         ...expenses.map(e => e.project_name).filter(Boolean),
       ])
-
-      const summaries: ProjectSummary[] = Array.from(allProjects).map(name => {
+      return Array.from(allProjects).map(name => {
         const projectSales = sales.filter(s => s.project_name === name)
         const projectExpenses = expenses.filter(e => e.project_name === name)
         const totalSales = projectSales.reduce((s, r) => s + (r.sales_amount || 0), 0)
         const totalExpenses = projectExpenses.reduce((s, r) => s + (r.amount || 0), 0)
         const profit = totalSales - totalExpenses
         const margin = totalSales > 0 ? profit / totalSales : 0
-        return {
-          project_name: name,
-          total_sales: totalSales,
-          total_expenses: totalExpenses,
-          profit,
-          margin,
-          sales_count: projectSales.length,
-          expense_count: projectExpenses.length,
-        }
+        return { project_name: name, total_sales: totalSales, total_expenses: totalExpenses, profit, margin, sales_count: projectSales.length, expense_count: projectExpenses.length } as ProjectSummary
       })
+    },
+    enabled: !permLoading && isAdmin,
+  })
 
-      setProjects(summaries)
-    } catch (err) {
-      console.error('載入專案資料失敗:', err)
-      toast.error('載入專案資料失敗')
-    } finally {
-      setLoading(false)
-    }
-  }, [year])
-
-  useEffect(() => {
-    if (!permLoading && isAdmin) fetchData()
-  }, [permLoading, isAdmin, fetchData])
-
-  useEffect(() => {
+  const filtered = useMemo(() => {
     const q = search.toLowerCase()
-    const result = projects
+    return projects
       .filter(p => p.project_name.toLowerCase().includes(q))
       .sort((a, b) => b[sortBy] - a[sortBy])
-    setFiltered(result)
   }, [search, sortBy, projects])
 
   const fmt = (n: number) => new Intl.NumberFormat('zh-TW').format(Math.round(n))

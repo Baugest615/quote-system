@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useMemo } from 'react'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { usePermission } from '@/lib/permissions'
 import supabase from '@/lib/supabase/client'
 import { toast } from 'sonner'
@@ -10,6 +11,8 @@ const PAGE_SIZE = 20
 
 interface UseAccountingTableOptions<T> {
   tableName: string
+  /** React Query 快取鍵產生函式（接收 year 回傳完整 key） */
+  queryKey: (year: number) => readonly unknown[]
   /** 預設排序欄位 */
   orderBy?: string
   /** 搜尋用欄位（record 中的 key） */
@@ -18,6 +21,7 @@ interface UseAccountingTableOptions<T> {
 
 export function useAccountingTable<T extends { id: string }>({
   tableName,
+  queryKey: queryKeyFn,
   orderBy = 'created_at',
   searchFields = [],
 }: UseAccountingTableOptions<T>) {
@@ -25,107 +29,121 @@ export function useAccountingTable<T extends { id: string }>({
   const isAdmin = userRole === 'Admin'
 
   const [year, setYear] = useState(CURRENT_YEAR)
-  const [records, setRecords] = useState<T[]>([])
-  const [filtered, setFiltered] = useState<T[]>([])
-  const [loading, setLoading] = useState(true)
-  const [search, setSearch] = useState('')
-  const [isModalOpen, setIsModalOpen] = useState(false)
-  const [editing, setEditing] = useState<T | null>(null)
-  const [saving, setSaving] = useState(false)
+  const queryClient = useQueryClient()
 
-  // 分頁
-  const [currentPage, setCurrentPage] = useState(1)
-  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
-  const paginatedRecords = filtered.slice(
-    (currentPage - 1) * PAGE_SIZE,
-    currentPage * PAGE_SIZE
-  )
+  const currentQueryKey = queryKeyFn(year)
 
-  // 資料載入
-  const fetchRecords = useCallback(async () => {
-    setLoading(true)
-    try {
+  // React Query 資料查詢
+  const {
+    data: records = [],
+    isLoading: queryLoading,
+    refetch: fetchRecords,
+  } = useQuery({
+    queryKey: currentQueryKey,
+    queryFn: async () => {
       const { data, error } = await supabase
         .from(tableName)
         .select('*')
         .eq('year', year)
         .order(orderBy, { ascending: false })
       if (error) throw error
-      setRecords((data as T[]) || [])
-      setFiltered((data as T[]) || [])
-      setCurrentPage(1)
-    } catch (err) {
-      console.error(`載入 ${tableName} 資料失敗:`, err)
-      toast.error('載入資料失敗')
-    } finally {
-      setLoading(false)
-    }
-  }, [tableName, year, orderBy])
+      return (data as T[]) || []
+    },
+    enabled: !permLoading && isAdmin,
+  })
 
-  useEffect(() => {
-    if (!permLoading && isAdmin) fetchRecords()
-  }, [permLoading, isAdmin, fetchRecords])
+  const loading = permLoading || queryLoading
 
-  // 搜尋過濾
-  useEffect(() => {
-    if (!search.trim()) {
-      setFiltered(records)
-      setCurrentPage(1)
-      return
-    }
+  // 搜尋 + 分頁（純 client-side 邏輯）
+  const [search, setSearch] = useState('')
+  const [currentPage, setCurrentPage] = useState(1)
+  const [isModalOpen, setIsModalOpen] = useState(false)
+  const [editing, setEditing] = useState<T | null>(null)
+
+  const filtered = useMemo(() => {
+    if (!search.trim()) return records
     const q = search.toLowerCase()
-    setFiltered(records.filter(r =>
+    return records.filter(r =>
       searchFields.some(field => {
         const val = r[field]
         return typeof val === 'string' && val.toLowerCase().includes(q)
       })
-    ))
-    setCurrentPage(1)
+    )
   }, [search, records, searchFields])
 
-  // 儲存
-  const handleSave = async (form: Partial<T>, onSuccess?: () => void) => {
-    setSaving(true)
-    try {
+  // 搜尋或年份改變時重置到第一頁
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [search, year])
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
+  const paginatedRecords = filtered.slice(
+    (currentPage - 1) * PAGE_SIZE,
+    currentPage * PAGE_SIZE
+  )
+
+  // 新增 / 更新 mutation
+  const saveMutation = useMutation({
+    mutationFn: async ({ form, id }: { form: Partial<T>; id?: string }) => {
       const { data: { user } } = await supabase.auth.getUser()
       const payload = { ...form, created_by: user?.id }
-      if (editing) {
-        const { error } = await supabase.from(tableName).update(payload).eq('id', editing.id)
+      if (id) {
+        const { error } = await supabase.from(tableName).update(payload).eq('id', id)
         if (error) throw error
-        toast.success('已更新記錄')
       } else {
         const { error } = await supabase.from(tableName).insert(payload)
         if (error) throw error
-        toast.success('已新增記錄')
       }
-      setIsModalOpen(false)
-      setEditing(null)
-      fetchRecords()
-      onSuccess?.()
-    } catch (err) {
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: currentQueryKey })
+      toast.success(variables.id ? '已更新記錄' : '已新增記錄')
+    },
+    onError: (err) => {
       console.error(`儲存 ${tableName} 失敗:`, err)
       toast.error('儲存失敗，請重試')
-    } finally {
-      setSaving(false)
+    },
+  })
+
+  // 刪除 mutation
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from(tableName).delete().eq('id', id)
+      if (error) throw error
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: currentQueryKey })
+      toast.success('已刪除')
+    },
+    onError: (err) => {
+      console.error(`刪除 ${tableName} 失敗:`, err)
+      toast.error('刪除失敗')
+    },
+  })
+
+  // 保持與舊版相同的 API 介面
+  const handleSave = async (form: Partial<T>, onSuccess?: () => void) => {
+    try {
+      await saveMutation.mutateAsync({ form, id: editing?.id })
+      setIsModalOpen(false)
+      setEditing(null)
+      onSuccess?.()
+    } catch {
+      // 錯誤已由 mutation onError 處理
     }
   }
 
-  // 刪除
   const handleDelete = async (id: string) => {
     if (!confirm('確定要刪除這筆記錄嗎？')) return
     try {
-      const { error } = await supabase.from(tableName).delete().eq('id', id)
-      if (error) throw error
-      toast.success('已刪除')
-      fetchRecords()
-    } catch (err) {
-      console.error(`刪除 ${tableName} 失敗:`, err)
-      toast.error('刪除失敗')
+      await deleteMutation.mutateAsync(id)
+    } catch {
+      // 錯誤已由 mutation onError 處理
     }
   }
 
   // Modal 操作
-  const openCreate = (emptyForm: Partial<T>) => {
+  const openCreate = () => {
     setEditing(null)
     setIsModalOpen(true)
   }
@@ -149,7 +167,7 @@ export function useAccountingTable<T extends { id: string }>({
     search, setSearch,
     isModalOpen, setIsModalOpen,
     editing, setEditing,
-    saving,
+    saving: saveMutation.isPending,
     // 分頁
     currentPage, setCurrentPage,
     totalPages,

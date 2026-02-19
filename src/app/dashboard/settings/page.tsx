@@ -1,70 +1,80 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
-import supabase from '@/lib/supabase/client'
-import { Database } from '@/types/database.types'
 import SettingsCard from '@/components/settings/SettingsCard'
 import { usePermission } from '@/lib/permissions' // 步驟 1: 引入權限 Hook
 import Link from 'next/link' // 步驟 2: 引入 Link 元件
 import { Button } from '@/components/ui/button' // 步驟 2: 引入 Button 元件
 import { Shield } from 'lucide-react' // 步驟 2: 引入圖示
 import { Skeleton, SkeletonCard } from '@/components/ui/Skeleton'
-
-type ServiceType = Database['public']['Tables']['service_types']['Row']
-type QuoteCategory = Database['public']['Tables']['quote_categories']['Row']
-type KolType = Database['public']['Tables']['kol_types']['Row']
+import {
+  useServiceTypes,
+  useQuoteCategories,
+  useKolTypes,
+  useCreateReferenceItem,
+  useUpdateReferenceItem,
+  useDeleteReferenceItem,
+} from '@/hooks/useReferenceData'
 
 export default function SettingsPage() {
-  const [serviceTypes, setServiceTypes] = useState<ServiceType[]>([])
-  const [quoteCategories, setQuoteCategories] = useState<QuoteCategory[]>([])
-  const [kolTypes, setKolTypes] = useState<KolType[]>([])
-  const [loading, setLoading] = useState(true)
   const { hasRole } = usePermission() // 步驟 3: 取得權限檢查函數
 
-  const fetchData = useCallback(async () => {
-    setLoading(true)
-    const [serviceTypesRes, quoteCategoriesRes, kolTypesRes] = await Promise.all([
-      supabase.from('service_types').select('*').order('name'),
-      supabase.from('quote_categories').select('*').order('name'),
-      supabase.from('kol_types').select('*').order('name'),
-    ])
+  // React Query: 取得參考資料
+  const { data: serviceTypes = [], isLoading: isLoadingServiceTypes } = useServiceTypes()
+  const { data: quoteCategories = [], isLoading: isLoadingQuoteCategories } = useQuoteCategories()
+  const { data: kolTypes = [], isLoading: isLoadingKolTypes } = useKolTypes()
 
-    if (serviceTypesRes.error) console.error('Error fetching service types:', serviceTypesRes.error)
-    else setServiceTypes(serviceTypesRes.data)
+  const loading = isLoadingServiceTypes || isLoadingQuoteCategories || isLoadingKolTypes
 
-    if (quoteCategoriesRes.error) console.error('Error fetching quote categories:', quoteCategoriesRes.error)
-    else setQuoteCategories(quoteCategoriesRes.data)
+  // CRUD mutations
+  const createServiceType = useCreateReferenceItem('service_types')
+  const updateServiceType = useUpdateReferenceItem('service_types')
+  const deleteServiceType = useDeleteReferenceItem('service_types')
 
-    if (kolTypesRes.error) console.error('Error fetching KOL types:', kolTypesRes.error)
-    else setKolTypes(kolTypesRes.data)
-    
-    setLoading(false)
-  }, [])
+  const createQuoteCategory = useCreateReferenceItem('quote_categories')
+  const updateQuoteCategory = useUpdateReferenceItem('quote_categories')
+  const deleteQuoteCategory = useDeleteReferenceItem('quote_categories')
 
-  useEffect(() => {
-    fetchData()
-  }, [fetchData])
+  const createKolType = useCreateReferenceItem('kol_types')
+  const updateKolType = useUpdateReferenceItem('kol_types')
+  const deleteKolType = useDeleteReferenceItem('kol_types')
 
-  const handleAddItem = (tableName: string) => async (name: string) => {
-    const { error } = await supabase.from(tableName).insert([{ name }])
-    if (error) alert(`新增失敗: ${error.message}`)
-    else await fetchData()
+  // Wrapper functions matching SettingsCard callback signatures
+  const handleAddServiceType = async (name: string) => {
+    await createServiceType.mutateAsync({ name })
   }
-
-  const handleUpdateItem = (tableName: string) => async (id: string, name: string) => {
-    const { error } = await supabase.from(tableName).update({ name }).eq('id', id)
-    if (error) alert(`更新失敗: ${error.message}`)
-    else await fetchData()
+  const handleUpdateServiceType = async (id: string, name: string) => {
+    await updateServiceType.mutateAsync({ id, name })
   }
-
-  const handleDeleteItem = (tableName: string) => async (id: string) => {
+  const handleDeleteServiceType = async (id: string) => {
     if (window.confirm('確定要刪除這個項目嗎？')) {
-      const { error } = await supabase.from(tableName).delete().eq('id', id)
-      if (error) alert(`刪除失敗: ${error.message}`)
-      else await fetchData()
+      await deleteServiceType.mutateAsync(id)
     }
   }
-  
+
+  const handleAddQuoteCategory = async (name: string) => {
+    await createQuoteCategory.mutateAsync({ name })
+  }
+  const handleUpdateQuoteCategory = async (id: string, name: string) => {
+    await updateQuoteCategory.mutateAsync({ id, name })
+  }
+  const handleDeleteQuoteCategory = async (id: string) => {
+    if (window.confirm('確定要刪除這個項目嗎？')) {
+      await deleteQuoteCategory.mutateAsync(id)
+    }
+  }
+
+  const handleAddKolType = async (name: string) => {
+    await createKolType.mutateAsync({ name })
+  }
+  const handleUpdateKolType = async (id: string, name: string) => {
+    await updateKolType.mutateAsync({ id, name })
+  }
+  const handleDeleteKolType = async (id: string) => {
+    if (window.confirm('確定要刪除這個項目嗎？')) {
+      await deleteKolType.mutateAsync(id)
+    }
+  }
+
   if (loading) return (
     <div className="space-y-6">
       <Skeleton className="h-8 w-32" />
@@ -111,23 +121,23 @@ export default function SettingsPage() {
         <SettingsCard
           title="KOL 服務類型"
           items={serviceTypes}
-          onAddItem={handleAddItem('service_types')}
-          onUpdateItem={handleUpdateItem('service_types')}
-          onDeleteItem={handleDeleteItem('service_types')}
+          onAddItem={handleAddServiceType}
+          onUpdateItem={handleUpdateServiceType}
+          onDeleteItem={handleDeleteServiceType}
         />
         <SettingsCard
           title="報價單項目類別"
           items={quoteCategories}
-          onAddItem={handleAddItem('quote_categories')}
-          onUpdateItem={handleUpdateItem('quote_categories')}
-          onDeleteItem={handleDeleteItem('quote_categories')}
+          onAddItem={handleAddQuoteCategory}
+          onUpdateItem={handleUpdateQuoteCategory}
+          onDeleteItem={handleDeleteQuoteCategory}
         />
         <SettingsCard
           title="KOL 類型"
           items={kolTypes}
-          onAddItem={handleAddItem('kol_types')}
-          onUpdateItem={handleUpdateItem('kol_types')}
-          onDeleteItem={handleDeleteItem('kol_types')}
+          onAddItem={handleAddKolType}
+          onUpdateItem={handleUpdateKolType}
+          onDeleteItem={handleDeleteKolType}
         />
        </div>
     </div>

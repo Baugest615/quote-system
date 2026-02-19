@@ -1,8 +1,10 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useState, useMemo } from 'react'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { usePermission } from '@/lib/permissions'
 import supabase from '@/lib/supabase/client'
+import { queryKeys } from '@/lib/queryKeys'
 import { toast } from 'sonner'
 import { Plus, Search, Users, Pencil, Trash2, ChevronLeft, UserCheck, UserX } from 'lucide-react'
 import AccountingLoadingGuard from '@/components/accounting/AccountingLoadingGuard'
@@ -51,47 +53,39 @@ const emptyForm = (): Partial<Employee> => ({
 export default function EmployeesPage() {
   const { userRole, loading: permLoading, hasRole } = usePermission()
   const isAdmin = userRole === 'Admin'
-  const [employees, setEmployees] = useState<Employee[]>([])
-  const [filtered, setFiltered] = useState<Employee[]>([])
-  const [loading, setLoading] = useState(true)
+  const queryClient = useQueryClient()
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<EmployeeStatus | 'all'>('在職')
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editing, setEditing] = useState<Employee | null>(null)
   const [form, setForm] = useState<Partial<Employee>>(emptyForm())
-  const [saving, setSaving] = useState(false)
   const [currentPage, setCurrentPage] = useState(1)
-  const [insuranceRates, setInsuranceRates] = useState<InsuranceRateTable[]>([])
 
-  const fetchEmployees = useCallback(async () => {
-    setLoading(true)
-    try {
+  const { data: employees = [], isLoading: loading } = useQuery({
+    queryKey: [...queryKeys.employees],
+    queryFn: async () => {
       const { data, error } = await supabase
         .from('employees')
         .select('*')
         .order('hire_date', { ascending: false })
       if (error) throw error
-      setEmployees(data || [])
-    } catch (err) {
-      console.error('載入員工資料失敗:', err)
-      toast.error('載入員工資料失敗')
-    } finally {
-      setLoading(false)
-    }
-  }, [])
+      return data || []
+    },
+    enabled: !permLoading && isAdmin,
+  })
 
-  const fetchInsuranceRates = useCallback(async () => {
-    try {
+  const { data: insuranceRates = [] } = useQuery({
+    queryKey: [...queryKeys.insuranceRates],
+    queryFn: async () => {
       const { data, error } = await supabase
         .from('insurance_rate_tables')
         .select('*')
         .order('grade', { ascending: true })
       if (error) throw error
-      setInsuranceRates(data || [])
-    } catch (err) {
-      console.error('載入費率表失敗:', err)
-    }
-  }, [])
+      return data || []
+    },
+    enabled: !permLoading && isAdmin,
+  })
 
   // 根據本薪自動推薦投保級距
   const suggestInsuranceGrade = (salary: number): number | null => {
@@ -107,14 +101,7 @@ export default function EmployeesPage() {
     return insuranceRates[insuranceRates.length - 1]?.grade || null
   }
 
-  useEffect(() => {
-    if (!permLoading && isAdmin) {
-      fetchEmployees()
-      fetchInsuranceRates()
-    }
-  }, [permLoading, isAdmin, fetchEmployees, fetchInsuranceRates])
-
-  useEffect(() => {
+  const filtered = useMemo(() => {
     const q = search.toLowerCase()
     let result = employees.filter(e =>
       e.name.toLowerCase().includes(q) ||
@@ -125,19 +112,15 @@ export default function EmployeesPage() {
     if (statusFilter !== 'all') {
       result = result.filter(e => e.status === statusFilter)
     }
-    setFiltered(result)
-    setCurrentPage(1)
+    return result
   }, [search, statusFilter, employees])
 
   const updateForm = (updates: Partial<Employee>) => {
     setForm(f => ({ ...f, ...updates }))
   }
 
-  const handleSave = async () => {
-    if (!form.name?.trim()) return toast.error('請填寫員工姓名')
-    if (!form.hire_date) return toast.error('請填寫到職日')
-    setSaving(true)
-    try {
+  const saveMutation = useMutation({
+    mutationFn: async () => {
       const { data: { user } } = await supabase.auth.getUser()
 
       // 清理空字串，轉換為 null（避免資料庫驗證錯誤）
@@ -161,28 +144,23 @@ export default function EmployeesPage() {
 
       if (editing) {
         const { error } = await supabase.from('employees').update(payload).eq('id', editing.id)
-        if (error) {
-          console.error('更新失敗詳細錯誤:', error)
-          throw error
-        }
-        toast.success('已更新員工資料')
+        if (error) throw error
+        return 'update'
       } else {
         const { error } = await supabase.from('employees').insert(payload)
-        if (error) {
-          console.error('新增失敗詳細錯誤:', error)
-          throw error
-        }
-        toast.success('已新增員工')
+        if (error) throw error
+        return 'insert'
       }
+    },
+    onSuccess: (action) => {
+      toast.success(action === 'update' ? '已更新員工資料' : '已新增員工')
       setIsModalOpen(false)
-      fetchEmployees()
-    } catch (err: any) {
-      console.error('員工儲存失敗完整錯誤:', err)
-      // 顯示更詳細的錯誤訊息
+      queryClient.invalidateQueries({ queryKey: [...queryKeys.employees] })
+    },
+    onError: (err: any) => {
+      console.error('員工儲存失敗:', err)
       const errorMessage = err.message || err.error_description || '儲存失敗，請重試'
       toast.error(`儲存失敗：${errorMessage}`)
-
-      // 如果是唯一性約束錯誤，給出更友善的提示
       if (err.message?.includes('duplicate') || err.code === '23505') {
         if (err.message.includes('employee_number')) {
           toast.error('員工編號已存在，請使用其他編號')
@@ -190,17 +168,32 @@ export default function EmployeesPage() {
           toast.error('身分證字號已存在')
         }
       }
-    } finally {
-      setSaving(false)
-    }
+    },
+  })
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from('employees').delete().eq('id', id)
+      if (error) throw error
+    },
+    onSuccess: () => {
+      toast.success('已刪除')
+      queryClient.invalidateQueries({ queryKey: [...queryKeys.employees] })
+    },
+    onError: () => toast.error('刪除失敗'),
+  })
+
+  const saving = saveMutation.isPending
+
+  const handleSave = () => {
+    if (!form.name?.trim()) return toast.error('請填寫員工姓名')
+    if (!form.hire_date) return toast.error('請填寫到職日')
+    saveMutation.mutate()
   }
 
-  const handleDelete = async (id: string) => {
+  const handleDelete = (id: string) => {
     if (!confirm('確定要刪除這位員工嗎？此操作無法復原。')) return
-    const { error } = await supabase.from('employees').delete().eq('id', id)
-    if (error) { toast.error('刪除失敗'); return }
-    toast.success('已刪除')
-    fetchEmployees()
+    deleteMutation.mutate(id)
   }
 
   const fmt = (n: number) => new Intl.NumberFormat('zh-TW').format(n)

@@ -4,17 +4,16 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import supabase from '@/lib/supabase/client';
 import { Database } from '@/types/database.types';
 import { Button } from '@/components/ui/button';
 import { Edit, Trash2, Printer, ArrowLeft, Stamp, UserCheck } from 'lucide-react';
 import { Modal } from '@/components/ui/modal';
-import { pdfGenerator } from '@/lib/pdf/enhanced-pdf-generator';
 import { SealStampConfig, SealStampManager } from '@/components/pdf/SealStampManager';
 import { ElectronicSealManager } from '@/components/pdf/ElectronicSealManager';
 import { QuotePrintableTable } from '@/components/pdf/QuotePrintableTable';
 import { usePermission } from '@/lib/permissions';
 import { Skeleton, SkeletonCard } from '@/components/ui/Skeleton';
+import { useQuotation, useDeleteQuotation } from '@/hooks/useQuotations';
 
 type Quotation = Database['public']['Tables']['quotations']['Row'];
 type QuotationItem = Database['public']['Tables']['quotation_items']['Row'];
@@ -64,8 +63,8 @@ export default function ViewQuotePage() {
   const router = useRouter();
   const id = params.id as string;
   const { hasRole } = usePermission();
-  const [quote, setQuote] = useState<FullQuotation | null>(null);
-  const [loading, setLoading] = useState(true);
+  const { data: quote, isLoading: loading } = useQuotation(id);
+  const deleteQuotation = useDeleteQuotation();
   const [isProcessing, setIsProcessing] = useState(false);
   const [showStampSettings, setShowStampSettings] = useState(false);
   const [sealStampConfig, setSealStampConfig] = useState<SealStampConfig>(defaultSealStampConfig);
@@ -129,26 +128,7 @@ export default function ViewQuotePage() {
     });
   };
 
-  const fetchQuote = useCallback(async () => {
-    if (!id) return;
-    setLoading(true);
-    const { data, error } = await supabase
-      .from('quotations')
-      .select('*, clients(*), quotation_items(*, kols(name))')
-      .eq('id', id)
-      .single();
-
-    if (error) {
-      console.error(error);
-      alert('讀取報價單資料失敗');
-    } else {
-      setQuote(data as FullQuotation);
-    }
-    setLoading(false);
-  }, [id]);
-
   useEffect(() => {
-    fetchQuote();
     const savedSealConfig = localStorage.getItem(`sealStampConfig_${id}`);
     if (savedSealConfig) {
       try {
@@ -161,7 +141,7 @@ export default function ViewQuotePage() {
         setElectronicSealConfig(JSON.parse(savedElectronicConfig));
       } catch (e) { console.warn("Failed to load electronic seal config.") }
     }
-  }, [fetchQuote, id]);
+  }, [id]);
 
   const handleSealStampConfigChange = useCallback((config: SealStampConfig) => {
     setSealStampConfig(config);
@@ -176,12 +156,14 @@ export default function ViewQuotePage() {
   const handleDelete = async () => {
     if (window.confirm('確定要刪除這份報價單嗎？')) {
       setIsProcessing(true);
-      await supabase.from('quotation_items').delete().eq('quotation_id', id);
-      await supabase.from('quotations').delete().eq('id', id);
-      alert('報價單已刪除');
-      router.push('/dashboard/quotes');
-      router.refresh();
-      setIsProcessing(false);
+      deleteQuotation.mutate(id, {
+        onSuccess: () => {
+          router.push('/dashboard/quotes');
+        },
+        onSettled: () => {
+          setIsProcessing(false);
+        },
+      });
     }
   };
 

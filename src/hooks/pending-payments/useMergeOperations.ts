@@ -1,7 +1,9 @@
 // Custom hook for merge operations
 
 import { useState, useCallback } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import supabase from '@/lib/supabase/client'
+import { queryKeys } from '@/lib/queryKeys'
 import { toast } from 'sonner'
 import type { PendingPaymentItem } from '@/lib/payments/types'
 
@@ -11,6 +13,7 @@ export function useMergeOperations(
     items: PendingPaymentItem[],
     setItems: React.Dispatch<React.SetStateAction<PendingPaymentItem[]>>
 ) {
+    const queryClient = useQueryClient()
     const [selectedForMerge, setSelectedForMerge] = useState<string[]>([])
     const [selectedMergeType, setSelectedMergeType] = useState<'account' | null>(null)
 
@@ -141,6 +144,8 @@ export function useMergeOperations(
             }))
 
             toast.success(`已解除合併`)
+            // 跨頁快取失效：解除合併影響待請款資料
+            queryClient.invalidateQueries({ queryKey: [...queryKeys.pendingPayments] })
         } catch (error: unknown) {
             toast.error("解除合併失敗: " + (error instanceof Error ? error.message : String(error)))
         }

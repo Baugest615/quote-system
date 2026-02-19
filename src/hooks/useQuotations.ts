@@ -1,19 +1,21 @@
 'use client'
 
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query'
 import supabase from '@/lib/supabase/client'
 import { Database } from '@/types/database.types'
 import { toast } from 'sonner'
+import { queryKeys } from '@/lib/queryKeys'
 
 type Quotation = Database['public']['Tables']['quotations']['Row']
 type QuotationItem = Database['public']['Tables']['quotation_items']['Row']
 type Client = Database['public']['Tables']['clients']['Row']
+type Kol = Database['public']['Tables']['kols']['Row']
 
-const QUERY_KEY = ['quotations']
+const QUERY_KEY = queryKeys.quotations
 
 // 報價單含項目 + 客戶 join
 export type QuotationWithDetails = Quotation & {
-  quotation_items: QuotationItem[]
+  quotation_items: (QuotationItem & { kols: Pick<Kol, 'name'> | null })[]
   clients: Client | null
 }
 
@@ -40,7 +42,7 @@ export function useQuotation(id: string | null) {
       if (!id) return null
       const { data, error } = await supabase
         .from('quotations')
-        .select('*, quotation_items(*), clients(*)')
+        .select('*, quotation_items(*, kols(name)), clients(*)')
         .eq('id', id)
         .single()
       if (error) throw error
@@ -69,6 +71,7 @@ export function useUpdateQuotationStatus() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: QUERY_KEY })
+      queryClient.invalidateQueries({ queryKey: queryKeys.dashboardStats })
     },
     onError: (error: Error) => {
       toast.error('更新狀態失敗: ' + error.message)
@@ -86,10 +89,30 @@ export function useDeleteQuotation() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: QUERY_KEY })
+      queryClient.invalidateQueries({ queryKey: queryKeys.dashboardStats })
       toast.success('報價單已刪除')
     },
     onError: (error: Error) => {
       toast.error('刪除報價單失敗: ' + error.message)
     },
+  })
+}
+
+// 報價單列表（含分頁）— 用於列表頁面
+export function useQuotationsList(page: number, pageSize = 50) {
+  return useQuery({
+    queryKey: queryKeys.quotationsList(page, pageSize),
+    queryFn: async () => {
+      const from = (page - 1) * pageSize
+      const to = from + pageSize - 1
+      const { data, count, error } = await supabase
+        .from('quotations')
+        .select('*, clients(*)', { count: 'exact' })
+        .order('created_at', { ascending: false })
+        .range(from, to)
+      if (error) throw error
+      return { data: data as (Quotation & { clients: Client | null })[], totalCount: count ?? 0 }
+    },
+    placeholderData: keepPreviousData,
   })
 }

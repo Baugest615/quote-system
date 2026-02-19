@@ -1,42 +1,14 @@
 'use client'
 
-import { useState, useEffect } from 'react'
 import { useParams } from 'next/navigation'
-import supabase from '@/lib/supabase/client'
 import QuoteForm from '@/components/quotes/QuoteForm'
-import { Database } from '@/types/database.types'
 import { SkeletonCard } from '@/components/ui/Skeleton'
-
-type Quotation = Database['public']['Tables']['quotations']['Row']
-type QuotationItem = Database['public']['Tables']['quotation_items']['Row']
-type QuotationWithItems = Quotation & { quotation_items: QuotationItem[] }
+import { useQuotation } from '@/hooks/useQuotations'
 
 export default function EditQuotePage() {
   const params = useParams()
   const id = params.id as string
-  const [quote, setQuote] = useState<QuotationWithItems | null>(null)
-  const [loading, setLoading] = useState(true)
-
-  useEffect(() => {
-    if (id) {
-      const fetchQuote = async () => {
-        const { data, error } = await supabase
-          .from('quotations')
-          .select('*, quotation_items(*)')
-          .eq('id', id)
-          .single()
-
-        if (error) {
-          console.error(error)
-          setLoading(false)
-        } else {
-          setQuote(data as QuotationWithItems)
-          setLoading(false)
-        }
-      }
-      fetchQuote()
-    }
-  }, [id])
+  const { data: quote, isLoading: loading } = useQuotation(id)
 
   if (loading) {
     return (

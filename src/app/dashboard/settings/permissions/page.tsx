@@ -1,17 +1,18 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useMemo } from 'react'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import supabase from '@/lib/supabase/client'
 import { usePermission } from '@/lib/permissions'
-import { UserRole } from '@/types/custom.types'  // 🔄 修改：從 custom.types 引入
+import { UserRole } from '@/types/custom.types'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { toast } from 'sonner'
-import { 
-  Shield, 
-  UserPlus, 
-  Edit, 
-  Trash2, 
+import { queryKeys } from '@/lib/queryKeys'
+import {
+  Shield,
+  Edit,
+  Trash2,
   Search,
   Crown,
   Settings,
@@ -27,97 +28,85 @@ interface UserProfile {
 }
 
 export default function PermissionManagementPage() {
-  const { userRole, hasRole } = usePermission()
-  const [users, setUsers] = useState<UserProfile[]>([])
-  const [loading, setLoading] = useState(true)
+  const { hasRole } = usePermission()
+  const queryClient = useQueryClient()
   const [searchTerm, setSearchTerm] = useState('')
   const [isEditModalOpen, setIsEditModalOpen] = useState(false)
   const [editingUser, setEditingUser] = useState<UserProfile | null>(null)
   const [selectedRole, setSelectedRole] = useState<UserRole>('Member')
 
-  // 載入用戶列表
-  const loadUsers = async () => {
-    try {
-      setLoading(true)
+  // 權限檢查
+  const canManageUsers = hasRole('Admin')
+
+  // React Query: 載入用戶列表
+  const { data: users = [], isLoading: loading } = useQuery({
+    queryKey: [...queryKeys.profiles],
+    queryFn: async () => {
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
         .order('created_at', { ascending: false })
-
       if (error) throw error
-      setUsers(data || [])
-    } catch (error) {
-      console.error('Error loading users:', error)
-      toast.error('載入用戶列表失敗')
-    } finally {
-      setLoading(false)
-    }
-  }
+      return data as UserProfile[]
+    },
+    enabled: canManageUsers,
+  })
 
   // 更新用戶角色
-  const updateUserRole = async () => {
-    if (!editingUser) return
-    
-    try {
+  const updateMutation = useMutation({
+    mutationFn: async ({ id, role }: { id: string; role: UserRole }) => {
       const { error } = await supabase
         .from('profiles')
-        .update({ 
-          role: selectedRole,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', editingUser.id)
-
+        .update({ role, updated_at: new Date().toISOString() })
+        .eq('id', id)
       if (error) throw error
-
-      // 更新本地狀態
-      setUsers(prev => prev.map(user => 
-        user.id === editingUser.id 
-          ? { ...user, role: selectedRole }
-          : user
-      ))
-
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [...queryKeys.profiles] })
       toast.success('用戶角色更新成功')
       setIsEditModalOpen(false)
       setEditingUser(null)
-    } catch (error) {
-      console.error('Error updating user role:', error)
+    },
+    onError: () => {
       toast.error('更新用戶角色失敗')
-    }
-  }
+    },
+  })
 
   // 刪除用戶
-  const deleteUser = async (userId: string) => {
-    if (!confirm('確定要刪除這個用戶嗎？')) return
-    
-    try {
+  const deleteMutation = useMutation({
+    mutationFn: async (userId: string) => {
       const { error } = await supabase
         .from('profiles')
         .delete()
         .eq('id', userId)
-
       if (error) throw error
-
-      setUsers(prev => prev.filter(user => user.id !== userId))
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [...queryKeys.profiles] })
       toast.success('用戶刪除成功')
-    } catch (error) {
-      console.error('Error deleting user:', error)
+    },
+    onError: () => {
       toast.error('刪除用戶失敗')
-    }
-  }
+    },
+  })
 
   // 篩選用戶
-  const filteredUsers = users.filter(user =>
-    user.email.toLowerCase().includes(searchTerm.toLowerCase())
+  const filteredUsers = useMemo(() =>
+    users.filter(user =>
+      user.email.toLowerCase().includes(searchTerm.toLowerCase())
+    ),
+    [users, searchTerm]
   )
 
-  // 權限檢查
-  const canManageUsers = hasRole('Admin')
-  
-  useEffect(() => {
-    if (canManageUsers) {
-      loadUsers()
-    }
-  }, [canManageUsers])
+  const handleUpdateRole = () => {
+    if (!editingUser) return
+    updateMutation.mutate({ id: editingUser.id, role: selectedRole })
+  }
+
+  const handleDeleteUser = (userId: string) => {
+    if (!confirm('確定要刪除這個用戶嗎？')) return
+    deleteMutation.mutate(userId)
+  }
 
   // 角色圖標和顏色
   const getRoleIcon = (role: UserRole) => {
@@ -175,7 +164,7 @@ export default function PermissionManagementPage() {
         <div className="px-6 py-4 border-b border-border">
           <h2 className="text-lg font-medium">用戶列表</h2>
         </div>
-        
+
         {loading ? (
           <div className="flex justify-center items-center h-32">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-info"></div>
@@ -191,7 +180,7 @@ export default function PermissionManagementPage() {
                     <p className="text-sm text-muted-foreground">{getRoleDisplayName(user.role)}</p>
                   </div>
                 </div>
-                
+
                 <div className="flex items-center space-x-2">
                   <Button
                     variant="outline"
@@ -205,12 +194,12 @@ export default function PermissionManagementPage() {
                     <Edit className="h-4 w-4 mr-1" />
                     編輯
                   </Button>
-                  
+
                   {user.role !== 'Admin' && (
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => deleteUser(user.id)}
+                      onClick={() => handleDeleteUser(user.id)}
                       className="text-destructive hover:text-destructive/80"
                     >
                       <Trash2 className="h-4 w-4 mr-1" />
@@ -229,12 +218,12 @@ export default function PermissionManagementPage() {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-card rounded-lg p-6 w-full max-w-md">
             <h3 className="text-lg font-medium mb-4">編輯用戶角色</h3>
-            
+
             <div className="mb-4">
               <label className="block text-sm font-medium text-foreground/70 mb-2">
                 用戶: {editingUser.email}
               </label>
-              
+
               <select
                 value={selectedRole}
                 onChange={(e) => setSelectedRole(e.target.value as UserRole)}
@@ -245,7 +234,7 @@ export default function PermissionManagementPage() {
                 <option value="Admin">管理員</option>
               </select>
             </div>
-            
+
             <div className="flex justify-end space-x-3">
               <Button
                 variant="outline"
@@ -256,7 +245,7 @@ export default function PermissionManagementPage() {
               >
                 取消
               </Button>
-              <Button onClick={updateUserRole}>
+              <Button onClick={handleUpdateRole}>
                 確認
               </Button>
             </div>

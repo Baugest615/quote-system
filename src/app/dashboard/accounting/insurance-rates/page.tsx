@@ -1,8 +1,10 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useState, useMemo } from 'react'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { usePermission } from '@/lib/permissions'
 import supabase from '@/lib/supabase/client'
+import { queryKeys } from '@/lib/queryKeys'
 import { toast } from 'sonner'
 import { Plus, Search, TrendingUp, Pencil, Trash2, ChevronLeft, Info } from 'lucide-react'
 import AccountingLoadingGuard from '@/components/accounting/AccountingLoadingGuard'
@@ -37,81 +39,84 @@ const emptyForm = (): Partial<InsuranceRateTable> => ({
 export default function InsuranceRatesPage() {
   const { userRole, loading: permLoading, hasRole } = usePermission()
   const isAdmin = userRole === 'Admin'
-  const [rates, setRates] = useState<InsuranceRateTable[]>([])
-  const [filtered, setFiltered] = useState<InsuranceRateTable[]>([])
-  const [loading, setLoading] = useState(true)
+  const queryClient = useQueryClient()
   const [search, setSearch] = useState('')
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editing, setEditing] = useState<InsuranceRateTable | null>(null)
   const [form, setForm] = useState<Partial<InsuranceRateTable>>(emptyForm())
-  const [saving, setSaving] = useState(false)
   const [currentPage, setCurrentPage] = useState(1)
 
-  const fetchRates = useCallback(async () => {
-    setLoading(true)
-    try {
+  const { data: rates = [], isLoading: loading } = useQuery({
+    queryKey: [...queryKeys.insuranceRates],
+    queryFn: async () => {
       const { data, error } = await supabase
         .from('insurance_rate_tables')
         .select('*')
         .order('grade', { ascending: true })
       if (error) throw error
-      setRates(data || [])
-      setFiltered(data || [])
-    } catch (err) {
-      console.error('載入費率資料失敗:', err)
-      toast.error('載入費率資料失敗')
-    } finally {
-      setLoading(false)
-    }
-  }, [])
+      return data || []
+    },
+    enabled: !permLoading && isAdmin,
+  })
 
-  useEffect(() => {
-    if (!permLoading && isAdmin) fetchRates()
-  }, [permLoading, isAdmin, fetchRates])
-
-  useEffect(() => {
+  const filtered = useMemo(() => {
     const q = search.toLowerCase()
-    setFiltered(rates.filter(r =>
+    return rates.filter(r =>
       r.grade.toString().includes(q) ||
       r.monthly_salary.toString().includes(q) ||
       (r.note || '').toLowerCase().includes(q)
-    ))
-    setCurrentPage(1)
+    )
   }, [search, rates])
 
   const updateForm = (updates: Partial<InsuranceRateTable>) => {
     setForm(f => ({ ...f, ...updates }))
   }
 
-  const handleSave = async () => {
-    if (!form.grade || !form.monthly_salary) return toast.error('請填寫級距與投保薪資')
-    setSaving(true)
-    try {
+  const saveMutation = useMutation({
+    mutationFn: async () => {
       if (editing) {
         const { error } = await supabase.from('insurance_rate_tables').update(form).eq('id', editing.id)
         if (error) throw error
-        toast.success('已更新費率')
+        return 'update'
       } else {
         const { error } = await supabase.from('insurance_rate_tables').insert(form)
         if (error) throw error
-        toast.success('已新增費率')
+        return 'insert'
       }
+    },
+    onSuccess: (action) => {
+      toast.success(action === 'update' ? '已更新費率' : '已新增費率')
       setIsModalOpen(false)
-      fetchRates()
-    } catch (err: any) {
+      queryClient.invalidateQueries({ queryKey: [...queryKeys.insuranceRates] })
+    },
+    onError: (err: any) => {
       console.error('費率儲存失敗:', err)
       toast.error(err.message || '儲存失敗，請重試')
-    } finally {
-      setSaving(false)
-    }
+    },
+  })
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from('insurance_rate_tables').delete().eq('id', id)
+      if (error) throw error
+    },
+    onSuccess: () => {
+      toast.success('已刪除')
+      queryClient.invalidateQueries({ queryKey: [...queryKeys.insuranceRates] })
+    },
+    onError: () => toast.error('刪除失敗'),
+  })
+
+  const saving = saveMutation.isPending
+
+  const handleSave = () => {
+    if (!form.grade || !form.monthly_salary) return toast.error('請填寫級距與投保薪資')
+    saveMutation.mutate()
   }
 
-  const handleDelete = async (id: string) => {
+  const handleDelete = (id: string) => {
     if (!confirm('確定要刪除這個費率嗎？此操作無法復原。')) return
-    const { error } = await supabase.from('insurance_rate_tables').delete().eq('id', id)
-    if (error) { toast.error('刪除失敗'); return }
-    toast.success('已刪除')
-    fetchRates()
+    deleteMutation.mutate(id)
   }
 
   const fmt = (n: number) => new Intl.NumberFormat('zh-TW').format(n)

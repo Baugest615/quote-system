@@ -4,6 +4,8 @@
 import { useForm, useFieldArray, Controller, SubmitHandler } from 'react-hook-form'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState, useMemo, useCallback, useRef } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
+import { queryKeys } from '@/lib/queryKeys'
 import supabase from '@/lib/supabase/client'
 import { Database } from '@/types/database.types'
 import { Button } from '@/components/ui/button'
@@ -120,6 +122,7 @@ const staticTerms = { standard: `合約約定：\n1、專案執行日期屆滿�
 // --- 主要表單元件 ---
 export default function QuoteForm({ initialData }: QuoteFormProps) {
   const router = useRouter()
+  const queryClient = useQueryClient()
   const [clients, setClients] = useState<ClientWithContacts[]>([])
   const [kols, setKols] = useState<KolWithServices[]>([])
   const [quoteCategories, setQuoteCategories] = useState<QuoteCategory[]>([])
@@ -560,8 +563,10 @@ export default function QuoteForm({ initialData }: QuoteFormProps) {
         }
       }
 
+      // 跨頁快取失效：報價單變更影響列表頁和儀表板
+      queryClient.invalidateQueries({ queryKey: [...queryKeys.quotations] })
+      queryClient.invalidateQueries({ queryKey: [...queryKeys.dashboardStats] })
       router.push('/dashboard/quotes')
-      router.refresh()
     } catch (error: unknown) {
       console.error('Save failed:', error)
       toast.error('儲存失敗: ' + (error instanceof Error ? error.message : String(error)))

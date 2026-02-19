@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useCallback, useMemo } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Search, FileText, DollarSign, Calendar, RefreshCw, X } from 'lucide-react'
@@ -9,6 +10,7 @@ import supabase from '@/lib/supabase/client'
 
 // Hooks
 import { usePaymentData } from '@/hooks/payments/usePaymentData'
+import { queryKeys } from '@/lib/queryKeys'
 
 // Types
 import { PaymentConfirmation } from '@/lib/payments/types'
@@ -19,6 +21,7 @@ import { ConfirmationRow } from '@/components/payments/confirmed/ConfirmationRow
 import { PaymentStats } from '@/components/payments/confirmed/PaymentStats'
 
 export default function ConfirmedPaymentsPage() {
+  const queryClient = useQueryClient()
   // 1. 資料管理 Hook
   const fetchConfirmedPayments = useCallback(async () => {
     const { data, error } = await supabase
@@ -66,7 +69,8 @@ export default function ConfirmedPaymentsPage() {
   }, [])
 
   const paymentDataOptions = useMemo(() => ({
-    autoRefresh: false
+    autoRefresh: false,
+    queryKey: [...queryKeys.confirmedPayments],
   }), [])
 
   const {
@@ -188,6 +192,8 @@ export default function ConfirmedPaymentsPage() {
 
       toast.success('清單已退回，相關項目已回到「請款申請」頁面。')
       refresh()
+      // 跨頁快取失效：退回後影響「請款申請」
+      queryClient.invalidateQueries({ queryKey: [...queryKeys.paymentRequests] })
 
     } catch (error: unknown) {
       console.error('退回請款清單失敗:', error)

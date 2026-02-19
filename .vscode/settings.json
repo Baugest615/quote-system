@@ -29,5 +29,6 @@
   },
   "editor.codeActionsOnSave": {
     "source.fixAll.eslint": "explicit"
-  }
+  },
+  "claudeCodeUsage.language": "zh-TW"
 }

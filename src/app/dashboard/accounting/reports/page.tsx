@@ -1,8 +1,10 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useMemo } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { usePermission } from '@/lib/permissions'
 import supabase from '@/lib/supabase/client'
+import { queryKeys } from '@/lib/queryKeys'
 import { toast } from 'sonner'
 import { FileText, ChevronLeft } from 'lucide-react'
 import AccountingLoadingGuard from '@/components/accounting/AccountingLoadingGuard'
@@ -29,13 +31,9 @@ interface ExpenseBreakdown {
 export default function AccountingReportsPage() {
   const { userRole, loading: permLoading, hasRole } = usePermission()
   const isAdmin = userRole === 'Admin'
-  const [summaries, setSummaries] = useState<YearSummary[]>([])
-  const [breakdown, setBreakdown] = useState<ExpenseBreakdown[]>([])
-  const [loading, setLoading] = useState(true)
-
-  const fetchData = useCallback(async () => {
-    setLoading(true)
-    try {
+  const { data: rawResults, isLoading: loading } = useQuery({
+    queryKey: [...queryKeys.accountingReports],
+    queryFn: async () => {
       const results = await Promise.all(
         YEARS.map(async year => {
           const [salesRes, expensesRes, payrollRes] = await Promise.all([
@@ -46,40 +44,32 @@ export default function AccountingReportsPage() {
           const sales = salesRes.data || []
           const expenses = expensesRes.data || []
           const payroll = payrollRes.data || []
-
           const totalSales = sales.reduce((s, r) => s + (r.sales_amount || 0), 0)
           const totalExpenses = expenses.reduce((s, r) => s + (r.amount || 0), 0)
           const totalPayroll = payroll.reduce((s, r) => s + (r.net_salary || 0) + (r.company_total || 0), 0)
           const totalProfit = totalSales - totalExpenses - totalPayroll
           const avgMargin = totalSales > 0 ? totalProfit / totalSales : 0
-
-          // 各類支出分解
           const typeMap: Record<string, number> = {}
-          expenses.forEach(e => {
-            typeMap[e.expense_type] = (typeMap[e.expense_type] || 0) + (e.amount || 0)
-          })
-          const expBreakdown: ExpenseBreakdown[] = Object.entries(typeMap).map(([type, amount]) => ({ year, type, amount }))
-
+          expenses.forEach(e => { typeMap[e.expense_type] = (typeMap[e.expense_type] || 0) + (e.amount || 0) })
           return {
-            summary: { year, totalSales, totalExpenses, totalPayroll, totalProfit, avgMargin },
-            breakdown: expBreakdown,
+            summary: { year, totalSales, totalExpenses, totalPayroll, totalProfit, avgMargin } as YearSummary,
+            breakdown: Object.entries(typeMap).map(([type, amount]) => ({ year, type, amount } as ExpenseBreakdown)),
           }
         })
       )
+      return results
+    },
+    enabled: !permLoading && isAdmin,
+  })
 
-      setSummaries(results.map(r => r.summary).filter(s => s.totalSales > 0 || s.totalExpenses > 0 || s.totalPayroll > 0))
-      setBreakdown(results.flatMap(r => r.breakdown))
-    } catch (err) {
-      console.error('載入報表資料失敗:', err)
-      toast.error('載入報表資料失敗')
-    } finally {
-      setLoading(false)
-    }
-  }, [])
-
-  useEffect(() => {
-    if (!permLoading && isAdmin) fetchData()
-  }, [permLoading, isAdmin, fetchData])
+  const summaries = useMemo(() =>
+    (rawResults || []).map(r => r.summary).filter(s => s.totalSales > 0 || s.totalExpenses > 0 || s.totalPayroll > 0),
+    [rawResults]
+  )
+  const breakdown = useMemo(() =>
+    (rawResults || []).flatMap(r => r.breakdown),
+    [rawResults]
+  )
 
   const fmt = (n: number) => new Intl.NumberFormat('zh-TW', { maximumFractionDigits: 0 }).format(n)
   const pct = (n: number) => `${(n * 100).toFixed(1)}%`

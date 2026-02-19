@@ -1,8 +1,10 @@
 'use client'
 
-import { useEffect, useState, useCallback, useMemo } from 'react'
+import { useState, useMemo } from 'react'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { usePermission } from '@/lib/permissions'
 import supabase from '@/lib/supabase/client'
+import { queryKeys } from '@/lib/queryKeys'
 import { toast } from 'sonner'
 import { Plus, Search, Receipt, Pencil, Trash2, ChevronLeft, Table2 } from 'lucide-react'
 import AccountingLoadingGuard from '@/components/accounting/AccountingLoadingGuard'
@@ -36,15 +38,12 @@ const emptyForm = (): Partial<AccountingSale> => ({
 export default function AccountingSalesPage() {
   const { userRole, loading: permLoading, hasRole } = usePermission()
   const isAdmin = userRole === 'Admin'
+  const queryClient = useQueryClient()
   const [year, setYear] = useState(CURRENT_YEAR)
-  const [records, setRecords] = useState<AccountingSale[]>([])
-  const [filtered, setFiltered] = useState<AccountingSale[]>([])
-  const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editing, setEditing] = useState<AccountingSale | null>(null)
   const [form, setForm] = useState<Partial<AccountingSale>>(emptyForm())
-  const [saving, setSaving] = useState(false)
   const [currentPage, setCurrentPage] = useState(1)
   const [isSpreadsheetMode, setIsSpreadsheetMode] = useState(false)
 
@@ -63,32 +62,29 @@ export default function AccountingSalesPage() {
     { key: 'note', label: '備註', type: 'text', width: 'w-40' },
   ], [year])
 
-  const fetchRecords = useCallback(async () => {
-    setLoading(true)
-    try {
+  const currentQueryKey = queryKeys.accountingSales(year)
+
+  const { data: records = [], isLoading: loading } = useQuery({
+    queryKey: [...currentQueryKey],
+    queryFn: async () => {
       const { data, error } = await supabase
         .from('accounting_sales')
         .select('*')
         .eq('year', year)
         .order('created_at', { ascending: false })
       if (error) throw error
-      setRecords(data || [])
-      setFiltered(data || [])
-    } catch (err) {
-      console.error('載入銷項資料失敗:', err)
-      toast.error('載入銷項資料失敗')
-    } finally {
-      setLoading(false)
-    }
-  }, [year])
+      return (data || []) as AccountingSale[]
+    },
+    enabled: !permLoading && isAdmin,
+  })
 
-  const handleAutoCalcSales = useCallback((row: Partial<AccountingSale>) => {
+  const handleAutoCalcSales = (row: Partial<AccountingSale>) => {
     const tax = Math.round((row.sales_amount || 0) * 0.05 * 100) / 100
     const total = Math.round(((row.sales_amount || 0) + tax) * 100) / 100
     return { tax_amount: tax, total_amount: total } as Partial<AccountingSale>
-  }, [])
+  }
 
-  const handleBatchSave = useCallback(async (
+  const handleBatchSave = async (
     toInsert: Partial<AccountingSale>[],
     toUpdate: { id: string; data: Partial<AccountingSale> }[],
     toDelete: string[]
@@ -116,25 +112,19 @@ export default function AccountingSalesPage() {
       else successCount += toDelete.length
     }
 
-    await fetchRecords()
+    await queryClient.invalidateQueries({ queryKey: [...currentQueryKey] })
     return { successCount, errors }
-  }, [year, fetchRecords])
+  }
 
-  useEffect(() => {
-    if (!permLoading && isAdmin) fetchRecords()
-  }, [permLoading, isAdmin, fetchRecords])
-
-  useEffect(() => {
+  const filtered = useMemo(() => {
     const q = search.toLowerCase()
-    setFiltered(q
+    return q
       ? records.filter(r =>
           r.project_name.toLowerCase().includes(q) ||
           (r.client_name || '').toLowerCase().includes(q) ||
           (r.invoice_number || '').toLowerCase().includes(q)
         )
       : records
-    )
-    setCurrentPage(1)
   }, [search, records])
 
   const openCreate = () => {
@@ -155,38 +145,49 @@ export default function AccountingSalesPage() {
     setForm(f => ({ ...f, sales_amount: value, tax_amount: tax, total_amount: total }))
   }
 
-  const handleSave = async () => {
-    if (!form.project_name?.trim()) return toast.error('請填寫案件名稱')
-    setSaving(true)
-    try {
+  const saveMutation = useMutation({
+    mutationFn: async () => {
       const { data: { user } } = await supabase.auth.getUser()
       const payload = { ...form, created_by: user?.id }
       if (editing) {
         const { error } = await supabase.from('accounting_sales').update(payload).eq('id', editing.id)
         if (error) throw error
-        toast.success('已更新銷項記錄')
       } else {
         const { error } = await supabase.from('accounting_sales').insert(payload)
         if (error) throw error
-        toast.success('已新增銷項記錄')
       }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [...currentQueryKey] })
+      toast.success(editing ? '已更新銷項記錄' : '已新增銷項記錄')
       setIsModalOpen(false)
-      fetchRecords()
-    } catch (err) {
-      console.error('銷項儲存失敗:', err)
-      toast.error('儲存失敗，請重試')
-    } finally {
-      setSaving(false)
-    }
+    },
+    onError: () => toast.error('儲存失敗，請重試'),
+  })
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from('accounting_sales').delete().eq('id', id)
+      if (error) throw error
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [...currentQueryKey] })
+      toast.success('已刪除')
+    },
+    onError: () => toast.error('刪除失敗'),
+  })
+
+  const handleSave = async () => {
+    if (!form.project_name?.trim()) return toast.error('請填寫案件名稱')
+    saveMutation.mutate()
   }
 
   const handleDelete = async (id: string) => {
     if (!confirm('確定要刪除這筆記錄嗎？')) return
-    const { error } = await supabase.from('accounting_sales').delete().eq('id', id)
-    if (error) { toast.error('刪除失敗'); return }
-    toast.success('已刪除')
-    fetchRecords()
+    deleteMutation.mutate(id)
   }
+
+  const saving = saveMutation.isPending
 
   const fmt = (n: number) => new Intl.NumberFormat('zh-TW').format(n)
 

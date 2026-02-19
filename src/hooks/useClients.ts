@@ -4,12 +4,13 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import supabase from '@/lib/supabase/client'
 import { Database } from '@/types/database.types'
 import { toast } from 'sonner'
+import { queryKeys } from '@/lib/queryKeys'
 
 type Client = Database['public']['Tables']['clients']['Row']
 type ClientInsert = Database['public']['Tables']['clients']['Insert']
 type ClientUpdate = Database['public']['Tables']['clients']['Update']
 
-const QUERY_KEY = ['clients']
+const QUERY_KEY = queryKeys.clients
 
 // 取得所有客戶
 export function useClients() {

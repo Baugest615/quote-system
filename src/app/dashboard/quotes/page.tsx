@@ -1,15 +1,17 @@
 'use client'
 
-import { useState, useCallback, useEffect, useMemo } from 'react'
-import { useRouter } from 'next/navigation'
+import { useState, useCallback, useMemo } from 'react'
 import Link from 'next/link'
-import supabase from '@/lib/supabase/client'
+import { useQueryClient } from '@tanstack/react-query'
 import { Database } from '@/types/database.types'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Search, PlusCircle, Filter, ChevronLeft, ChevronRight, Calendar, DollarSign } from 'lucide-react'
 import { QuotesDataGrid } from '@/components/quotes/v2/QuotesDataGrid'
 import { SkeletonTable } from '@/components/ui/Skeleton'
+import { useQuotationsList } from '@/hooks/useQuotations'
+import { useClients } from '@/hooks/useClients'
+import { queryKeys } from '@/lib/queryKeys'
 
 // 類型定義 (與 V1 保持一致)
 type Quotation = Database['public']['Tables']['quotations']['Row']
@@ -31,9 +33,7 @@ interface FilterState {
 }
 
 export default function QuotesV2Page() {
-    const [quotations, setQuotations] = useState<QuotationWithClient[]>([])
-    const [clients, setClients] = useState<Client[]>([])
-    const [loading, setLoading] = useState(true)
+    const queryClient = useQueryClient()
     const [searchTerm, setSearchTerm] = useState('')
     const [showFilters, setShowFilters] = useState(false)
 
@@ -57,48 +57,17 @@ export default function QuotesV2Page() {
         { value: '已歸檔', label: '已歸檔', color: 'bg-info/15 text-info' }
     ]
 
-    // 總筆數 (伺服器端分頁用)
-    const [totalCount, setTotalCount] = useState(0)
+    // React Query 資料獲取
+    const { data: quotationsData, isLoading: loading } = useQuotationsList(currentPage)
+    const { data: clients = [] } = useClients()
+    const quotations = quotationsData?.data ?? []
+    const totalCount = quotationsData?.totalCount ?? 0
 
-    // 資料獲取 (伺服器端分頁)
-    const fetchData = useCallback(async (page?: number) => {
-        setLoading(true)
-        const p = page ?? currentPage
-        const from = (p - 1) * itemsPerPage
-        const to = from + itemsPerPage - 1
-
-        const [quotationsRes, clientsRes] = await Promise.all([
-            supabase
-                .from('quotations')
-                .select('*, clients(*)', { count: 'exact' })
-                .order('created_at', { ascending: false })
-                .range(from, to),
-            supabase
-                .from('clients')
-                .select('*')
-                .order('name')
-        ])
-
-        if (quotationsRes.error) {
-            console.error('Error fetching quotations:', quotationsRes.error)
-        } else {
-            setQuotations(quotationsRes.data as QuotationWithClient[])
-            setTotalCount(quotationsRes.count ?? 0)
-        }
-
-        if (clientsRes.error) {
-            console.error('Error fetching clients:', clientsRes.error)
-        } else {
-            setClients(clientsRes.data || [])
-        }
-
-        setLoading(false)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [currentPage])
-
-    useEffect(() => {
-        fetchData()
-    }, [fetchData])
+    // 重新整理回呼（含跨頁快取失效）
+    const handleRefresh = useCallback(() => {
+        queryClient.invalidateQueries({ queryKey: [...queryKeys.quotations] })
+        queryClient.invalidateQueries({ queryKey: [...queryKeys.dashboardStats] })
+    }, [queryClient])
 
     // 檢查是否有啟用的篩選
     const hasActiveFilters = useMemo(() => {
@@ -350,7 +319,7 @@ export default function QuotesV2Page() {
                     <QuotesDataGrid
                         data={filteredQuotations}
                         clients={clients}
-                        onRefresh={fetchData}
+                        onRefresh={handleRefresh}
                     />
                 )}
             </div>

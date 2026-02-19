@@ -1,9 +1,11 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useState, useMemo } from 'react'
 import Link from 'next/link'
+import { useQuery } from '@tanstack/react-query'
 import { usePermission } from '@/lib/permissions'
 import supabase from '@/lib/supabase/client'
+import { queryKeys } from '@/lib/queryKeys'
 import {
   BookOpen, TrendingUp, TrendingDown, DollarSign,
   FileText, Receipt, Users, Calculator, BarChart3, ArrowRight
@@ -34,59 +36,47 @@ export default function AccountingPage() {
   const { userRole, loading: permLoading, hasRole } = usePermission()
   const isAdmin = userRole === 'Admin'
   const [year, setYear] = useState(CURRENT_YEAR)
-  const [totals, setTotals] = useState<AnnualTotals>({
-    totalSales: 0, totalExpenses: 0, totalPayroll: 0, totalProfit: 0,
-    salesCount: 0, expensesCount: 0, payrollCount: 0
-  })
-  const [monthlySummary, setMonthlySummary] = useState<MonthlySummary[]>([])
-  const [loading, setLoading] = useState(true)
 
-  const fetchData = useCallback(async () => {
-    setLoading(true)
-    try {
+  const { data: rawData, isLoading: queryLoading } = useQuery({
+    queryKey: [...queryKeys.accountingOverview(year)],
+    queryFn: async () => {
       const [salesRes, expensesRes, payrollRes] = await Promise.all([
         supabase.from('accounting_sales').select('invoice_month, sales_amount, total_amount').eq('year', year),
         supabase.from('accounting_expenses').select('expense_month, amount, total_amount').eq('year', year),
         supabase.from('accounting_payroll').select('salary_month, net_salary, company_total').eq('year', year),
       ])
+      return {
+        sales: salesRes.data || [],
+        expenses: expensesRes.data || [],
+        payroll: payrollRes.data || [],
+      }
+    },
+    enabled: !permLoading && isAdmin,
+  })
 
-      const sales = salesRes.data || []
-      const expenses = expensesRes.data || []
-      const payroll = payrollRes.data || []
+  const totals = useMemo<AnnualTotals>(() => {
+    if (!rawData) return { totalSales: 0, totalExpenses: 0, totalPayroll: 0, totalProfit: 0, salesCount: 0, expensesCount: 0, payrollCount: 0 }
+    const { sales, expenses, payroll } = rawData
+    const totalSales = sales.reduce((s, r) => s + (r.sales_amount || 0), 0)
+    const totalExpenses = expenses.reduce((s, r) => s + (r.amount || 0), 0)
+    const totalPayroll = payroll.reduce((s, r) => s + (r.net_salary || 0) + (r.company_total || 0), 0)
+    return { totalSales, totalExpenses, totalPayroll, totalProfit: totalSales - totalExpenses - totalPayroll, salesCount: sales.length, expensesCount: expenses.length, payrollCount: payroll.length }
+  }, [rawData])
 
-      const totalSales = sales.reduce((s, r) => s + (r.sales_amount || 0), 0)
-      const totalExpenses = expenses.reduce((s, r) => s + (r.amount || 0), 0)
-      const totalPayroll = payroll.reduce((s, r) => s + (r.net_salary || 0) + (r.company_total || 0), 0)
-      const totalProfit = totalSales - totalExpenses - totalPayroll
+  const monthlySummary = useMemo<MonthlySummary[]>(() => {
+    if (!rawData) return []
+    const { sales, expenses, payroll } = rawData
+    const months = ['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月']
+    return months.map((m) => {
+      const label = `${year}年${m}`
+      const s = sales.filter(r => r.invoice_month === label).reduce((a, r) => a + (r.sales_amount || 0), 0)
+      const e = expenses.filter(r => r.expense_month === label).reduce((a, r) => a + (r.amount || 0), 0)
+      const p = payroll.filter(r => r.salary_month === label).reduce((a, r) => a + (r.net_salary || 0) + (r.company_total || 0), 0)
+      return { month: m, sales: s, expenses: e, payroll: p, profit: s - e - p }
+    })
+  }, [rawData, year])
 
-      setTotals({
-        totalSales, totalExpenses, totalPayroll, totalProfit,
-        salesCount: sales.length,
-        expensesCount: expenses.length,
-        payrollCount: payroll.length,
-      })
-
-      // 整合每月摘要
-      const months = ['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月']
-      const summary = months.map((m) => {
-        const label = `${year}年${m}`
-        const s = sales.filter(r => r.invoice_month === label).reduce((a, r) => a + (r.sales_amount || 0), 0)
-        const e = expenses.filter(r => r.expense_month === label).reduce((a, r) => a + (r.amount || 0), 0)
-        const p = payroll.filter(r => r.salary_month === label).reduce((a, r) => a + (r.net_salary || 0) + (r.company_total || 0), 0)
-        return { month: m, sales: s, expenses: e, payroll: p, profit: s - e - p }
-      })
-      setMonthlySummary(summary)
-    } finally {
-      setLoading(false)
-    }
-  }, [year])
-
-  useEffect(() => {
-    if (!permLoading && isAdmin) {
-      fetchData()
-    }
-  }, [permLoading, isAdmin, fetchData])
-
+  const loading = queryLoading
   const isLoading = permLoading || loading
 
   const fmt = (n: number) => new Intl.NumberFormat('zh-TW', { style: 'currency', currency: 'TWD', maximumFractionDigits: 0 }).format(n)

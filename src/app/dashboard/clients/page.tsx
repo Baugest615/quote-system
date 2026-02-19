@@ -1,7 +1,7 @@
-// src/app/dashboard/clients/page.tsx - 針對JSONB contacts的優化版本
+// src/app/dashboard/clients/page.tsx - React Query 快取版本
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useMemo } from 'react'
 import supabase from '@/lib/supabase/client'
 import { Database } from '@/types/database.types'
 import { Button } from '@/components/ui/button'
@@ -11,6 +11,9 @@ import { PlusCircle, Edit, Trash2, Search, Users, Mail, Phone, Star } from 'luci
 import { toast } from 'sonner'
 import { SkeletonPageHeader, SkeletonStatCards, SkeletonTable } from '@/components/ui/Skeleton'
 import { EmptyState } from '@/components/ui/EmptyState'
+import { useClients } from '@/hooks/useClients'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { queryKeys } from '@/lib/queryKeys'
 
 type Client = Database['public']['Tables']['clients']['Row']
 
@@ -29,94 +32,64 @@ type ClientWithContacts = Client & {
 }
 
 export default function ClientsPage() {
-  const [clients, setClients] = useState<ClientWithContacts[]>([])
-  const [filteredClients, setFilteredClients] = useState<ClientWithContacts[]>([])
-  const [loading, setLoading] = useState(true)
+  const queryClient = useQueryClient()
+  const { data: rawClients = [], isLoading: loading } = useClients()
   const [searchTerm, setSearchTerm] = useState('')
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [selectedClient, setSelectedClient] = useState<Client | null>(null)
 
-  const fetchClients = useCallback(async () => {
-    setLoading(true)
-    try {
-      const { data, error } = await supabase
-        .from('clients')
-        .select('*')
-        .order('created_at', { ascending: false })
+  // 解析 JSONB contacts 並排序（client-side 轉換，有快取時不會重複計算）
+  const clients = useMemo(() => {
+    return rawClients.map(client => {
+      let parsedContacts: Contact[] = []
 
-      if (error) throw error
-
-      // 解析JSONB contacts並排序
-      const clientsWithContacts = (data || []).map(client => {
-        let parsedContacts: Contact[] = []
-
-        try {
-          if (client.contacts) {
-            if (typeof client.contacts === 'string') {
-              parsedContacts = JSON.parse(client.contacts)
-            } else if (Array.isArray(client.contacts)) {
-              parsedContacts = client.contacts as Contact[]
-            }
+      try {
+        if (client.contacts) {
+          if (typeof client.contacts === 'string') {
+            parsedContacts = JSON.parse(client.contacts)
+          } else if (Array.isArray(client.contacts)) {
+            parsedContacts = client.contacts as Contact[]
           }
-        } catch (error) {
-          console.error(`解析客戶 ${client.name} 的聯絡人資料失敗:`, error)
-          parsedContacts = []
         }
+      } catch (err) {
+        console.error(`解析客戶 ${client.name} 的聯絡人資料失敗:`, err)
+        parsedContacts = []
+      }
 
-        // 如果沒有聯絡人但有舊的單一聯絡人資料，建立相容性聯絡人
-        if (parsedContacts.length === 0 && client.contact_person) {
-          parsedContacts = [{
-            name: client.contact_person,
-            email: client.email || undefined,
-            phone: client.phone || undefined,
-            position: undefined,
-            is_primary: true,
-          }]
-        }
+      // 如果沒有聯絡人但有舊的單一聯絡人資料，建立相容性聯絡人
+      if (parsedContacts.length === 0 && client.contact_person) {
+        parsedContacts = [{
+          name: client.contact_person,
+          email: client.email || undefined,
+          phone: client.phone || undefined,
+          position: undefined,
+          is_primary: true,
+        }]
+      }
 
-        // 排序：主要聯絡人在前
-        parsedContacts.sort((a, b) => {
-          if (a.is_primary && !b.is_primary) return -1
-          if (!a.is_primary && b.is_primary) return 1
-          return (a.name || '').localeCompare(b.name || '')
-        })
-
-        return {
-          ...client,
-          parsedContacts
-        }
+      // 排序：主要聯絡人在前
+      parsedContacts.sort((a, b) => {
+        if (a.is_primary && !b.is_primary) return -1
+        if (!a.is_primary && b.is_primary) return 1
+        return (a.name || '').localeCompare(b.name || '')
       })
 
-      setClients(clientsWithContacts)
-      setFilteredClients(clientsWithContacts)
-    } catch (error) {
-      console.error('載入客戶資料失敗:', error)
-      toast.error('載入客戶資料失敗')
-    } finally {
-      setLoading(false)
-    }
-  }, [])
+      return { ...client, parsedContacts }
+    })
+  }, [rawClients])
 
-  useEffect(() => {
-    fetchClients()
-  }, [fetchClients])
-
-  // 搜尋功能 - 包含聯絡人搜尋
-  useEffect(() => {
-    const filtered = clients.filter((client) => {
-      const searchLower = searchTerm.toLowerCase()
-
-      // 搜尋公司名稱
+  // 搜尋過濾
+  const filteredClients = useMemo(() => {
+    if (!searchTerm.trim()) return clients
+    const searchLower = searchTerm.toLowerCase()
+    return clients.filter((client) => {
       if (client.name.toLowerCase().includes(searchLower)) return true
-
-      // 搜尋所有聯絡人的姓名和電子郵件
       return client.parsedContacts.some(contact =>
         (contact.name && contact.name.toLowerCase().includes(searchLower)) ||
         (contact.email && contact.email.toLowerCase().includes(searchLower)) ||
         (contact.position && contact.position.toLowerCase().includes(searchLower))
       )
     })
-    setFilteredClients(filtered)
   }, [clients, searchTerm])
 
   const handleOpenModal = (client?: Client) => {
@@ -129,9 +102,9 @@ export default function ClientsPage() {
     setSelectedClient(null)
   }
 
-  const handleSaveClient = async (formData: ClientFormData, id?: string) => {
-    try {
-      // 為了向後相容性，從聯絡人陣列取得主要聯絡人資訊
+  // 儲存 mutation
+  const saveMutation = useMutation({
+    mutationFn: async ({ formData, id }: { formData: ClientFormData; id?: string }) => {
       const primaryContact = formData.contacts?.find(c => c.is_primary) || formData.contacts?.[0]
       const dataToSave = {
         name: formData.name,
@@ -146,41 +119,45 @@ export default function ClientsPage() {
       }
 
       if (id) {
-        const { error } = await supabase
-          .from('clients')
-          .update(dataToSave)
-          .eq('id', id)
-
+        const { error } = await supabase.from('clients').update(dataToSave).eq('id', id)
         if (error) throw error
-        toast.success('客戶資料更新成功！')
       } else {
-        const { error } = await supabase
-          .from('clients')
-          .insert(dataToSave)
-
+        const { error } = await supabase.from('clients').insert(dataToSave)
         if (error) throw error
-        toast.success('客戶新增成功！')
       }
+      return id
+    },
+    onSuccess: (id) => {
+      queryClient.invalidateQueries({ queryKey: [...queryKeys.clients] })
+      toast.success(id ? '客戶資料更新成功！' : '客戶新增成功！')
+    },
+    onError: (error: Error) => {
+      toast.error(`儲存失敗: ${error.message}`)
+    },
+  })
 
-      await fetchClients()
-    } catch (error: unknown) {
-      console.error('儲存客戶失敗:', error)
-      toast.error(`儲存失敗: ${error instanceof Error ? error.message : String(error)}`)
-    }
+  const handleSaveClient = async (formData: ClientFormData, id?: string) => {
+    await saveMutation.mutateAsync({ formData, id })
   }
+
+  // 刪除 mutation
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from('clients').delete().eq('id', id)
+      if (error) throw error
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [...queryKeys.clients] })
+      toast.success('客戶已刪除')
+    },
+    onError: (error: Error) => {
+      toast.error(`刪除失敗: ${error.message}`)
+    },
+  })
 
   const handleDeleteClient = async (id: string) => {
     if (window.confirm('確定要刪除這位客戶嗎？此操作無法復原，同時會刪除所有相關聯絡人資料。')) {
-      try {
-        const { error } = await supabase.from('clients').delete().eq('id', id)
-        if (error) throw error
-
-        toast.success('客戶已刪除')
-        await fetchClients()
-      } catch (error: unknown) {
-        console.error('刪除客戶失敗:', error)
-        toast.error(`刪除失敗: ${error instanceof Error ? error.message : String(error)}`)
-      }
+      await deleteMutation.mutateAsync(id)
     }
   }
 

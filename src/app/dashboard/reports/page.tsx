@@ -1,26 +1,15 @@
 /* src/app/dashboard/reports/page.tsx*/
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useState, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
-import supabase from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
-import { Database } from '@/types/database.types'
 import { formatCurrency, formatDate, exportToCSV } from '@/lib/utils'
-import { toast } from 'sonner' // 【修正】加入了 toast 的 import
+import { toast } from 'sonner'
 import { SkeletonPageHeader, SkeletonStatCards, SkeletonTable } from '@/components/ui/Skeleton'
+import { useReportData, type QuotationWithDetails } from '@/hooks/useReportData'
 
-// 定義從資料庫來的型別
-type Quotation = Database['public']['Tables']['quotations']['Row']
-type Client = Database['public']['Tables']['clients']['Row']
-type KOL = Pick<Database['public']['Tables']['kols']['Row'], 'id' | 'name'>
-type QuotationItem = Database['public']['Tables']['quotation_items']['Row']
-
-// 組合型別，讓報價單包含客戶和項目詳情
-type QuotationWithDetails = Quotation & {
-  clients?: Client | null // 客戶可能是 null
-  quotation_items: QuotationItem[]
-}
+type KOL = { id: string; name: string }
 
 // 定義報表資料的結構
 interface ReportData {
@@ -35,178 +24,135 @@ interface ReportData {
   serviceTypeBreakdown: Array<{ service: string; revenue: number; count: number }>
 }
 
+function generateReportData(quotations: QuotationWithDetails[], kols: KOL[]): ReportData {
+  const totalQuotations = quotations.length
+  const totalRevenue = quotations.reduce((sum, q) => {
+    const amount = q.has_discount ? (q.discounted_price || 0) : (q.grand_total_taxed || 0)
+    return sum + amount
+  }, 0)
+  const avgQuotationValue = totalQuotations > 0 ? totalRevenue / totalQuotations : 0
+
+  const signedQuotations = quotations.filter(q => q.status === '已簽約').length
+  const conversionRate = totalQuotations > 0 ? (signedQuotations / totalQuotations) * 100 : 0
+
+  const statusBreakdown = quotations.reduce((acc, q) => {
+    if (q.status) {
+      acc[q.status] = (acc[q.status] || 0) + 1
+    }
+    return acc
+  }, {} as Record<string, number>)
+
+  const monthlyData = quotations.reduce((acc, q) => {
+    if (q.created_at) {
+      const month = new Date(q.created_at).toLocaleDateString('zh-TW', { year: 'numeric', month: '2-digit' })
+      const amount = q.has_discount ? (q.discounted_price || 0) : (q.grand_total_taxed || 0)
+
+      if (!acc[month]) {
+        acc[month] = { revenue: 0, count: 0 }
+      }
+      acc[month].revenue += amount
+      acc[month].count += 1
+    }
+    return acc
+  }, {} as Record<string, { revenue: number; count: number }>)
+
+  const monthlyRevenue = Object.entries(monthlyData)
+    .map(([month, data]) => ({ month, ...data }))
+    .sort((a, b) => a.month.localeCompare(b.month))
+
+  const clientData = quotations.reduce((acc, q) => {
+    if (!q.clients || !q.clients.name) return acc
+
+    const clientName = q.clients.name
+    const amount = q.has_discount ? (q.discounted_price || 0) : (q.grand_total_taxed || 0)
+
+    if (!acc[clientName]) {
+      acc[clientName] = { revenue: 0, quotations: 0 }
+    }
+    acc[clientName].revenue += amount
+    acc[clientName].quotations += 1
+    return acc
+  }, {} as Record<string, { revenue: number; quotations: number }>)
+
+  const topClients = Object.entries(clientData)
+    .map(([client, data]) => ({ client, ...data }))
+    .sort((a, b) => b.revenue - a.revenue)
+    .slice(0, 10)
+
+  const kolData = quotations.reduce((acc, q) => {
+    q.quotation_items.forEach(item => {
+      if (!item.kol_id) return
+
+      const kol = kols.find(k => k.id === item.kol_id)
+      if (!kol || !kol.name) return
+
+      const kolName = kol.name
+      const amount = (item.quantity || 0) * (item.price || 0)
+
+      if (!acc[kolName]) {
+        acc[kolName] = { revenue: 0, quotations: 0 }
+      }
+      acc[kolName].revenue += amount
+      acc[kolName].quotations += 1
+    })
+    return acc
+  }, {} as Record<string, { revenue: number; quotations: number }>)
+
+  const topKols = Object.entries(kolData)
+    .map(([kol, data]) => ({ kol, ...data }))
+    .sort((a, b) => b.revenue - a.revenue)
+    .slice(0, 10)
+
+  const serviceData = quotations.reduce((acc, q) => {
+    q.quotation_items.forEach(item => {
+      if (item.service) {
+        const service = item.service
+        const amount = (item.quantity || 0) * (item.price || 0)
+
+        if (!acc[service]) {
+          acc[service] = { revenue: 0, count: 0 }
+        }
+        acc[service].revenue += amount
+        acc[service].count += 1
+      }
+    })
+    return acc
+  }, {} as Record<string, { revenue: number; count: number }>)
+
+  const serviceTypeBreakdown = Object.entries(serviceData)
+    .map(([service, data]) => ({ service, ...data }))
+    .sort((a, b) => b.revenue - a.revenue)
+    .slice(0, 10)
+
+  return {
+    totalQuotations,
+    totalRevenue,
+    avgQuotationValue,
+    conversionRate,
+    statusBreakdown,
+    monthlyRevenue,
+    topClients,
+    topKols,
+    serviceTypeBreakdown
+  }
+}
+
 export default function ReportsPage() {
-  const [quotations, setQuotations] = useState<QuotationWithDetails[]>([])
-  const [kols, setKols] = useState<KOL[]>([])
-  const [reportData, setReportData] = useState<ReportData | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
   const [dateRange, setDateRange] = useState({
-    start: new Date(new Date().getFullYear(), 0, 1).toISOString().split('T')[0], // 年初
-    end: new Date().toISOString().split('T')[0] // 今天
+    start: new Date(new Date().getFullYear(), 0, 1).toISOString().split('T')[0],
+    end: new Date().toISOString().split('T')[0]
   })
   const router = useRouter()
 
-  useEffect(() => {
-    fetchData()
-  }, [dateRange])
+  const { data, isLoading: loading, error: queryError } = useReportData(dateRange)
+  const quotations = data?.quotations ?? []
+  const kols = data?.kols ?? []
+  const error = queryError instanceof Error ? queryError.message : queryError ? String(queryError) : ''
 
-  const fetchData = async () => {
-    try {
-      setLoading(true)
-
-      // 並行載入報價單與 KOL（只取 id + name）
-      const [quotationsRes, kolsRes] = await Promise.all([
-        supabase
-          .from('quotations')
-          .select(`*, clients(id, name), quotation_items(*)`)
-          .gte('created_at', dateRange.start)
-          .lte('created_at', dateRange.end + 'T23:59:59')
-          .order('created_at', { ascending: false }),
-        supabase
-          .from('kols')
-          .select('id, name'),
-      ])
-
-      if (quotationsRes.error) throw quotationsRes.error
-      if (kolsRes.error) throw kolsRes.error
-
-      const quotationsData = quotationsRes.data
-      const kolsData = kolsRes.data
-
-      setQuotations((quotationsData as QuotationWithDetails[]) || [])
-      setKols(kolsData || [])
-
-      if (quotationsData) {
-        generateReportData(quotationsData as QuotationWithDetails[], kolsData || [])
-      }
-
-    } catch (error: unknown) {
-      console.error('Error fetching data:', error)
-      setError(error instanceof Error ? error.message : String(error))
-      toast.error("載入報表資料失敗")
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const generateReportData = (quotations: QuotationWithDetails[], kols: KOL[]) => {
-    const totalQuotations = quotations.length
-    const totalRevenue = quotations.reduce((sum, q) => {
-      // 【修正】處理 null，提供預設值 0
-      const amount = q.has_discount ? (q.discounted_price || 0) : (q.grand_total_taxed || 0)
-      return sum + amount
-    }, 0)
-    const avgQuotationValue = totalQuotations > 0 ? totalRevenue / totalQuotations : 0
-    
-    const signedQuotations = quotations.filter(q => q.status === '已簽約').length
-    const conversionRate = totalQuotations > 0 ? (signedQuotations / totalQuotations) * 100 : 0
-
-    const statusBreakdown = quotations.reduce((acc, q) => {
-      // 【修正】檢查 status 是否為 null
-      if (q.status) {
-        acc[q.status] = (acc[q.status] || 0) + 1
-      }
-      return acc
-    }, {} as Record<string, number>)
-
-    const monthlyData = quotations.reduce((acc, q) => {
-      // 【修正】檢查 created_at 是否為 null
-      if (q.created_at) {
-        const month = new Date(q.created_at).toLocaleDateString('zh-TW', { year: 'numeric', month: '2-digit' })
-        const amount = q.has_discount ? (q.discounted_price || 0) : (q.grand_total_taxed || 0)
-        
-        if (!acc[month]) {
-          acc[month] = { revenue: 0, count: 0 }
-        }
-        acc[month].revenue += amount
-        acc[month].count += 1
-      }
-      return acc
-    }, {} as Record<string, { revenue: number; count: number }>)
-
-    const monthlyRevenue = Object.entries(monthlyData)
-      .map(([month, data]) => ({ month, ...data }))
-      .sort((a, b) => a.month.localeCompare(b.month))
-
-    const clientData = quotations.reduce((acc, q) => {
-      if (!q.clients || !q.clients.name) return acc
-      
-      const clientName = q.clients.name
-      const amount = q.has_discount ? (q.discounted_price || 0) : (q.grand_total_taxed || 0)
-      
-      if (!acc[clientName]) {
-        acc[clientName] = { revenue: 0, quotations: 0 }
-      }
-      acc[clientName].revenue += amount
-      acc[clientName].quotations += 1
-      return acc
-    }, {} as Record<string, { revenue: number; quotations: number }>)
-
-    const topClients = Object.entries(clientData)
-      .map(([client, data]) => ({ client, ...data }))
-      .sort((a, b) => b.revenue - a.revenue)
-      .slice(0, 10)
-
-    const kolData = quotations.reduce((acc, q) => {
-      q.quotation_items.forEach(item => {
-        if (!item.kol_id) return
-        
-        const kol = kols.find(k => k.id === item.kol_id)
-        if (!kol || !kol.name) return
-        
-        const kolName = kol.name
-        // 【修正】處理 null，提供預設值 0
-        const amount = (item.quantity || 0) * (item.price || 0)
-        
-        if (!acc[kolName]) {
-          acc[kolName] = { revenue: 0, quotations: 0 }
-        }
-        acc[kolName].revenue += amount
-        acc[kolName].quotations += 1
-      })
-      return acc
-    }, {} as Record<string, { revenue: number; quotations: number }>)
-
-    const topKols = Object.entries(kolData)
-      .map(([kol, data]) => ({ kol, ...data }))
-      .sort((a, b) => b.revenue - a.revenue)
-      .slice(0, 10)
-
-    const serviceData = quotations.reduce((acc, q) => {
-      q.quotation_items.forEach(item => {
-        // 【修正】檢查 service 是否為 null
-        if (item.service) {
-          const service = item.service
-          const amount = (item.quantity || 0) * (item.price || 0)
-          
-          if (!acc[service]) {
-            acc[service] = { revenue: 0, count: 0 }
-          }
-          acc[service].revenue += amount
-          acc[service].count += 1
-        }
-      })
-      return acc
-    }, {} as Record<string, { revenue: number; count: number }>)
-
-    const serviceTypeBreakdown = Object.entries(serviceData)
-      .map(([service, data]) => ({ service, ...data }))
-      .sort((a, b) => b.revenue - a.revenue)
-      .slice(0, 10)
-
-    setReportData({
-      totalQuotations,
-      totalRevenue,
-      avgQuotationValue,
-      conversionRate,
-      statusBreakdown,
-      monthlyRevenue,
-      topClients,
-      topKols,
-      serviceTypeBreakdown
-    })
-  }
+  const reportData = useMemo(() => {
+    if (!quotations.length) return null
+    return generateReportData(quotations, kols)
+  }, [quotations, kols])
 
   const handleExportCSV = () => {
     if (!quotations.length) {
@@ -226,7 +172,6 @@ export default function ReportsPage() {
       有無優惠: q.has_discount ? '有' : '無',
       優惠價: q.discounted_price || 0,
       付款方式: q.payment_method || '',
-      // 【修正】檢查日期是否為 null
       建立日期: q.created_at ? formatDate(q.created_at) : '',
       更新日期: q.updated_at ? formatDate(q.updated_at) : ''
     }))
@@ -257,18 +202,18 @@ export default function ReportsPage() {
               </p>
             </div>
             <div className="flex space-x-4">
-              <Button 
+              <Button
                 onClick={() => router.push('/dashboard')}
                 variant="outline"
               >
                 返回首頁
               </Button>
-              <Button 
+              <Button
                 onClick={handleExportCSV}
                 className="bg-success hover:bg-success/90"
                 disabled={!quotations.length}
               >
-                � 匯出 CSV
+                匯出 CSV
               </Button>
             </div>
           </div>
