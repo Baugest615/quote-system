@@ -21,7 +21,8 @@ import {
   Receipt,
   Calculator,
   X,
-  Menu
+  Menu,
+  FolderKanban
 } from 'lucide-react'
 import { usePermission } from '@/lib/permissions'
 import supabase from '@/lib/supabase/client'
@@ -30,9 +31,19 @@ import { toast } from 'sonner'
 import { useState, useEffect } from 'react'
 import { cn } from '@/lib/utils'
 
+// 個人功能子選單定義（角色區塊下方）
+const PROFILE_SUB_MENU = [
+  { key: 'my_salary', href: '/dashboard/my-salary', label: '我的薪資', icon: User },
+  { key: 'settings', href: '/dashboard/settings', label: '系統設定', icon: Settings },
+]
+
+// 從主導覽隱藏的頁面 key（已移至子選單）
+const HIDDEN_NAV_KEYS = new Set(PROFILE_SUB_MENU.map(s => s.key).concat('reports'))
+
 // 帳務管理子選單定義
 const ACCOUNTING_SUB_MENU = [
   { href: '/dashboard/accounting', label: '總覽', icon: BookOpen },
+  { href: '/dashboard/reports', label: '報表分析', icon: TrendingUp },
   { href: '/dashboard/accounting/sales', label: '銷項管理', icon: Receipt },
   { href: '/dashboard/accounting/expenses', label: '進項管理', icon: TrendingDown },
   { href: '/dashboard/accounting/payroll', label: '人事薪資', icon: Users },
@@ -57,11 +68,17 @@ export default function Sidebar() {
   const [isMobile, setIsMobile] = useState(false)
   // 帳務管理子選單展開狀態
   const [accountingOpen, setAccountingOpen] = useState(false)
+  // 個人功能子選單展開狀態
+  const [profileOpen, setProfileOpen] = useState(false)
 
-  // 如果目前在帳務頁面，自動展開子選單
+  // 如果目前在帳務頁面（含報表分析），自動展開子選單
   useEffect(() => {
-    if (pathname.startsWith('/dashboard/accounting')) {
+    if (pathname.startsWith('/dashboard/accounting') || pathname.startsWith('/dashboard/reports')) {
       setAccountingOpen(true)
+    }
+    // 如果目前在個人功能頁面，自動展開角色區塊
+    if (PROFILE_SUB_MENU.some(s => pathname === s.href || pathname.startsWith(s.href + '/'))) {
+      setProfileOpen(true)
     }
   }, [pathname])
 
@@ -111,6 +128,7 @@ export default function Sidebar() {
     FileCheck,
     Settings,
     BookOpen,
+    FolderKanban,
   }
 
   // 漢堡選單按鈕（行動裝置用）
@@ -161,7 +179,8 @@ export default function Sidebar() {
   }
 
   const allowedPages = getAllowedPages()
-  const isAccountingActive = pathname.startsWith('/dashboard/accounting')
+  const navPages = allowedPages.filter(p => !HIDDEN_NAV_KEYS.has(p.key))
+  const isAccountingActive = pathname.startsWith('/dashboard/accounting') || pathname.startsWith('/dashboard/reports')
 
   const sidebarContent = (
     <div className={cn(
@@ -192,23 +211,62 @@ export default function Sidebar() {
           </div>
         </div>
 
-        {/* 用戶角色標籤 */}
-        <div className="flex items-center gap-2 bg-muted/50 rounded-lg p-2">
-          <Shield className="w-4 h-4 text-emerald-400 flex-shrink-0" />
-          <span className="text-sm font-medium text-foreground/80">
-            {getRoleDisplayName()}
-          </span>
+        {/* 用戶角色區塊（可展開） */}
+        <div>
+          <button
+            onClick={() => setProfileOpen(!profileOpen)}
+            className="w-full flex items-center gap-2 bg-muted/50 rounded-lg p-2 hover:bg-muted/80 transition-colors"
+          >
+            <Shield className="w-4 h-4 text-emerald-400 flex-shrink-0" />
+            <span className="text-sm font-medium text-foreground/80">
+              {getRoleDisplayName()}
+            </span>
+            <div className={cn(
+              "w-2 h-2 rounded-full flex-shrink-0",
+              userRole === 'Admin' ? 'bg-rose-400' :
+                userRole === 'Editor' ? 'bg-amber-400' : 'bg-emerald-400'
+            )} />
+            <ChevronDown className={cn(
+              "w-3.5 h-3.5 text-muted-foreground ml-auto transition-transform duration-200",
+              profileOpen && "rotate-180"
+            )} />
+          </button>
+
+          {/* 個人功能子選單 */}
           <div className={cn(
-            "w-2 h-2 rounded-full flex-shrink-0 ml-auto",
-            userRole === 'Admin' ? 'bg-rose-400' :
-              userRole === 'Editor' ? 'bg-amber-400' : 'bg-emerald-400'
-          )} />
+            "overflow-hidden transition-all duration-200",
+            profileOpen ? "max-h-60 mt-1" : "max-h-0"
+          )}>
+            <div className="space-y-0.5 pt-1">
+              {PROFILE_SUB_MENU.filter(sub =>
+                allowedPages.some(p => p.key === sub.key)
+              ).map((sub) => {
+                const SubIcon = sub.icon
+                const isSubActive = pathname === sub.href || pathname.startsWith(sub.href + '/')
+                return (
+                  <Link
+                    key={sub.href}
+                    href={sub.href}
+                    className={cn(
+                      "flex items-center gap-2.5 px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors",
+                      isSubActive
+                        ? 'bg-emerald-500/10 text-emerald-400'
+                        : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                    )}
+                  >
+                    <SubIcon className={cn("w-3.5 h-3.5 flex-shrink-0", isSubActive ? 'text-emerald-400' : 'text-muted-foreground')} />
+                    {sub.label}
+                  </Link>
+                )
+              })}
+            </div>
+          </div>
         </div>
       </div>
 
       {/* 導覽選單 */}
       <nav className="flex-1 p-3 space-y-1 overflow-y-auto">
-        {allowedPages.map((page) => {
+        {navPages.map((page) => {
           const Icon = iconMap[page.icon as keyof typeof iconMap] || FileText
           const isActive = pathname === page.route || pathname.startsWith(page.route + '/')
           const isAccounting = page.key === 'accounting'
@@ -231,6 +289,16 @@ export default function Sidebar() {
                   )}
                   <Icon className={cn("w-[18px] h-[18px] flex-shrink-0", isAccountingActive ? 'text-emerald-400' : 'text-muted-foreground group-hover:text-foreground')} />
                   <span className="flex-1 text-left">{page.name}</span>
+                  {userRole === 'Admin' && page.allowedRoles.length < 3 && (
+                    <span className={cn(
+                      "text-[10px] px-1.5 py-0.5 rounded font-medium",
+                      page.allowedRoles.length === 1
+                        ? 'bg-rose-400/15 text-rose-400'
+                        : 'bg-amber-400/15 text-amber-400'
+                    )}>
+                      {page.allowedRoles.length === 1 ? 'A' : 'E+'}
+                    </span>
+                  )}
                   <ChevronDown className={cn(
                     "w-4 h-4 text-muted-foreground transition-transform duration-200",
                     accountingOpen && "rotate-180"
@@ -287,11 +355,16 @@ export default function Sidebar() {
               <Icon className={cn("w-[18px] h-[18px] flex-shrink-0", isActive ? 'text-emerald-400' : 'text-muted-foreground group-hover:text-foreground')} />
               <span>{page.name}</span>
 
-              {/* 權限限制標識 */}
-              {(page.key === 'payment_requests' || page.key === 'confirmed_payments') && (
-                <div className="ml-auto">
-                  <div className="w-1.5 h-1.5 bg-amber-400 rounded-full" title="編輯者以上權限" />
-                </div>
+              {/* 權限標示（僅管理員可見） */}
+              {userRole === 'Admin' && page.allowedRoles.length < 3 && (
+                <span className={cn(
+                  "ml-auto text-[10px] px-1.5 py-0.5 rounded font-medium",
+                  page.allowedRoles.length === 1
+                    ? 'bg-rose-400/15 text-rose-400'
+                    : 'bg-amber-400/15 text-amber-400'
+                )}>
+                  {page.allowedRoles.length === 1 ? 'A' : 'E+'}
+                </span>
               )}
             </Link>
           )

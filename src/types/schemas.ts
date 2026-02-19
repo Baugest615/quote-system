@@ -33,6 +33,16 @@ export function parseKolBankInfo(raw: unknown): KolBankInfo {
   return result.success ? result.data : {}
 }
 
+// 檢查 KOL 匯款資訊是否完整（bankType + 對應戶名 + 銀行 + 帳號）
+export function isKolBankInfoComplete(raw: unknown): boolean {
+  const info = parseKolBankInfo(raw)
+  if (!info.bankType) return false
+  if (!info.bankName || !info.accountNumber) return false
+  if (info.bankType === 'company' && !info.companyAccountName) return false
+  if (info.bankType === 'individual' && !info.personalAccountName) return false
+  return true
+}
+
 // ===== 社群連結 (KOL) =====
 export const socialLinksSchema = z.object({
   instagram: z.string().default(''),

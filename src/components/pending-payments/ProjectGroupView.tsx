@@ -16,6 +16,7 @@ interface ProjectGroupViewProps {
     onSaveCost: (itemId: string, cost: number, remittanceName: string | null) => void
     onInvoiceChange: (itemId: string, value: string) => void
     onFileModalOpen: (item: PendingPaymentItem) => void
+    onOpenBankInfoModal: (item: PendingPaymentItem) => void
     onMergeSelection: (itemId: string, checked: boolean) => void
     onUnmerge: (groupId: string) => void
     onClearRejection: (requestId: string) => void
@@ -38,6 +39,7 @@ export function ProjectGroupView({
     onSaveCost,
     onInvoiceChange,
     onFileModalOpen,
+    onOpenBankInfoModal,
     onMergeSelection,
     onUnmerge,
     onClearRejection,
@@ -55,7 +57,7 @@ export function ProjectGroupView({
         return (
             <div className="text-center py-12">
                 <FileText className="mx-auto h-12 w-12 text-muted-foreground" />
-                <h3 className="mt-2 text-sm font-medium text-foreground">沒有待請款項目</h3>
+                <h3 className="mt-2 text-sm font-medium text-foreground">沒有待請款專案項目</h3>
                 <p className="mt-1 text-sm text-muted-foreground">目前沒有需要處理的項目</p>
             </div>
         )
@@ -87,16 +89,22 @@ export function ProjectGroupView({
                         <div className="flex items-center space-x-4">
                             <div className="text-right">
                                 <div className="text-sm font-medium text-foreground">
-                                    總成本: NT$ {group.totalCost.toLocaleString()}
+                                    NT$ {group.totalCost.toLocaleString()}
                                 </div>
-                                <div className="text-xs text-muted-foreground">
-                                    已備妥: {group.readyItems}/{group.totalItems}
+                                <div className="text-xs">
+                                    {group.totalItems - group.readyItems > 0 ? (
+                                        <span className="text-warning">
+                                            待請款: {group.totalItems - group.readyItems} 筆
+                                        </span>
+                                    ) : (
+                                        <span className="text-success">已就緒</span>
+                                    )}
                                 </div>
                             </div>
                             {/* 進度條 */}
                             <div className="w-24 h-2 bg-muted rounded-full overflow-hidden">
                                 <div
-                                    className={`h-full ${group.hasRejected ? 'bg-destructive' :
+                                    className={`h-full transition-all ${group.hasRejected ? 'bg-destructive' :
                                         group.readyItems === group.totalItems ? 'bg-success' : 'bg-info'
                                         }`}
                                     style={{ width: `${(group.readyItems / group.totalItems) * 100}%` }}
@@ -111,7 +119,7 @@ export function ProjectGroupView({
                             <table className="min-w-full divide-y divide-border">
                                 <thead className="bg-secondary">
                                     <tr>
-                                        <th className="px-2 py-2 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider w-24">KOL</th>
+                                        <th className="px-2 py-2 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider w-24">KOL/服務</th>
                                         <th className="px-2 py-2 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">合作項目</th>
                                         <th className="px-2 py-2 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider w-32">匯款戶名/公司名稱</th>
                                         <th className="px-2 py-2 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider w-32">成本金額</th>
@@ -145,6 +153,7 @@ export function ProjectGroupView({
                                                 onUnmerge={onUnmerge}
                                                 onClearRejection={onClearRejection}
                                                 onOpenFileModal={onFileModalOpen}
+                                                onOpenBankInfoModal={onOpenBankInfoModal}
                                                 onInvoiceNumberChange={onInvoiceChange}
                                                 onPaymentSelection={onSelect}
                                             />

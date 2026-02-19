@@ -49,6 +49,7 @@ export const PAGE_KEYS = {
   PAYMENT_REQUESTS: 'payment_requests',
   CONFIRMED_PAYMENTS: 'confirmed_payments',
   SETTINGS: 'settings',
+  PROJECTS: 'projects',
   ACCOUNTING: 'accounting',
   MY_SALARY: 'my_salary',
 } as const
@@ -81,7 +82,7 @@ export const PAGE_PERMISSIONS: Record<string, PageConfig> = {
   },
   [PAGE_KEYS.QUOTES]: {
     key: PAGE_KEYS.QUOTES,
-    name: '報價單',
+    name: '報價單管理',
     allowedRoles: [USER_ROLES.ADMIN, USER_ROLES.EDITOR, USER_ROLES.MEMBER],
     allowedFunctions: ['create', 'read', 'update', 'delete', 'export_pdf'],
     route: '/dashboard/quotes',
@@ -97,7 +98,7 @@ export const PAGE_PERMISSIONS: Record<string, PageConfig> = {
   },
   [PAGE_KEYS.PENDING_PAYMENTS]: {
     key: PAGE_KEYS.PENDING_PAYMENTS,
-    name: '待請款管理',
+    name: '待請款專案管理',
     allowedRoles: [USER_ROLES.ADMIN, USER_ROLES.EDITOR, USER_ROLES.MEMBER],
     allowedFunctions: ['create', 'read', 'update', 'submit'],
     route: '/dashboard/pending-payments',
@@ -126,6 +127,14 @@ export const PAGE_PERMISSIONS: Record<string, PageConfig> = {
     allowedFunctions: ['view', 'update_profile', 'manage_users'],
     route: '/dashboard/settings',
     icon: 'Settings'
+  },
+  [PAGE_KEYS.PROJECTS]: {
+    key: PAGE_KEYS.PROJECTS,
+    name: '專案進度',
+    allowedRoles: [USER_ROLES.ADMIN, USER_ROLES.EDITOR, USER_ROLES.MEMBER],
+    allowedFunctions: ['create', 'read', 'update', 'delete'],
+    route: '/dashboard/projects',
+    icon: 'FolderKanban'
   },
   [PAGE_KEYS.ACCOUNTING]: {
     key: PAGE_KEYS.ACCOUNTING,
@@ -210,6 +219,38 @@ export interface ApiResponse<T = unknown> {
   data?: T
   error?: string
   message?: string
+}
+
+// ===== 專案進度管理相關類型 =====
+
+export const PROJECT_TYPES = ['專案', '經紀'] as const
+export type ProjectType = typeof PROJECT_TYPES[number]
+
+export const PROJECT_STATUS = ['洽談中', '執行中', '結案中', '關案'] as const
+export type ProjectStatus = typeof PROJECT_STATUS[number]
+
+export interface Project {
+  id: string
+  client_id: string | null
+  client_name: string
+  project_name: string
+  project_type: ProjectType
+  budget_with_tax: number
+  notes: string | null
+  status: ProjectStatus
+  quotation_id: string | null
+  created_by: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface ProjectNote {
+  id: string
+  project_id: string
+  content: string
+  created_by: string | null
+  author_email: string
+  created_at: string
 }
 
 // ===== 帳務管理相關類型 =====

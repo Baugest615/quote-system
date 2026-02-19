@@ -266,7 +266,7 @@ export default function QuotesV2Page() {
 
                         {/* 金額範圍 */}
                         <div>
-                            <label className="block text-sm font-medium text-foreground/70 mb-2">總金額 (含稅)</label>
+                            <label className="block text-sm font-medium text-foreground/70 mb-2">專案預算（含稅）</label>
                             <div className="space-y-2">
                                 <div className="flex items-center">
                                     <DollarSign className="h-4 w-4 text-muted-foreground mr-2" />

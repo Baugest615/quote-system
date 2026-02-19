@@ -1,8 +1,9 @@
-import { Paperclip, Trash2, CheckCircle, Save } from 'lucide-react'
+import { Paperclip, Trash2, CheckCircle, Save, AlertTriangle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { RejectionReasonDisplay } from './RejectionReasonDisplay'
 import type { PendingPaymentItem } from '@/lib/payments/types'
+import { parseKolBankInfo, isKolBankInfoComplete } from '@/types/schemas'
 import { useState } from 'react'
 
 interface ItemRowProps {
@@ -10,7 +11,7 @@ interface ItemRowProps {
     displayItem: PendingPaymentItem
     selectedMergeType: 'account' | null
     selectedForMerge: string[]
-    isMergeMode: boolean // NEW PROP
+    isMergeMode: boolean
     canMergeWith: (item: PendingPaymentItem) => boolean
     canSelectForPayment: (item: PendingPaymentItem) => boolean
     shouldShowControls: (item: PendingPaymentItem) => boolean
@@ -22,6 +23,7 @@ interface ItemRowProps {
     onUnmerge: (groupId: string) => void
     onClearRejection: (paymentRequestId: string) => void
     onOpenFileModal: (item: PendingPaymentItem) => void
+    onOpenBankInfoModal: (item: PendingPaymentItem) => void
     onInvoiceNumberChange: (itemId: string, value: string) => void
     onPaymentSelection: (itemId: string, checked: boolean) => void
 }
@@ -31,7 +33,7 @@ export function ItemRow({
     displayItem,
     selectedMergeType,
     selectedForMerge,
-    isMergeMode, // NEW PROP
+    isMergeMode,
     canMergeWith,
     canSelectForPayment,
     shouldShowControls,
@@ -43,6 +45,7 @@ export function ItemRow({
     onUnmerge,
     onClearRejection,
     onOpenFileModal,
+    onOpenBankInfoModal,
     onInvoiceNumberChange,
     onPaymentSelection
 }: ItemRowProps) {
@@ -54,11 +57,51 @@ export function ItemRow({
         setIsSaving(false)
     }
 
+    // Feature 1: 解析 bankType 用於顯示 Badge
+    const bankInfo = item.kols?.bank_info ? parseKolBankInfo(item.kols.bank_info) : null
+    const bankTypeLabel = bankInfo?.bankType === 'individual' ? '勞報' : bankInfo?.bankType === 'company' ? '發票' : null
+
+    // Feature 3: 檢查匯款資料是否完整
+    const hasBankInfo = item.kols?.bank_info ? isKolBankInfoComplete(item.kols.bank_info) : false
+
+    // Feature 2: 成本是否與原始報價不同
+    const isCostModified = item.original_cost > 0 && item.cost_amount_input !== item.original_cost
+
     return (
         <tr className={`hover:bg-accent ${item.merge_color}`}>
-            {/* KOL */}
+            {/* KOL/服務 */}
             <td className="px-2 py-2 align-top text-xs text-muted-foreground">
-                {item.kols?.name || '自訂項目'}
+                <div className="flex items-center">
+                    <span>{item.kols?.name || '自訂項目'}</span>
+                    {item.kols && !hasBankInfo && (
+                        <button
+                            onClick={() => onOpenBankInfoModal(item)}
+                            className="ml-1 text-warning hover:text-warning/80"
+                            title="銀行帳號資訊不完整，點擊編輯"
+                        >
+                            <AlertTriangle className="h-3 w-3" />
+                        </button>
+                    )}
+                </div>
+                {bankTypeLabel && (
+                    <span className={`inline-block mt-1 px-1.5 py-0.5 rounded text-[10px] font-medium ${
+                        bankInfo?.bankType === 'individual'
+                            ? 'bg-info/15 text-info border border-info/25'
+                            : 'bg-warning/15 text-warning border border-warning/25'
+                    }`}>
+                        {bankTypeLabel}
+                    </span>
+                )}
+                {item.kols && !hasBankInfo && (
+                    <div className="mt-1">
+                        <button
+                            onClick={() => onOpenBankInfoModal(item)}
+                            className="text-[10px] text-warning underline hover:text-warning/80"
+                        >
+                            補填帳號資訊
+                        </button>
+                    </div>
+                )}
             </td>
 
             {/* Service */}
@@ -88,7 +131,9 @@ export function ItemRow({
                         type="number"
                         value={item.cost_amount_input || ''}
                         onChange={(e) => onCostAmountChange(item.id, e.target.value)}
-                        className="w-24 text-right h-7 text-xs"
+                        className={`w-24 text-right h-7 text-xs ${
+                            isCostModified ? 'border-warning/50 bg-warning/5' : ''
+                        }`}
                         placeholder="請輸入成本"
                     />
                     <Button
@@ -102,6 +147,11 @@ export function ItemRow({
                         <Save className="h-3.5 w-3.5" />
                     </Button>
                 </div>
+                {isCostModified && (
+                    <div className="text-[10px] text-muted-foreground mt-0.5">
+                        報價: NT$ {item.original_cost.toLocaleString()}
+                    </div>
+                )}
             </td>
 
             {/* Merge */}

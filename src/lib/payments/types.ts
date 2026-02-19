@@ -59,6 +59,7 @@ export interface PendingPaymentItem extends BasePaymentItem {
     // 輸入欄位
     invoice_number_input: string | null
     cost_amount_input: number
+    original_cost: number // 頁面載入時的原始成本，用於比對
     remittance_name_input: string | null
 
     // 附件

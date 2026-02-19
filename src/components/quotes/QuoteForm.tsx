@@ -2,7 +2,7 @@
 'use client'
 
 import { useForm, useFieldArray, Controller, SubmitHandler } from 'react-hook-form'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { useEffect, useState, useMemo, useCallback, useRef } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { queryKeys } from '@/lib/queryKeys'
@@ -122,6 +122,8 @@ const staticTerms = { standard: `合約約定：\n1、專案執行日期屆滿�
 // --- 主要表單元件 ---
 export default function QuoteForm({ initialData }: QuoteFormProps) {
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const projectId = searchParams.get('projectId')
   const queryClient = useQueryClient()
   const [clients, setClients] = useState<ClientWithContacts[]>([])
   const [kols, setKols] = useState<KolWithServices[]>([])
@@ -242,6 +244,26 @@ export default function QuoteForm({ initialData }: QuoteFormProps) {
 
       setClients(processedClients)
       setQuoteCategories(categoriesRes.data || [])
+
+      // 從專案進度管理頁面帶入的 projectId 預填資料
+      if (projectId && !initialData) {
+        const { data: project } = await supabase
+          .from('projects')
+          .select('*')
+          .eq('id', projectId)
+          .single()
+        if (project) {
+          setValue('project_name', project.project_name || '')
+          if (project.client_id) {
+            setValue('client_id', project.client_id)
+            setValue('is_new_client', false)
+          } else if (project.client_name) {
+            setValue('client_name', project.client_name)
+            setValue('is_new_client', true)
+          }
+        }
+      }
+
       setLoading(false)
 
       // 如果是編輯模式，載入已使用的 KOL 資料
@@ -561,6 +583,15 @@ export default function QuoteForm({ initialData }: QuoteFormProps) {
           await handleQuotationAccountingSync(quoteId, newStatus, oldStatus)
           await handleKolPriceSync(quoteId, newStatus, oldStatus)
         }
+      }
+
+      // 如果是從專案進度建立的報價單，更新專案狀態
+      if (projectId && quoteId && !initialData) {
+        await supabase
+          .from('projects')
+          .update({ quotation_id: quoteId, status: '執行中' })
+          .eq('id', projectId)
+        queryClient.invalidateQueries({ queryKey: [...queryKeys.projects] })
       }
 
       // 跨頁快取失效：報價單變更影響列表頁和儀表板

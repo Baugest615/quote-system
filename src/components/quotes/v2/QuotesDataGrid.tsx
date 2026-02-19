@@ -139,7 +139,7 @@ export function QuotesDataGrid({ data, clients, onRefresh }: QuotesDataGridProps
                 <div className="w-28 p-3 flex-shrink-0">日期</div>
                 <div className="w-[280px] flex-1 p-3">專案名稱</div>
                 <div className="w-56 p-3 flex-shrink-0">客戶</div>
-                <div className="w-28 p-3 flex-shrink-0 text-right">總金額</div>
+                <div className="w-36 p-3 flex-shrink-0 text-right">專案預算（含稅）</div>
                 <div className="w-24 p-3 flex-shrink-0">狀態</div>
                 <div className="w-28 p-3 flex-shrink-0 text-center">操作</div>
             </div>
@@ -196,8 +196,8 @@ export function QuotesDataGrid({ data, clients, onRefresh }: QuotesDataGridProps
                                     />
                                 </div>
 
-                                {/* 總金額 (唯讀 - 自動計算) */}
-                                <div className="w-28 p-3 flex-shrink-0 text-right font-mono font-medium text-foreground/70">
+                                {/* 專案預算（含稅）(唯讀 - 自動計算) */}
+                                <div className="w-36 p-3 flex-shrink-0 text-right font-mono font-medium text-foreground/70">
                                     {total.toLocaleString()}
                                 </div>
 

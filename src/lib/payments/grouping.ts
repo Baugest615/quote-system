@@ -56,10 +56,8 @@ export function groupItemsByProject<T extends {
         const group = projectMap.get(projectId)!
         group.items.push(item)
 
-        // 計算總成本
-        const itemCost = item.cost_amount_input ||
-            (item.price && item.quantity ? item.price * item.quantity : 0)
-        group.totalCost += itemCost
+        // 計算總成本（使用 ?? 避免 0 被當作 falsy 回退到報價金額）
+        group.totalCost += item.cost_amount_input ?? 0
         group.totalItems += 1
 
         // 檢查是否備妥
@@ -259,9 +257,7 @@ export function calculateMergeGroupTotal<T extends {
     quantity?: number
 }>(items: T[]): number {
     return items.reduce((sum, item) => {
-        const amount = item.cost_amount_input ||
-            (item.price && item.quantity ? item.price * item.quantity : 0)
-        return sum + amount
+        return sum + (item.cost_amount_input ?? 0)
     }, 0)
 }
 

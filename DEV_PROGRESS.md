@@ -1,9 +1,64 @@
 # 開發進度追蹤
 
-> 最後更新：2026-02-19
+> 最後更新：2026-02-20
 > 分支：`feature/v2.1-accounting-and-ui`
 
 ## 已完成
+
+### 專案進度管理頁面（2026-02-20）
+
+新增「專案進度管理」功能，追蹤專案從洽談到結案的完整生命週期。
+
+- [x] **資料庫設計**
+  - 新增 `projects` 表：client_id (FK→clients), client_name, project_name, project_type (專案/經紀), budget_with_tax, notes, status (洽談中/執行中/結案中/關案), quotation_id (FK→quotations)
+  - RLS 政策：核心業務表模式（SELECT/INSERT/UPDATE 全部、DELETE Admin）
+  - 索引：status, quotation_id, created_at DESC
+  - `auto_close_projects()` RPC：結案中專案若 accounting_sales 全部已收款則自動標記關案
+  - 資料遷移：現有 quotations 自動建立對應 project 記錄（status = '執行中'）
+  - Migration: `20260221000001_create_projects_table.sql`
+- [x] **多則備註系統**
+  - 新增 `project_notes` 表：project_id (FK→projects, CASCADE), content, created_by, created_at
+  - RLS：全員可讀寫，刪除限 Admin 或本人
+  - `get_project_notes()` RPC：含作者 email 的備註查詢
+  - `get_project_notes_count()` RPC：各專案備註數量統計
+  - 舊 projects.notes 資料自動遷移至 project_notes
+  - Migration: `20260221000002_create_project_notes_table.sql`
+- [x] **前端頁面**
+  - KPI 統計卡片（4 階段：洽談中/執行中/結案中/關案）+ Tab 表格切換
+  - 可展開行：點擊整行展開備註面板（ChevronRight 箭頭指示）
+  - 備註面板：多則備註列表（作者 + 時間戳 + 內容）+ 新增備註輸入框
+  - 備註數量 badge 顯示於專案名稱旁
+  - 搜尋功能：跨廠商名稱、專案名稱搜尋
+  - 洽談中 → 新增報價單（帶入 projectId 跳轉 QuoteForm）
+  - 執行中/結案中 → 目前進度下拉切換
+  - 關案 → 唯讀模式，系統自動標記
+- [x] **React Query Hooks**
+  - `useProjects`, `useProject`, `useCreateProject`, `useUpdateProject`, `useDeleteProject`, `useAutoCloseProjects`
+  - `useProjectNotes`, `useProjectNotesCounts`, `useCreateProjectNote`, `useDeleteProjectNote`
+- [x] **整合修改**
+  - Sidebar 新增「專案進度」連結（FolderKanban icon）
+  - QuoteForm 支援 `projectId` URL 參數預填
+  - PAGE_KEYS.PROJECTS + PAGE_PERMISSIONS 權限設定
+  - queryKeys 新增 projects, projectNotes, projectNotesCounts
+
+新增檔案：
+- `supabase/migrations/20260221000001_create_projects_table.sql`
+- `supabase/migrations/20260221000002_create_project_notes_table.sql`
+- `src/app/dashboard/projects/page.tsx`
+- `src/hooks/useProjects.ts`
+- `src/hooks/useProjectNotes.ts`
+- `src/components/projects/ProjectFormModal.tsx`
+- `src/components/projects/ProjectTable.tsx`
+- `src/components/projects/ProjectNotesPanel.tsx`
+
+修改檔案：
+- `src/types/custom.types.ts`（Project, ProjectNote 型別 + PAGE_KEYS + PAGE_PERMISSIONS）
+- `src/lib/queryKeys.ts`（projects, projectNotes, projectNotesCounts）
+- `src/components/dashboard/Sidebar.tsx`（FolderKanban icon + 導覽連結）
+- `src/components/quotes/QuoteForm.tsx`（projectId 參數預填支援）
+- `src/app/dashboard/quotes/new/page.tsx`（Suspense boundary）
+
+驗證結果：TypeScript 零錯誤、Production build 成功（28 頁面）、Migration 已套用至遠端 DB
 
 ### React Query 全面遷移 + 跨頁快取失效 + DB 索引補強（2026-02-19）
 
@@ -213,8 +268,9 @@
 
 ## 目前狀態
 
-- `npm run build` 通過，零型別錯誤
-- **✅ React Query 全面遷移已完成**：全部 23 個 Dashboard 頁面使用 React Query 快取，切換頁面瞬間顯示
+- `npm run build` 通過，零型別錯誤（28 頁面）
+- **✅ 專案進度管理已完成**：projects + project_notes 表、KPI 卡片 + 可展開行備註系統、4 階段生命週期追蹤
+- **✅ React Query 全面遷移已完成**：全部 Dashboard 頁面使用 React Query 快取，切換頁面瞬間顯示
 - **✅ 跨頁快取失效已設定**：操作後自動更新所有相關頁面的資料
 - **✅ DB 索引補強**：7 個新索引涵蓋常用查詢路徑
 - **✅ UI/UX 全面優化已完成**：45+ 檔案、9 階段、全部 dashboard 頁面統一主題

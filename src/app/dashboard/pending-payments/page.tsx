@@ -5,16 +5,20 @@ import supabase from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { PendingPaymentFileModal } from '@/components/pending-payments/PendingPaymentFileModal'
+import { BankInfoEditModal } from '@/components/pending-payments/BankInfoEditModal'
 import { ProjectGroupView } from '@/components/pending-payments/ProjectGroupView'
 import { usePaymentGrouping } from '@/hooks/payments/usePaymentGrouping'
 import { isItemReady } from '@/lib/pending-payments/grouping-utils'
 import {
   Search, Paperclip, Receipt, Trash2, AlertCircle,
-  FileText, Users, Unlink, X, CheckCircle, LayoutList, FolderKanban, Save
+  FileText, Users, Unlink, X, CheckCircle, LayoutList, FolderKanban, Save,
+  ChevronsUpDown, FolderOpen, FolderClosed
 } from 'lucide-react'
+import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
-import { Database } from '@/types/database.types'
+import { Database, Json } from '@/types/database.types'
 import { PendingPaymentItem, PendingPaymentAttachment } from '@/lib/payments/types'
+import type { KolBankInfo } from '@/types/schemas'
 
 const MERGE_COLORS = ['bg-chart-3/15', 'bg-chart-4/15', 'bg-chart-1/15', 'bg-chart-2/15', 'bg-chart-5/15', 'bg-destructive/15']
 
@@ -32,7 +36,11 @@ export default function PendingPaymentsPage() {
   const [selectedMergeType, setSelectedMergeType] = useState<'account' | null>(null)
   const [fileModalOpen, setFileModalOpen] = useState(false)
   const [selectedItemForFile, setSelectedItemForFile] = useState<PendingPaymentItem | null>(null)
+  const [bankInfoModalOpen, setBankInfoModalOpen] = useState(false)
+  const [selectedItemForBankInfo, setSelectedItemForBankInfo] = useState<PendingPaymentItem | null>(null)
   const [isMergeMode, setIsMergeMode] = useState(false)
+  const [statusFilter, setStatusFilter] = useState<'all' | 'rejected' | 'in_progress' | 'complete'>('all')
+  const [sortBy, setSortBy] = useState<'name' | 'pending' | 'cost'>('name')
 
   const fetchPendingItems = useCallback(async () => {
     setLoading(true)
@@ -110,6 +118,7 @@ export default function PendingPaymentsPage() {
           invoice_number_input: null,
           attachments: [], payment_request_id: null,
           cost_amount_input: (cost !== null && cost !== undefined) ? (Number(cost) || 0) : 0,
+          original_cost: (cost !== null && cost !== undefined) ? (Number(cost) || 0) : 0,
           remittance_name_input: defaultRemittanceName || null
         } as PendingPaymentItem);
       });
@@ -133,6 +142,7 @@ export default function PendingPaymentsPage() {
             is_merge_leader: req.is_merge_leader,
             merge_color: req.merge_color || '',
             cost_amount_input: req.cost_amount ?? ((req.quotation_items.cost !== null && req.quotation_items.cost !== undefined) ? (req.quotation_items.cost * (req.quotation_items.quantity || 1)) : 0),
+            original_cost: req.cost_amount ?? ((req.quotation_items.cost !== null && req.quotation_items.cost !== undefined) ? (req.quotation_items.cost * (req.quotation_items.quantity || 1)) : 0),
             remittance_name_input: req.quotation_items.remittance_name || null
           } as PendingPaymentItem);
         }
@@ -157,6 +167,7 @@ export default function PendingPaymentsPage() {
             is_merge_leader: req.is_merge_leader,
             merge_color: req.merge_color || '',
             cost_amount_input: req.cost_amount ?? ((req.quotation_items.cost !== null && req.quotation_items.cost !== undefined) ? (req.quotation_items.cost * (req.quotation_items.quantity || 1)) : 0),
+            original_cost: req.cost_amount ?? ((req.quotation_items.cost !== null && req.quotation_items.cost !== undefined) ? (req.quotation_items.cost * (req.quotation_items.quantity || 1)) : 0),
             remittance_name_input: req.quotation_items.remittance_name || null
           } as PendingPaymentItem);
         }
@@ -246,7 +257,42 @@ export default function PendingPaymentsPage() {
     )
   }, [searchTerm, items]);
 
-  const { projectGroups, toggleProject } = usePaymentGrouping(filteredItems)
+  const { projectGroups, toggleProject, expandAll, collapseAll, isAllExpanded } = usePaymentGrouping(filteredItems)
+
+  // 摘要統計
+  const stats = useMemo(() => {
+    const totalProjects = projectGroups.length
+    const totalItems = projectGroups.reduce((sum, g) => sum + g.totalItems, 0)
+    const totalReady = projectGroups.reduce((sum, g) => sum + g.readyItems, 0)
+    const totalPending = totalItems - totalReady
+    const totalCost = projectGroups.reduce((sum, g) => sum + g.totalCost, 0)
+    const rejectedCount = projectGroups.filter(g => g.hasRejected).length
+    return { totalProjects, totalItems, totalReady, totalPending, totalCost, rejectedCount }
+  }, [projectGroups])
+
+  // 篩選 + 排序後的顯示群組
+  const displayGroups = useMemo(() => {
+    let groups = [...projectGroups]
+
+    // 狀態篩選
+    if (statusFilter === 'rejected') {
+      groups = groups.filter(g => g.hasRejected)
+    } else if (statusFilter === 'in_progress') {
+      groups = groups.filter(g => !g.hasRejected && g.readyItems < g.totalItems)
+    } else if (statusFilter === 'complete') {
+      groups = groups.filter(g => !g.hasRejected && g.readyItems === g.totalItems)
+    }
+
+    // 排序
+    if (sortBy === 'pending') {
+      groups.sort((a, b) => (b.totalItems - b.readyItems) - (a.totalItems - a.readyItems))
+    } else if (sortBy === 'cost') {
+      groups.sort((a, b) => b.totalCost - a.totalCost)
+    }
+    // 'name' 使用原始排序（駁回優先 → 專案名稱）
+
+    return groups
+  }, [projectGroups, statusFilter, sortBy])
 
   const clearRejectionReason = async (paymentRequestId: string) => {
     const { error } = await supabase
@@ -301,6 +347,31 @@ export default function PendingPaymentsPage() {
         fetchPendingItems();
       }
     }
+  }
+
+  const handleOpenBankInfoModal = (item: PendingPaymentItem) => {
+    setSelectedItemForBankInfo(item)
+    setBankInfoModalOpen(true)
+  }
+
+  const handleBankInfoSaved = (kolId: string, updatedBankInfo: KolBankInfo) => {
+    let newRemittanceName: string | null = null
+    if (updatedBankInfo.bankType === 'company' && updatedBankInfo.companyAccountName) {
+      newRemittanceName = updatedBankInfo.companyAccountName
+    } else if (updatedBankInfo.bankType === 'individual' && updatedBankInfo.personalAccountName) {
+      newRemittanceName = updatedBankInfo.personalAccountName
+    }
+
+    setItems(prev => prev.map(item => {
+      if (item.kol_id === kolId) {
+        return {
+          ...item,
+          kols: item.kols ? { ...item.kols, bank_info: updatedBankInfo as unknown as Json } : item.kols,
+          remittance_name_input: item.remittance_name_input || newRemittanceName,
+        }
+      }
+      return item
+    }))
   }
 
   const handleInvoiceNumberChange = async (itemId: string, inputValue: string) => {
@@ -510,30 +581,61 @@ export default function PendingPaymentsPage() {
     }
   };
 
+  const STATUS_FILTERS = [
+    { key: 'all' as const, label: '全部' },
+    { key: 'rejected' as const, label: '有駁回', count: stats.rejectedCount },
+    { key: 'in_progress' as const, label: '進行中', count: stats.totalProjects - stats.rejectedCount - projectGroups.filter(g => !g.hasRejected && g.readyItems === g.totalItems).length },
+    { key: 'complete' as const, label: '已就緒', count: projectGroups.filter(g => !g.hasRejected && g.readyItems === g.totalItems).length },
+  ]
+
   return (
     <div className="space-y-4 sm:space-y-6">
-      <div className="flex flex-col gap-4">
-        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
-          <div>
-            <h1 className="text-xl sm:text-2xl font-bold text-foreground">待請款項目</h1>
-            <p className="text-muted-foreground mt-1 text-sm">管理所有待請款的報價項目</p>
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
-            {!isMergeMode && (
-              <Button variant="outline" className="border-border" onClick={() => {
-                setIsMergeMode(true);
-                setSelectedMergeType('account');
-              }}>
-                <Unlink className="w-4 h-4 mr-2" />
-                合併模式
-              </Button>
-            )}
-            <Button onClick={handleSubmitPayment} disabled={!items.some(i => i.is_selected)} className="bg-primary hover:bg-primary/90 text-primary-foreground">
-              <CheckCircle className="w-4 h-4 mr-2" />
-              送出請款
+      {/* 標題 + 操作按鈕 */}
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
+        <div>
+          <h1 className="text-xl sm:text-2xl font-bold text-foreground">待請款專案管理</h1>
+          <p className="text-muted-foreground mt-1 text-sm">管理所有待請款的專案項目</p>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          {!isMergeMode && (
+            <Button variant="outline" className="border-border" onClick={() => {
+              setIsMergeMode(true);
+              setSelectedMergeType('account');
+            }}>
+              <Unlink className="w-4 h-4 mr-2" />
+              合併模式
             </Button>
+          )}
+          <Button onClick={handleSubmitPayment} disabled={!items.some(i => i.is_selected)} className="bg-primary hover:bg-primary/90 text-primary-foreground">
+            <CheckCircle className="w-4 h-4 mr-2" />
+            送出請款
+          </Button>
+        </div>
+      </div>
+
+      {/* 摘要統計 */}
+      {!loading && (
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div className="bg-card rounded-lg border border-border px-4 py-3">
+            <div className="text-xs text-muted-foreground">專案數</div>
+            <div className="text-xl font-bold mt-0.5">{stats.totalProjects}</div>
+          </div>
+          <div className="bg-card rounded-lg border border-border px-4 py-3">
+            <div className="text-xs text-muted-foreground">總項目</div>
+            <div className="text-xl font-bold mt-0.5">{stats.totalItems}</div>
+          </div>
+          <div className="bg-card rounded-lg border border-border px-4 py-3">
+            <div className="text-xs text-muted-foreground">待處理</div>
+            <div className="text-xl font-bold mt-0.5 text-warning">{stats.totalPending}</div>
+          </div>
+          <div className="bg-card rounded-lg border border-border px-4 py-3">
+            <div className="text-xs text-muted-foreground">總成本</div>
+            <div className="text-xl font-bold mt-0.5">NT$ {stats.totalCost.toLocaleString()}</div>
           </div>
         </div>
+      )}
+
+      <div className="flex flex-col gap-3">
 
         {isMergeMode && (
           <div className="flex flex-wrap items-center gap-2 bg-primary/10 px-4 py-3 rounded-lg border border-primary/20 animate-in fade-in slide-in-from-top-2">
@@ -563,14 +665,63 @@ export default function PendingPaymentsPage() {
           </div>
         )}
 
-        <div className="relative w-full sm:max-w-xs">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
-          <Input
-            placeholder="搜尋專案、KOL/服務、執行內容..."
-            className="pl-10 bg-secondary border-border w-full"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
+        {/* 搜尋 + 篩選 + 排序 + 展開/收合 */}
+        <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+          <div className="relative flex-1 sm:max-w-xs">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+            <Input
+              placeholder="搜尋專案、KOL/服務、客戶..."
+              className="pl-10 bg-secondary border-border w-full"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+          </div>
+
+          {/* 排序 */}
+          <select
+            value={sortBy}
+            onChange={(e) => setSortBy(e.target.value as typeof sortBy)}
+            className="h-9 text-sm bg-secondary border border-border text-foreground rounded-md px-3 focus:border-primary focus:ring-1 focus:ring-primary"
+          >
+            <option value="name">專案名稱排序</option>
+            <option value="pending">待請款數（多→少）</option>
+            <option value="cost">總成本（高→低）</option>
+          </select>
+
+          {/* 展開/收合全部 */}
+          <Button
+            variant="outline"
+            size="sm"
+            className="border-border"
+            onClick={isAllExpanded ? collapseAll : expandAll}
+          >
+            {isAllExpanded ? (
+              <><FolderClosed className="w-4 h-4 mr-1.5" />收合全部</>
+            ) : (
+              <><FolderOpen className="w-4 h-4 mr-1.5" />展開全部</>
+            )}
+          </Button>
+        </div>
+
+        {/* 狀態篩選 */}
+        <div className="flex flex-wrap items-center gap-1.5">
+          {STATUS_FILTERS.map(({ key, label, count }) => (
+            <button
+              key={key}
+              onClick={() => setStatusFilter(key)}
+              className={cn(
+                "text-xs px-3 py-1.5 rounded-full transition-colors font-medium",
+                statusFilter === key
+                  ? 'bg-primary text-primary-foreground'
+                  : 'bg-muted text-muted-foreground hover:bg-muted/80 hover:text-foreground'
+              )}
+            >
+              {label}
+              {count !== undefined && count > 0 && (
+                <span className="ml-1 opacity-70">{count}</span>
+              )}
+            </button>
+          ))}
         </div>
       </div>
 
@@ -578,7 +729,7 @@ export default function PendingPaymentsPage() {
         <div className="text-center py-12 text-muted-foreground">載入中...</div>
       ) : (
         <ProjectGroupView
-          groups={projectGroups}
+          groups={displayGroups}
           onToggleProject={toggleProject}
           selectedMergeType={selectedMergeType}
           selectedForMerge={selectedForMerge}
@@ -595,6 +746,7 @@ export default function PendingPaymentsPage() {
             setSelectedItemForFile(item);
             setFileModalOpen(true);
           }}
+          onOpenBankInfoModal={handleOpenBankInfoModal}
           onInvoiceChange={handleInvoiceNumberChange}
           onSelect={handlePaymentSelection}
           selectedItems={items.filter(i => i.is_selected).map(i => i.id)}
@@ -614,6 +766,20 @@ export default function PendingPaymentsPage() {
           projectName={selectedItemForFile.quotations?.project_name || ''}
           currentAttachments={selectedItemForFile.attachments || []}
           onUpdate={handleFileUpdate}
+        />
+      )}
+
+      {selectedItemForBankInfo && selectedItemForBankInfo.kols && (
+        <BankInfoEditModal
+          isOpen={bankInfoModalOpen}
+          onClose={() => {
+            setBankInfoModalOpen(false)
+            setSelectedItemForBankInfo(null)
+          }}
+          kolId={selectedItemForBankInfo.kols.id}
+          kolName={selectedItemForBankInfo.kols.name}
+          currentBankInfo={selectedItemForBankInfo.kols.bank_info}
+          onSaved={handleBankInfoSaved}
         />
       )}
     </div>

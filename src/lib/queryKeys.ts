@@ -11,6 +11,11 @@ export const queryKeys = {
   serviceTypes: ['service-types'] as const,
   quoteCategories: ['quote-categories'] as const,
 
+  // 專案進度
+  projects: ['projects'] as const,
+  projectNotes: (projectId: string) => ['project-notes', projectId] as const,
+  projectNotesCounts: ['project-notes-counts'] as const,
+
   // 報價單
   quotations: ['quotations'] as const,
   quotationsList: (page: number, pageSize: number) => ['quotations', 'list', page, pageSize] as const,
