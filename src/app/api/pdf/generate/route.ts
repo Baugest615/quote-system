@@ -3,6 +3,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import puppeteer, { Browser, Page } from 'puppeteer-core';
 import { createServerClient } from '@/lib/supabase/server';
+import { PAGE_PERMISSIONS, PAGE_KEYS, UserRole } from '@/types/custom.types';
 
 // 動態 import @sparticuz/chromium 避免本地開發問題
 async function getBrowser(): Promise<Browser> {
@@ -73,6 +74,18 @@ export async function POST(request: NextRequest) {
 
     if (authError || !user) {
         return NextResponse.json({ error: '未授權：請先登入' }, { status: 401 });
+    }
+
+    // 權限檢查：確認使用者有報價單存取權限
+    const { data: profile } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', user.id)
+        .single();
+
+    const userRole = profile?.role as UserRole | null;
+    if (!userRole || !PAGE_PERMISSIONS[PAGE_KEYS.QUOTES]?.allowedRoles.includes(userRole)) {
+        return NextResponse.json({ error: '無權限：您無法產生 PDF' }, { status: 403 });
     }
 
     let browser: Browser | null = null;

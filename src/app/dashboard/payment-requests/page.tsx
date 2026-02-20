@@ -4,10 +4,13 @@ import { useState, useCallback, useMemo } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Search, Link as LinkIcon, Eye, Download, AlertCircle } from 'lucide-react'
+import { Search, Link as LinkIcon, Eye, Download, AlertCircle, Shield } from 'lucide-react'
 import { toast } from 'sonner'
 import { Modal } from '@/components/ui/modal'
 import supabase from '@/lib/supabase/client'
+
+// Permissions
+import { usePermission } from '@/lib/permissions'
 
 // Hooks
 import { usePaymentData } from '@/hooks/payments/usePaymentData'
@@ -102,6 +105,9 @@ const FileViewerModal = ({ isOpen, onClose, request }: {
 }
 
 export default function PaymentRequestsPage() {
+  const { loading: permLoading, checkPageAccess } = usePermission()
+  const hasAccess = checkPageAccess('payment_requests')
+
   const queryClient = useQueryClient()
   const fetchPaymentRequests = useCallback(async () => {
     const { data, error } = await supabase
@@ -335,7 +341,16 @@ export default function PaymentRequestsPage() {
     setIsFileViewerOpen(true)
   }
 
-  if (loading) return <LoadingState message="載入請款申請..." />
+  if (permLoading || loading) return <LoadingState message="載入請款申請..." />
+
+  if (!hasAccess) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh] text-muted-foreground">
+        <Shield className="w-16 h-16 mb-4 text-muted-foreground/50" />
+        <p className="text-lg font-medium">此頁面僅限管理員與編輯者存取</p>
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-6">

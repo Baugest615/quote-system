@@ -1,12 +1,21 @@
 import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
-import { PAGE_PERMISSIONS, UserRole } from '@/types/custom.types'  // 🔄 修改：從 custom.types 引入
+import { PAGE_PERMISSIONS, UserRole } from '@/types/custom.types'
+
+// 從 PAGE_PERMISSIONS 自動產生路由對照表（不再手動維護）
+const routeToPageMap: Record<string, string> = {}
+for (const [pageKey, config] of Object.entries(PAGE_PERMISSIONS)) {
+  routeToPageMap[config.route] = pageKey
+}
+
+// 所有角色清單，用於判斷是否為受限頁面
+const ALL_ROLES: UserRole[] = ['Admin', 'Editor', 'Member']
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
 
   // 🔧 明確排除靜態檔案和特殊路徑
-  const shouldSkip = 
+  const shouldSkip =
     pathname.startsWith('/api') ||
     pathname.startsWith('/_next') ||
     pathname === '/favicon.ico' ||
@@ -78,19 +87,6 @@ export async function middleware(request: NextRequest) {
       }
     )
 
-    // 🆕 路由與頁面映射
-    const routeToPageMap: Record<string, string> = {
-      '/dashboard': 'dashboard',
-      '/dashboard/clients': 'clients',
-      '/dashboard/kols': 'kols',
-      '/dashboard/quotes': 'quotes',
-      '/dashboard/reports': 'reports',
-      '/dashboard/pending-payments': 'pending_payments',
-      '/dashboard/payment-requests': 'payment_requests',
-      '/dashboard/confirmed-payments': 'confirmed_payments',
-      '/dashboard/settings': 'settings',
-    }
-
     // 處理認證路由
     if (pathname.startsWith('/auth')) {
       const { data: { user } } = await supabase.auth.getUser()
@@ -119,25 +115,24 @@ export async function middleware(request: NextRequest) {
           return NextResponse.redirect(new URL('/auth/login', request.url))
         }
 
-        // 🆕 基本權限檢查（簡化版本）
+        // 資料驅動的權限檢查：從 PAGE_PERMISSIONS 動態判斷受限頁面
         const pageKey = getPageKeyFromPath(pathname, routeToPageMap)
-        
+
         if (pageKey) {
-          // 檢查特殊權限頁面
-          const restrictedPages = ['payment_requests', 'confirmed_payments']
-          
-          if (restrictedPages.includes(pageKey)) {
-            // 取得用戶角色進行檢查
+          const pageConfig = PAGE_PERMISSIONS[pageKey]
+          const isRestricted = pageConfig &&
+            pageConfig.allowedRoles.length < ALL_ROLES.length
+
+          if (isRestricted) {
             const { data: profile } = await supabase
               .from('profiles')
               .select('role')
               .eq('id', user.id)
               .single()
 
-            const userRole = profile?.role
-            
-            // 只有 Admin 和 Editor 可以存取這些頁面
-            if (userRole !== 'Admin' && userRole !== 'Editor') {
+            const userRole = (profile?.role || '') as UserRole
+
+            if (!pageConfig.allowedRoles.includes(userRole)) {
               return NextResponse.redirect(
                 new URL('/dashboard?error=permission_denied', request.url)
               )
@@ -152,6 +147,20 @@ export async function middleware(request: NextRequest) {
       }
     }
 
+    // 保護列印路由（需要身份驗證）
+    if (pathname.startsWith('/print')) {
+      try {
+        const { data: { user }, error } = await supabase.auth.getUser()
+        if (error || !user) {
+          return NextResponse.redirect(new URL('/auth/login', request.url))
+        }
+        return response
+      } catch (error) {
+        console.error('Auth error in print route:', error)
+        return NextResponse.redirect(new URL('/auth/login', request.url))
+      }
+    }
+
     return response
 
   } catch (error) {
@@ -160,7 +169,7 @@ export async function middleware(request: NextRequest) {
   }
 }
 
-// 🆕 從路徑取得頁面鍵值的輔助函數
+// 從路徑取得頁面鍵值的輔助函數
 function getPageKeyFromPath(pathname: string, routeMap: Record<string, string>): string | null {
   // 精確匹配
   if (routeMap[pathname]) {
@@ -177,11 +186,11 @@ function getPageKeyFromPath(pathname: string, routeMap: Record<string, string>):
   return null
 }
 
-// 🔧 使用更簡單的 matcher，只匹配我們真正需要保護的路由
 export const config = {
   matcher: [
     '/dashboard/:path*',
     '/auth/:path*',
+    '/print/:path*',
     '/',
   ],
 }

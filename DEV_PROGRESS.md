@@ -5,6 +5,37 @@
 
 ## 已完成
 
+### 權限安全防護補強（2026-02-20）
+
+全面安全稽核後修復 5 個缺口，建立分層防禦架構。
+
+- [x] **Middleware 資料驅動化**
+  - `routeToPageMap` 從 `PAGE_PERMISSIONS` 自動產生，不再手動維護
+  - `restrictedPages` 改為動態判斷（`allowedRoles.length < 3` = 受限頁面）
+  - 修復：`/dashboard/accounting`（Admin-only）之前完全沒有 middleware 保護
+  - 修復：`/dashboard/projects`、`/dashboard/my-salary` 之前未在路由對照表中
+- [x] **列印頁面身份驗證**
+  - `/print/quote/[id]` 之前任何人可直接存取報價單（含客戶資料、金額、銀行帳號）
+  - 新增 middleware matcher 覆蓋 `/print/:path*`
+  - 新增頁面層級 `getUser()` 驗證（縱深防禦）
+  - 重構 `getQuote()` 接收 supabase client 參數，避免重複建立
+- [x] **請款頁面權限守衛**
+  - `payment-requests/page.tsx`：加入 `usePermission` + `checkPageAccess('payment_requests')`
+  - `confirmed-payments/page.tsx`：加入 `usePermission` + `checkPageAccess('confirmed_payments')`
+  - 無權限時顯示 Shield 圖示 + 拒絕訊息（與 AccountingLoadingGuard 風格一致）
+- [x] **PDF API 權限檢查**
+  - `/api/pdf/generate` 原本僅驗證身份，現加入角色權限檢查
+  - 使用 `PAGE_PERMISSIONS[PAGE_KEYS.QUOTES].allowedRoles` 動態驗證
+
+修改檔案：
+- `middleware.ts`（資料驅動路由對照 + 動態受限頁面檢查 + /print 保護）
+- `src/app/print/quote/[id]/page.tsx`（伺服器端身份驗證）
+- `src/app/dashboard/payment-requests/page.tsx`（頁面級權限守衛）
+- `src/app/dashboard/confirmed-payments/page.tsx`（頁面級權限守衛）
+- `src/app/api/pdf/generate/route.ts`（角色權限檢查）
+
+驗證結果：TypeScript 零錯誤、Production build 成功（28 頁面）
+
 ### 專案進度管理頁面（2026-02-20）
 
 新增「專案進度管理」功能，追蹤專案從洽談到結案的完整生命週期。
@@ -269,6 +300,7 @@
 ## 目前狀態
 
 - `npm run build` 通過，零型別錯誤（28 頁面）
+- **✅ 權限安全防護已補強**：Middleware 資料驅動化、列印頁面身份驗證、請款頁面守衛、PDF API 權限檢查
 - **✅ 專案進度管理已完成**：projects + project_notes 表、KPI 卡片 + 可展開行備註系統、4 階段生命週期追蹤
 - **✅ React Query 全面遷移已完成**：全部 Dashboard 頁面使用 React Query 快取，切換頁面瞬間顯示
 - **✅ 跨頁快取失效已設定**：操作後自動更新所有相關頁面的資料

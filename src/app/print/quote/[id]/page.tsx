@@ -2,7 +2,8 @@
 // 專供 Puppeteer PDF 渲染的列印頁面
 import { createServerClient } from '@/lib/supabase/server';
 import { Database } from '@/types/database.types';
-import { notFound } from 'next/navigation';
+import { notFound, redirect } from 'next/navigation';
+import type { SupabaseClient } from '@supabase/supabase-js';
 
 type Quotation = Database['public']['Tables']['quotations']['Row'];
 type QuotationItem = Database['public']['Tables']['quotation_items']['Row'];
@@ -71,9 +72,7 @@ function processTableData(items: (QuotationItem & { kols: Pick<Kol, 'name'> | nu
 }
 
 // 伺服器端取得資料
-async function getQuote(id: string): Promise<FullQuotation | null> {
-    const supabase = await createServerClient();
-
+async function getQuote(supabase: SupabaseClient, id: string): Promise<FullQuotation | null> {
     const { data, error } = await supabase
         .from('quotations')
         .select(`
@@ -100,7 +99,14 @@ interface PageProps {
 }
 
 export default async function PrintQuotePage({ params, searchParams }: PageProps) {
-    const quote = await getQuote(params.id);
+    // 身份驗證（縱深防禦，middleware 已有第一層保護）
+    const supabase = await createServerClient();
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError || !user) {
+        redirect('/auth/login');
+    }
+
+    const quote = await getQuote(supabase, params.id);
     if (!quote) notFound();
 
     const showElectronicSeal = searchParams.seal === 'true';

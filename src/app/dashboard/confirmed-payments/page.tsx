@@ -4,9 +4,12 @@ import { useState, useCallback, useMemo } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Search, FileText, DollarSign, Calendar, RefreshCw, X } from 'lucide-react'
+import { Search, FileText, DollarSign, Calendar, RefreshCw, X, Shield } from 'lucide-react'
 import { toast } from 'sonner'
 import supabase from '@/lib/supabase/client'
+
+// Permissions
+import { usePermission } from '@/lib/permissions'
 
 // Hooks
 import { usePaymentData } from '@/hooks/payments/usePaymentData'
@@ -21,6 +24,9 @@ import { ConfirmationRow } from '@/components/payments/confirmed/ConfirmationRow
 import { PaymentStats } from '@/components/payments/confirmed/PaymentStats'
 
 export default function ConfirmedPaymentsPage() {
+  const { loading: permLoading, checkPageAccess } = usePermission()
+  const hasAccess = checkPageAccess('confirmed_payments')
+
   const queryClient = useQueryClient()
   // 1. 資料管理 Hook
   const fetchConfirmedPayments = useCallback(async () => {
@@ -201,7 +207,16 @@ export default function ConfirmedPaymentsPage() {
     }
   }
 
-  if (loading) return <LoadingState message="載入已確認請款記錄..." />
+  if (permLoading || loading) return <LoadingState message="載入已確認請款記錄..." />
+
+  if (!hasAccess) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh] text-muted-foreground">
+        <Shield className="w-16 h-16 mb-4 text-muted-foreground/50" />
+        <p className="text-lg font-medium">此頁面僅限管理員與編輯者存取</p>
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-6">
