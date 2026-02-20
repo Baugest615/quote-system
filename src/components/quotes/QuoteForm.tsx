@@ -19,6 +19,7 @@ import { z } from 'zod'
 import { toast } from 'sonner'
 import { handleQuotationAccountingSync } from '@/lib/accounting/sync-quote-accounting'
 import { handleKolPriceSync } from '@/lib/kol/sync-kol-prices'
+import { ensureClientForProject } from '@/hooks/useProjects'
 
 // --- Type Definitions ---
 type Client = Database['public']['Tables']['clients']['Row']
@@ -585,13 +586,25 @@ export default function QuoteForm({ initialData }: QuoteFormProps) {
         }
       }
 
-      // 如果是從專案進度建立的報價單，更新專案狀態
+      // 如果是從專案進度建立的報價單，更新專案狀態並同步客戶
       if (projectId && quoteId && !initialData) {
+        const { clientId, isNewClient, clientName } = await ensureClientForProject(projectId)
         await supabase
           .from('projects')
-          .update({ quotation_id: quoteId, status: '執行中' })
+          .update({
+            quotation_id: quoteId,
+            status: '執行中',
+            ...(clientId ? { client_id: clientId } : {}),
+          })
           .eq('id', projectId)
         queryClient.invalidateQueries({ queryKey: [...queryKeys.projects] })
+        if (isNewClient) {
+          queryClient.invalidateQueries({ queryKey: [...queryKeys.clients] })
+          toast.info(
+            `已將「${clientName}」新增至客戶列表，建議前往客戶管理補齊詳細資訊`,
+            { duration: 6000 }
+          )
+        }
       }
 
       // 跨頁快取失效：報價單變更影響列表頁和儀表板
