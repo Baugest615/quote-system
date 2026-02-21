@@ -48,6 +48,8 @@ export interface KolFormData {
     branchName?: string
     accountNumber?: string
   }
+  withholding_exempt: boolean
+  withholding_exempt_reason: string | null
   services: ServiceFormItem[]
 }
 
@@ -92,6 +94,7 @@ export function KolModal({ isOpen, onClose, onSave, kol, kolTypes, serviceTypes 
   const watchTypeId = watch('type_id')
   const watchIsNewType = watch('is_new_type')
   const watchServices = watch('services')
+  const watchWithholdingExempt = watch('withholding_exempt')
 
   // Autocomplete options
   const kolTypeOptions = useMemo(() =>
@@ -115,6 +118,8 @@ export function KolModal({ isOpen, onClose, onSave, kol, kolTypes, serviceTypes 
           is_new_type: false,
           social_links: (kol.social_links as KolFormData['social_links']) || {},
           bank_info: (kol.bank_info as KolFormData['bank_info']) || { bankType: 'individual' },
+          withholding_exempt: kol.withholding_exempt ?? false,
+          withholding_exempt_reason: kol.withholding_exempt_reason ?? null,
           services: kol.kol_services.length > 0
             ? kol.kol_services.map(s => ({
                 service_type_id: s.service_type_id,
@@ -135,6 +140,8 @@ export function KolModal({ isOpen, onClose, onSave, kol, kolTypes, serviceTypes 
           is_new_type: false,
           social_links: {},
           bank_info: { bankType: 'individual' },
+          withholding_exempt: false,
+          withholding_exempt_reason: null,
           services: [{ service_type_id: '', service_type_name: '', is_new_service_type: false, price: 0, cost: 0 }],
         })
       }
@@ -309,6 +316,38 @@ export function KolModal({ isOpen, onClose, onSave, kol, kolTypes, serviceTypes 
                 <Input {...register('bank_info.accountNumber')} className="mt-1" />
               </div>
             </div>
+          </div>
+        </div>
+
+        {/* 代扣設定區塊 */}
+        <div className="space-y-4">
+          <h4 className="text-md font-semibold text-foreground/70 border-b pb-2">代扣設定</h4>
+          <div className="pt-2 space-y-3">
+            {watchBankType === 'company' ? (
+              <p className="text-sm text-success bg-success/10 px-3 py-2 rounded-md">
+                公司戶開發票，無需代扣所得稅及二代健保
+              </p>
+            ) : (
+              <>
+                <label className="flex items-center gap-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    {...register('withholding_exempt')}
+                    className="rounded border-border text-primary focus:ring-primary"
+                  />
+                  <span className="text-sm">免扣代繳（如已加入職業公會）</span>
+                </label>
+                {watchWithholdingExempt && (
+                  <div>
+                    <Input
+                      {...register('withholding_exempt_reason')}
+                      placeholder="免扣原因（如：已加入OO職業工會）"
+                      className="mt-1"
+                    />
+                  </div>
+                )}
+              </>
+            )}
           </div>
         </div>
 

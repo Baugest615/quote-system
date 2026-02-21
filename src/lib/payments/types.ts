@@ -61,6 +61,8 @@ export interface PendingPaymentItem extends BasePaymentItem {
     cost_amount_input: number
     original_cost: number // 頁面載入時的原始成本，用於比對
     remittance_name_input: string | null
+    expense_type_input: string // 支出種類（申請人選擇）
+    expected_payment_month_input: string // 預計支付月份（如 "2026年3月"）
 
     // 附件
     attachments: PaymentAttachment[]
@@ -133,6 +135,7 @@ export interface PaymentConfirmationItem {
         claim_month: string | null
         note: string | null
         submitted_by: string | null
+        submitter: { full_name: string | null } | null
     } | null
 }
 
@@ -195,6 +198,41 @@ export interface RemittanceGroup {
     accountNumber: string
     items: PaymentConfirmationItem[]
     totalAmount: number
+    isCompanyAccount: boolean
+    isWithholdingExempt: boolean
+}
+
+// ==================== 跨清單彙總（匯款總覽 Tab） ====================
+
+export interface ConfirmationBreakdown {
+    confirmationId: string
+    confirmationDate: string
+    subtotal: number
+    tax: number
+    insurance: number
+    fee: number
+}
+
+export interface MergedRemittanceGroup {
+    remittanceName: string
+    bankName: string
+    branchName: string
+    accountNumber: string
+    isCompanyAccount: boolean
+    isWithholdingExempt: boolean
+    isPersonalClaim: boolean
+    items: PaymentConfirmationItem[]
+    confirmationBreakdowns: ConfirmationBreakdown[]
+    totalAmount: number
+    totalTax: number
+    totalInsurance: number
+    totalFee: number
+    netTotal: number
+}
+
+export interface WithholdingApplicability {
+    showWithholding: boolean
+    reason: 'personal_claim' | 'company_account' | 'exempt' | 'below_threshold' | 'applicable'
 }
 
 // ==================== 篩選與排序 ====================

@@ -164,20 +164,25 @@ export function groupItemsByRemittance(items: PaymentConfirmationItem[]): import
     const remittanceMap = new Map<string, import('./types').RemittanceGroup>()
 
     items.forEach(item => {
-        // 個人報帳項目：以廠商名稱分組
+        // 個人報帳項目：以提交人分組
         if (item.source_type === 'personal' || item.expense_claim_id) {
             const claim = item.expense_claims
-            const vendorName = claim?.vendor_name || '個人報帳'
-            const groupKey = `personal_${vendorName}`
+            const submitterName = claim?.submitter?.full_name || null
+            const vendorName = claim?.vendor_name || null
+            // 優先用提交人姓名，其次用廠商名稱
+            const displayName = submitterName || vendorName || '個人報帳'
+            const groupKey = `personal_${claim?.submitted_by || displayName}`
 
             if (!remittanceMap.has(groupKey)) {
                 remittanceMap.set(groupKey, {
-                    remittanceName: `${vendorName}（個人報帳）`,
+                    remittanceName: `${displayName}（個人報帳）`,
                     bankName: '',
                     branchName: '',
                     accountNumber: '',
                     items: [],
-                    totalAmount: 0
+                    totalAmount: 0,
+                    isCompanyAccount: false,
+                    isWithholdingExempt: false,
                 })
             }
 
@@ -224,7 +229,9 @@ export function groupItemsByRemittance(items: PaymentConfirmationItem[]): import
                 branchName: bankInfo.branchName || '',
                 accountNumber: bankInfo.accountNumber || '',
                 items: [],
-                totalAmount: 0
+                totalAmount: 0,
+                isCompanyAccount: bankInfo.bankType === 'company',
+                isWithholdingExempt: (kol as Record<string, unknown>)?.withholding_exempt === true,
             })
         }
 

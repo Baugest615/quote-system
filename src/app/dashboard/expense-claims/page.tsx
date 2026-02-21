@@ -93,6 +93,7 @@ export default function ExpenseClaimsPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [...currentQueryKey] })
+      queryClient.invalidateQueries({ queryKey: [...queryKeys.expenseClaimsPending] })
       toast.success(editingClaim ? '已更新報帳項目' : '已新增報帳項目')
       setIsModalOpen(false)
       setEditingClaim(null)
@@ -111,6 +112,7 @@ export default function ExpenseClaimsPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [...currentQueryKey] })
+      queryClient.invalidateQueries({ queryKey: [...queryKeys.expenseClaimsPending] })
       toast.success('已刪除報帳項目')
     },
     onError: (err: Error) => toast.error(`刪除失敗：${err.message}`),
@@ -396,7 +398,7 @@ export default function ExpenseClaimsPage() {
               ) : filtered.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE).map(r => {
                 const canSelect = r.status === 'draft' || r.status === 'rejected'
                 const canEdit = r.status === 'draft' || r.status === 'rejected'
-                const canDelete = r.status === 'draft' || userRole === 'Admin'
+                const canDelete = r.status === 'draft' || r.status === 'rejected'
                 return (
                   <tr key={r.id} className="border-t border-border/50 hover:bg-accent">
                     <td className="text-center px-3 py-3">

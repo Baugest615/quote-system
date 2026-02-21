@@ -9,6 +9,7 @@ export function PaymentRecordRow({ item }: PaymentRecordRowProps) {
     // 個人報帳項目
     if (item.source_type === 'personal' || item.expense_claim_id) {
         const claim = item.expense_claims
+        const submitterName = claim?.submitter?.full_name || null
         return (
             <tr className="text-sm hover:bg-secondary">
                 <td className="px-4 py-3 text-foreground">
@@ -19,7 +20,7 @@ export function PaymentRecordRow({ item }: PaymentRecordRowProps) {
                 </td>
                 <td className="px-4 py-3 text-foreground/70">{claim?.vendor_name || '—'}</td>
                 <td className="px-4 py-3 text-foreground/70">{claim?.expense_type || '—'}</td>
-                <td className="px-4 py-3 text-foreground/70">{claim?.vendor_name || '—'}</td>
+                <td className="px-4 py-3 text-foreground/70">{submitterName || claim?.vendor_name || '—'}</td>
                 <td className="px-4 py-3 text-right font-medium text-foreground">
                     NT$ {(item.amount || claim?.total_amount || 0).toLocaleString()}
                 </td>

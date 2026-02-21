@@ -77,6 +77,8 @@ export type Database = {
           type_id: string | null
           social_links: Json | null
           bank_info: Json | null
+          withholding_exempt: boolean
+          withholding_exempt_reason: string | null
           created_at: string | null
           updated_at: string | null
         }
@@ -87,6 +89,8 @@ export type Database = {
           type_id?: string | null
           social_links?: Json | null
           bank_info?: Json | null
+          withholding_exempt?: boolean
+          withholding_exempt_reason?: string | null
           created_at?: string | null
           updated_at?: string | null
         }
@@ -97,6 +101,8 @@ export type Database = {
           type_id?: string | null
           social_links?: Json | null
           bank_info?: Json | null
+          withholding_exempt?: boolean
+          withholding_exempt_reason?: string | null
           created_at?: string | null
           updated_at?: string | null
         }
@@ -567,6 +573,53 @@ export type Database = {
           name?: string
         }
         Relationships: []
+      }
+      withholding_settlements: {
+        Row: {
+          id: string
+          month: string
+          type: string
+          amount: number
+          settlement_method: string
+          expense_claim_id: string | null
+          note: string | null
+          settled_by: string | null
+          settled_at: string | null
+          created_at: string | null
+        }
+        Insert: {
+          id?: string
+          month: string
+          type: string
+          amount: number
+          settlement_method?: string
+          expense_claim_id?: string | null
+          note?: string | null
+          settled_by?: string | null
+          settled_at?: string | null
+          created_at?: string | null
+        }
+        Update: {
+          id?: string
+          month?: string
+          type?: string
+          amount?: number
+          settlement_method?: string
+          expense_claim_id?: string | null
+          note?: string | null
+          settled_by?: string | null
+          settled_at?: string | null
+          created_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "withholding_settlements_expense_claim_id_fkey"
+            columns: ["expense_claim_id"]
+            isOneToOne: false
+            referencedRelation: "expense_claims"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     },
     Views: {

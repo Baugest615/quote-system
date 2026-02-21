@@ -8,7 +8,7 @@ import supabase from '@/lib/supabase/client'
 import { queryKeys } from '@/lib/queryKeys'
 import {
   BookOpen, TrendingUp, TrendingDown, DollarSign,
-  FileText, Receipt, Users, Calculator, BarChart3, ArrowRight
+  FileText, Receipt, Users, Calculator, BarChart3, ArrowRight, Landmark
 } from 'lucide-react'
 import AccountingLoadingGuard from '@/components/accounting/AccountingLoadingGuard'
 
@@ -85,6 +85,7 @@ export default function AccountingPage() {
     { href: '/dashboard/accounting/sales', icon: Receipt, label: '銷項管理', desc: '發票開立記錄', color: 'bg-chart-4/10 text-chart-4' },
     { href: '/dashboard/accounting/expenses', icon: TrendingDown, label: '進項管理', desc: '各類支出記錄', color: 'bg-chart-3/10 text-chart-3' },
     { href: '/dashboard/accounting/payroll', icon: Users, label: '人事薪資', desc: '員工薪資與勞健保', color: 'bg-chart-5/10 text-chart-5' },
+    { href: '/dashboard/accounting/monthly-settlement', icon: Landmark, label: '月結總覽', desc: '月度付款結算追蹤', color: 'bg-orange-500/10 text-orange-400' },
     { href: '/dashboard/accounting/projects', icon: BarChart3, label: '專案損益', desc: '各案件收支毛利', color: 'bg-chart-1/10 text-chart-1' },
     { href: '/dashboard/accounting/calculator', icon: Calculator, label: '利潤試算', desc: '報價毛利換算工具', color: 'bg-yellow-50 text-yellow-600 dark:bg-yellow-500/10 dark:text-yellow-400' },
     { href: '/dashboard/accounting/reports', icon: FileText, label: '歷年報表', desc: '年度比較與趨勢', color: 'bg-indigo-50 text-indigo-600 dark:bg-indigo-500/10 dark:text-indigo-400' },

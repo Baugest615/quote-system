@@ -52,6 +52,9 @@ export const queryKeys = {
   accountingOverview: (year: number) => ['accounting-overview', year] as const,
   accountingProjects: (year: number) => ['accounting-projects', year] as const,
   accountingReports: ['accounting-reports'] as const,
+  monthlySettlement: (year: number, month: string) => ['monthly-settlement', year, month] as const,
   employees: ['employees'] as const,
   insuranceRates: ['insurance-rates'] as const,
+  withholdingSettings: ['withholding-settings'] as const,
+  withholdingSettlements: ['withholding-settlements'] as const,
 } as const

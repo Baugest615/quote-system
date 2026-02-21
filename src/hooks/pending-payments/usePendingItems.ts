@@ -74,7 +74,9 @@ async function fetchPendingItemsData(): Promise<PendingPaymentItem[]> {
             remittance_name: null,
             remittance_name_input: null,
             rejected_by: null,
-            rejected_at: null
+            rejected_at: null,
+            expense_type_input: '勞務報酬',
+            expected_payment_month_input: '',
         });
     });
 
@@ -98,7 +100,9 @@ async function fetchPendingItemsData(): Promise<PendingPaymentItem[]> {
                 remittance_name: null,
                 remittance_name_input: null,
                 rejected_by: req.rejected_by,
-                rejected_at: req.rejected_at
+                rejected_at: req.rejected_at,
+                expense_type_input: (req as any).expense_type || '勞務報酬',
+                expected_payment_month_input: (req as any).expected_payment_month || '',
             });
         }
     });

@@ -3,13 +3,20 @@ import { Download } from 'lucide-react'
 import { toast } from 'sonner'
 import { PaymentConfirmation, RemittanceSettings } from '@/lib/payments/types'
 import { groupItemsByRemittance } from '@/lib/payments/grouping'
+import type { WithholdingSettings } from '@/types/custom.types'
+import { DEFAULT_WITHHOLDING } from '@/hooks/useWithholdingSettings'
 
 interface ExportControlsProps {
     confirmation: PaymentConfirmation
     settingsMap: RemittanceSettings
+    withholdingRates?: WithholdingSettings | null
 }
 
-export function ExportControls({ confirmation, settingsMap }: ExportControlsProps) {
+export function ExportControls({ confirmation, settingsMap, withholdingRates }: ExportControlsProps) {
+    // 從 DB 或 fallback 取得費率
+    const taxRate = withholdingRates?.income_tax_rate ?? DEFAULT_WITHHOLDING.income_tax_rate
+    const nhiRate = withholdingRates?.nhi_supplement_rate ?? DEFAULT_WITHHOLDING.nhi_supplement_rate
+
     const handleExport = (e: React.MouseEvent) => {
         e.stopPropagation()
 
@@ -42,10 +49,10 @@ export function ExportControls({ confirmation, settingsMap }: ExportControlsProp
                     hasInsurance: false
                 }
 
-                // 計算邏輯 (與 ConfirmationDetails 一致)
+                // 計算邏輯 (與 ConfirmationDetails 一致，使用 DB 費率)
                 const subtotal = group.totalAmount
-                const tax = settings.hasTax ? Math.floor(subtotal * 0.1) : 0
-                const insurance = settings.hasInsurance ? Math.floor(subtotal * 0.0211) : 0
+                const tax = settings.hasTax ? Math.floor(subtotal * taxRate) : 0
+                const insurance = settings.hasInsurance ? Math.floor(subtotal * nhiRate) : 0
                 const fee = settings.hasRemittanceFee ? settings.remittanceFeeAmount : 0
                 const netTotal = subtotal - tax - insurance - fee
 

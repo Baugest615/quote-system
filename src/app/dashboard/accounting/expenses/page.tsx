@@ -13,8 +13,9 @@ import Pagination from '@/components/accounting/Pagination'
 import SpreadsheetEditor from '@/components/accounting/SpreadsheetEditor'
 import { EmptyState } from '@/components/ui/EmptyState'
 import Link from 'next/link'
-import type { AccountingExpense } from '@/types/custom.types'
-import { EXPENSE_TYPES, ACCOUNTING_SUBJECTS } from '@/types/custom.types'
+import type { AccountingExpense, PaymentTargetType, ExpenseType, PaymentStatus } from '@/types/custom.types'
+import { EXPENSE_TYPES, ACCOUNTING_SUBJECTS, EXPENSE_TYPE_DEFAULT_SUBJECTS, PAYMENT_TARGET_LABELS, PAYMENT_TARGET_TYPES, PAYMENT_STATUS, PAYMENT_STATUS_LABELS } from '@/types/custom.types'
+import { PaymentStatusBadge } from '@/components/accounting/monthly-settlement/PaymentStatusBadge'
 import type { SpreadsheetColumn, BatchSaveResult, RowError } from '@/lib/spreadsheet-utils'
 import { useProjectNames } from '@/hooks/useProjectNames'
 import { SearchableSelect } from '@/components/ui/SearchableSelect'
@@ -24,17 +25,19 @@ const CURRENT_YEAR = new Date().getFullYear()
 const MONTH_OPTIONS = ['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月']
 
 const EXPENSE_TYPE_COLORS: Record<string, string> = {
-  '專案支出': 'bg-blue-100 text-blue-700 dark:bg-blue-500/20 dark:text-blue-400',
   '勞務報酬': 'bg-purple-100 text-purple-700 dark:bg-purple-500/20 dark:text-purple-400',
+  '外包服務': 'bg-cyan-100 text-cyan-700 dark:bg-cyan-500/20 dark:text-cyan-400',
+  '專案費用': 'bg-blue-100 text-blue-700 dark:bg-blue-500/20 dark:text-blue-400',
+  '員工代墊': 'bg-orange-100 text-orange-700 dark:bg-orange-500/20 dark:text-orange-400',
+  '營運費用': 'bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-400',
   '其他支出': 'bg-yellow-100 text-yellow-700 dark:bg-yellow-500/20 dark:text-yellow-400',
-  '公司相關': 'bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-400',
   '沖帳免付': 'bg-muted text-muted-foreground',
 }
 
 const emptyForm = (): Partial<AccountingExpense> => ({
   year: CURRENT_YEAR,
   expense_month: '',
-  expense_type: '專案支出',
+  expense_type: '勞務報酬',
   accounting_subject: '',
   amount: 0,
   tax_amount: 0,
@@ -45,6 +48,8 @@ const emptyForm = (): Partial<AccountingExpense> => ({
   invoice_number: '',
   project_name: '',
   note: '',
+  payment_target_type: null,
+  payment_status: 'unpaid' as const,
 })
 
 export default function AccountingExpensesPage() {
@@ -53,6 +58,8 @@ export default function AccountingExpensesPage() {
   const queryClient = useQueryClient()
   const [year, setYear] = useState(CURRENT_YEAR)
   const [typeFilter, setTypeFilter] = useState<string>('all')
+  const [targetFilter, setTargetFilter] = useState<string>('all')
+  const [paymentStatusFilter, setPaymentStatusFilter] = useState<string>('all')
   const [search, setSearch] = useState('')
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editing, setEditing] = useState<AccountingExpense | null>(null)
@@ -141,14 +148,16 @@ export default function AccountingExpensesPage() {
     const q = search.toLowerCase()
     return records.filter(r => {
       const matchesType = typeFilter === 'all' || r.expense_type === typeFilter
+      const matchesTarget = targetFilter === 'all' || r.payment_target_type === targetFilter
+      const matchesPaymentStatus = paymentStatusFilter === 'all' || r.payment_status === paymentStatusFilter
       const matchesSearch = !q ||
         (r.project_name || '').toLowerCase().includes(q) ||
         (r.vendor_name || '').toLowerCase().includes(q) ||
         (r.invoice_number || '').toLowerCase().includes(q) ||
         (r.accounting_subject || '').toLowerCase().includes(q)
-      return matchesType && matchesSearch
+      return matchesType && matchesTarget && matchesPaymentStatus && matchesSearch
     })
-  }, [search, typeFilter, records])
+  }, [search, typeFilter, targetFilter, paymentStatusFilter, records])
 
   const handleAmountChange = (value: number) => {
     const tax = Math.round(value * 0.05 * 100) / 100
@@ -241,6 +250,22 @@ export default function AccountingExpensesPage() {
           <option value="all">所有類型</option>
           {EXPENSE_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
         </select>
+        <select
+          value={targetFilter}
+          onChange={(e) => setTargetFilter(e.target.value)}
+          className="border border-border rounded-lg px-3 py-2 text-sm bg-card focus:outline-none focus:ring-2 focus:ring-ring"
+        >
+          <option value="all">所有對象</option>
+          {PAYMENT_TARGET_TYPES.map(t => <option key={t} value={t}>{PAYMENT_TARGET_LABELS[t]}</option>)}
+        </select>
+        <select
+          value={paymentStatusFilter}
+          onChange={(e) => setPaymentStatusFilter(e.target.value)}
+          className="border border-border rounded-lg px-3 py-2 text-sm bg-card focus:outline-none focus:ring-2 focus:ring-ring"
+        >
+          <option value="all">所有狀態</option>
+          {PAYMENT_STATUS.map(s => <option key={s} value={s}>{PAYMENT_STATUS_LABELS[s]}</option>)}
+        </select>
         <div className="relative flex-1 min-w-48">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground/60" />
           <input
@@ -287,7 +312,7 @@ export default function AccountingExpensesPage() {
       ) : (
       <>
       {/* 統計 */}
-      <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-8 gap-3">
         {EXPENSE_TYPES.map(t => {
           const sub = records.filter(r => r.expense_type === t)
           const total = sub.reduce((s, r) => s + (r.amount || 0), 0)
@@ -327,12 +352,13 @@ export default function AccountingExpensesPage() {
                   <th className="text-right px-4 py-3">總額（含稅）</th>
                   <th className="text-left px-4 py-3">專案名稱</th>
                   <th className="text-left px-4 py-3">匯款日</th>
+                  <th className="text-center px-4 py-3">付款狀態</th>
                   <th className="text-center px-4 py-3">操作</th>
                 </tr>
               </thead>
               <tbody>
                 {filtered.length === 0 ? (
-                  <tr><td colSpan={9}><EmptyState type="no-data" icon={TrendingDown} title="尚無支出記錄" description="新增第一筆支出記錄開始追蹤" /></td></tr>
+                  <tr><td colSpan={10}><EmptyState type="no-data" icon={TrendingDown} title="尚無支出記錄" description="新增第一筆支出記錄開始追蹤" /></td></tr>
                 ) : filtered.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE).map(r => (
                   <tr key={r.id} className="border-t border-border/50 hover:bg-accent">
                     <td className="px-4 py-3 text-muted-foreground">{r.expense_month || '-'}</td>
@@ -350,6 +376,9 @@ export default function AccountingExpensesPage() {
                     <td className="px-4 py-3 text-right text-foreground">NT$ {fmt(r.total_amount || 0)}</td>
                     <td className="px-4 py-3 text-muted-foreground max-w-32 truncate">{r.project_name || '-'}</td>
                     <td className="px-4 py-3 text-muted-foreground">{r.payment_date || '-'}</td>
+                    <td className="px-4 py-3 text-center">
+                      <PaymentStatusBadge status={r.payment_status || 'unpaid'} />
+                    </td>
                     <td className="px-4 py-3">
                       <div className="flex items-center justify-center gap-2">
                         <button onClick={() => { setEditing(r); setForm({ ...r }); setIsModalOpen(true) }} className="p-1.5 text-muted-foreground/60 hover:text-primary rounded hover:bg-primary/10">
@@ -410,7 +439,15 @@ export default function AccountingExpensesPage() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-medium text-muted-foreground mb-1">支出種類 *</label>
-                  <select value={form.expense_type || ''} onChange={(e) => setForm(f => ({ ...f, expense_type: e.target.value as any }))}
+                  <select value={form.expense_type || ''} onChange={(e) => {
+                    const newType = e.target.value as ExpenseType
+                    const suggestedSubject = EXPENSE_TYPE_DEFAULT_SUBJECTS[newType] || ''
+                    setForm(f => ({
+                      ...f,
+                      expense_type: newType,
+                      accounting_subject: f.accounting_subject || suggestedSubject,
+                    }))
+                  }}
                     className="w-full border border-border rounded-lg px-3 py-2 text-sm bg-card focus:outline-none focus:ring-2 focus:ring-ring">
                     {EXPENSE_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
                   </select>
@@ -424,10 +461,20 @@ export default function AccountingExpensesPage() {
                   </select>
                 </div>
               </div>
-              <div>
-                <label className="block text-xs font-medium text-muted-foreground mb-1">廠商/付款對象</label>
-                <input type="text" value={form.vendor_name || ''} onChange={(e) => setForm(f => ({ ...f, vendor_name: e.target.value }))}
-                  className="w-full border border-border rounded-lg px-3 py-2 text-sm bg-card focus:outline-none focus:ring-2 focus:ring-ring" placeholder="廠商或個人姓名" />
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-medium text-muted-foreground mb-1">廠商/付款對象</label>
+                  <input type="text" value={form.vendor_name || ''} onChange={(e) => setForm(f => ({ ...f, vendor_name: e.target.value }))}
+                    className="w-full border border-border rounded-lg px-3 py-2 text-sm bg-card focus:outline-none focus:ring-2 focus:ring-ring" placeholder="廠商或個人姓名" />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-muted-foreground mb-1">付款對象類型</label>
+                  <select value={form.payment_target_type || ''} onChange={(e) => setForm(f => ({ ...f, payment_target_type: (e.target.value || null) as PaymentTargetType | null }))}
+                    className="w-full border border-border rounded-lg px-3 py-2 text-sm bg-card focus:outline-none focus:ring-2 focus:ring-ring">
+                    <option value="">-- 選擇 --</option>
+                    {PAYMENT_TARGET_TYPES.map(t => <option key={t} value={t}>{PAYMENT_TARGET_LABELS[t]}</option>)}
+                  </select>
+                </div>
               </div>
               <div className="grid grid-cols-3 gap-4">
                 <div>

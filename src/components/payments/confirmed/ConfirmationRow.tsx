@@ -5,14 +5,16 @@ import { PaymentConfirmation } from '@/lib/payments/types'
 import { ConfirmationDetails } from './ConfirmationDetails'
 import { ExportControls } from './ExportControls'
 import { useRemittanceSettings } from '@/hooks/payments/useRemittanceSettings'
+import type { WithholdingSettings } from '@/types/custom.types'
 
 interface ConfirmationRowProps {
     confirmation: PaymentConfirmation
     onToggleExpansion: (id: string) => void
     onRevert: (confirmation: PaymentConfirmation) => void
+    withholdingRates?: WithholdingSettings | null
 }
 
-export function ConfirmationRow({ confirmation, onToggleExpansion, onRevert }: ConfirmationRowProps) {
+export function ConfirmationRow({ confirmation, onToggleExpansion, onRevert, withholdingRates }: ConfirmationRowProps) {
     const { settings, updateSettings, getSettings } = useRemittanceSettings(
         confirmation.id,
         confirmation.remittance_settings
@@ -39,7 +41,7 @@ export function ConfirmationRow({ confirmation, onToggleExpansion, onRevert }: C
                     </div>
                 </div>
                 <div className="flex items-center space-x-2">
-                    <ExportControls confirmation={confirmation} settingsMap={settings} />
+                    <ExportControls confirmation={confirmation} settingsMap={settings} withholdingRates={withholdingRates} />
                     <Button
                         variant="destructive"
                         size="sm"
@@ -60,6 +62,7 @@ export function ConfirmationRow({ confirmation, onToggleExpansion, onRevert }: C
                     settings={settings}
                     updateSettings={updateSettings}
                     getSettings={getSettings}
+                    withholdingRates={withholdingRates}
                 />
             )}
         </div>

@@ -20,6 +20,8 @@ interface ProjectGroupViewProps {
     onMergeSelection: (itemId: string, checked: boolean) => void
     onUnmerge: (groupId: string) => void
     onClearRejection: (requestId: string) => void
+    onExpenseTypeChange?: (itemId: string, value: string) => void
+    onExpectedPaymentMonthChange?: (itemId: string, value: string) => void
     selectedItems: string[]
     selectedForMerge: string[]
     selectedMergeType: 'account' | null
@@ -43,6 +45,8 @@ export function ProjectGroupView({
     onMergeSelection,
     onUnmerge,
     onClearRejection,
+    onExpenseTypeChange,
+    onExpectedPaymentMonthChange,
     selectedItems,
     selectedForMerge,
     selectedMergeType,
@@ -156,6 +160,8 @@ export function ProjectGroupView({
                                                 onOpenBankInfoModal={onOpenBankInfoModal}
                                                 onInvoiceNumberChange={onInvoiceChange}
                                                 onPaymentSelection={onSelect}
+                                                onExpenseTypeChange={onExpenseTypeChange}
+                                                onExpectedPaymentMonthChange={onExpectedPaymentMonthChange}
                                             />
                                         )
                                     })}

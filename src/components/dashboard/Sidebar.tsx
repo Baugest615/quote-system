@@ -22,7 +22,8 @@ import {
   Calculator,
   X,
   Menu,
-  FolderKanban
+  FolderKanban,
+  Landmark
 } from 'lucide-react'
 import { usePermission } from '@/lib/permissions'
 import supabase from '@/lib/supabase/client'
@@ -47,6 +48,7 @@ const ACCOUNTING_SUB_MENU = [
   { href: '/dashboard/accounting/sales', label: '銷項管理', icon: Receipt },
   { href: '/dashboard/accounting/expenses', label: '進項管理', icon: TrendingDown },
   { href: '/dashboard/accounting/payroll', label: '人事薪資', icon: Users },
+  { href: '/dashboard/accounting/monthly-settlement', label: '月結總覽', icon: Landmark },
   { href: '/dashboard/accounting/projects', label: '專案損益', icon: BarChart3 },
   { href: '/dashboard/accounting/calculator', label: '利潤試算', icon: Calculator },
   { href: '/dashboard/accounting/reports', label: '歷年報表', icon: FileText },

@@ -80,10 +80,12 @@ export default function AccountingReportsPage() {
   if (!hasRole('Admin')) return <AccountingLoadingGuard loading={false} isAdmin={false} />
 
   const EXPENSE_COLORS: Record<string, string> = {
-    '專案支出': 'bg-blue-400',
     '勞務報酬': 'bg-purple-400',
+    '外包服務': 'bg-cyan-400',
+    '專案費用': 'bg-blue-400',
+    '員工代墊': 'bg-orange-400',
+    '營運費用': 'bg-green-400',
     '其他支出': 'bg-yellow-400',
-    '公司相關': 'bg-green-400',
     '沖帳免付': 'bg-muted-foreground',
   }
 
@@ -196,7 +198,7 @@ export default function AccountingReportsPage() {
             return (
               <div key={`breakdown-${s.year}`} className="bg-card rounded-xl border border-border p-5">
                 <h3 className="font-semibold text-foreground mb-3">{s.year} 年支出結構</h3>
-                <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+                <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-7 gap-3">
                   {yearBreakdown.sort((a, b) => b.amount - a.amount).map(b => (
                     <div key={b.type} className="text-center">
                       <div className={`w-3 h-3 rounded-full mx-auto mb-1 ${EXPENSE_COLORS[b.type] || 'bg-muted-foreground'}`} />

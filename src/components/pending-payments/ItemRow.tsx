@@ -4,7 +4,11 @@ import { Input } from '@/components/ui/input'
 import { RejectionReasonDisplay } from './RejectionReasonDisplay'
 import type { PendingPaymentItem } from '@/lib/payments/types'
 import { parseKolBankInfo, isKolBankInfoComplete } from '@/types/schemas'
+import { EXPENSE_TYPES } from '@/types/custom.types'
 import { useState } from 'react'
+
+const CURRENT_YEAR = new Date().getFullYear()
+const PAYMENT_MONTH_OPTIONS = Array.from({ length: 12 }, (_, i) => `${CURRENT_YEAR}年${i + 1}月`)
 
 interface ItemRowProps {
     item: PendingPaymentItem
@@ -26,6 +30,8 @@ interface ItemRowProps {
     onOpenBankInfoModal: (item: PendingPaymentItem) => void
     onInvoiceNumberChange: (itemId: string, value: string) => void
     onPaymentSelection: (itemId: string, checked: boolean) => void
+    onExpenseTypeChange?: (itemId: string, value: string) => void
+    onExpectedPaymentMonthChange?: (itemId: string, value: string) => void
 }
 
 export function ItemRow({
@@ -47,7 +53,9 @@ export function ItemRow({
     onOpenFileModal,
     onOpenBankInfoModal,
     onInvoiceNumberChange,
-    onPaymentSelection
+    onPaymentSelection,
+    onExpenseTypeChange,
+    onExpectedPaymentMonthChange
 }: ItemRowProps) {
     const [isSaving, setIsSaving] = useState(false)
 
@@ -107,6 +115,25 @@ export function ItemRow({
             {/* Service */}
             <td className="px-2 py-2 align-top text-xs">
                 <div className="font-medium text-foreground">{item.service}</div>
+                {onExpenseTypeChange && (
+                    <select
+                        value={item.expense_type_input || '勞務報酬'}
+                        onChange={(e) => onExpenseTypeChange(item.id, e.target.value)}
+                        className="mt-1 w-full h-6 text-[10px] bg-secondary border border-border rounded px-1 text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                    >
+                        {EXPENSE_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+                    </select>
+                )}
+                {onExpectedPaymentMonthChange && (
+                    <select
+                        value={item.expected_payment_month_input || ''}
+                        onChange={(e) => onExpectedPaymentMonthChange(item.id, e.target.value)}
+                        className="mt-1 w-full h-6 text-[10px] bg-secondary border border-border rounded px-1 text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                        title="預計支付月份"
+                    >
+                        {PAYMENT_MONTH_OPTIONS.map(m => <option key={m} value={m}>{m}</option>)}
+                    </select>
+                )}
                 <RejectionReasonDisplay
                     item={item}
                     onClear={() => onClearRejection(item.payment_request_id!)}

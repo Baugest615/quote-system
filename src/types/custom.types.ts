@@ -265,11 +265,8 @@ export interface ProjectNote {
 // ===== 帳務管理相關類型 =====
 
 export const EXPENSE_TYPES = [
-  '專案支出',
-  '勞務報酬',
-  '其他支出',
-  '公司相關',
-  '沖帳免付',
+  '勞務報酬', '外包服務', '專案費用', '員工代墊',
+  '營運費用', '其他支出', '沖帳免付', '代扣代繳',
 ] as const
 export type ExpenseType = typeof EXPENSE_TYPES[number]
 
@@ -278,8 +275,46 @@ export const ACCOUNTING_SUBJECTS = [
   '文具用品', '餐費', '交通費用', '廣告費用', '郵電費用',
   '修繕費用', '職工福利', '勞健保', '交際費用', '伙食費',
   '其他費用', '匯費',
+  '勞務成本', '外包費用', '軟體訂閱', '水電瓦斯', '保險費用', '稅捐規費', '折舊攤銷',
 ] as const
 export type AccountingSubject = typeof ACCOUNTING_SUBJECTS[number]
+
+// ===== 付款狀態 =====
+export const PAYMENT_STATUS = ['unpaid', 'paid'] as const
+export type PaymentStatus = typeof PAYMENT_STATUS[number]
+
+export const PAYMENT_STATUS_LABELS: Record<PaymentStatus, string> = {
+  unpaid: '未付',
+  paid: '已付',
+}
+
+export const PAYMENT_STATUS_COLORS: Record<PaymentStatus, string> = {
+  unpaid: 'bg-warning/20 text-warning',
+  paid: 'bg-success/20 text-success',
+}
+
+// ===== 付款對象類型 =====
+export const PAYMENT_TARGET_TYPES = ['kol', 'vendor', 'employee', 'other'] as const
+export type PaymentTargetType = typeof PAYMENT_TARGET_TYPES[number]
+
+export const PAYMENT_TARGET_LABELS: Record<PaymentTargetType, string> = {
+  kol: 'KOL/自由工作者',
+  vendor: '廠商',
+  employee: '員工',
+  other: '其他',
+}
+
+// 支出種類 → 建議會計科目映射
+export const EXPENSE_TYPE_DEFAULT_SUBJECTS: Record<ExpenseType, string> = {
+  '勞務報酬': '勞務成本',
+  '外包服務': '外包費用',
+  '專案費用': '廣告費用',
+  '員工代墊': '其他費用',
+  '營運費用': '租金支出',
+  '其他支出': '其他費用',
+  '沖帳免付': '',
+  '代扣代繳': '所得稅',
+}
 
 export interface AccountingSale {
   id: string
@@ -317,6 +352,11 @@ export interface AccountingExpense {
   note: string | null
   payment_request_id: string | null
   expense_claim_id: string | null
+  payment_confirmation_id: string | null
+  payment_target_type: PaymentTargetType | null
+  payment_status: PaymentStatus
+  paid_at: string | null
+  submitted_by: string | null
   created_by: string | null
   created_at: string
   updated_at: string
@@ -345,6 +385,7 @@ export interface ExpenseClaim {
   id: string
   year: number
   claim_month: string | null
+  withholding_month: string | null
   expense_type: ExpenseType
   accounting_subject: string | null
   amount: number
@@ -356,6 +397,7 @@ export interface ExpenseClaim {
   invoice_date: string | null
   note: string | null
   status: ClaimStatus
+  payment_target_type: PaymentTargetType | null
   submitted_by: string | null
   submitted_at: string | null
   approved_by: string | null
@@ -364,6 +406,8 @@ export interface ExpenseClaim {
   rejected_at: string | null
   rejection_reason: string | null
   attachment_file_path: string | null
+  payment_status: PaymentStatus | null
+  paid_at: string | null
   created_by: string | null
   created_at: string
   updated_at: string
@@ -395,6 +439,8 @@ export interface AccountingPayroll {
   health_rate: number | null
   pension_rate: number | null
   note: string | null
+  payment_status: PaymentStatus
+  paid_at: string | null
   created_by: string | null
   created_at: string
   updated_at: string
@@ -449,6 +495,34 @@ export interface Employee {
   created_by: string | null
   created_at: string
   updated_at: string
+}
+
+// ===== 代扣代繳費率設定 =====
+
+export interface WithholdingSettings {
+  id: string
+  income_tax_rate: number
+  nhi_supplement_rate: number
+  income_tax_threshold: number
+  nhi_threshold: number
+  remittance_fee_default: number
+  effective_date: string
+  expiry_date: string | null
+  updated_at: string | null
+  updated_by: string | null
+}
+
+export interface WithholdingSettlement {
+  id: string
+  month: string
+  type: 'income_tax' | 'nhi_supplement'
+  amount: number
+  settlement_method: 'company_direct' | 'employee_advance'
+  expense_claim_id: string | null
+  note: string | null
+  settled_by: string | null
+  settled_at: string | null
+  created_at: string | null
 }
 
 // ===== 勞健保費率相關類型 =====

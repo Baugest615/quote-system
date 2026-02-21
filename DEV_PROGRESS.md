@@ -1,9 +1,179 @@
 # 開發進度追蹤
 
-> 最後更新：2026-02-21
-> 分支：`feature/v1.5`
+> 最後更新：2026-02-22
+> 分支：`feature/v2.5-accounting-withholding`
 
 ## 已完成
+
+### v2.5 — 帳務進階：代扣代繳系統 + 月結總覽 + 已確認請款重構（2026-02-22）
+
+全面建構代扣代繳應付追蹤系統，新增月結總覽頁面，並將已確認請款頁面重構為三分頁架構。
+
+#### Phase 1：費用分類重構 + 請款審核強化
+
+**Migration**（`20260222000001_refactor_expense_classification.sql`）：
+- [x] `expense_type` CHECK 擴展：新增「員工代墊」「營運費用」「代扣代繳」
+- [x] `accounting_expenses` 新增 `payment_target_type`、`payment_status`、`paid_at`、`submitted_by` 欄位
+- [x] `expense_claims` 新增 `payment_target_type`、`payment_status` 欄位
+- [x] `approve_expense_claim` RPC 更新：支援付款對象推斷
+
+**Migration**（`20260222200000_fix_approve_payment_request_role_query.sql`）：
+- [x] 修復 `approve_payment_request` RPC 角色查詢邏輯
+
+**前端變更**：
+- [x] `ExpenseClaimModal` 支援「員工代墊」「營運費用」等新類型 + 付款對象欄位
+- [x] `KolModal` 新增免扣狀態（withholding_exempt）管理
+- [x] 進項管理頁面支援 `payment_target_type` 篩選
+- [x] 待請款頁面新增預計付款月份欄位
+
+#### Phase 2：代扣代繳應付追蹤 + 沖銷機制
+
+**Migration**（`20260222400000_add_withholding_settings.sql`）：
+- [x] 新建 `withholding_settings` 表（所得稅率、健保費率、免稅門檻、匯費預設值）
+- [x] 全域設定管理（非 per-confirmation）
+
+**Migration**（`20260222500000_add_withholding_settlements.sql`）：
+- [x] 新建 `withholding_settlements` 表（繳納紀錄：公司直繳/員工代墊）
+- [x] `approve_expense_claim` RPC 代扣代繳路徑：不建 `accounting_expense`，改建 `withholding_settlement`
+- [x] RLS 政策完整（SELECT 全員、INSERT/UPDATE Admin+Editor、DELETE Admin）
+
+**Migration**（`20260222600000_repair_missing_withholding_settlements.sql`）：
+- [x] 回填舊版 RPC 核准的代扣代繳報帳（補建 settlement、清理錯誤的 expense）
+
+**Migration**（`20260222700000_add_withholding_month_column.sql`）：
+- [x] `expense_claims` 新增 `withholding_month` 欄位（代扣所屬月份 ≠ 報帳月份）
+- [x] RPC 優先使用 `withholding_month`，fallback `claim_month`
+
+**Hooks**：
+- [x] `useWithholdingSettings` — 全域費率設定 CRUD
+- [x] `useWithholdingSettlements` — 按月查詢繳納紀錄 + 新增繳納
+
+#### Phase 3：月結總覽頁面
+
+**Migration**（`20260222100000_add_monthly_settlement.sql`）：
+- [x] `get_monthly_settlement_summary` RPC：跨表匯總月份收支
+
+**新增頁面**（`/dashboard/accounting/monthly-settlement`）：
+- [x] 月份選擇器 + 收入/支出/損益 KPI 卡片
+- [x] 收入明細（銷項發票列表）
+- [x] 支出明細（進項支出列表）
+- [x] 勞務報酬追蹤（按 KOL 歸戶、小計彙總）
+- [x] 代扣代繳月報（應扣/已繳/差額 + 繳納紀錄 + 新增繳納功能）
+
+#### Phase 4：已確認請款頁面三分頁重構
+
+將原本混合統計/代扣報表/清單明細的頁面重構為三個 Tab，大幅提升使用體驗。
+
+**新增工具函數**（`src/lib/payments/aggregation.ts`）：
+- [x] `aggregateMonthlyRemittanceGroups()` — 跨清單按月彙總匯款群組
+- [x] `splitRemittanceGroups()` — 分為個人/公司群組
+- [x] `checkWithholdingApplicability()` — 代扣條件判斷（個人報帳/公司戶/免扣/未達門檻）
+- [x] `getAvailableMonths()` — 從確認清單提取可用月份
+- [x] `exportBankTransferCsv()` — 匯款明細 CSV 匯出
+
+**新增工具函數**（`src/lib/payments/withholding-export.ts`）：
+- [x] `computeMonthlyWithholding()` — 月代扣彙總（排除個人報帳）
+- [x] `generateNhiDetailCsv()` / `generateTaxWithholdingCsv()` / `generateFullWithholdingCsv()` — 三種 CSV 匯出
+
+**Tab 1：匯款總覽**（`PaymentOverviewTab.tsx`）：
+- [x] 月份選擇器 + 彙總卡片（匯款總額/代扣所得稅/代扣健保/匯費合計/實付總額）
+- [x] 個人匯款/公司匯款分區顯示
+- [x] `RemittanceGroupCard` 元件（展開：銀行資訊+項目明細+扣除明細+實付金額）
+- [x] CSV 匯出整月銀行匯款明細
+
+**Tab 2：代扣代繳**（`WithholdingTab.tsx`）：
+- [x] 薄包裝層，`WithholdingReport` 以 `alwaysExpanded` 模式顯示
+
+**Tab 3：確認紀錄**（`ConfirmationHistoryTab.tsx`）：
+- [x] 搜尋/日期篩選/排序控制
+- [x] `ConfirmationRow` 清單 + 展開 → `ConfirmationDetails`
+- [x] 代扣設定條件化：只有勞務報酬+超門檻的群組才顯示代扣勾選框
+- [x] 不適用代扣的群組顯示原因說明（個人報帳/公司戶/免扣/未達門檻）+ 僅保留匯費設定
+- [x] 退回功能完整保留
+
+**頁面主體重構**（`confirmed-payments/page.tsx`）：
+- [x] Tab 切換（匯款總覽/代扣代繳/確認紀錄）
+- [x] 個人報帳項目顯示申請人姓名（透過 employees 表查詢，避開 profiles RLS）
+- [x] `PaymentStats` 統計面板保留在 Tab 上方
+
+#### Phase 5：Bug 修復
+
+**修復 1：代扣代繳繳納紀錄重複**
+
+**Migration**（`20260222950000_fix_duplicate_withholding_settlements.sql`）：
+- [x] 清理現有重複記錄（保留最早一筆）
+- [x] UNIQUE partial index `idx_withholding_settlements_unique_claim` 防止未來重複
+- [x] `approve_expense_claim` RPC 加入 `NOT EXISTS` 檢查再 INSERT
+- [x] `handleRevert` 退回時同步刪除 `withholding_settlements`（避免再次核准產生重複）
+
+**修復 2：匯費未同步到進項管理**
+
+**Migration**（`20260222960000_sync_remittance_fee_to_accounting.sql`）：
+- [x] `accounting_expenses` 新增 `payment_confirmation_id` 欄位
+- [x] UNIQUE partial index 確保每個確認清單只有一筆匯費記錄
+- [x] `update_remittance_settings` RPC 自動同步匯費到 `accounting_expenses`（expense_type=營運費用, accounting_subject=銀行手續費）
+- [x] 匯費為 0 時自動刪除記錄；匯費 > 0 時 upsert
+- [x] 回填既有確認清單的匯費記錄
+- [x] `handleRevert` 退回時先刪匯費記錄（在刪 confirmation 之前，避免 FK 衝突）
+
+#### 其他 Migration
+
+- [x] `20260222300000_add_expected_payment_month.sql` — 待請款項目新增「預計付款月份」
+- [x] `20260222800000_expense_claims_payment_status.sql` — 個人報帳新增付款狀態追蹤
+- [x] `20260222900000_add_expense_claims_profiles_fk.sql` — expense_claims.submitted_by FK 到 profiles
+
+#### 新增檔案清單
+
+```
+src/app/dashboard/accounting/monthly-settlement/page.tsx
+src/components/accounting/monthly-settlement/
+  ├── IncomeSection.tsx
+  ├── ExpenseSection.tsx
+  ├── LaborPaymentSection.tsx
+  └── WithholdingSection.tsx
+src/components/payments/confirmed/RemittanceGroupCard.tsx
+src/components/payments/confirmed/WithholdingReport.tsx
+src/components/payments/confirmed/tabs/
+  ├── PaymentOverviewTab.tsx
+  ├── WithholdingTab.tsx
+  └── ConfirmationHistoryTab.tsx
+src/hooks/useMonthlySettlement.ts
+src/hooks/useWithholdingSettings.ts
+src/hooks/useWithholdingSettlements.ts
+src/lib/payments/aggregation.ts
+src/lib/payments/withholding-export.ts
+supabase/migrations/20260222*.sql (12 migrations)
+```
+
+#### 修改檔案清單
+
+```
+src/app/dashboard/confirmed-payments/page.tsx（三分頁重構 + 申請人姓名注入）
+src/app/dashboard/accounting/expenses/page.tsx（payment_target_type 篩選）
+src/app/dashboard/accounting/page.tsx（月結連結）
+src/app/dashboard/accounting/reports/page.tsx（報表更新）
+src/app/dashboard/expense-claims/page.tsx（付款狀態）
+src/app/dashboard/pending-payments/page.tsx（預計付款月份）
+src/components/dashboard/Sidebar.tsx（月結選單項）
+src/components/expense-claims/ExpenseClaimModal.tsx（新支出類型 + 付款對象）
+src/components/kols/KolModal.tsx（免扣狀態）
+src/components/payments/confirmed/ConfirmationDetails.tsx（代扣條件化）
+src/components/payments/confirmed/ConfirmationRow.tsx（更新 props）
+src/components/payments/confirmed/ExportControls.tsx（匯出功能更新）
+src/components/payments/confirmed/PaymentRecordRow.tsx（顯示申請人姓名）
+src/components/pending-payments/ItemRow.tsx（預計付款月份）
+src/components/pending-payments/ProjectGroupView.tsx（UI 微調）
+src/hooks/pending-payments/usePendingItems.ts（查詢欄位擴展）
+src/lib/payments/grouping.ts（個人報帳分組用申請人姓名）
+src/lib/payments/types.ts（新增 submitter、MergedRemittanceGroup 等型別）
+src/lib/queryKeys.ts（新增 withholdingSettings、withholdingSettlements）
+src/types/custom.types.ts（AccountingExpense + WithholdingSettings + WithholdingSettlement）
+src/types/database.types.ts（Supabase 自動生成型別同步）
+```
+
+驗證結果：TypeScript 零錯誤、Production build 成功（29 頁面）、12 個 Migration 全部推送至遠端 DB
+
+---
 
 ### 使用者管理優化 — 角色管理 + 員工綁定（2026-02-21）
 
@@ -36,17 +206,6 @@
 **員工管理頁面微調**：
 - [x] 表格新增「綁定帳號」欄位（顯示 email 或「未綁定」）
 
-新增檔案：
-- `supabase/migrations/20260221200001_add_user_id_to_employees.sql`
-- `src/components/settings/UserEditModal.tsx`
-
-修改檔案：
-- `src/app/dashboard/settings/permissions/page.tsx`（完整重寫）
-- `src/hooks/useMyEmployeeData.ts`（user_id 查詢）
-- `src/types/custom.types.ts`（Employee 加 user_id）
-- `src/lib/queryKeys.ts`（加 userManagement、unlinkedEmployees）
-- `src/app/dashboard/accounting/employees/page.tsx`（加綁定帳號欄）
-
 驗證結果：TypeScript 零錯誤、Production build 成功（29 頁面）、E2E 20/20 全通過
 
 ### 個人請款功能 Code Review + 安全修復 + E2E 驗證（2026-02-21）
@@ -77,15 +236,6 @@ Migration 安全修復（`20260221100000_fix_expense_claims_security.sql`）：
 - [x] 已確認請款清單：統計面板、搜尋、排序功能
 - [x] 回歸測試：客戶管理、KOL 管理、報價單、待請款、費用管理 — 全部 OK
 - [x] Console 錯誤：0
-
-新增檔案：
-- `supabase/migrations/20260221100000_fix_expense_claims_security.sql`
-
-修改檔案：
-- `src/app/dashboard/expense-claims/page.tsx`（canDelete 邏輯、user 空值檢查）
-- `src/app/dashboard/payment-requests/page.tsx`（Hooks 順序、any 型別、query key）
-- `src/app/dashboard/confirmed-payments/page.tsx`（any 型別、query key invalidation）
-- `src/lib/queryKeys.ts`（新增 expenseClaimsPending）
 
 驗證結果：TypeScript 零錯誤、Production build 成功（29 頁面）、E2E 全通過
 
@@ -119,23 +269,6 @@ Migration 安全修復（`20260221100000_fix_expense_claims_security.sql`）：
 - [x] **銷項管理 Modal**：datalist → SearchableSelect
 - [x] **SpreadsheetEditor autocomplete 升級**：原生 datalist → SearchableSelectCell（Portal 渲染）
 
-新增檔案：
-- `supabase/migrations/20260220000002_create_expense_claims.sql`
-- `src/app/dashboard/expense-claims/page.tsx`
-- `src/components/expense-claims/ExpenseClaimModal.tsx`
-- `src/hooks/useProjectNames.ts`
-
-修改檔案：
-- `src/types/custom.types.ts`、`src/lib/queryKeys.ts`、`src/lib/spreadsheet-utils.ts`
-- `src/components/accounting/SpreadsheetEditor.tsx`（autocomplete 升級）
-- `src/app/dashboard/payment-requests/page.tsx`（Tab 擴展）
-- `src/app/dashboard/confirmed-payments/page.tsx`（個人報帳整合）
-- `src/components/payments/confirmed/PaymentRecordRow.tsx`（個人報帳渲染）
-- `src/lib/payments/types.ts`、`src/lib/payments/grouping.ts`（型別 + 分組邏輯）
-- `src/app/dashboard/accounting/expenses/page.tsx`（SearchableSelect）
-- `src/app/dashboard/accounting/sales/page.tsx`（SearchableSelect）
-- `src/components/dashboard/Sidebar.tsx`（Receipt icon）
-
 驗證結果：TypeScript 零錯誤、Production build 成功（28 頁面）、Migration 已套用至遠端 DB
 
 ### 權限安全防護補強（2026-02-20）
@@ -143,29 +276,9 @@ Migration 安全修復（`20260221100000_fix_expense_claims_security.sql`）：
 全面安全稽核後修復 5 個缺口，建立分層防禦架構。
 
 - [x] **Middleware 資料驅動化**
-  - `routeToPageMap` 從 `PAGE_PERMISSIONS` 自動產生，不再手動維護
-  - `restrictedPages` 改為動態判斷（`allowedRoles.length < 3` = 受限頁面）
-  - 修復：`/dashboard/accounting`（Admin-only）之前完全沒有 middleware 保護
-  - 修復：`/dashboard/projects`、`/dashboard/my-salary` 之前未在路由對照表中
 - [x] **列印頁面身份驗證**
-  - `/print/quote/[id]` 之前任何人可直接存取報價單（含客戶資料、金額、銀行帳號）
-  - 新增 middleware matcher 覆蓋 `/print/:path*`
-  - 新增頁面層級 `getUser()` 驗證（縱深防禦）
-  - 重構 `getQuote()` 接收 supabase client 參數，避免重複建立
 - [x] **請款頁面權限守衛**
-  - `payment-requests/page.tsx`：加入 `usePermission` + `checkPageAccess('payment_requests')`
-  - `confirmed-payments/page.tsx`：加入 `usePermission` + `checkPageAccess('confirmed_payments')`
-  - 無權限時顯示 Shield 圖示 + 拒絕訊息（與 AccountingLoadingGuard 風格一致）
 - [x] **PDF API 權限檢查**
-  - `/api/pdf/generate` 原本僅驗證身份，現加入角色權限檢查
-  - 使用 `PAGE_PERMISSIONS[PAGE_KEYS.QUOTES].allowedRoles` 動態驗證
-
-修改檔案：
-- `middleware.ts`（資料驅動路由對照 + 動態受限頁面檢查 + /print 保護）
-- `src/app/print/quote/[id]/page.tsx`（伺服器端身份驗證）
-- `src/app/dashboard/payment-requests/page.tsx`（頁面級權限守衛）
-- `src/app/dashboard/confirmed-payments/page.tsx`（頁面級權限守衛）
-- `src/app/api/pdf/generate/route.ts`（角色權限檢查）
 
 驗證結果：TypeScript 零錯誤、Production build 成功（28 頁面）
 
@@ -173,106 +286,11 @@ Migration 安全修復（`20260221100000_fix_expense_claims_security.sql`）：
 
 新增「專案進度管理」功能，追蹤專案從洽談到結案的完整生命週期。
 
-- [x] **資料庫設計**
-  - 新增 `projects` 表：client_id (FK→clients), client_name, project_name, project_type (專案/經紀), budget_with_tax, notes, status (洽談中/執行中/結案中/關案), quotation_id (FK→quotations)
-  - RLS 政策：核心業務表模式（SELECT/INSERT/UPDATE 全部、DELETE Admin）
-  - 索引：status, quotation_id, created_at DESC
-  - `auto_close_projects()` RPC：結案中專案若 accounting_sales 全部已收款則自動標記關案
-  - 資料遷移：現有 quotations 自動建立對應 project 記錄（status = '執行中'）
-  - Migration: `20260221000001_create_projects_table.sql`
-- [x] **多則備註系統**
-  - 新增 `project_notes` 表：project_id (FK→projects, CASCADE), content, created_by, created_at
-  - RLS：全員可讀寫，刪除限 Admin 或本人
-  - `get_project_notes()` RPC：含作者 email 的備註查詢
-  - `get_project_notes_count()` RPC：各專案備註數量統計
-  - 舊 projects.notes 資料自動遷移至 project_notes
-  - Migration: `20260221000002_create_project_notes_table.sql`
-- [x] **前端頁面**
-  - KPI 統計卡片（4 階段：洽談中/執行中/結案中/關案）+ Tab 表格切換
-  - 可展開行：點擊整行展開備註面板（ChevronRight 箭頭指示）
-  - 備註面板：多則備註列表（作者 + 時間戳 + 內容）+ 新增備註輸入框
-  - 備註數量 badge 顯示於專案名稱旁
-  - 搜尋功能：跨廠商名稱、專案名稱搜尋
-  - 洽談中 → 新增報價單（帶入 projectId 跳轉 QuoteForm）
-  - 執行中/結案中 → 目前進度下拉切換
-  - 關案 → 唯讀模式，系統自動標記
-- [x] **React Query Hooks**
-  - `useProjects`, `useProject`, `useCreateProject`, `useUpdateProject`, `useDeleteProject`, `useAutoCloseProjects`
-  - `useProjectNotes`, `useProjectNotesCounts`, `useCreateProjectNote`, `useDeleteProjectNote`
-- [x] **整合修改**
-  - Sidebar 新增「專案進度」連結（FolderKanban icon）
-  - QuoteForm 支援 `projectId` URL 參數預填
-  - PAGE_KEYS.PROJECTS + PAGE_PERMISSIONS 權限設定
-  - queryKeys 新增 projects, projectNotes, projectNotesCounts
-
-新增檔案：
-- `supabase/migrations/20260221000001_create_projects_table.sql`
-- `supabase/migrations/20260221000002_create_project_notes_table.sql`
-- `src/app/dashboard/projects/page.tsx`
-- `src/hooks/useProjects.ts`
-- `src/hooks/useProjectNotes.ts`
-- `src/components/projects/ProjectFormModal.tsx`
-- `src/components/projects/ProjectTable.tsx`
-- `src/components/projects/ProjectNotesPanel.tsx`
-
-修改檔案：
-- `src/types/custom.types.ts`（Project, ProjectNote 型別 + PAGE_KEYS + PAGE_PERMISSIONS）
-- `src/lib/queryKeys.ts`（projects, projectNotes, projectNotesCounts）
-- `src/components/dashboard/Sidebar.tsx`（FolderKanban icon + 導覽連結）
-- `src/components/quotes/QuoteForm.tsx`（projectId 參數預填支援）
-- `src/app/dashboard/quotes/new/page.tsx`（Suspense boundary）
-
 驗證結果：TypeScript 零錯誤、Production build 成功（28 頁面）、Migration 已套用至遠端 DB
 
 ### React Query 全面遷移 + 跨頁快取失效 + DB 索引補強（2026-02-19）
 
 全部 23 個 Dashboard 頁面從直接 Supabase 呼叫遷移至 React Query 快取管理。
-切換頁面從 ~1.5-2s 降至 < 100ms（快取命中時瞬間顯示）。
-
-- [x] **Phase 1：基礎建設**
-  - 新增 `src/lib/queryKeys.ts` — 統一 Query Key Registry（42 個 key）
-  - 重構 `useCRUDTable.ts` — 內部改用 `useQuery` + `useMutation`，保持相同回傳 API
-  - 重構 `useAccountingTable.ts` — 同上，year 作為 queryKey 的一部分
-  - 更新 `useClients.ts`、`useKols.ts`、`useQuotations.ts`、`useDashboardData.ts` 使用 queryKeys
-- [x] **Phase 2：核心頁面遷移**
-  - `clients/page.tsx` — 改用 `useClients()` + mutations
-  - `kols/page.tsx` — 改用 `useKols()` + `useKolTypes()` + `useServiceTypes()`
-  - `quotes/page.tsx` — 改用 `useQuotationsList(page)` + `useClients()`
-  - `quotes/edit/[id]/page.tsx`、`quotes/view/[id]/page.tsx` — 改用 `useQuotation(id)`
-  - 新增 `src/hooks/useReferenceData.ts`（共用字典資料 hooks）
-- [x] **Phase 3：請款流程頁面遷移**
-  - `pending-payments/page.tsx` — `usePendingItems` 內部改用 React Query
-  - `payment-requests/page.tsx` — `usePaymentData` 改用 `useQuery`
-  - `confirmed-payments/page.tsx` — 同上
-- [x] **Phase 4：其他頁面遷移**
-  - `settings/page.tsx` — 改用 `useServiceTypes()` + `useQuoteCategories()` + `useKolTypes()` + mutations
-  - `settings/permissions/page.tsx` — 改用 `useQuery` + `useMutation`
-  - `reports/page.tsx` — 新增 `useReportData` hook
-  - `my-salary/page.tsx` — 新增 `useMyEmployeeData` hook
-- [x] **Phase 5：會計模組遷移（8 頁面）**
-  - 唯讀頁面：`accounting/page.tsx`（總覽）、`projects/page.tsx`、`reports/page.tsx` — `useQuery` + `useMemo`
-  - CRUD 頁面：`sales/page.tsx`、`expenses/page.tsx`、`payroll/page.tsx` — `useQuery` + `useMutation` + batch save
-  - `employees/page.tsx`、`insurance-rates/page.tsx` — `useQuery` + `useMutation`
-  - `calculator/page.tsx` — 純客戶端計算，無需遷移
-- [x] **Phase 6：跨頁快取失效策略**
-  - 核准請款 → 失效 `confirmedPayments` + `pendingPayments` + `dashboardStats`
-  - 駁回請款 → 失效 `pendingPayments`
-  - 退回已確認請款 → 失效 `paymentRequests`
-  - 儲存/刪除報價單 → 失效 `quotations` + `dashboardStats`
-  - 提交請款 → 失效 `paymentRequests`
-  - 解除合併 → 失效 `pendingPayments`
-- [x] **Phase 7：資料庫效能索引**
-  - 新增 `20260219100000_add_performance_indexes.sql`（7 個索引）
-  - 涵蓋：會計表 year 查詢、薪資 salary_month、請款 status+date 複合索引、保險費率 active 篩選
-
-新增檔案：
-- `src/lib/queryKeys.ts`
-- `src/hooks/useReferenceData.ts`
-- `src/hooks/useReportData.ts`
-- `src/hooks/useMyEmployeeData.ts`
-- `supabase/migrations/20260219100000_add_performance_indexes.sql`
-
-修改檔案：~35 個（所有 dashboard 頁面 + hooks + 請款流程元件）
 
 驗證結果：TypeScript 零錯誤、Production build 成功（27 頁面全部通過）
 
@@ -280,195 +298,46 @@ Migration 安全修復（`20260221100000_fix_expense_claims_security.sql`）：
 
 共修改 **45+ 個檔案**，涵蓋全部 19 個 dashboard 頁面。
 
-- [x] **Phase 0：CSS 變數擴充** — 新增 `--warning`、`--success`、`--info` 語義色彩至 `globals.css` 與 `tailwind.config.js`
-- [x] **Phase 1：共用元件建立**
-  - `StatusBadge.tsx` — 統一所有狀態標籤樣式
-  - `Skeleton.tsx` — 骨架屏載入元件（Skeleton、SkeletonTable、SkeletonStatCards、SkeletonPageHeader、SkeletonCard）
-  - `EmptyState.tsx` — 通用空狀態元件（icon + 標題 + 描述 + 操作按鈕）
-- [x] **Phase 2：核心共用元件修正**（8 個檔案）
-  - EditableCell、QuotesDataGrid、QuotationItemsList、QuoteForm、AccountingModal、AccountingLoadingGuard、SpreadsheetEditor、Pagination
-  - 硬編碼色彩 → CSS 變數主題色
-- [x] **Phase 3：會計模組深色模式**（10 個檔案）
-  - 會計總覽、銷項、進項、薪資、專案損益、計算器、報表、員工、費率表、我的薪資
-  - `bg-white` → `bg-card`、`text-gray-*` → `text-foreground/muted-foreground`
-  - KPI 卡片使用 chart 變數：`bg-chart-4/10 text-chart-4`
-- [x] **Phase 4：其餘頁面修正**（~15 個檔案）
-  - PaymentStatusBadge、clients、kols、reports、quotes、pending-payments 等全部頁面
-  - `emerald-*` → `primary`、`red-*` → `destructive`、`blue-*` → `info`
-- [x] **Phase 5：載入狀態升級為骨架屏**（8 個頁面）
-  - clients、kols、quotes 列表/檢視/編輯、settings、reports、QuoteForm
-  - 「讀取中...」文字 → SkeletonPageHeader + SkeletonStatCards + SkeletonTable 組合
-- [x] **Phase 6：空狀態升級為 EmptyState 元件**（7 個頁面）
-  - clients、QuotesDataGrid、SpreadsheetEditor、accounting（sales/expenses/payroll/projects）
-  - 搜尋無結果 vs 尚無資料 兩種模式
-- [x] **Phase 7：Z-Index 分層標準化**
-  - Sidebar `z-[9999]` → `z-[60]`、SearchableSelectCell `z-[9999]` → `z-[60]`、globals.css `z-[99999]` → `z-[60]`
-- [x] **Phase 8：表單驗證 UX** — QuoteForm 提交失敗時自動捲到第一個錯誤欄位
-- [x] **Phase 9：最終清理審計**（~23 個檔案）
-  - not-found、ErrorBoundary、settings、login、confirmed-payments、FileModal、payment-requests 等
-  - 移除所有剩餘硬編碼色彩（PDF/列印元件除外，故意保持淺色）
-
-新增檔案：
-- `src/components/ui/StatusBadge.tsx`
-- `src/components/ui/Skeleton.tsx`
-- `src/components/ui/EmptyState.tsx`
-
 驗證結果：TypeScript 檢查通過、Production build 成功
 
-### 報價單檢視頁面暗色主題優化 & PDF 生成修復（2026-02-19）
-- [x] **檢視頁面顏色修正**：暗色主題下有色區塊（藍/紅背景）難以閱讀
-  - `bg-blue-50` → `bg-blue-500/10 text-blue-400`（未稅優惠、KOL 欄位）
-  - `bg-red-50` → `bg-red-500/10 text-red-400`（含稅總計）
-  - 僅修改畫面顯示區 `#printable-quote`，PDF 隱藏區保持白底配色不變
-- [x] **PDF 瀏覽器自動偵測**：新 Mac 無 Chrome，改為自動偵測可用 Chromium 瀏覽器
-  - 支援 Chrome、Brave、Edge、Chromium（macOS / Windows / Linux）
-  - 不影響部署環境（Railway Docker 使用 `PUPPETEER_EXECUTABLE_PATH`）
-- [x] **PDF 中文字體修復**：Brave headless 模式下 PingFang TC 不可用導致中文消失
-  - 偵測到 Brave headless 可用字體：Heiti TC、Apple LiGothic、STHeiti
-  - 使用 `page.addStyleTag()` 注入 CJK 字體覆寫（避免 Next.js root layout 字體衝突）
-- [x] **PDF 白底修正**：暗色主題背景滲入 PDF，注入 `background: white !important`
-- [x] **PDF A4 版面修復**：內容未展開至 A4 全寬
-  - 使用 `page.evaluate()` 將 `#printable-quote` 搬到 body 下，移除 root layout 包裝
-  - 保留所有 `<style>` 標籤避免 CSS 規則遺失
-
-修改檔案：
-- `src/app/dashboard/quotes/view/[id]/page.tsx`（暗色主題配色）
-- `src/app/api/pdf/generate/route.ts`（瀏覽器偵測、DOM 操作、字體注入）
-- `src/app/print/quote/[id]/page.tsx`（字體宣告更新）
-
-### CLAUDE.md 文件完善（2026-02-16 晚間）
-- [x] 新增 Skills 使用指引章節
-  - 明確說明 AI 助手應主動檢查並優先使用 Skills
-  - 列出常見應用場景與 Skills 對應關係
-  - 強調不需使用者提示即應主動使用
-- [x] 新增「完成開發工作流程」章節
-  - AI 主動引導機制：開發完成後主動詢問
-  - 標準執行順序：更新文件 → commit → push
-  - 完整流程範例與注意事項
-- [x] 新增「新開發環境設定」章節
-  - 基礎工具安裝指引（Homebrew、Node.js、gh CLI）
-  - 專案初始化步驟
-  - Claude Code 設定說明
-  - GitHub 認證流程
-  - 環境同步檢查清單
-- [x] 安裝並設定 GitHub CLI
-  - 安裝 gh v2.86.0
-  - 完成 GitHub 認證（Baugest615）
-  - 設定 git 使用 gh CLI 認證
-
-### RLS 政策全面整理與標準化（2026-02-16）
-- [x] 完成 16 張核心表的 RLS 政策標準化（100% 完成）
-- [x] 政策數量優化：72 個 → 65 個（-7 個冗餘政策）
-- [x] 修正項目：
-  - [x] 刪除 13 個重複的 SELECT 政策（8 張表）
-  - [x] 刪除 9 個過多的 ALL 政策（3 張財務表）
-  - [x] 修正 4 張表的舊函數 `get_user_role` → `get_my_role`
-  - [x] 補齊 8 張表缺少的 CRUD 政策
-  - [x] 統一命名規範：`{table}_{operation}_{scope}_policy`
-  - [x] 保留特殊業務邏輯（employees 表的分級權限）
-- [x] 分 4 階段執行：
-  - **階段 1**：核心業務表 + 字典表（8 張）
-  - **階段 2**：財務表（3 張）
-  - **階段 3**：人事表（1 張）
-  - **階段 4**：會計表（4 張）
-
-**已整理的表**：
-- 核心業務：kols, quotations, clients
-- 字典表：kol_services, kol_types, service_types, quote_categories, quotation_items
-- 財務表：payment_requests, payment_confirmations, payment_confirmation_items
-- 人事表：employees（保留 2 個 SELECT 政策用於分級權限）
-- 會計表：accounting_expenses, accounting_payroll, accounting_sales, insurance_rate_tables
-
-**生成的文件**：
-- 16 個 SQL 整理腳本：`/tmp/rls_cleanup_[1-16]_*.sql`
-- 完整報告：`/tmp/ultimate_completion_report.md`
-- 包含詳細測試清單、質量評分、後續建議
-
-**安全性提升**：
-- ✅ 財務操作權限明確限制為 Admin + Editor
-- ✅ 字典管理權限限制為 Admin + Editor
-- ✅ 敏感資料（費率表）僅 Admin 可寫
-- ✅ 刪除操作統一限制為 Admin
-
-**可維護性提升**：
-- 命名規範：25% → 100%（+300%）
-- 權限明確性：60% → 100%（+67%）
-- 可讀性：40% → 100%（+150%）
-- 一致性：50% → 100%（+100%）
-
-### 儀表板改版 — Executive Overview 風格（2026-02-14）
-- [x] 安裝 Recharts 圖表庫
-- [x] 建立 `useDashboardData` React Query hook（3 個平行 Supabase 查詢 + 月份分組）
-- [x] 建立 `KpiCard` 元件（含 Recharts Sparkline，手機版隱藏趨勢線）
-- [x] 建立 `RevenueChart` 月營收折線圖（emerald 漸層填充 + custom tooltip）
-- [x] 建立 `QuoteStatusChart` 甜甜圈圖（4 狀態配色 + 自訂圖例）
-- [x] 建立 `ActionItems` 待辦事項列表（可點擊導航）
-- [x] 重寫 `dashboard/page.tsx` 為三段式 layout：KPI 卡片 → 圖表 → 待辦+快速功能
-- [x] 載入骨架動畫（animate-pulse skeleton）
-- [x] TypeScript 型別檢查通過、`npm run build` 通過
-
-新增檔案：
-- `src/hooks/dashboard/useDashboardData.ts`
-- `src/components/dashboard/KpiCard.tsx`
-- `src/components/dashboard/RevenueChart.tsx`
-- `src/components/dashboard/QuoteStatusChart.tsx`
-- `src/components/dashboard/ActionItems.tsx`
-
-### V2.1 全面優化（2026-02-14）
-- [x] Phase 1：安全加固 — 6 張表補 RLS、PDF API 認證、RPC 角色驗證
-- [x] Phase 2：共用元件 — FormModal、SearchableSelect、useCRUDTable
-- [x] Phase 3：React Query — @tanstack/react-query + useClients/useKols/useQuotations
-- [x] Phase 4：型別安全 — Zod schemas、消除 39+ 檔案 `: any`、ErrorBoundary
-- [x] Phase 5：效能檢查 — 確認無 N+1、重型函式庫已動態 import
-- [x] DB 結構備份存 git（`supabase/backups/schema_20260214.sql`）
-- [x] DB 資料備份存本地（`supabase/backups/data_20260214.sql`）
-- [x] 回滾 migration 備用（`supabase/migrations/20260215999999_rollback_security_hardening.sql`）
-- [x] Docker Desktop 安裝完成
-
-### 先前版本
+### 先前版本（v1.0 ~ v2.1）
+- [x] V2.1 全面優化（安全加固、共用元件、React Query、型別安全、效能）
+- [x] 儀表板改版 — Executive Overview 風格
+- [x] RLS 政策全面整理與標準化
+- [x] CLAUDE.md 文件完善
 - [x] V2.0.1 UI 深色主題優化與行動裝置響應式改善
-- [x] 會計模組新增（專案損益、財務報表、計算器、薪資、銷售、費用）
-- [x] Claude Code 專案配置與 skills 同步
+- [x] 會計模組新增
+- [x] 報價單檢視頁面暗色主題優化 & PDF 生成修復
 
 ## 目前狀態
 
 - `npm run build` 通過，零型別錯誤（29 頁面）
+- **✅ v2.5 帳務進階已完成**：代扣代繳全流程 + 月結總覽 + 三分頁重構 + Bug 修復
 - **✅ 使用者管理已優化**：角色管理 + 員工綁定 + user_id 直接查詢
 - **✅ 個人請款功能已驗證**：Code Review + 安全修復 + E2E 測試全通過
 - **✅ 個人請款申請已完成**：expense_claims 表 + 表單模式 + 審核整合 + 帳務自動建立
-- **✅ SearchableSelect 統一**：Modal 表單 + SpreadsheetEditor 的專案名稱搜尋元件一致
 - **✅ 權限安全防護已補強**：Middleware 資料驅動化、列印頁面身份驗證、請款頁面守衛
 - **✅ 專案進度管理已完成**：projects + project_notes 表、KPI 卡片 + 備註系統
 - **✅ React Query 全面遷移已完成**：全部頁面快取管理，切換頁面瞬間顯示
 - **✅ UI/UX 全面優化已完成**：深色主題統一、骨架屏、空狀態元件
 - **✅ RLS 政策整理已完成**：16 張核心表 100% 標準化
-- **✅ PDF 生成已修復**：多瀏覽器自動偵測、中文字體、白底、A4 全寬
 - **✅ GitHub CLI 已設定**：認證完成，可直接推送
 - 開發時若遇 `.next` 快取問題，刪除 `.next` 資料夾後重啟即可
-
-## 開發環境同步
-
-以下設定透過 Git 同步，clone 即可在其他環境使用：
-- `.claude/settings.json` — Claude Code 共用設定
-- `.claude/skills/` — 所有 AI Skills（commit, db-migration, pr, review 等）
-- `CLAUDE.md` — AI 助手開發規則
-
-個人設定（不同步）：`.claude/settings.local.json`、`*.local.*`
 
 ## 待辦 / 下一步
 
 ### 🔴 優先執行
-- [x] ~~**個人請款功能測試**~~：Code Review + 安全修復 + Playwright E2E 全通過
 - [ ] **全面功能回歸測試**：各頁面 CRUD + 權限分級（Admin/Editor/Member）
 - [ ] **快取行為驗證**：跨頁失效（核准 → 已確認清單、儲存報價 → 列表頁）
 
 ### 🟡 部署與整合
-- [ ] 建立 PR 合併 `feature/v1.5` → `main`（安全修復 migration 需套用）
+- [ ] 建立 PR 合併 `feature/v2.5-accounting-withholding` → `main`
 - [ ] 部署至正式環境
-- [ ] 確認所有 migration 已套用（含 `20260221100000` + `20260221200001`）
+- [ ] 確認所有 migration 已套用
 
 ### 🟢 功能擴充
 - [ ] 儀表板依角色顯示不同內容（Admin 可看財務摘要）
+- [ ] 匯費入帳進階：確認清單「標記已匯款」時批次寫入 accounting_expenses
 - [ ] 建立 RLS 政策文檔
 
 ## 備註
@@ -477,9 +346,9 @@ Migration 安全修復（`20260221100000_fix_expense_claims_security.sql`）：
 - **RLS 政策標準命名**：`{table}_{operation}_{scope}_policy`
 - **權限函式**：統一使用 `get_my_role()` 取得當前用戶角色
 - **特殊設計**：employees 表有 3 個 SELECT 政策（Admin 全部、其他僅在職、user_id 綁定可讀自己）
-- **回滾 RLS**：執行 `supabase/migrations/20260215999999_rollback_security_hardening.sql`
 - **DB 備份指令**：`supabase db dump -f supabase/backups/schema_YYYYMMDD.sql`（結構）/ 加 `--data-only`（資料）
-- **RLS 整理報告**：詳見 `/tmp/ultimate_completion_report.md`（含測試清單、質量評分）
+- **代扣代繳防重複**：`withholding_settlements` 有 UNIQUE partial index on `expense_claim_id`
+- **匯費自動同步**：`update_remittance_settings` RPC 會 upsert `accounting_expenses`（expense_type=營運費用）
 
 ### 開發相關
 - `.next` 快取問題：`rm -rf .next` 後重啟 dev server

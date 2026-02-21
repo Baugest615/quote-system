@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import supabase from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -19,8 +20,18 @@ import { toast } from 'sonner'
 import { Database, Json } from '@/types/database.types'
 import { PendingPaymentItem, PendingPaymentAttachment } from '@/lib/payments/types'
 import type { KolBankInfo } from '@/types/schemas'
+import { EXPENSE_TYPES } from '@/types/custom.types'
+import { queryKeys } from '@/lib/queryKeys'
 
 const MERGE_COLORS = ['bg-chart-3/15', 'bg-chart-4/15', 'bg-chart-1/15', 'bg-chart-2/15', 'bg-chart-5/15', 'bg-destructive/15']
+
+// 預設預計支付月份：下個月
+const getNextMonth = () => {
+  const now = new Date()
+  const next = new Date(now.getFullYear(), now.getMonth() + 1, 1)
+  return `${next.getFullYear()}年${next.getMonth() + 1}月`
+}
+const DEFAULT_PAYMENT_MONTH = getNextMonth()
 
 const isValidInvoiceFormat = (invoiceNumber: string | null | undefined): boolean => {
   if (!invoiceNumber) return false;
@@ -29,6 +40,7 @@ const isValidInvoiceFormat = (invoiceNumber: string | null | undefined): boolean
 };
 
 export default function PendingPaymentsPage() {
+  const queryClient = useQueryClient()
   const [items, setItems] = useState<PendingPaymentItem[]>([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
@@ -119,7 +131,9 @@ export default function PendingPaymentsPage() {
           attachments: [], payment_request_id: null,
           cost_amount_input: (cost !== null && cost !== undefined) ? (Number(cost) || 0) : 0,
           original_cost: (cost !== null && cost !== undefined) ? (Number(cost) || 0) : 0,
-          remittance_name_input: defaultRemittanceName || null
+          remittance_name_input: defaultRemittanceName || null,
+          expense_type_input: '勞務報酬',
+          expected_payment_month_input: DEFAULT_PAYMENT_MONTH,
         } as PendingPaymentItem);
       });
 
@@ -143,7 +157,9 @@ export default function PendingPaymentsPage() {
             merge_color: req.merge_color || '',
             cost_amount_input: req.cost_amount ?? ((req.quotation_items.cost !== null && req.quotation_items.cost !== undefined) ? (req.quotation_items.cost * (req.quotation_items.quantity || 1)) : 0),
             original_cost: req.cost_amount ?? ((req.quotation_items.cost !== null && req.quotation_items.cost !== undefined) ? (req.quotation_items.cost * (req.quotation_items.quantity || 1)) : 0),
-            remittance_name_input: req.quotation_items.remittance_name || null
+            remittance_name_input: req.quotation_items.remittance_name || null,
+            expense_type_input: (req as any).expense_type || '勞務報酬',
+            expected_payment_month_input: (req as any).expected_payment_month || DEFAULT_PAYMENT_MONTH,
           } as PendingPaymentItem);
         }
       });
@@ -168,7 +184,9 @@ export default function PendingPaymentsPage() {
             merge_color: req.merge_color || '',
             cost_amount_input: req.cost_amount ?? ((req.quotation_items.cost !== null && req.quotation_items.cost !== undefined) ? (req.quotation_items.cost * (req.quotation_items.quantity || 1)) : 0),
             original_cost: req.cost_amount ?? ((req.quotation_items.cost !== null && req.quotation_items.cost !== undefined) ? (req.quotation_items.cost * (req.quotation_items.quantity || 1)) : 0),
-            remittance_name_input: req.quotation_items.remittance_name || null
+            remittance_name_input: req.quotation_items.remittance_name || null,
+            expense_type_input: (req as any).expense_type || '勞務報酬',
+            expected_payment_month_input: (req as any).expected_payment_month || DEFAULT_PAYMENT_MONTH,
           } as PendingPaymentItem);
         }
       });
@@ -212,6 +230,18 @@ export default function PendingPaymentsPage() {
         item.id === itemId ? { ...item, cost_amount_input: costValue } : item
       ));
     }
+  };
+
+  const handleExpenseTypeChange = (itemId: string, newType: string) => {
+    setItems(prev => prev.map(item =>
+      item.id === itemId ? { ...item, expense_type_input: newType } : item
+    ));
+  };
+
+  const handleExpectedPaymentMonthChange = (itemId: string, newMonth: string) => {
+    setItems(prev => prev.map(item =>
+      item.id === itemId ? { ...item, expected_payment_month_input: newMonth } : item
+    ));
   };
 
   const handleRemittanceNameChange = (itemId: string, newValue: string) => {
@@ -530,7 +560,9 @@ export default function PendingPaymentsPage() {
               rejected_at: null,
               cost_amount: item.cost_amount_input,
               invoice_number: item.invoice_number_input,
-              attachment_file_path: JSON.stringify(item.attachments)
+              attachment_file_path: JSON.stringify(item.attachments),
+              expense_type: item.expense_type_input,
+              expected_payment_month: item.expected_payment_month_input,
             })
             .eq('id', item.payment_request_id);
           if (error) throw error;
@@ -543,7 +575,9 @@ export default function PendingPaymentsPage() {
               request_date: new Date().toISOString(),
               cost_amount: item.cost_amount_input,
               invoice_number: item.invoice_number_input,
-              attachment_file_path: JSON.stringify(item.attachments)
+              attachment_file_path: JSON.stringify(item.attachments),
+              expense_type: item.expense_type_input,
+              expected_payment_month: item.expected_payment_month_input,
             });
           if (error) throw error;
         }
@@ -565,7 +599,9 @@ export default function PendingPaymentsPage() {
                 rejected_at: null,
                 cost_amount: item.cost_amount_input,
                 invoice_number: leader.invoice_number_input,
-                attachment_file_path: JSON.stringify(leader.attachments)
+                attachment_file_path: JSON.stringify(leader.attachments),
+                expense_type: item.expense_type_input,
+                expected_payment_month: item.expected_payment_month_input,
               })
               .eq('id', item.payment_request_id);
 
@@ -576,6 +612,8 @@ export default function PendingPaymentsPage() {
 
       toast.success('送出請款申請成功');
       fetchPendingItems();
+      // 同步 invalidate 請款申請頁面的快取，避免使用者切換頁面時看到舊資料
+      queryClient.invalidateQueries({ queryKey: [...queryKeys.paymentRequests] });
     } catch (error: unknown) {
       toast.error('送出失敗: ' + (error instanceof Error ? error.message : String(error)));
     }
@@ -749,6 +787,8 @@ export default function PendingPaymentsPage() {
           onOpenBankInfoModal={handleOpenBankInfoModal}
           onInvoiceChange={handleInvoiceNumberChange}
           onSelect={handlePaymentSelection}
+          onExpenseTypeChange={handleExpenseTypeChange}
+          onExpectedPaymentMonthChange={handleExpectedPaymentMonthChange}
           selectedItems={items.filter(i => i.is_selected).map(i => i.id)}
           shouldShowControls={(item: PendingPaymentItem) => true}
           isValidInvoiceFormat={isValidInvoiceFormat}
