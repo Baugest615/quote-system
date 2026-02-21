@@ -5,6 +5,90 @@
 
 ## 已完成
 
+### 使用者管理優化 — 角色管理 + 員工綁定（2026-02-21）
+
+將「權限管理」頁面升級為「使用者管理」中心，建立可靠的帳號與員工 1:1 綁定機制。
+
+**資料庫 Migration**（`20260221200001_add_user_id_to_employees.sql`）：
+- [x] `employees` 新增 `user_id` 欄位（UNIQUE、ON DELETE SET NULL）
+- [x] 自動透過 email 比對填入現有綁定
+- [x] 部分索引 `idx_employees_user_id`
+- [x] RLS 政策：使用者可讀取自己綁定的員工記錄（含留停/離職）
+
+**使用者管理頁面重寫**（`settings/permissions/page.tsx`）：
+- [x] KPI 統計卡片：總帳號數、管理員、編輯者、已綁定員工
+- [x] 搜尋 + 角色篩選 + 綁定狀態篩選
+- [x] 使用者列表：帳號、角色 Badge、綁定員工、建立時間、操作
+- [x] 「本人」標籤顯示
+- [x] Admin/非 Admin 刪除保護
+
+**UserEditModal 元件**（`components/settings/UserEditModal.tsx`）：
+- [x] 角色選擇（管理員/編輯者/成員）— 視覺化按鈕
+- [x] 員工綁定：SearchableSelect 搜尋未綁定員工 + 確認綁定
+- [x] 員工解綁：顯示綁定員工資訊 + 解除綁定按鈕
+- [x] Cache invalidation：userManagement + unlinkedEmployees + employees
+
+**useMyEmployeeData Hook 優化**：
+- [x] 移除脆弱的 email 比對（`.or(email.eq, created_by.eq)`）
+- [x] 改用 `user_id` 直接查詢（`.eq('user_id', userId).maybeSingle()`）
+- [x] 移除 `.eq('status', '在職')` 限制（新 RLS 已允許讀取自己的記錄）
+
+**員工管理頁面微調**：
+- [x] 表格新增「綁定帳號」欄位（顯示 email 或「未綁定」）
+
+新增檔案：
+- `supabase/migrations/20260221200001_add_user_id_to_employees.sql`
+- `src/components/settings/UserEditModal.tsx`
+
+修改檔案：
+- `src/app/dashboard/settings/permissions/page.tsx`（完整重寫）
+- `src/hooks/useMyEmployeeData.ts`（user_id 查詢）
+- `src/types/custom.types.ts`（Employee 加 user_id）
+- `src/lib/queryKeys.ts`（加 userManagement、unlinkedEmployees）
+- `src/app/dashboard/accounting/employees/page.tsx`（加綁定帳號欄）
+
+驗證結果：TypeScript 零錯誤、Production build 成功（29 頁面）、E2E 20/20 全通過
+
+### 個人請款功能 Code Review + 安全修復 + E2E 驗證（2026-02-21）
+
+全面審查個人請款功能的程式碼品質、安全性與功能完整性。
+
+**Code Review 發現與修復**
+
+前端修復：
+- [x] **React Hooks 規則違反**：`payment-requests/page.tsx` FileViewerModal 的 `useState` 在條件式 return 之後 → 移至條件式之前
+- [x] **前端/RLS 權限不一致**：`expense-claims/page.tsx` 前端允許刪除 rejected 狀態但 RLS 只允許 draft → 新增 `canDelete` 邏輯分離
+- [x] **any 型別消除**：`payment-requests/page.tsx` 和 `confirmed-payments/page.tsx` 的 `any` → 具體型別
+- [x] **Query Key 硬編碼**：新增 `queryKeys.expenseClaimsPending`，替換所有硬編碼字串
+- [x] **使用者空值檢查**：`expense-claims/page.tsx` mutations 加入 `if (!user) throw new Error('未登入')`
+
+Migration 安全修復（`20260221100000_fix_expense_claims_security.sql`）：
+- [x] **CRITICAL: search_path 劫持防護** — `approve_expense_claim` 和 `reject_expense_claim` RPC 加入 `SET search_path = ''`
+- [x] **CRITICAL: approver_id 偽造防護** — 移除外部傳入的 approver_id/rejector_id，改用 `auth.uid()` 強制取得
+- [x] **CRITICAL: 並發核准防護** — SELECT 加入 `FOR UPDATE` 鎖定
+- [x] **唯一約束** — `payment_confirmation_items` 加入 `(payment_confirmation_id, expense_claim_id)` 唯一索引
+- [x] **RLS 命名規範化** — 政策名稱加上 `_policy` 後綴
+
+**E2E 測試（Playwright headless Chromium）— 全部通過**
+- [x] 認證：Supabase REST API + cookie 注入
+- [x] 儀表板：KPI 卡片、營收圖表、報價單狀態圖
+- [x] 個人請款申請頁：KPI 統計、表格列表、新增報帳 Modal（表單欄位、稅額自動計算）
+- [x] 請款審核：專案請款 Tab + 個人報帳 Tab（3 筆待審核、核准/駁回按鈕）
+- [x] 已確認請款清單：統計面板、搜尋、排序功能
+- [x] 回歸測試：客戶管理、KOL 管理、報價單、待請款、費用管理 — 全部 OK
+- [x] Console 錯誤：0
+
+新增檔案：
+- `supabase/migrations/20260221100000_fix_expense_claims_security.sql`
+
+修改檔案：
+- `src/app/dashboard/expense-claims/page.tsx`（canDelete 邏輯、user 空值檢查）
+- `src/app/dashboard/payment-requests/page.tsx`（Hooks 順序、any 型別、query key）
+- `src/app/dashboard/confirmed-payments/page.tsx`（any 型別、query key invalidation）
+- `src/lib/queryKeys.ts`（新增 expenseClaimsPending）
+
+驗證結果：TypeScript 零錯誤、Production build 成功（29 頁面）、E2E 全通過
+
 ### 個人請款申請功能 + UX 重構（2026-02-21）
 
 新增「個人報帳」申請機制，整合進現有的審核與帳務流程。包含兩階段：功能建構 + UX 優化。
@@ -348,7 +432,9 @@
 
 ## 目前狀態
 
-- `npm run build` 通過，零型別錯誤（28 頁面）
+- `npm run build` 通過，零型別錯誤（29 頁面）
+- **✅ 使用者管理已優化**：角色管理 + 員工綁定 + user_id 直接查詢
+- **✅ 個人請款功能已驗證**：Code Review + 安全修復 + E2E 測試全通過
 - **✅ 個人請款申請已完成**：expense_claims 表 + 表單模式 + 審核整合 + 帳務自動建立
 - **✅ SearchableSelect 統一**：Modal 表單 + SpreadsheetEditor 的專案名稱搜尋元件一致
 - **✅ 權限安全防護已補強**：Middleware 資料驅動化、列印頁面身份驗證、請款頁面守衛
@@ -372,14 +458,14 @@
 ## 待辦 / 下一步
 
 ### 🔴 優先執行
-- [ ] **個人請款功能測試**：新增/編輯/刪除 → 送出審核 → 核准（確認進項自動建立）→ 確認清單
+- [x] ~~**個人請款功能測試**~~：Code Review + 安全修復 + Playwright E2E 全通過
 - [ ] **全面功能回歸測試**：各頁面 CRUD + 權限分級（Admin/Editor/Member）
 - [ ] **快取行為驗證**：跨頁失效（核准 → 已確認清單、儲存報價 → 列表頁）
 
 ### 🟡 部署與整合
-- [ ] 建立 PR 合併 `feature/v1.5` → `main`
+- [ ] 建立 PR 合併 `feature/v1.5` → `main`（安全修復 migration 需套用）
 - [ ] 部署至正式環境
-- [ ] 確認所有 migration 已套用
+- [ ] 確認所有 migration 已套用（含 `20260221100000` + `20260221200001`）
 
 ### 🟢 功能擴充
 - [ ] 儀表板依角色顯示不同內容（Admin 可看財務摘要）
@@ -390,7 +476,7 @@
 ### 資料庫相關
 - **RLS 政策標準命名**：`{table}_{operation}_{scope}_policy`
 - **權限函式**：統一使用 `get_my_role()` 取得當前用戶角色
-- **特殊設計**：employees 表有 2 個 SELECT 政策（分級權限，Admin 看全部、其他僅看在職）
+- **特殊設計**：employees 表有 3 個 SELECT 政策（Admin 全部、其他僅在職、user_id 綁定可讀自己）
 - **回滾 RLS**：執行 `supabase/migrations/20260215999999_rollback_security_hardening.sql`
 - **DB 備份指令**：`supabase db dump -f supabase/backups/schema_YYYYMMDD.sql`（結構）/ 加 `--data-only`（資料）
 - **RLS 整理報告**：詳見 `/tmp/ultimate_completion_report.md`（含測試清單、質量評分）

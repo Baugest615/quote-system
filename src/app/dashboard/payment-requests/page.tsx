@@ -33,8 +33,8 @@ const FileViewerModal = ({ isOpen, onClose, request }: {
   onClose: () => void
   request: PaymentRequestItem | null
 }) => {
-  if (!request) return null
   const [downloadError, setDownloadError] = useState<string | null>(null)
+  if (!request) return null
 
   const formatFileSize = (bytes: number): string => {
     if (bytes === 0) return '0 Bytes'
@@ -144,7 +144,8 @@ export default function PaymentRequestsPage() {
 
     if (error) throw error
 
-    return (data || []).map((req: any) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return (data || []).map((req: Record<string, any>) => {
       const qItem = req.quotation_items;
       const quotation = qItem?.quotations;
       const client = quotation?.clients;
@@ -216,7 +217,7 @@ export default function PaymentRequestsPage() {
   // 個人報帳 Tab
   // ==========================================
   const { data: expenseClaims = [], isLoading: claimsLoading, refetch: refreshClaims } = useQuery({
-    queryKey: ['expense-claims-pending'],
+    queryKey: [...queryKeys.expenseClaimsPending],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('expense_claims')

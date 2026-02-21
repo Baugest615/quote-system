@@ -29,24 +29,14 @@ export function useMyEmployeeData(userId: string | null | undefined, selectedYea
     queryFn: async () => {
       if (!userId) return null
 
-      // 1. Get user profile
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('email')
-        .eq('id', userId)
-        .single()
-
-      if (!profile) return null
-
-      // 2. Find employee record
-      const { data: emp, error: empError } = await supabase
+      // 透過 user_id 直接查詢綁定的員工（含留停/離職，讓非在職員工仍可查薪資）
+      const { data: emp } = await supabase
         .from('employees')
         .select('*')
-        .or(`email.eq.${profile.email},created_by.eq.${userId}`)
-        .eq('status', '在職')
-        .single()
+        .eq('user_id', userId)
+        .maybeSingle()
 
-      if (empError || !emp) return null
+      if (!emp) return null
 
       // 3-5. Fetch salary and payment data in parallel
       const currentMonth = new Date().toISOString().slice(0, 7)

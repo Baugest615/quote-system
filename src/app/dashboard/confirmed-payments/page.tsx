@@ -143,7 +143,7 @@ export default function ConfirmedPaymentsPage() {
 
     // 排序邏輯
     result.sort((a, b) => {
-      let aValue: any, bValue: any
+      let aValue = 0, bValue = 0
       switch (sortField) {
         case 'date':
           aValue = new Date(a.confirmation_date).getTime()
@@ -246,8 +246,9 @@ export default function ConfirmedPaymentsPage() {
       // 跨頁快取失效
       queryClient.invalidateQueries({ queryKey: [...queryKeys.paymentRequests] })
       if (personalItems.length > 0) {
-        queryClient.invalidateQueries({ queryKey: ['expense-claims'] })
-        queryClient.invalidateQueries({ queryKey: ['accounting-expenses'] })
+        queryClient.invalidateQueries({ queryKey: ['expense-claims'] })  // 前綴匹配，會失效所有 expense-claims 相關 key
+        queryClient.invalidateQueries({ queryKey: [...queryKeys.expenseClaimsPending] })
+        queryClient.invalidateQueries({ queryKey: ['accounting-expenses'] })  // 前綴匹配，會失效所有 accounting-expenses 相關 key
       }
 
     } catch (error: unknown) {

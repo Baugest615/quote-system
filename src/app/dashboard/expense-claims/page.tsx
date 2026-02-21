@@ -72,6 +72,7 @@ export default function ExpenseClaimsPage() {
   const saveMutation = useMutation({
     mutationFn: async ({ data, id }: { data: ExpenseClaimFormData; id?: string }) => {
       const { data: { user } } = await supabase.auth.getUser()
+      if (!user) throw new Error('未登入，請重新登入')
       if (id) {
         const { error } = await supabase
           .from('expense_claims')
@@ -119,6 +120,7 @@ export default function ExpenseClaimsPage() {
   const submitMutation = useMutation({
     mutationFn: async (ids: string[]) => {
       const { data: { user } } = await supabase.auth.getUser()
+      if (!user) throw new Error('未登入，請重新登入')
       const { error } = await supabase
         .from('expense_claims')
         .update({
@@ -394,6 +396,7 @@ export default function ExpenseClaimsPage() {
               ) : filtered.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE).map(r => {
                 const canSelect = r.status === 'draft' || r.status === 'rejected'
                 const canEdit = r.status === 'draft' || r.status === 'rejected'
+                const canDelete = r.status === 'draft' || userRole === 'Admin'
                 return (
                   <tr key={r.id} className="border-t border-border/50 hover:bg-accent">
                     <td className="text-center px-3 py-3">
@@ -425,22 +428,26 @@ export default function ExpenseClaimsPage() {
                     <td className="px-4 py-3 text-muted-foreground max-w-32 truncate">{r.project_name || '-'}</td>
                     <td className="px-4 py-3 text-muted-foreground font-mono text-xs">{r.invoice_number || '-'}</td>
                     <td className="px-3 py-3">
-                      {canEdit && (
+                      {(canEdit || canDelete) && (
                         <div className="flex items-center justify-center gap-1">
-                          <button
-                            onClick={() => handleOpenModal(r)}
-                            className="p-1.5 text-muted-foreground hover:text-info hover:bg-info/10 rounded-md transition-colors"
-                            title="編輯"
-                          >
-                            <Pencil className="w-3.5 h-3.5" />
-                          </button>
-                          <button
-                            onClick={() => handleDelete(r.id)}
-                            className="p-1.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-md transition-colors"
-                            title="刪除"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
+                          {canEdit && (
+                            <button
+                              onClick={() => handleOpenModal(r)}
+                              className="p-1.5 text-muted-foreground hover:text-info hover:bg-info/10 rounded-md transition-colors"
+                              title="編輯"
+                            >
+                              <Pencil className="w-3.5 h-3.5" />
+                            </button>
+                          )}
+                          {canDelete && (
+                            <button
+                              onClick={() => handleDelete(r.id)}
+                              className="p-1.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-md transition-colors"
+                              title="刪除"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          )}
                         </div>
                       )}
                     </td>

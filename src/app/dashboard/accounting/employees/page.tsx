@@ -6,7 +6,7 @@ import { usePermission } from '@/lib/permissions'
 import supabase from '@/lib/supabase/client'
 import { queryKeys } from '@/lib/queryKeys'
 import { toast } from 'sonner'
-import { Plus, Search, Users, Pencil, Trash2, ChevronLeft, UserCheck, UserX } from 'lucide-react'
+import { Plus, Search, Users, Pencil, Trash2, ChevronLeft, UserCheck, UserX, Mail } from 'lucide-react'
 import AccountingLoadingGuard from '@/components/accounting/AccountingLoadingGuard'
 import AccountingModal from '@/components/accounting/AccountingModal'
 import Pagination from '@/components/accounting/Pagination'
@@ -73,6 +73,26 @@ export default function EmployeesPage() {
     },
     enabled: !permLoading && isAdmin,
   })
+
+  // 載入 profiles（用於顯示綁定帳號）
+  const { data: profiles = [] } = useQuery({
+    queryKey: [...queryKeys.profiles],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('id, email')
+      if (error) throw error
+      return (data || []) as { id: string; email: string }[]
+    },
+    enabled: !permLoading && isAdmin,
+  })
+
+  // user_id → email 對應表
+  const profileMap = useMemo(() => {
+    const map = new Map<string, string>()
+    for (const p of profiles) map.set(p.id, p.email)
+    return map
+  }, [profiles])
 
   const { data: insuranceRates = [] } = useQuery({
     queryKey: [...queryKeys.insuranceRates],
@@ -269,13 +289,14 @@ export default function EmployeesPage() {
                 <th className="text-right px-4 py-3">本薪</th>
                 <th className="text-center px-4 py-3">投保級距</th>
                 <th className="text-center px-4 py-3">勞/健保</th>
+                <th className="text-left px-4 py-3">綁定帳號</th>
                 <th className="text-left px-4 py-3">到職日</th>
                 <th className="text-center px-4 py-3">操作</th>
               </tr>
             </thead>
             <tbody>
               {filtered.length === 0 ? (
-                <tr><td colSpan={10} className="text-center py-12 text-muted-foreground/60">尚無員工資料</td></tr>
+                <tr><td colSpan={11} className="text-center py-12 text-muted-foreground/60">尚無員工資料</td></tr>
               ) : filtered.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE).map(e => (
                 <tr key={e.id} className="border-t border-border/50 hover:bg-accent">
                   <td className="px-4 py-3 text-muted-foreground">{e.employee_number || '-'}</td>
@@ -303,6 +324,16 @@ export default function EmployeesPage() {
                         e.has_health_insurance ? 'bg-success/10 text-success' : 'bg-muted text-muted-foreground'
                       }`}>健</span>
                     </div>
+                  </td>
+                  <td className="px-4 py-3 text-xs">
+                    {e.user_id && profileMap.has(e.user_id) ? (
+                      <span className="flex items-center gap-1 text-info">
+                        <Mail className="w-3 h-3 shrink-0" />
+                        <span className="truncate max-w-[140px]">{profileMap.get(e.user_id)}</span>
+                      </span>
+                    ) : (
+                      <span className="text-muted-foreground/40">未綁定</span>
+                    )}
                   </td>
                   <td className="px-4 py-3 text-muted-foreground text-xs">{e.hire_date || '-'}</td>
                   <td className="px-4 py-3">

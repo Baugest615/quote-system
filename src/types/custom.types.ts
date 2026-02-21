@@ -413,6 +413,8 @@ export type Gender = typeof GENDER_OPTIONS[number]
 
 export interface Employee {
   id: string
+  // 帳號綁定
+  user_id: string | null
   // 基本資料
   name: string
   id_number: string | null
