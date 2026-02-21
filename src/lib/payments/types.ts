@@ -106,16 +106,33 @@ export interface PaymentRequestItem extends BasePaymentItem {
 export interface PaymentConfirmationItem {
     id: string
     payment_confirmation_id: string
-    payment_request_id: string
+    payment_request_id: string | null
+    expense_claim_id: string | null
+    source_type: 'project' | 'personal'
     amount: number
     created_at: string
 
-    // 關聯資料
+    // 關聯資料（專案請款）
     payment_requests: {
         quotation_item_id: string
         cost_amount: number
         invoice_number: string | null
         quotation_items: BasePaymentItem
+    } | null
+
+    // 關聯資料（個人報帳）
+    expense_claims: {
+        id: string
+        expense_type: string
+        vendor_name: string | null
+        project_name: string | null
+        amount: number
+        tax_amount: number
+        total_amount: number
+        invoice_number: string | null
+        claim_month: string | null
+        note: string | null
+        submitted_by: string | null
     } | null
 }
 

@@ -129,6 +129,7 @@ export default function Sidebar() {
     Settings,
     BookOpen,
     FolderKanban,
+    Receipt,
   }
 
   // 漢堡選單按鈕（行動裝置用）

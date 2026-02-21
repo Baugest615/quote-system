@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useCallback } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { usePermission } from '@/lib/permissions'
 import supabase from '@/lib/supabase/client'
@@ -16,6 +16,8 @@ import Link from 'next/link'
 import type { AccountingExpense } from '@/types/custom.types'
 import { EXPENSE_TYPES, ACCOUNTING_SUBJECTS } from '@/types/custom.types'
 import type { SpreadsheetColumn, BatchSaveResult, RowError } from '@/lib/spreadsheet-utils'
+import { useProjectNames } from '@/hooks/useProjectNames'
+import { SearchableSelect } from '@/components/ui/SearchableSelect'
 
 const PAGE_SIZE = 20
 const CURRENT_YEAR = new Date().getFullYear()
@@ -57,6 +59,11 @@ export default function AccountingExpensesPage() {
   const [form, setForm] = useState<Partial<AccountingExpense>>(emptyForm())
   const [currentPage, setCurrentPage] = useState(1)
   const [isSpreadsheetMode, setIsSpreadsheetMode] = useState(false)
+  const { data: projectNames = [] } = useProjectNames()
+  const projectNameOptions = useMemo(
+    () => projectNames.map(name => ({ label: name, value: name })),
+    [projectNames]
+  )
 
   const spreadsheetColumns = useMemo<SpreadsheetColumn<AccountingExpense>[]>(() => [
     { key: 'expense_month', label: '支出月份', type: 'select',
@@ -69,12 +76,12 @@ export default function AccountingExpensesPage() {
     { key: 'amount', label: '金額（未稅）', type: 'number', autoCalcSource: true, width: 'w-28' },
     { key: 'tax_amount', label: '稅額', type: 'number', readOnly: true, width: 'w-24' },
     { key: 'total_amount', label: '總額（含稅）', type: 'number', readOnly: true, width: 'w-28' },
-    { key: 'project_name', label: '專案名稱', type: 'text', width: 'w-36' },
+    { key: 'project_name', label: '專案名稱', type: 'autocomplete', suggestions: projectNames, width: 'w-36' },
     { key: 'payment_date', label: '匯款日', type: 'date', width: 'w-28' },
     { key: 'invoice_number', label: '發票號碼', type: 'text', width: 'w-28' },
     { key: 'invoice_date', label: '發票日期', type: 'date', width: 'w-28' },
     { key: 'note', label: '備註', type: 'text', width: 'w-40' },
-  ], [year])
+  ], [year, projectNames])
 
   const currentQueryKey = queryKeys.accountingExpenses(year)
 
@@ -441,8 +448,13 @@ export default function AccountingExpensesPage() {
               </div>
               <div>
                 <label className="block text-xs font-medium text-muted-foreground mb-1">專案名稱</label>
-                <input type="text" value={form.project_name || ''} onChange={(e) => setForm(f => ({ ...f, project_name: e.target.value }))}
-                  className="w-full border border-border rounded-lg px-3 py-2 text-sm bg-card focus:outline-none focus:ring-2 focus:ring-ring" placeholder="對應的專案名稱" />
+                <SearchableSelect
+                  value={form.project_name || null}
+                  onChange={(val) => setForm(f => ({ ...f, project_name: val }))}
+                  options={projectNameOptions}
+                  placeholder="搜尋專案名稱..."
+                  clearable
+                />
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>

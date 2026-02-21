@@ -1,10 +1,10 @@
 'use client'
 
 import { useState, useCallback, useMemo } from 'react'
-import { useQueryClient } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Search, Link as LinkIcon, Eye, Download, AlertCircle, Shield } from 'lucide-react'
+import { Search, Link as LinkIcon, Eye, Download, AlertCircle, Shield, Receipt, CheckCircle, XCircle } from 'lucide-react'
 import { toast } from 'sonner'
 import { Modal } from '@/components/ui/modal'
 import supabase from '@/lib/supabase/client'
@@ -22,6 +22,10 @@ import { usePaymentActions } from '@/hooks/payments/usePaymentActions'
 import { LoadingState, EmptyState } from '@/components/payments/shared'
 import { RequestItemRow, ApprovalControls } from '@/components/payments/requests'
 import type { PaymentRequestItem } from '@/lib/payments/types'
+import type { ExpenseClaim } from '@/types/custom.types'
+import { CLAIM_STATUS_LABELS, CLAIM_STATUS_COLORS } from '@/types/custom.types'
+
+type TabType = 'project' | 'personal'
 
 // --- 檔案檢視 Modal ---
 const FileViewerModal = ({ isOpen, onClose, request }: {
@@ -109,6 +113,11 @@ export default function PaymentRequestsPage() {
   const hasAccess = checkPageAccess('payment_requests')
 
   const queryClient = useQueryClient()
+  const [activeTab, setActiveTab] = useState<TabType>('project')
+
+  // ==========================================
+  // 專案請款 Tab
+  // ==========================================
   const fetchPaymentRequests = useCallback(async () => {
     const { data, error } = await supabase
       .from('payment_requests')
@@ -183,7 +192,6 @@ export default function PaymentRequestsPage() {
     paymentDataOptions
   )
 
-  // 2. 篩選 Hook
   const {
     searchTerm,
     setSearchTerm,
@@ -192,7 +200,6 @@ export default function PaymentRequestsPage() {
     searchFields: ['quotations', 'kols', 'service']
   })
 
-  // 3. 操作 Hook
   const {
     selectedItems,
     isProcessing,
@@ -202,28 +209,56 @@ export default function PaymentRequestsPage() {
     handleBatchAction
   } = usePaymentActions(items, setData)
 
-  // 4. 本地狀態
   const [isFileViewerOpen, setIsFileViewerOpen] = useState(false)
   const [selectedRequest, setSelectedRequest] = useState<PaymentRequestItem | null>(null)
 
-  // 處理核准
+  // ==========================================
+  // 個人報帳 Tab
+  // ==========================================
+  const { data: expenseClaims = [], isLoading: claimsLoading, refetch: refreshClaims } = useQuery({
+    queryKey: ['expense-claims-pending'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('expense_claims')
+        .select('*')
+        .eq('status', 'submitted')
+        .order('submitted_at', { ascending: true })
+      if (error) throw error
+      return (data || []) as ExpenseClaim[]
+    },
+    enabled: !permLoading && hasAccess,
+  })
+
+  const [claimSearchTerm, setClaimSearchTerm] = useState('')
+  const [selectedClaimIds, setSelectedClaimIds] = useState<Set<string>>(new Set())
+  const [claimProcessing, setClaimProcessing] = useState(false)
+
+  const filteredClaims = useMemo(() => {
+    const q = claimSearchTerm.toLowerCase()
+    return expenseClaims.filter(r => {
+      if (!q) return true
+      return (
+        (r.project_name || '').toLowerCase().includes(q) ||
+        (r.vendor_name || '').toLowerCase().includes(q) ||
+        (r.invoice_number || '').toLowerCase().includes(q) ||
+        (r.expense_type || '').toLowerCase().includes(q)
+      )
+    })
+  }, [expenseClaims, claimSearchTerm])
+
+  const fmt = (n: number) => new Intl.NumberFormat('zh-TW').format(n)
+
+  // 專案請款操作
   const handleApprove = async (item: PaymentRequestItem) => {
     if (!confirm(`確定要核准 "${item.quotations?.project_name} - ${item.service}" 的請款申請嗎？`)) return
-
     try {
       const { error } = await supabase.rpc('approve_payment_request', {
         request_id: item.payment_request_id,
         verifier_id: (await supabase.auth.getUser()).data.user?.id
       })
-
-      if (error) {
-        console.error('RPC error details:', error)
-        throw error
-      }
-
+      if (error) { console.error('RPC error details:', error); throw error }
       toast.success('已核准請款申請')
       refresh()
-      // 跨頁快取失效：核准後影響「已確認請款」和「待請款」
       queryClient.invalidateQueries({ queryKey: [...queryKeys.confirmedPayments] })
       queryClient.invalidateQueries({ queryKey: [...queryKeys.pendingPayments] })
       queryClient.invalidateQueries({ queryKey: [...queryKeys.dashboardStats] })
@@ -232,7 +267,6 @@ export default function PaymentRequestsPage() {
     }
   }
 
-  // 處理駁回
   const handleReject = async (item: PaymentRequestItem, reason: string) => {
     try {
       const { error } = await supabase
@@ -244,54 +278,37 @@ export default function PaymentRequestsPage() {
           rejected_at: new Date().toISOString()
         })
         .eq('id', item.payment_request_id)
-
       if (error) throw error
-
       toast.success('已駁回請款申請')
       refresh()
-      // 跨頁快取失效：駁回後影響「待請款」
       queryClient.invalidateQueries({ queryKey: [...queryKeys.pendingPayments] })
     } catch (error: unknown) {
       toast.error('駁回失敗: ' + (error instanceof Error ? error.message : String(error)))
     }
   }
 
-  // 批量核准
   const handleBatchApprove = async () => {
     if (!confirm(`確定要核准選中的 ${selectedItems.size} 筆申請嗎？`)) return
-
     await handleBatchAction(
       async (items) => {
         const user = (await supabase.auth.getUser()).data.user
-
-        // 使用 Promise.all 並行處理
         const promises = items.map(item =>
           supabase.rpc('approve_payment_request', {
             request_id: item.payment_request_id,
             verifier_id: user?.id
           })
         )
-
         const results = await Promise.all(promises)
         const errors = results.filter(r => r.error)
-
         if (errors.length > 0) {
-          // Log detailed error information
-          console.error('RPC errors:', errors.map(e => ({
-            error: e.error,
-            message: e.error?.message,
-            details: e.error?.details,
-            hint: e.error?.hint,
-            code: e.error?.code
-          })))
+          console.error('RPC errors:', errors.map(e => ({ error: e.error, message: e.error?.message })))
           throw new Error(`${errors.length} 筆項目處理失敗`)
         }
       },
       {
         onSuccess: () => {
           toast.success(`成功核准 ${selectedItems.size} 筆申請`)
-          refresh()
-          deselectAll()
+          refresh(); deselectAll()
           queryClient.invalidateQueries({ queryKey: [...queryKeys.confirmedPayments] })
           queryClient.invalidateQueries({ queryKey: [...queryKeys.pendingPayments] })
           queryClient.invalidateQueries({ queryKey: [...queryKeys.dashboardStats] })
@@ -301,33 +318,23 @@ export default function PaymentRequestsPage() {
     )
   }
 
-  // 批量駁回
   const handleBatchReject = async () => {
     const reason = prompt('請輸入批量駁回原因：')
     if (!reason) return
-
     await handleBatchAction(
       async (items) => {
         const user = (await supabase.auth.getUser()).data.user
         const ids = items.map(i => i.payment_request_id)
-
         const { error } = await supabase
           .from('payment_requests')
-          .update({
-            verification_status: 'rejected',
-            rejection_reason: reason,
-            rejected_by: user?.id,
-            rejected_at: new Date().toISOString()
-          })
+          .update({ verification_status: 'rejected', rejection_reason: reason, rejected_by: user?.id, rejected_at: new Date().toISOString() })
           .in('id', ids)
-
         if (error) throw error
       },
       {
         onSuccess: () => {
           toast.success(`成功駁回 ${selectedItems.size} 筆申請`)
-          refresh()
-          deselectAll()
+          refresh(); deselectAll()
           queryClient.invalidateQueries({ queryKey: [...queryKeys.pendingPayments] })
         },
         onError: (error) => toast.error('批量駁回失敗: ' + error.message)
@@ -335,7 +342,88 @@ export default function PaymentRequestsPage() {
     )
   }
 
-  // 開啟檔案檢視
+  // 個人報帳操作
+  const handleClaimApprove = async (claim: ExpenseClaim) => {
+    if (!confirm(`確定要核准「${claim.vendor_name || claim.expense_type} - NT$ ${fmt(claim.total_amount)}」的報帳申請嗎？`)) return
+    try {
+      const { error } = await supabase.rpc('approve_expense_claim', {
+        claim_id: claim.id,
+        approver_id: (await supabase.auth.getUser()).data.user?.id
+      })
+      if (error) throw error
+      toast.success('已核准個人報帳')
+      refreshClaims()
+      queryClient.invalidateQueries({ queryKey: [...queryKeys.confirmedPayments] })
+      queryClient.invalidateQueries({ queryKey: [...queryKeys.dashboardStats] })
+    } catch (error: unknown) {
+      toast.error('核准失敗: ' + (error instanceof Error ? error.message : String(error)))
+    }
+  }
+
+  const handleClaimReject = async (claim: ExpenseClaim) => {
+    const reason = prompt('請輸入駁回原因：')
+    if (!reason) return
+    try {
+      const { error } = await supabase.rpc('reject_expense_claim', {
+        claim_id: claim.id,
+        rejector_id: (await supabase.auth.getUser()).data.user?.id,
+        reason,
+      })
+      if (error) throw error
+      toast.success('已駁回個人報帳')
+      refreshClaims()
+    } catch (error: unknown) {
+      toast.error('駁回失敗: ' + (error instanceof Error ? error.message : String(error)))
+    }
+  }
+
+  const handleClaimBatchApprove = async () => {
+    if (selectedClaimIds.size === 0) return
+    if (!confirm(`確定要核准選中的 ${selectedClaimIds.size} 筆個人報帳嗎？`)) return
+    setClaimProcessing(true)
+    try {
+      const user = (await supabase.auth.getUser()).data.user
+      const promises = Array.from(selectedClaimIds).map(id =>
+        supabase.rpc('approve_expense_claim', { claim_id: id, approver_id: user?.id })
+      )
+      const results = await Promise.all(promises)
+      const errors = results.filter(r => r.error)
+      if (errors.length > 0) throw new Error(`${errors.length} 筆處理失敗`)
+      toast.success(`成功核准 ${selectedClaimIds.size} 筆個人報帳`)
+      setSelectedClaimIds(new Set())
+      refreshClaims()
+      queryClient.invalidateQueries({ queryKey: [...queryKeys.confirmedPayments] })
+      queryClient.invalidateQueries({ queryKey: [...queryKeys.dashboardStats] })
+    } catch (error: unknown) {
+      toast.error('批量核准失敗: ' + (error instanceof Error ? error.message : String(error)))
+    } finally {
+      setClaimProcessing(false)
+    }
+  }
+
+  const handleClaimBatchReject = async () => {
+    if (selectedClaimIds.size === 0) return
+    const reason = prompt('請輸入批量駁回原因：')
+    if (!reason) return
+    setClaimProcessing(true)
+    try {
+      const user = (await supabase.auth.getUser()).data.user
+      const promises = Array.from(selectedClaimIds).map(id =>
+        supabase.rpc('reject_expense_claim', { claim_id: id, rejector_id: user?.id, reason })
+      )
+      const results = await Promise.all(promises)
+      const errors = results.filter(r => r.error)
+      if (errors.length > 0) throw new Error(`${errors.length} 筆處理失敗`)
+      toast.success(`成功駁回 ${selectedClaimIds.size} 筆個人報帳`)
+      setSelectedClaimIds(new Set())
+      refreshClaims()
+    } catch (error: unknown) {
+      toast.error('批量駁回失敗: ' + (error instanceof Error ? error.message : String(error)))
+    } finally {
+      setClaimProcessing(false)
+    }
+  }
+
   const handleViewFiles = (item: PaymentRequestItem) => {
     setSelectedRequest(item)
     setIsFileViewerOpen(true)
@@ -358,92 +446,264 @@ export default function PaymentRequestsPage() {
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-3xl font-bold">請款申請審核</h1>
-          <p className="text-muted-foreground mt-1">審核來自待請款清單的申請項目</p>
+          <p className="text-muted-foreground mt-1">審核來自待請款清單與個人報帳的申請項目</p>
         </div>
       </div>
 
-      {/* 控制列 */}
-      <div className="flex flex-col space-y-4">
-        <div className="flex items-center space-x-4">
-          <div className="relative flex-1 max-w-md">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
-            <Input
-              id="search-requests"
-              name="search"
-              placeholder="搜尋專案、KOL/服務、執行內容..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10"
+      {/* Tab 切換 */}
+      <div className="flex border-b border-border">
+        <button
+          onClick={() => setActiveTab('project')}
+          className={`flex items-center gap-2 px-6 py-3 text-sm font-medium border-b-2 transition-colors ${
+            activeTab === 'project'
+              ? 'border-primary text-primary'
+              : 'border-transparent text-muted-foreground hover:text-foreground'
+          }`}
+        >
+          專案請款
+          {filteredItems.length > 0 && (
+            <span className="bg-primary/10 text-primary text-xs font-bold px-2 py-0.5 rounded-full">
+              {filteredItems.length}
+            </span>
+          )}
+        </button>
+        <button
+          onClick={() => setActiveTab('personal')}
+          className={`flex items-center gap-2 px-6 py-3 text-sm font-medium border-b-2 transition-colors ${
+            activeTab === 'personal'
+              ? 'border-info text-info'
+              : 'border-transparent text-muted-foreground hover:text-foreground'
+          }`}
+        >
+          <Receipt className="w-4 h-4" />
+          個人報帳
+          {expenseClaims.length > 0 && (
+            <span className="bg-info/10 text-info text-xs font-bold px-2 py-0.5 rounded-full">
+              {expenseClaims.length}
+            </span>
+          )}
+        </button>
+      </div>
+
+      {/* 專案請款 Tab 內容 */}
+      {activeTab === 'project' && (
+        <>
+          <div className="flex flex-col space-y-4">
+            <div className="flex items-center space-x-4">
+              <div className="relative flex-1 max-w-md">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+                <Input
+                  id="search-requests"
+                  name="search"
+                  placeholder="搜尋專案、KOL/服務、執行內容..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
+              <div className="text-sm text-muted-foreground">
+                共 {filteredItems.length} 筆申請
+              </div>
+            </div>
+            <ApprovalControls
+              selectedCount={selectedItems.size}
+              onBatchApprove={handleBatchApprove}
+              onBatchReject={handleBatchReject}
+              onRefresh={refresh}
+              isProcessing={isProcessing}
             />
           </div>
-          <div className="text-sm text-muted-foreground">
-            共 {filteredItems.length} 筆申請
-          </div>
-        </div>
 
-        {/* 批量操作列 */}
-        <ApprovalControls
-          selectedCount={selectedItems.size}
-          onBatchApprove={handleBatchApprove}
-          onBatchReject={handleBatchReject}
-          onRefresh={refresh}
-          isProcessing={isProcessing}
-        />
-      </div>
+          {filteredItems.length > 0 ? (
+            <div className="bg-card shadow overflow-hidden sm:rounded-lg border border-border">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-secondary">
+                  <tr>
+                    <th className="px-4 py-3 text-left w-10">
+                      <input
+                        type="checkbox"
+                        checked={selectedItems.size > 0 && selectedItems.size === filteredItems.length}
+                        onChange={(e) => e.target.checked ? selectAll() : deselectAll()}
+                        className="h-4 w-4 text-primary focus:ring-ring border-border rounded"
+                      />
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">專案資訊</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">KOL / 服務</th>
+                    <th className="px-4 py-3 text-right text-xs font-medium text-muted-foreground uppercase tracking-wider">金額</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">附件 / 發票</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">狀態</th>
+                    <th className="px-4 py-3 text-right text-xs font-medium text-muted-foreground uppercase tracking-wider">操作</th>
+                  </tr>
+                </thead>
+                <tbody className="bg-card divide-y divide-gray-200">
+                  {filteredItems.map((item) => (
+                    <RequestItemRow
+                      key={item.id}
+                      item={item}
+                      isSelected={selectedItems.has(item.id)}
+                      onSelect={() => toggleSelection(item.id)}
+                      onApprove={handleApprove}
+                      onReject={handleReject}
+                      onViewFiles={handleViewFiles}
+                      isProcessing={isProcessing}
+                    />
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <EmptyState
+              type={searchTerm ? 'no-results' : 'no-data'}
+              title={searchTerm ? '沒有找到符合的申請' : '目前沒有待審核的專案請款'}
+              description={searchTerm ? '請嘗試其他搜尋關鍵字' : '所有專案請款都已處理完畢'}
+            />
+          )}
+        </>
+      )}
 
-      {/* 列表內容 */}
-      {filteredItems.length > 0 ? (
-        <div className="bg-card shadow overflow-hidden sm:rounded-lg border border-border">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-secondary">
-              <tr>
-                <th className="px-4 py-3 text-left w-10">
-                  <input
-                    type="checkbox"
-                    checked={selectedItems.size > 0 && selectedItems.size === filteredItems.length}
-                    onChange={(e) => e.target.checked ? selectAll() : deselectAll()}
-                    className="h-4 w-4 text-primary focus:ring-ring border-border rounded"
-                  />
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">專案資訊</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">KOL / 服務</th>
-                <th className="px-4 py-3 text-right text-xs font-medium text-muted-foreground uppercase tracking-wider">金額</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">附件 / 發票</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">狀態</th>
-                <th className="px-4 py-3 text-right text-xs font-medium text-muted-foreground uppercase tracking-wider">操作</th>
-              </tr>
-            </thead>
-            <tbody className="bg-card divide-y divide-gray-200">
-              {filteredItems.map((item) => (
-                <RequestItemRow
-                  key={item.id}
-                  item={item}
-                  isSelected={selectedItems.has(item.id)}
-                  onSelect={() => toggleSelection(item.id)}
-                  onApprove={handleApprove}
-                  onReject={handleReject}
-                  onViewFiles={handleViewFiles}
-                  isProcessing={isProcessing}
+      {/* 個人報帳 Tab 內容 */}
+      {activeTab === 'personal' && (
+        <>
+          <div className="flex flex-col space-y-4">
+            <div className="flex items-center space-x-4">
+              <div className="relative flex-1 max-w-md">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+                <Input
+                  placeholder="搜尋專案、廠商、發票號碼..."
+                  value={claimSearchTerm}
+                  onChange={(e) => setClaimSearchTerm(e.target.value)}
+                  className="pl-10"
                 />
-              ))}
-            </tbody>
-          </table>
-        </div>
-      ) : (
-        <EmptyState
-          type={searchTerm ? 'no-results' : 'no-data'}
-          title={searchTerm ? '沒有找到符合的申請' : '目前沒有待審核的申請'}
-          description={searchTerm ? '請嘗試其他搜尋關鍵字' : '所有申請都已處理完畢'}
-        />
+              </div>
+              <div className="text-sm text-muted-foreground">
+                共 {filteredClaims.length} 筆報帳申請
+              </div>
+            </div>
+
+            {/* 批量操作 */}
+            {selectedClaimIds.size > 0 && (
+              <div className="flex items-center gap-3 bg-info/10 border border-info/30 rounded-xl px-4 py-3">
+                <span className="text-sm font-medium text-info">已選擇 {selectedClaimIds.size} 筆</span>
+                <div className="flex-1" />
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={handleClaimBatchReject}
+                  disabled={claimProcessing}
+                  className="text-destructive border-destructive/30 hover:bg-destructive/10"
+                >
+                  <XCircle className="w-4 h-4 mr-1" />
+                  批量駁回
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={handleClaimBatchApprove}
+                  disabled={claimProcessing}
+                  className="bg-success text-white hover:bg-success/90"
+                >
+                  <CheckCircle className="w-4 h-4 mr-1" />
+                  批量核准
+                </Button>
+              </div>
+            )}
+          </div>
+
+          {claimsLoading ? (
+            <LoadingState message="載入個人報帳..." />
+          ) : filteredClaims.length > 0 ? (
+            <div className="bg-card shadow overflow-hidden sm:rounded-lg border border-border">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-secondary">
+                  <tr>
+                    <th className="px-4 py-3 text-left w-10">
+                      <input
+                        type="checkbox"
+                        checked={selectedClaimIds.size > 0 && selectedClaimIds.size === filteredClaims.length}
+                        onChange={(e) => {
+                          if (e.target.checked) setSelectedClaimIds(new Set(filteredClaims.map(c => c.id)))
+                          else setSelectedClaimIds(new Set())
+                        }}
+                        className="h-4 w-4 text-primary focus:ring-ring border-border rounded"
+                      />
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">報帳月份</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">支出種類</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">廠商/對象</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">專案名稱</th>
+                    <th className="px-4 py-3 text-right text-xs font-medium text-muted-foreground uppercase tracking-wider">金額</th>
+                    <th className="px-4 py-3 text-right text-xs font-medium text-muted-foreground uppercase tracking-wider">稅額</th>
+                    <th className="px-4 py-3 text-right text-xs font-medium text-muted-foreground uppercase tracking-wider">總額</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">發票號碼</th>
+                    <th className="px-4 py-3 text-right text-xs font-medium text-muted-foreground uppercase tracking-wider">操作</th>
+                  </tr>
+                </thead>
+                <tbody className="bg-card divide-y divide-gray-200">
+                  {filteredClaims.map((claim) => (
+                    <tr key={claim.id} className="hover:bg-accent/50">
+                      <td className="px-4 py-3">
+                        <input
+                          type="checkbox"
+                          checked={selectedClaimIds.has(claim.id)}
+                          onChange={() => {
+                            setSelectedClaimIds(prev => {
+                              const next = new Set(prev)
+                              if (next.has(claim.id)) next.delete(claim.id)
+                              else next.add(claim.id)
+                              return next
+                            })
+                          }}
+                          className="h-4 w-4 text-primary focus:ring-ring border-border rounded"
+                        />
+                      </td>
+                      <td className="px-4 py-3 text-sm text-muted-foreground">{claim.claim_month || '-'}</td>
+                      <td className="px-4 py-3 text-sm">{claim.expense_type}</td>
+                      <td className="px-4 py-3 text-sm font-medium">{claim.vendor_name || '-'}</td>
+                      <td className="px-4 py-3 text-sm text-muted-foreground max-w-32 truncate">{claim.project_name || '-'}</td>
+                      <td className="px-4 py-3 text-sm text-right">NT$ {fmt(claim.amount || 0)}</td>
+                      <td className="px-4 py-3 text-sm text-right text-muted-foreground">{fmt(claim.tax_amount || 0)}</td>
+                      <td className="px-4 py-3 text-sm text-right font-medium">NT$ {fmt(claim.total_amount || 0)}</td>
+                      <td className="px-4 py-3 text-sm text-muted-foreground font-mono">{claim.invoice_number || '-'}</td>
+                      <td className="px-4 py-3 text-right">
+                        <div className="flex items-center justify-end gap-1">
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => handleClaimApprove(claim)}
+                            disabled={claimProcessing}
+                            className="h-8 text-success hover:text-success hover:bg-success/10"
+                          >
+                            <CheckCircle className="w-4 h-4" />
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => handleClaimReject(claim)}
+                            disabled={claimProcessing}
+                            className="h-8 text-destructive hover:text-destructive hover:bg-destructive/10"
+                          >
+                            <XCircle className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <EmptyState
+              type={claimSearchTerm ? 'no-results' : 'no-data'}
+              title={claimSearchTerm ? '沒有找到符合的報帳' : '目前沒有待審核的個人報帳'}
+              description={claimSearchTerm ? '請嘗試其他搜尋關鍵字' : '所有個人報帳都已處理完畢'}
+            />
+          )}
+        </>
       )}
 
       {/* 檔案檢視 Modal */}
       <FileViewerModal
         isOpen={isFileViewerOpen}
-        onClose={() => {
-          setIsFileViewerOpen(false)
-          setSelectedRequest(null)
-        }}
+        onClose={() => { setIsFileViewerOpen(false); setSelectedRequest(null) }}
         request={selectedRequest}
       />
     </div>

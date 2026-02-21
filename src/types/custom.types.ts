@@ -50,6 +50,7 @@ export const PAGE_KEYS = {
   CONFIRMED_PAYMENTS: 'confirmed_payments',
   SETTINGS: 'settings',
   PROJECTS: 'projects',
+  EXPENSE_CLAIMS: 'expense_claims',
   ACCOUNTING: 'accounting',
   MY_SALARY: 'my_salary',
 } as const
@@ -135,6 +136,14 @@ export const PAGE_PERMISSIONS: Record<string, PageConfig> = {
     allowedFunctions: ['create', 'read', 'update', 'delete'],
     route: '/dashboard/projects',
     icon: 'FolderKanban'
+  },
+  [PAGE_KEYS.EXPENSE_CLAIMS]: {
+    key: PAGE_KEYS.EXPENSE_CLAIMS,
+    name: '個人請款申請',
+    allowedRoles: [USER_ROLES.ADMIN, USER_ROLES.EDITOR, USER_ROLES.MEMBER],
+    allowedFunctions: ['create', 'read', 'update', 'delete', 'submit'],
+    route: '/dashboard/expense-claims',
+    icon: 'Receipt'
   },
   [PAGE_KEYS.ACCOUNTING]: {
     key: PAGE_KEYS.ACCOUNTING,
@@ -307,6 +316,54 @@ export interface AccountingExpense {
   project_name: string | null
   note: string | null
   payment_request_id: string | null
+  expense_claim_id: string | null
+  created_by: string | null
+  created_at: string
+  updated_at: string
+}
+
+// ===== 個人請款申請相關類型 =====
+
+export const CLAIM_STATUS = ['draft', 'submitted', 'approved', 'rejected'] as const
+export type ClaimStatus = typeof CLAIM_STATUS[number]
+
+export const CLAIM_STATUS_LABELS: Record<ClaimStatus, string> = {
+  draft: '草稿',
+  submitted: '已送出',
+  approved: '已核准',
+  rejected: '已駁回',
+}
+
+export const CLAIM_STATUS_COLORS: Record<ClaimStatus, string> = {
+  draft: 'bg-muted text-muted-foreground',
+  submitted: 'bg-info/20 text-info',
+  approved: 'bg-success/20 text-success',
+  rejected: 'bg-destructive/20 text-destructive',
+}
+
+export interface ExpenseClaim {
+  id: string
+  year: number
+  claim_month: string | null
+  expense_type: ExpenseType
+  accounting_subject: string | null
+  amount: number
+  tax_amount: number
+  total_amount: number
+  vendor_name: string | null
+  project_name: string | null
+  invoice_number: string | null
+  invoice_date: string | null
+  note: string | null
+  status: ClaimStatus
+  submitted_by: string | null
+  submitted_at: string | null
+  approved_by: string | null
+  approved_at: string | null
+  rejected_by: string | null
+  rejected_at: string | null
+  rejection_reason: string | null
+  attachment_file_path: string | null
   created_by: string | null
   created_at: string
   updated_at: string

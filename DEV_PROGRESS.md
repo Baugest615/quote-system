@@ -1,9 +1,58 @@
 # 開發進度追蹤
 
-> 最後更新：2026-02-20
-> 分支：`feature/v2.1-accounting-and-ui`
+> 最後更新：2026-02-21
+> 分支：`feature/v1.5`
 
 ## 已完成
+
+### 個人請款申請功能 + UX 重構（2026-02-21）
+
+新增「個人報帳」申請機制，整合進現有的審核與帳務流程。包含兩階段：功能建構 + UX 優化。
+
+**Phase 1：功能建構**
+- [x] **資料庫 Migration** (`supabase/migrations/20260220000002_create_expense_claims.sql`)
+  - 新建 `expense_claims` 表（完整審核流程欄位）
+  - 擴展 `accounting_expenses` 新增 `expense_claim_id` 外鍵
+  - 擴展 `payment_confirmation_items` 新增 `expense_claim_id` + `source_type`
+  - RLS 政策：全員可讀、INSERT 限自己、UPDATE 自己的 draft/rejected + Admin/Editor 審核、DELETE 自己的 draft + Admin
+  - RPC `approve_expense_claim`：角色驗證 → 更新狀態 → 建立 payment_confirmation_items → 自動建立 accounting_expenses
+  - RPC `reject_expense_claim`：角色驗證 → 更新狀態 + 記錄原因
+- [x] **型別定義**：`ExpenseClaim` interface、`CLAIM_STATUS` 常量、`PAGE_KEYS.EXPENSE_CLAIMS`
+- [x] **Query Keys + useProjectNames Hook**：從 projects + quotations 取得不重複專案名稱
+- [x] **個人請款申請頁面**：KPI 卡片、狀態篩選、試算表/表格雙模式、送出審核
+- [x] **請款審核頁面 Tab 擴展**：「專案請款」vs「個人報帳」Tab 切換 + 批量核准/駁回
+- [x] **已確認請款清單擴展**：個人報帳以「個人」badge 標示，支援退回
+- [x] **進項管理 + 銷項管理**：project_name 欄位加入搜尋功能
+- [x] **側邊欄 + 權限配置更新**
+
+**Phase 2：UX 重構 — 表單模式 + SearchableSelect 統一**
+- [x] **ExpenseClaimModal 元件**（`src/components/expense-claims/ExpenseClaimModal.tsx`）
+  - 改用 Modal 表單模式（react-hook-form + zod）取代試算表
+  - 自動計算：有發票 → 5% 稅額；無發票 → 稅額 0
+  - 專案名稱使用 SearchableSelect（與其他頁面一致）
+- [x] **個人請款頁面重構**：移除 SpreadsheetEditor，改為「新增報帳」按鈕 + Modal + 表格（含編輯/刪除操作欄）
+- [x] **進項管理 Modal**：datalist → SearchableSelect
+- [x] **銷項管理 Modal**：datalist → SearchableSelect
+- [x] **SpreadsheetEditor autocomplete 升級**：原生 datalist → SearchableSelectCell（Portal 渲染）
+
+新增檔案：
+- `supabase/migrations/20260220000002_create_expense_claims.sql`
+- `src/app/dashboard/expense-claims/page.tsx`
+- `src/components/expense-claims/ExpenseClaimModal.tsx`
+- `src/hooks/useProjectNames.ts`
+
+修改檔案：
+- `src/types/custom.types.ts`、`src/lib/queryKeys.ts`、`src/lib/spreadsheet-utils.ts`
+- `src/components/accounting/SpreadsheetEditor.tsx`（autocomplete 升級）
+- `src/app/dashboard/payment-requests/page.tsx`（Tab 擴展）
+- `src/app/dashboard/confirmed-payments/page.tsx`（個人報帳整合）
+- `src/components/payments/confirmed/PaymentRecordRow.tsx`（個人報帳渲染）
+- `src/lib/payments/types.ts`、`src/lib/payments/grouping.ts`（型別 + 分組邏輯）
+- `src/app/dashboard/accounting/expenses/page.tsx`（SearchableSelect）
+- `src/app/dashboard/accounting/sales/page.tsx`（SearchableSelect）
+- `src/components/dashboard/Sidebar.tsx`（Receipt icon）
+
+驗證結果：TypeScript 零錯誤、Production build 成功（28 頁面）、Migration 已套用至遠端 DB
 
 ### 權限安全防護補強（2026-02-20）
 
@@ -300,34 +349,41 @@
 ## 目前狀態
 
 - `npm run build` 通過，零型別錯誤（28 頁面）
-- **✅ 權限安全防護已補強**：Middleware 資料驅動化、列印頁面身份驗證、請款頁面守衛、PDF API 權限檢查
-- **✅ 專案進度管理已完成**：projects + project_notes 表、KPI 卡片 + 可展開行備註系統、4 階段生命週期追蹤
-- **✅ React Query 全面遷移已完成**：全部 Dashboard 頁面使用 React Query 快取，切換頁面瞬間顯示
-- **✅ 跨頁快取失效已設定**：操作後自動更新所有相關頁面的資料
-- **✅ DB 索引補強**：7 個新索引涵蓋常用查詢路徑
-- **✅ UI/UX 全面優化已完成**：45+ 檔案、9 階段、全部 dashboard 頁面統一主題
+- **✅ 個人請款申請已完成**：expense_claims 表 + 表單模式 + 審核整合 + 帳務自動建立
+- **✅ SearchableSelect 統一**：Modal 表單 + SpreadsheetEditor 的專案名稱搜尋元件一致
+- **✅ 權限安全防護已補強**：Middleware 資料驅動化、列印頁面身份驗證、請款頁面守衛
+- **✅ 專案進度管理已完成**：projects + project_notes 表、KPI 卡片 + 備註系統
+- **✅ React Query 全面遷移已完成**：全部頁面快取管理，切換頁面瞬間顯示
+- **✅ UI/UX 全面優化已完成**：深色主題統一、骨架屏、空狀態元件
 - **✅ RLS 政策整理已完成**：16 張核心表 100% 標準化
-- **✅ PDF 生成已修復**：支援多瀏覽器自動偵測、中文字體、白底、A4 全寬
+- **✅ PDF 生成已修復**：多瀏覽器自動偵測、中文字體、白底、A4 全寬
 - **✅ GitHub CLI 已設定**：認證完成，可直接推送
 - 開發時若遇 `.next` 快取問題，刪除 `.next` 資料夾後重啟即可
+
+## 開發環境同步
+
+以下設定透過 Git 同步，clone 即可在其他環境使用：
+- `.claude/settings.json` — Claude Code 共用設定
+- `.claude/skills/` — 所有 AI Skills（commit, db-migration, pr, review 等）
+- `CLAUDE.md` — AI 助手開發規則
+
+個人設定（不同步）：`.claude/settings.local.json`、`*.local.*`
 
 ## 待辦 / 下一步
 
 ### 🔴 優先執行
-- [ ] **全面功能測試**：各頁面瀏覽、新增、編輯、刪除（確認 React Query 遷移後功能正常）
-- [ ] **快取行為驗證**：切換頁面 → 確認瞬間顯示快取 → CRUD 後確認自動更新
-- [ ] **跨頁失效測試**：核准請款後切換到已確認請款頁、儲存報價單後回到列表頁
-- [ ] **權限分級測試**：Admin、Editor、Member 角色權限驗證
-- [ ] **DB 索引套用**：執行 `supabase db push` 套用 `20260219100000_add_performance_indexes.sql`
+- [ ] **個人請款功能測試**：新增/編輯/刪除 → 送出審核 → 核准（確認進項自動建立）→ 確認清單
+- [ ] **全面功能回歸測試**：各頁面 CRUD + 權限分級（Admin/Editor/Member）
+- [ ] **快取行為驗證**：跨頁失效（核准 → 已確認清單、儲存報價 → 列表頁）
 
 ### 🟡 部署與整合
-- [ ] 部署 `feature/v2.1-accounting-and-ui` 分支到測試環境
-- [ ] 確認功能正常後套用所有 migration
-- [ ] 考慮建立 PR 合併回 main
+- [ ] 建立 PR 合併 `feature/v1.5` → `main`
+- [ ] 部署至正式環境
+- [ ] 確認所有 migration 已套用
 
 ### 🟢 功能擴充
-- [ ] 儀表板後續可擴充：依角色顯示不同內容（Admin 可看財務摘要）
-- [ ] 建立 RLS 政策文檔：記錄每張表的權限設計邏輯
+- [ ] 儀表板依角色顯示不同內容（Admin 可看財務摘要）
+- [ ] 建立 RLS 政策文檔
 
 ## 備註
 

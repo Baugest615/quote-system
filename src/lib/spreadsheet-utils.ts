@@ -2,7 +2,7 @@
  * Spreadsheet utilities: TSV parsing, value coercion, column types
  */
 
-export type ColumnType = 'text' | 'number' | 'date' | 'select'
+export type ColumnType = 'text' | 'number' | 'date' | 'select' | 'autocomplete'
 
 export interface SpreadsheetColumn<T> {
   key: keyof T
@@ -13,6 +13,8 @@ export interface SpreadsheetColumn<T> {
   options?: string[]        // for type='select'
   readOnly?: boolean        // auto-calc fields
   autoCalcSource?: boolean  // triggers onAutoCalc when changed
+  autoCalcTrigger?: boolean // also triggers onAutoCalc (secondary trigger)
+  suggestions?: string[]    // for type='autocomplete'
 }
 
 export type RowStatus = 'clean' | 'modified' | 'new' | 'deleted'
@@ -78,6 +80,7 @@ function coerceValue<T>(raw: string, col: SpreadsheetColumn<T>): unknown {
       )
       return match ?? raw
     }
+    case 'autocomplete':
     case 'text':
     default:
       return raw

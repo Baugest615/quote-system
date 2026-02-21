@@ -5,6 +5,7 @@ import { Plus, Save, X, Undo2, Trash2, Table2, ClipboardList } from 'lucide-reac
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import { EmptyState } from '@/components/ui/EmptyState'
+import { SearchableSelectCell } from '@/components/quotes/v2/SearchableSelectCell'
 import {
   type SpreadsheetColumn,
   type SpreadsheetRow,
@@ -129,10 +130,10 @@ export default function SpreadsheetEditor<T extends { id: string }>({
         return prev.map(r => {
           if (r.tempId !== visRow.tempId) return r
           const newData = { ...r.data, [colKey]: value }
-          // Auto-calc
+          // Auto-calc: triggered by autoCalcSource OR autoCalcTrigger
           const col = columns.find(c => c.key === colKey)
           let calcUpdates: Partial<T> = {}
-          if (col?.autoCalcSource && onAutoCalc) {
+          if ((col?.autoCalcSource || col?.autoCalcTrigger) && onAutoCalc) {
             calcUpdates = onAutoCalc(newData, colKey)
           }
           const mergedData = { ...newData, ...calcUpdates }
@@ -214,7 +215,7 @@ export default function SpreadsheetEditor<T extends { id: string }>({
               if (onAutoCalc) {
                 for (const key of Object.keys(parsed.updates) as (keyof T)[]) {
                   const col = columns.find(c => c.key === key)
-                  if (col?.autoCalcSource) {
+                  if (col?.autoCalcSource || col?.autoCalcTrigger) {
                     mergedData = { ...mergedData, ...onAutoCalc(mergedData, key) }
                   }
                 }
@@ -578,6 +579,15 @@ export default function SpreadsheetEditor<T extends { id: string }>({
                                   : 'border-transparent hover:border-border'
                               )}
                               placeholder="0"
+                            />
+                          ) : col.type === 'autocomplete' ? (
+                            <SearchableSelectCell
+                              value={String(value ?? '')}
+                              onChange={(val) => updateCell(ri, col.key, val)}
+                              options={(col.suggestions || []).map(s => ({ label: s, value: s }))}
+                              placeholder="搜尋..."
+                              allowCustomValue={true}
+                              className="text-xs"
                             />
                           ) : (
                             <input

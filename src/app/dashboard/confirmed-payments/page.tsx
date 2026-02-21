@@ -55,17 +55,25 @@ export default function ConfirmedPaymentsPage() {
               remark,
               created_at
             )
+          ),
+          expense_claims (
+            id,
+            expense_type,
+            vendor_name,
+            project_name,
+            amount,
+            tax_amount,
+            total_amount,
+            invoice_number,
+            claim_month,
+            note,
+            submitted_by
           )
         )
       `)
       .order('confirmation_date', { ascending: false })
 
     if (error) throw error
-
-    console.log('Fetched confirmations:', data)
-    if (data && data.length > 0) {
-      console.log('First confirmation settings:', data[0].remittance_settings)
-    }
 
     // 初始化展開狀態
     return (data || []).map(item => ({
@@ -107,6 +115,17 @@ export default function ConfirmedPaymentsPage() {
 
       // 搜尋關聯項目
       const hasMatchingItem = confirmation.payment_confirmation_items.some(item => {
+        // 個人報帳項目搜尋
+        if (item.source_type === 'personal' || item.expense_claim_id) {
+          const claim = item.expense_claims
+          return (
+            (claim?.project_name || '').toLowerCase().includes(searchLower) ||
+            (claim?.vendor_name || '').toLowerCase().includes(searchLower) ||
+            (claim?.expense_type || '').toLowerCase().includes(searchLower)
+          )
+        }
+
+        // 專案請款項目搜尋
         const request = item.payment_requests
         const quotationItem = request?.quotation_items
         const quotation = quotationItem?.quotations
@@ -173,7 +192,9 @@ export default function ConfirmedPaymentsPage() {
     if (!confirm('確定要將此清單中的 ' + itemsToRevert.length + ' 筆項目退回到「請款申請」頁面嗎？')) return
 
     try {
-      const requestIdsToRevert = itemsToRevert.map(item => item.payment_request_id)
+      // 區分專案請款與個人報帳項目
+      const projectItems = itemsToRevert.filter(item => item.payment_request_id && item.source_type !== 'personal')
+      const personalItems = itemsToRevert.filter(item => item.expense_claim_id || item.source_type === 'personal')
 
       // 1. 刪除確認項目
       const { error: itemsError } = await supabase
@@ -189,17 +210,45 @@ export default function ConfirmedPaymentsPage() {
         .eq('id', confirmation.id)
       if (confirmationError) throw new Error('刪除確認主記錄失敗: ' + confirmationError.message)
 
-      // 3. 更新原始申請狀態
-      const { error: updateError } = await supabase
-        .from('payment_requests')
-        .update({ verification_status: 'pending' })
-        .in('id', requestIdsToRevert)
-      if (updateError) throw new Error('退回項目狀態失敗: ' + updateError.message)
+      // 3a. 退回專案請款項目
+      if (projectItems.length > 0) {
+        const requestIds = projectItems.map(item => item.payment_request_id).filter(Boolean) as string[]
+        if (requestIds.length > 0) {
+          const { error: updateError } = await supabase
+            .from('payment_requests')
+            .update({ verification_status: 'pending' })
+            .in('id', requestIds)
+          if (updateError) throw new Error('退回專案請款狀態失敗: ' + updateError.message)
+        }
+      }
+
+      // 3b. 退回個人報帳項目（狀態改回 submitted）
+      if (personalItems.length > 0) {
+        const claimIds = personalItems.map(item => item.expense_claim_id).filter(Boolean) as string[]
+        if (claimIds.length > 0) {
+          const { error: claimError } = await supabase
+            .from('expense_claims')
+            .update({ status: 'submitted', approved_by: null, approved_at: null })
+            .in('id', claimIds)
+          if (claimError) throw new Error('退回個人報帳狀態失敗: ' + claimError.message)
+
+          // 刪除自動建立的進項記錄
+          const { error: expenseError } = await supabase
+            .from('accounting_expenses')
+            .delete()
+            .in('expense_claim_id', claimIds)
+          if (expenseError) console.warn('清理進項記錄失敗:', expenseError.message)
+        }
+      }
 
       toast.success('清單已退回，相關項目已回到「請款申請」頁面。')
       refresh()
-      // 跨頁快取失效：退回後影響「請款申請」
+      // 跨頁快取失效
       queryClient.invalidateQueries({ queryKey: [...queryKeys.paymentRequests] })
+      if (personalItems.length > 0) {
+        queryClient.invalidateQueries({ queryKey: ['expense-claims'] })
+        queryClient.invalidateQueries({ queryKey: ['accounting-expenses'] })
+      }
 
     } catch (error: unknown) {
       console.error('退回請款清單失敗:', error)

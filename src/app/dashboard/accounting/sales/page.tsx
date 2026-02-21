@@ -15,6 +15,8 @@ import { EmptyState } from '@/components/ui/EmptyState'
 import Link from 'next/link'
 import type { AccountingSale } from '@/types/custom.types'
 import type { SpreadsheetColumn, BatchSaveResult, RowError } from '@/lib/spreadsheet-utils'
+import { useProjectNames } from '@/hooks/useProjectNames'
+import { SearchableSelect } from '@/components/ui/SearchableSelect'
 
 const PAGE_SIZE = 20
 
@@ -46,12 +48,17 @@ export default function AccountingSalesPage() {
   const [form, setForm] = useState<Partial<AccountingSale>>(emptyForm())
   const [currentPage, setCurrentPage] = useState(1)
   const [isSpreadsheetMode, setIsSpreadsheetMode] = useState(false)
+  const { data: projectNames = [] } = useProjectNames()
+  const projectNameOptions = useMemo(
+    () => projectNames.map(name => ({ label: name, value: name })),
+    [projectNames]
+  )
 
   // 試算表欄位定義
   const spreadsheetColumns = useMemo<SpreadsheetColumn<AccountingSale>[]>(() => [
     { key: 'invoice_month', label: '發票月份', type: 'select',
       options: MONTH_OPTIONS.map(m => `${year}年${m}`), width: 'w-28' },
-    { key: 'project_name', label: '案件名稱', type: 'text', required: true, width: 'w-40' },
+    { key: 'project_name', label: '案件名稱', type: 'autocomplete', suggestions: projectNames, required: true, width: 'w-40' },
     { key: 'client_name', label: '開立對象', type: 'text', width: 'w-32' },
     { key: 'sales_amount', label: '銷售額（未稅）', type: 'number', autoCalcSource: true, width: 'w-28' },
     { key: 'tax_amount', label: '稅額', type: 'number', readOnly: true, width: 'w-24' },
@@ -60,7 +67,7 @@ export default function AccountingSalesPage() {
     { key: 'invoice_date', label: '發票開立日', type: 'date', width: 'w-28' },
     { key: 'actual_receipt_date', label: '實際入帳日', type: 'date', width: 'w-28' },
     { key: 'note', label: '備註', type: 'text', width: 'w-40' },
-  ], [year])
+  ], [year, projectNames])
 
   const currentQueryKey = queryKeys.accountingSales(year)
 
@@ -391,12 +398,12 @@ export default function AccountingSalesPage() {
               </div>
               <div>
                 <label className="block text-xs font-medium text-muted-foreground mb-1">案件名稱 *</label>
-                <input
-                  type="text"
-                  value={form.project_name || ''}
-                  onChange={(e) => setForm(f => ({ ...f, project_name: e.target.value }))}
-                  className="w-full border border-border rounded-lg px-3 py-2 text-sm bg-card focus:outline-none focus:ring-2 focus:ring-ring"
-                  placeholder="請輸入案件名稱"
+                <SearchableSelect
+                  value={form.project_name || null}
+                  onChange={(val) => setForm(f => ({ ...f, project_name: val }))}
+                  options={projectNameOptions}
+                  placeholder="搜尋案件名稱..."
+                  clearable
                 />
               </div>
               <div>

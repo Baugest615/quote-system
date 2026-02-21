@@ -36,6 +36,10 @@ export const queryKeys = {
   // 個人
   myEmployee: (userId: string) => ['my-employee', userId] as const,
 
+  // 個人請款申請
+  expenseClaims: (year: number) => ['expense-claims', year] as const,
+  projectNames: ['project-names'] as const,
+
   // 會計模組
   accountingSales: (year: number) => ['accounting-sales', year] as const,
   accountingExpenses: (year: number) => ['accounting-expenses', year] as const,

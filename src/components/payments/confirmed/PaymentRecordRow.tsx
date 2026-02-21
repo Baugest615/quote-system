@@ -6,7 +6,28 @@ interface PaymentRecordRowProps {
 }
 
 export function PaymentRecordRow({ item }: PaymentRecordRowProps) {
-    // 安全地存取巢狀資料
+    // 個人報帳項目
+    if (item.source_type === 'personal' || item.expense_claim_id) {
+        const claim = item.expense_claims
+        return (
+            <tr className="text-sm hover:bg-secondary">
+                <td className="px-4 py-3 text-foreground">
+                    {claim?.project_name || '—'}
+                    <span className="ml-2 inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-chart-5/20 text-chart-5">
+                        個人
+                    </span>
+                </td>
+                <td className="px-4 py-3 text-foreground/70">{claim?.vendor_name || '—'}</td>
+                <td className="px-4 py-3 text-foreground/70">{claim?.expense_type || '—'}</td>
+                <td className="px-4 py-3 text-foreground/70">{claim?.vendor_name || '—'}</td>
+                <td className="px-4 py-3 text-right font-medium text-foreground">
+                    NT$ {(item.amount || claim?.total_amount || 0).toLocaleString()}
+                </td>
+            </tr>
+        )
+    }
+
+    // 專案請款項目（原有邏輯）
     const request = item.payment_requests
     const quotationItem = request?.quotation_items
     const quotation = quotationItem?.quotations
@@ -25,17 +46,14 @@ export function PaymentRecordRow({ item }: PaymentRecordRowProps) {
     if (!remittanceName && kol) {
         const bankInfo = (kol.bank_info || {}) as KolBankInfo
         if (bankInfo.bankType === 'company') {
-            // Fallback to KOL name if company account name is missing
             remittanceName = bankInfo.companyAccountName || kol.name
         } else {
-            // Default to individual if not specified or explicit individual
             remittanceName = bankInfo.personalAccountName || kol.real_name || kol.name
         }
     }
 
     remittanceName = remittanceName || '未知匯款戶名'
 
-    // Fix cost display: use item.amount or fallback to cost_amount
     const amount = item.amount || request?.cost_amount || 0
 
     return (

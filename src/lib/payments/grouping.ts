@@ -164,6 +164,30 @@ export function groupItemsByRemittance(items: PaymentConfirmationItem[]): import
     const remittanceMap = new Map<string, import('./types').RemittanceGroup>()
 
     items.forEach(item => {
+        // 個人報帳項目：以廠商名稱分組
+        if (item.source_type === 'personal' || item.expense_claim_id) {
+            const claim = item.expense_claims
+            const vendorName = claim?.vendor_name || '個人報帳'
+            const groupKey = `personal_${vendorName}`
+
+            if (!remittanceMap.has(groupKey)) {
+                remittanceMap.set(groupKey, {
+                    remittanceName: `${vendorName}（個人報帳）`,
+                    bankName: '',
+                    branchName: '',
+                    accountNumber: '',
+                    items: [],
+                    totalAmount: 0
+                })
+            }
+
+            const group = remittanceMap.get(groupKey)!
+            group.items.push(item)
+            group.totalAmount += item.amount || claim?.total_amount || 0
+            return
+        }
+
+        // 專案請款項目：以匯款戶名分組（原有邏輯）
         const paymentRequest = item.payment_requests
         if (!paymentRequest) return
 
