@@ -344,6 +344,7 @@ export interface AccountingExpense {
   amount: number
   tax_amount: number
   total_amount: number
+  remittance_fee: number
   vendor_name: string | null
   payment_date: string | null
   invoice_date: string | null

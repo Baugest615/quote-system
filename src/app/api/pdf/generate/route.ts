@@ -4,11 +4,11 @@ import { NextRequest, NextResponse } from 'next/server';
 import puppeteer, { Browser, Page } from 'puppeteer-core';
 import { createServerClient } from '@/lib/supabase/server';
 import { PAGE_PERMISSIONS, PAGE_KEYS, UserRole } from '@/types/custom.types';
+import { isDev, serverEnv } from '@/lib/env';
 
 // 動態 import @sparticuz/chromium 避免本地開發問題
 async function getBrowser(): Promise<Browser> {
-    const isDev = process.env.NODE_ENV === 'development';
-    const puppeteerPath = process.env.PUPPETEER_EXECUTABLE_PATH;
+    const puppeteerPath = serverEnv.puppeteerExecutablePath;
 
     if (isDev) {
         // 本地開發：自動偵測可用的 Chromium 核心瀏覽器

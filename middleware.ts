@@ -1,6 +1,7 @@
 import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 import { PAGE_PERMISSIONS, UserRole } from '@/types/custom.types'
+import { serverEnv } from '@/lib/env'
 
 // 從 PAGE_PERMISSIONS 自動產生路由對照表（不再手動維護）
 const routeToPageMap: Record<string, string> = {}
@@ -26,8 +27,8 @@ export async function middleware(request: NextRequest) {
   }
 
   // 檢查環境變數是否存在
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+  const supabaseUrl = serverEnv.supabaseUrl
+  const supabaseAnonKey = serverEnv.supabaseAnonKey
 
   if (!supabaseUrl || !supabaseAnonKey) {
     console.error('Missing Supabase environment variables')
@@ -147,13 +148,28 @@ export async function middleware(request: NextRequest) {
       }
     }
 
-    // 保護列印路由（需要身份驗證）
+    // 保護列印路由（需要身份驗證 + 角色檢查）
     if (pathname.startsWith('/print')) {
       try {
         const { data: { user }, error } = await supabase.auth.getUser()
         if (error || !user) {
           return NextResponse.redirect(new URL('/auth/login', request.url))
         }
+
+        // 確認使用者具有有效角色（防止已停用帳號存取）
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('id', user.id)
+          .single()
+
+        const userRole = (profile?.role || '') as UserRole
+        if (!ALL_ROLES.includes(userRole)) {
+          return NextResponse.redirect(
+            new URL('/dashboard?error=permission_denied', request.url)
+          )
+        }
+
         return response
       } catch (error) {
         console.error('Auth error in print route:', error)

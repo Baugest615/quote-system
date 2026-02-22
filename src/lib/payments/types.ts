@@ -62,6 +62,7 @@ export interface PendingPaymentItem extends BasePaymentItem {
     original_cost: number // 頁面載入時的原始成本，用於比對
     remittance_name_input: string | null
     expense_type_input: string // 支出種類（申請人選擇）
+    accounting_subject_input: string // 會計科目（申請人預設，核准者可覆蓋）
     expected_payment_month_input: string // 預計支付月份（如 "2026年3月"）
 
     // 附件
@@ -82,6 +83,10 @@ export interface PaymentRequestItem extends BasePaymentItem {
     // 金額與發票
     cost_amount: number
     invoice_number: string | null
+
+    // 帳務分類（申請人填寫，核准者可覆蓋）
+    expense_type: string | null
+    accounting_subject: string | null
 
     // 附件
     attachments: PaymentAttachment[]

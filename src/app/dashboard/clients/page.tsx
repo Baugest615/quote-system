@@ -1,7 +1,7 @@
 // src/app/dashboard/clients/page.tsx - React Query 快取版本
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import supabase from '@/lib/supabase/client'
 import { Database } from '@/types/database.types'
 import { Button } from '@/components/ui/button'
@@ -14,6 +14,9 @@ import { EmptyState } from '@/components/ui/EmptyState'
 import { useClients } from '@/hooks/useClients'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { queryKeys } from '@/lib/queryKeys'
+import Pagination from '@/components/ui/Pagination'
+
+const PAGE_SIZE = 20
 
 type Client = Database['public']['Tables']['clients']['Row']
 
@@ -35,8 +38,12 @@ export default function ClientsPage() {
   const queryClient = useQueryClient()
   const { data: rawClients = [], isLoading: loading } = useClients()
   const [searchTerm, setSearchTerm] = useState('')
+  const [currentPage, setCurrentPage] = useState(1)
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [selectedClient, setSelectedClient] = useState<Client | null>(null)
+
+  // 搜尋改變時重置到第一頁
+  useEffect(() => { setCurrentPage(1) }, [searchTerm])
 
   // 解析 JSONB contacts 並排序（client-side 轉換，有快取時不會重複計算）
   const clients = useMemo(() => {
@@ -91,6 +98,13 @@ export default function ClientsPage() {
       )
     })
   }, [clients, searchTerm])
+
+  // 分頁
+  const totalPages = Math.max(1, Math.ceil(filteredClients.length / PAGE_SIZE))
+  const paginatedClients = filteredClients.slice(
+    (currentPage - 1) * PAGE_SIZE,
+    currentPage * PAGE_SIZE
+  )
 
   const handleOpenModal = (client?: Client) => {
     setSelectedClient(client || null)
@@ -229,7 +243,7 @@ export default function ClientsPage() {
             </tr>
           </thead>
           <tbody>
-            {filteredClients.map((client) => {
+            {paginatedClients.map((client) => {
               const primaryContact = getPrimaryContact(client.parsedContacts)
               const contactCount = getContactCount(client.parsedContacts)
 
@@ -336,6 +350,14 @@ export default function ClientsPage() {
             })}
           </tbody>
         </table>
+
+        <Pagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          totalItems={filteredClients.length}
+          pageSize={PAGE_SIZE}
+          onPageChange={setCurrentPage}
+        />
 
         {filteredClients.length === 0 && !loading && (
           searchTerm ? (

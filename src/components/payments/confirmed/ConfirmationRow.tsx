@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { ChevronDown, ChevronRight, FileText, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { PaymentConfirmation } from '@/lib/payments/types'
@@ -20,6 +20,14 @@ export function ConfirmationRow({ confirmation, onToggleExpansion, onRevert, wit
         confirmation.remittance_settings
     )
 
+    // 計算匯費合計
+    const totalFee = useMemo(() => {
+        if (!settings) return 0
+        return Object.values(settings).reduce(
+            (sum, s) => sum + (s.hasRemittanceFee ? (s.remittanceFeeAmount || 0) : 0), 0
+        )
+    }, [settings])
+
     return (
         <div className="bg-card shadow-none border border-border rounded-lg overflow-hidden">
             {/* 清單標題列 */}
@@ -37,6 +45,11 @@ export function ConfirmationRow({ confirmation, onToggleExpansion, onRevert, wit
                         <div className="font-medium text-foreground">請款清單 - {confirmation.confirmation_date}</div>
                         <div className="text-sm text-muted-foreground">
                             {confirmation.total_items} 筆項目 | 總成本 NT$ {(confirmation.total_amount || 0).toLocaleString()}
+                            {totalFee > 0 && (
+                                <span className="text-warning ml-1">
+                                    （匯費 -{totalFee.toLocaleString()} → 實付 NT$ {((confirmation.total_amount || 0) - totalFee).toLocaleString()}）
+                                </span>
+                            )}
                         </div>
                     </div>
                 </div>

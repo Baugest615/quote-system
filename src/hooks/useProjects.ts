@@ -5,6 +5,7 @@ import supabase from '@/lib/supabase/client'
 import { toast } from 'sonner'
 import { queryKeys } from '@/lib/queryKeys'
 import type { Project, ProjectStatus } from '@/types/custom.types'
+import { useDeleteEntity } from './useEntityMutations'
 
 const QUERY_KEY = queryKeys.projects
 
@@ -165,19 +166,9 @@ export function useUpdateProject() {
 
 // 刪除專案
 export function useDeleteProject() {
-  const queryClient = useQueryClient()
-  return useMutation({
-    mutationFn: async (id: string) => {
-      const { error } = await supabase.from('projects').delete().eq('id', id)
-      if (error) throw error
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: QUERY_KEY })
-      toast.success('專案已刪除')
-    },
-    onError: (error: Error) => {
-      toast.error('刪除專案失敗: ' + error.message)
-    },
+  return useDeleteEntity('projects', QUERY_KEY, {
+    success: '專案已刪除',
+    error: '刪除專案失敗',
   })
 }
 

@@ -11,6 +11,7 @@ import {
   FileText, Receipt, Users, Calculator, BarChart3, ArrowRight, Landmark
 } from 'lucide-react'
 import AccountingLoadingGuard from '@/components/accounting/AccountingLoadingGuard'
+import { ModuleErrorBoundary } from '@/components/ModuleErrorBoundary'
 
 interface MonthlySummary {
   month: string
@@ -92,6 +93,7 @@ export default function AccountingPage() {
   ]
 
   return (
+    <ModuleErrorBoundary module="帳務管理">
     <AccountingLoadingGuard loading={isLoading} isAdmin={hasRole('Admin')}>
     <div className="space-y-6">
       {/* 頁首 */}
@@ -217,5 +219,6 @@ export default function AccountingPage() {
       </div>
     </div>
     </AccountingLoadingGuard>
+    </ModuleErrorBoundary>
   )
 }

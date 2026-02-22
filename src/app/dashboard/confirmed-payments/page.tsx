@@ -24,6 +24,7 @@ import { PaymentStats } from '@/components/payments/confirmed/PaymentStats'
 import { PaymentOverviewTab } from '@/components/payments/confirmed/tabs/PaymentOverviewTab'
 import { WithholdingTab } from '@/components/payments/confirmed/tabs/WithholdingTab'
 import { ConfirmationHistoryTab } from '@/components/payments/confirmed/tabs/ConfirmationHistoryTab'
+import { ModuleErrorBoundary } from '@/components/ModuleErrorBoundary'
 
 type TabKey = 'overview' | 'withholding' | 'history'
 
@@ -244,6 +245,7 @@ export default function ConfirmedPaymentsPage() {
   }
 
   return (
+    <ModuleErrorBoundary module="已確認請款">
     <div className="space-y-6">
       {/* 標題 */}
       <div className="flex justify-between items-center">
@@ -305,5 +307,6 @@ export default function ConfirmedPaymentsPage() {
         />
       )}
     </div>
+    </ModuleErrorBoundary>
   )
 }

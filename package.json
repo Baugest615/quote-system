@@ -89,7 +89,8 @@
     "prettier-plugin-tailwindcss": "^0.5.9",
     "rimraf": "^5.0.5",
     "supabase": "^2.72.8",
-    "tailwindcss": "^3.4.17"
+    "tailwindcss": "^3.4.17",
+    "ts-jest": "^29.4.6"
   },
   "engines": {
     "node": ">=18.x",

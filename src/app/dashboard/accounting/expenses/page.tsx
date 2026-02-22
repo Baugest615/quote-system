@@ -42,6 +42,7 @@ const emptyForm = (): Partial<AccountingExpense> => ({
   amount: 0,
   tax_amount: 0,
   total_amount: 0,
+  remittance_fee: 0,
   vendor_name: '',
   payment_date: null,
   invoice_date: null,
@@ -82,7 +83,7 @@ export default function AccountingExpensesPage() {
     { key: 'vendor_name', label: '廠商/對象', type: 'text', width: 'w-32' },
     { key: 'amount', label: '金額（未稅）', type: 'number', autoCalcSource: true, width: 'w-28' },
     { key: 'tax_amount', label: '稅額', type: 'number', readOnly: true, width: 'w-24' },
-    { key: 'total_amount', label: '總額（含稅）', type: 'number', readOnly: true, width: 'w-28' },
+    { key: 'total_amount', label: '實付金額', type: 'number', readOnly: true, width: 'w-28' },
     { key: 'project_name', label: '專案名稱', type: 'autocomplete', suggestions: projectNames, width: 'w-36' },
     { key: 'payment_date', label: '匯款日', type: 'date', width: 'w-28' },
     { key: 'invoice_number', label: '發票號碼', type: 'text', width: 'w-28' },
@@ -349,7 +350,7 @@ export default function AccountingExpensesPage() {
                   <th className="text-left px-4 py-3">會計科目</th>
                   <th className="text-left px-4 py-3">廠商/對象</th>
                   <th className="text-right px-4 py-3">金額（未稅）</th>
-                  <th className="text-right px-4 py-3">總額（含稅）</th>
+                  <th className="text-right px-4 py-3">實付金額</th>
                   <th className="text-left px-4 py-3">專案名稱</th>
                   <th className="text-left px-4 py-3">匯款日</th>
                   <th className="text-center px-4 py-3">付款狀態</th>
@@ -373,7 +374,14 @@ export default function AccountingExpensesPage() {
                       {r.payment_request_id && <span className="ml-1.5 text-[10px] text-destructive bg-destructive/10 px-1 py-0.5 rounded" title="由請款核准自動建立">自動</span>}
                     </td>
                     <td className="px-4 py-3 text-right text-destructive">NT$ {fmt(r.amount || 0)}</td>
-                    <td className="px-4 py-3 text-right text-foreground">NT$ {fmt(r.total_amount || 0)}</td>
+                    <td className="px-4 py-3 text-right text-foreground">
+                      NT$ {fmt(r.total_amount || 0)}
+                      {(r.remittance_fee || 0) > 0 && (
+                        <span className="block text-[10px] text-warning" title={`含匯費扣除 NT$${fmt(r.remittance_fee)}`}>
+                          匯費 -{fmt(r.remittance_fee)}
+                        </span>
+                      )}
+                    </td>
                     <td className="px-4 py-3 text-muted-foreground max-w-32 truncate">{r.project_name || '-'}</td>
                     <td className="px-4 py-3 text-muted-foreground">{r.payment_date || '-'}</td>
                     <td className="px-4 py-3 text-center">

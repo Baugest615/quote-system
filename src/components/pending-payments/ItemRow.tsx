@@ -4,7 +4,7 @@ import { Input } from '@/components/ui/input'
 import { RejectionReasonDisplay } from './RejectionReasonDisplay'
 import type { PendingPaymentItem } from '@/lib/payments/types'
 import { parseKolBankInfo, isKolBankInfoComplete } from '@/types/schemas'
-import { EXPENSE_TYPES } from '@/types/custom.types'
+import { EXPENSE_TYPES, ACCOUNTING_SUBJECTS } from '@/types/custom.types'
 import { useState } from 'react'
 
 const CURRENT_YEAR = new Date().getFullYear()
@@ -31,6 +31,7 @@ interface ItemRowProps {
     onInvoiceNumberChange: (itemId: string, value: string) => void
     onPaymentSelection: (itemId: string, checked: boolean) => void
     onExpenseTypeChange?: (itemId: string, value: string) => void
+    onAccountingSubjectChange?: (itemId: string, value: string) => void
     onExpectedPaymentMonthChange?: (itemId: string, value: string) => void
 }
 
@@ -55,6 +56,7 @@ export function ItemRow({
     onInvoiceNumberChange,
     onPaymentSelection,
     onExpenseTypeChange,
+    onAccountingSubjectChange,
     onExpectedPaymentMonthChange
 }: ItemRowProps) {
     const [isSaving, setIsSaving] = useState(false)
@@ -122,6 +124,17 @@ export function ItemRow({
                         className="mt-1 w-full h-6 text-[10px] bg-secondary border border-border rounded px-1 text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
                     >
                         {EXPENSE_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+                    </select>
+                )}
+                {onAccountingSubjectChange && (
+                    <select
+                        value={item.accounting_subject_input || ''}
+                        onChange={(e) => onAccountingSubjectChange(item.id, e.target.value)}
+                        className="mt-1 w-full h-6 text-[10px] bg-secondary border border-border rounded px-1 text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                        title="會計科目"
+                    >
+                        <option value="">會計科目...</option>
+                        {ACCOUNTING_SUBJECTS.map(s => <option key={s} value={s}>{s}</option>)}
                     </select>
                 )}
                 {onExpectedPaymentMonthChange && (

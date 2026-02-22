@@ -5,6 +5,7 @@ import supabase from '@/lib/supabase/client'
 import { Database } from '@/types/database.types'
 import { toast } from 'sonner'
 import { queryKeys } from '@/lib/queryKeys'
+import { useDeleteEntity } from './useEntityMutations'
 
 type Kol = Database['public']['Tables']['kols']['Row']
 type KolInsert = Database['public']['Tables']['kols']['Insert']
@@ -133,18 +134,8 @@ export function useUpdateKol() {
 
 // 刪除 KOL
 export function useDeleteKol() {
-  const queryClient = useQueryClient()
-  return useMutation({
-    mutationFn: async (id: string) => {
-      const { error } = await supabase.from('kols').delete().eq('id', id)
-      if (error) throw error
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: QUERY_KEY })
-      toast.success('KOL 已刪除')
-    },
-    onError: (error: Error) => {
-      toast.error('刪除 KOL 失敗: ' + error.message)
-    },
+  return useDeleteEntity('kols', QUERY_KEY, {
+    success: 'KOL 已刪除',
+    error: '刪除 KOL 失敗',
   })
 }

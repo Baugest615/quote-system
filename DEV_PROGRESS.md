@@ -5,6 +5,97 @@
 
 ## 已完成
 
+### 架構優化 — 6 階段重構（2026-02-22）
+
+專案已成長至 167+ TS/TSX 檔案、31 頁面、25+ hooks，進行全面架構優化以提升可維護性、效能與穩定性。
+
+#### Phase 1：基礎設施層
+
+**1.1 集中式環境變數管理**（`src/lib/env.ts`）：
+- [x] 將散佈 5+ 檔案的 `process.env` 集中為 `clientEnv` / `serverEnv` / `isDev` / `isProd`
+- [x] 修改 `client.ts`、`server.ts`、`admin.ts`、`route.ts`、`ErrorBoundary.tsx`、`middleware.ts`
+
+**1.2 React Query 快取差異化**（`src/lib/queryClient.ts`）：
+- [x] 新增 `staleTimes` 四級策略：static(1hr)、dictionary(30min)、standard(5min)、realtime(1min)
+- [x] 套用至 `useReferenceData`、`usePaymentData`、`usePendingItems`、`useWithholdingSettings`
+
+**1.3 路由保護強化**（`middleware.ts`）：
+- [x] `/print/*` 路由增加角色檢查（至少 Member），防止已停用帳號存取
+
+#### Phase 2：通用 CRUD Hook Factory
+
+**建立** `src/hooks/useEntityMutations.ts`：
+- [x] `useCreateEntity<TInsert>` / `useUpdateEntity<TUpdate>` / `useDeleteEntity` factory
+- [x] 統一 supabase CRUD + invalidateQueries + toast 邏輯
+- [x] `useClients.ts` — 全部 CRUD 替換為 factory
+- [x] `useKols.ts` — 僅 `useDeleteKol` 替換（Create/Update 有關聯表邏輯）
+- [x] `useProjects.ts` — 僅 `useDeleteProject` 替換
+
+#### Phase 3：Client-side 分頁
+
+- [x] 共用 `Pagination` 元件從 `accounting/` 提升至 `ui/`（`src/components/ui/Pagination.tsx`）
+- [x] `accounting/Pagination.tsx` 改為 re-export
+- [x] `clients/page.tsx` 新增分頁（PAGE_SIZE=20）
+- [x] `kols/page.tsx` 新增分頁（PAGE_SIZE=20）
+- [x] `useCRUDTable.ts` 新增 `serverSidePagination` 選項（未來可用）
+
+#### Phase 4：大型元件拆分
+
+**4.1 QuoteForm.tsx 拆分**（1048→123 行）：
+- [x] `src/hooks/quotes/useQuoteFormData.ts`（283 行）— 資料載入 + 狀態管理
+- [x] `src/hooks/quotes/useQuoteFormSubmit.ts`（263 行）— 提交邏輯 + 自動建實體
+- [x] `src/components/quotes/form/types.ts`（165 行）— 共享型別 + schema + 常數
+- [x] `src/components/quotes/form/QuoteFormBasicInfo.tsx` — 基本資訊區塊
+- [x] `src/components/quotes/form/QuoteFormItemsTable.tsx` — 報價項目表格
+- [x] `src/components/quotes/form/QuoteFormSummary.tsx` — 金額計算 + 優惠
+- [x] `src/components/quotes/form/QuoteFormTerms.tsx` — 合約條款 + 備註
+
+**4.2 SpreadsheetEditor.tsx 拆分**（656→287 行）：
+- [x] `src/hooks/accounting/useSpreadsheetOperations.ts` — 全部狀態管理、行操作、貼上、鍵盤導航
+
+**4.3 useMonthlySettlement.ts 拆分**：
+- [x] `src/lib/settlement/groupEmployeeData.ts` — 員工分組純函式
+- [x] `src/lib/settlement/calculateKpi.ts` — KPI 計算純函式
+- [x] `useMonthlySettlement.ts` 引用純函式 + markPaid/markUnpaid 合併為 `togglePaidMutation`
+
+#### Phase 5：錯誤邊界細粒度化
+
+- [x] `src/components/ModuleErrorBoundary.tsx` — 輕量封裝，模組名稱顯示 + 重試按鈕
+- [x] 包裹 accounting、payment-requests、confirmed-payments、quotes 頁面
+
+#### Phase 6：測試基礎建設
+
+- [x] `jest.config.js` + `jest.setup.ts` — jsdom + ts-jest + mock supabase/sonner
+- [x] `src/lib/payments/__tests__/validation.test.ts` — 發票/成本/附件驗證規則
+- [x] `src/lib/settlement/__tests__/groupEmployeeData.test.ts` — 員工分組邏輯
+- [x] `src/lib/settlement/__tests__/calculateKpi.test.ts` — KPI 計算
+- [x] **85 個測試全部通過**
+
+驗證結果：TypeScript 零錯誤、Production build 成功（31 頁面）、85/85 測試通過
+
+---
+
+### 匯費分配修復（2026-02-22）
+
+修復進項管理中匯費重複計算的問題（勞務報酬 + 獨立匯費記錄 = 雙重計算）。
+
+**Migration**（`20260222970000_fix_remittance_fee_distribution.sql`）：
+- [x] `accounting_expenses` 新增 `remittance_fee` 欄位
+- [x] 改寫 `update_remittance_settings` RPC：匯費分配到對應匯款群組的第一筆勞務記錄
+- [x] `total_amount = amount + tax_amount - remittance_fee`（反映實付金額）
+- [x] 不再建立獨立的「銀行匯款手續費」記錄（消除重複計算）
+- [x] 群組匹配邏輯與前端 `groupItemsByRemittance()` 完全一致
+- [x] 回填既有資料 + 清理舊匯費記錄 + 移除不需要的 UNIQUE index
+
+**前端變更**：
+- [x] `AccountingExpense` 型別新增 `remittance_fee`
+- [x] 進項管理表頭「總額（含稅）」改為「實付金額」
+- [x] 有匯費扣除時顯示小字提示「匯費 -30」
+
+驗證結果：TypeScript 零錯誤、Production build 成功（31 頁面）
+
+---
+
 ### v2.5 — 帳務進階：代扣代繳系統 + 月結總覽 + 已確認請款重構（2026-02-22）
 
 全面建構代扣代繳應付追蹤系統，新增月結總覽頁面，並將已確認請款頁面重構為三分頁架構。
@@ -311,7 +402,10 @@ Migration 安全修復（`20260221100000_fix_expense_claims_security.sql`）：
 
 ## 目前狀態
 
-- `npm run build` 通過，零型別錯誤（29 頁面）
+- `npm run build` 通過，零型別錯誤（31 頁面）
+- `npm test` 通過，85/85 測試
+- **✅ 架構優化已完成**：6 階段重構（env 集中化、CRUD Factory、分頁、元件拆分、錯誤邊界、測試）
+- **✅ 匯費分配已修復**：匯費分配到勞務記錄，消除重複計算
 - **✅ v2.5 帳務進階已完成**：代扣代繳全流程 + 月結總覽 + 三分頁重構 + Bug 修復
 - **✅ 使用者管理已優化**：角色管理 + 員工綁定 + user_id 直接查詢
 - **✅ 個人請款功能已驗證**：Code Review + 安全修復 + E2E 測試全通過
@@ -327,6 +421,7 @@ Migration 安全修復（`20260221100000_fix_expense_claims_security.sql`）：
 ## 待辦 / 下一步
 
 ### 🔴 優先執行
+- [ ] **推送 migration 至遠端 DB**：`20260222970000_fix_remittance_fee_distribution.sql`
 - [ ] **全面功能回歸測試**：各頁面 CRUD + 權限分級（Admin/Editor/Member）
 - [ ] **快取行為驗證**：跨頁失效（核准 → 已確認清單、儲存報價 → 列表頁）
 
@@ -337,7 +432,7 @@ Migration 安全修復（`20260221100000_fix_expense_claims_security.sql`）：
 
 ### 🟢 功能擴充
 - [ ] 儀表板依角色顯示不同內容（Admin 可看財務摘要）
-- [ ] 匯費入帳進階：確認清單「標記已匯款」時批次寫入 accounting_expenses
+- [ ] 擴充測試覆蓋率（目前 85 個測試，可增加 hook 整合測試）
 - [ ] 建立 RLS 政策文檔
 
 ## 備註
@@ -348,7 +443,8 @@ Migration 安全修復（`20260221100000_fix_expense_claims_security.sql`）：
 - **特殊設計**：employees 表有 3 個 SELECT 政策（Admin 全部、其他僅在職、user_id 綁定可讀自己）
 - **DB 備份指令**：`supabase db dump -f supabase/backups/schema_YYYYMMDD.sql`（結構）/ 加 `--data-only`（資料）
 - **代扣代繳防重複**：`withholding_settlements` 有 UNIQUE partial index on `expense_claim_id`
-- **匯費自動同步**：`update_remittance_settings` RPC 會 upsert `accounting_expenses`（expense_type=營運費用）
+- **匯費分配**：`update_remittance_settings` RPC 將匯費分配到對應勞務記錄的 `remittance_fee` 欄位，`total_amount = amount + tax_amount - remittance_fee`
+- **測試框架**：Jest + ts-jest + @testing-library/jest-dom，執行 `npm test`
 
 ### 開發相關
 - `.next` 快取問題：`rm -rf .next` 後重啟 dev server

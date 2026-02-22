@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query'
 import { queryKeys } from '@/lib/queryKeys'
 import supabase from '@/lib/supabase/client'
 import type { WithholdingSettings } from '@/types/custom.types'
+import { staleTimes } from '@/lib/queryClient'
 
 export function useWithholdingSettings() {
   return useQuery({
@@ -27,6 +28,7 @@ export function useWithholdingSettings() {
 
       return data as WithholdingSettings
     },
+    staleTime: staleTimes.static,
   })
 }
 

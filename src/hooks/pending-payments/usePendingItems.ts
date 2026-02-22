@@ -8,6 +8,7 @@ import { toast } from 'sonner'
 import { Database } from '@/types/database.types'
 import type { PendingPaymentItem, PendingPaymentAttachment } from '@/lib/payments/types'
 import { queryKeys } from '@/lib/queryKeys'
+import { staleTimes } from '@/lib/queryClient'
 
 type QuotationItemWithDetails = (Database['public']['Tables']['quotation_items']['Row'] & {
     quotations: Database['public']['Tables']['quotations']['Row'] & {
@@ -76,6 +77,7 @@ async function fetchPendingItemsData(): Promise<PendingPaymentItem[]> {
             rejected_by: null,
             rejected_at: null,
             expense_type_input: '勞務報酬',
+            accounting_subject_input: '勞務成本',
             expected_payment_month_input: '',
         });
     });
@@ -102,6 +104,7 @@ async function fetchPendingItemsData(): Promise<PendingPaymentItem[]> {
                 rejected_by: req.rejected_by,
                 rejected_at: req.rejected_at,
                 expense_type_input: (req as any).expense_type || '勞務報酬',
+                accounting_subject_input: (req as any).accounting_subject || '勞務成本',
                 expected_payment_month_input: (req as any).expected_payment_month || '',
             });
         }
@@ -143,6 +146,7 @@ export function usePendingItems() {
     const { data: fetchedItems, isLoading: queryLoading } = useQuery({
         queryKey: [...queryKeys.pendingPayments],
         queryFn: fetchPendingItemsData,
+        staleTime: staleTimes.realtime,
     })
 
     // Local state 管理 UI 互動（is_selected, invoice_number_input 等）

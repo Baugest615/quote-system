@@ -20,7 +20,7 @@ import { toast } from 'sonner'
 import { Database, Json } from '@/types/database.types'
 import { PendingPaymentItem, PendingPaymentAttachment } from '@/lib/payments/types'
 import type { KolBankInfo } from '@/types/schemas'
-import { EXPENSE_TYPES } from '@/types/custom.types'
+import { EXPENSE_TYPES, EXPENSE_TYPE_DEFAULT_SUBJECTS, type ExpenseType } from '@/types/custom.types'
 import { queryKeys } from '@/lib/queryKeys'
 
 const MERGE_COLORS = ['bg-chart-3/15', 'bg-chart-4/15', 'bg-chart-1/15', 'bg-chart-2/15', 'bg-chart-5/15', 'bg-destructive/15']
@@ -133,6 +133,7 @@ export default function PendingPaymentsPage() {
           original_cost: (cost !== null && cost !== undefined) ? (Number(cost) || 0) : 0,
           remittance_name_input: defaultRemittanceName || null,
           expense_type_input: '勞務報酬',
+          accounting_subject_input: EXPENSE_TYPE_DEFAULT_SUBJECTS['勞務報酬'] || '',
           expected_payment_month_input: DEFAULT_PAYMENT_MONTH,
         } as PendingPaymentItem);
       });
@@ -159,6 +160,7 @@ export default function PendingPaymentsPage() {
             original_cost: req.cost_amount ?? ((req.quotation_items.cost !== null && req.quotation_items.cost !== undefined) ? (req.quotation_items.cost * (req.quotation_items.quantity || 1)) : 0),
             remittance_name_input: req.quotation_items.remittance_name || null,
             expense_type_input: (req as any).expense_type || '勞務報酬',
+            accounting_subject_input: (req as any).accounting_subject || EXPENSE_TYPE_DEFAULT_SUBJECTS[((req as any).expense_type || '勞務報酬') as ExpenseType] || '',
             expected_payment_month_input: (req as any).expected_payment_month || DEFAULT_PAYMENT_MONTH,
           } as PendingPaymentItem);
         }
@@ -186,6 +188,7 @@ export default function PendingPaymentsPage() {
             original_cost: req.cost_amount ?? ((req.quotation_items.cost !== null && req.quotation_items.cost !== undefined) ? (req.quotation_items.cost * (req.quotation_items.quantity || 1)) : 0),
             remittance_name_input: req.quotation_items.remittance_name || null,
             expense_type_input: (req as any).expense_type || '勞務報酬',
+            accounting_subject_input: (req as any).accounting_subject || EXPENSE_TYPE_DEFAULT_SUBJECTS[((req as any).expense_type || '勞務報酬') as ExpenseType] || '',
             expected_payment_month_input: (req as any).expected_payment_month || DEFAULT_PAYMENT_MONTH,
           } as PendingPaymentItem);
         }
@@ -233,8 +236,15 @@ export default function PendingPaymentsPage() {
   };
 
   const handleExpenseTypeChange = (itemId: string, newType: string) => {
+    const defaultSubject = EXPENSE_TYPE_DEFAULT_SUBJECTS[newType as ExpenseType] || ''
     setItems(prev => prev.map(item =>
-      item.id === itemId ? { ...item, expense_type_input: newType } : item
+      item.id === itemId ? { ...item, expense_type_input: newType, accounting_subject_input: defaultSubject } : item
+    ));
+  };
+
+  const handleAccountingSubjectChange = (itemId: string, newSubject: string) => {
+    setItems(prev => prev.map(item =>
+      item.id === itemId ? { ...item, accounting_subject_input: newSubject } : item
     ));
   };
 
@@ -562,6 +572,7 @@ export default function PendingPaymentsPage() {
               invoice_number: item.invoice_number_input,
               attachment_file_path: JSON.stringify(item.attachments),
               expense_type: item.expense_type_input,
+              accounting_subject: item.accounting_subject_input || null,
               expected_payment_month: item.expected_payment_month_input,
             })
             .eq('id', item.payment_request_id);
@@ -577,6 +588,7 @@ export default function PendingPaymentsPage() {
               invoice_number: item.invoice_number_input,
               attachment_file_path: JSON.stringify(item.attachments),
               expense_type: item.expense_type_input,
+              accounting_subject: item.accounting_subject_input || null,
               expected_payment_month: item.expected_payment_month_input,
             });
           if (error) throw error;
@@ -601,6 +613,7 @@ export default function PendingPaymentsPage() {
                 invoice_number: leader.invoice_number_input,
                 attachment_file_path: JSON.stringify(leader.attachments),
                 expense_type: item.expense_type_input,
+                accounting_subject: item.accounting_subject_input || null,
                 expected_payment_month: item.expected_payment_month_input,
               })
               .eq('id', item.payment_request_id);
@@ -788,6 +801,7 @@ export default function PendingPaymentsPage() {
           onInvoiceChange={handleInvoiceNumberChange}
           onSelect={handlePaymentSelection}
           onExpenseTypeChange={handleExpenseTypeChange}
+          onAccountingSubjectChange={handleAccountingSubjectChange}
           onExpectedPaymentMonthChange={handleExpectedPaymentMonthChange}
           selectedItems={items.filter(i => i.is_selected).map(i => i.id)}
           shouldShowControls={(item: PendingPaymentItem) => true}

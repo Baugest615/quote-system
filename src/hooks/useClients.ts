@@ -1,10 +1,10 @@
 'use client'
 
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useQuery } from '@tanstack/react-query'
 import supabase from '@/lib/supabase/client'
 import { Database } from '@/types/database.types'
-import { toast } from 'sonner'
 import { queryKeys } from '@/lib/queryKeys'
+import { useCreateEntity, useUpdateEntity, useDeleteEntity } from './useEntityMutations'
 
 type Client = Database['public']['Tables']['clients']['Row']
 type ClientInsert = Database['public']['Tables']['clients']['Insert']
@@ -47,65 +47,24 @@ export function useClient(id: string | null) {
 
 // 新增客戶
 export function useCreateClient() {
-  const queryClient = useQueryClient()
-  return useMutation({
-    mutationFn: async (client: ClientInsert) => {
-      const { data, error } = await supabase
-        .from('clients')
-        .insert(client)
-        .select()
-        .single()
-      if (error) throw error
-      return data as Client
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: QUERY_KEY })
-      toast.success('客戶已新增')
-    },
-    onError: (error: Error) => {
-      toast.error('新增客戶失敗: ' + error.message)
-    },
+  return useCreateEntity<ClientInsert>('clients', QUERY_KEY, {
+    success: '客戶已新增',
+    error: '新增客戶失敗',
   })
 }
 
 // 更新客戶
 export function useUpdateClient() {
-  const queryClient = useQueryClient()
-  return useMutation({
-    mutationFn: async ({ id, data }: { id: string; data: ClientUpdate }) => {
-      const { data: updated, error } = await supabase
-        .from('clients')
-        .update(data)
-        .eq('id', id)
-        .select()
-        .single()
-      if (error) throw error
-      return updated as Client
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: QUERY_KEY })
-      toast.success('客戶已更新')
-    },
-    onError: (error: Error) => {
-      toast.error('更新客戶失敗: ' + error.message)
-    },
+  return useUpdateEntity<ClientUpdate>('clients', QUERY_KEY, {
+    success: '客戶已更新',
+    error: '更新客戶失敗',
   })
 }
 
 // 刪除客戶
 export function useDeleteClient() {
-  const queryClient = useQueryClient()
-  return useMutation({
-    mutationFn: async (id: string) => {
-      const { error } = await supabase.from('clients').delete().eq('id', id)
-      if (error) throw error
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: QUERY_KEY })
-      toast.success('客戶已刪除')
-    },
-    onError: (error: Error) => {
-      toast.error('刪除客戶失敗: ' + error.message)
-    },
+  return useDeleteEntity('clients', QUERY_KEY, {
+    success: '客戶已刪除',
+    error: '刪除客戶失敗',
   })
 }

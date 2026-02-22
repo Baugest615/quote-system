@@ -4,28 +4,28 @@ import React, { Component, type ReactNode } from 'react'
 import { AlertTriangle, RefreshCw } from 'lucide-react'
 import { isDev } from '@/lib/env'
 
-interface ErrorBoundaryProps {
+interface ModuleErrorBoundaryProps {
+  module: string
   children: ReactNode
-  fallback?: ReactNode
 }
 
-interface ErrorBoundaryState {
+interface ModuleErrorBoundaryState {
   hasError: boolean
   error: Error | null
 }
 
-export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
-  constructor(props: ErrorBoundaryProps) {
+export class ModuleErrorBoundary extends Component<ModuleErrorBoundaryProps, ModuleErrorBoundaryState> {
+  constructor(props: ModuleErrorBoundaryProps) {
     super(props)
     this.state = { hasError: false, error: null }
   }
 
-  static getDerivedStateFromError(error: Error): ErrorBoundaryState {
+  static getDerivedStateFromError(error: Error): ModuleErrorBoundaryState {
     return { hasError: true, error }
   }
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
-    console.error('[ErrorBoundary] 元件錯誤:', error, errorInfo)
+    console.error(`[ModuleErrorBoundary] 「${this.props.module}」模組錯誤:`, error, errorInfo)
   }
 
   handleReset = () => {
@@ -34,16 +34,12 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
 
   render() {
     if (this.state.hasError) {
-      if (this.props.fallback) {
-        return this.props.fallback
-      }
-
       return (
         <div className="flex flex-col items-center justify-center min-h-[400px] p-8">
           <div className="flex items-center gap-3 mb-4">
             <AlertTriangle className="h-8 w-8 text-amber-400" />
             <h2 className="text-xl font-semibold text-foreground">
-              頁面發生錯誤
+              「{this.props.module}」模組發生錯誤
             </h2>
           </div>
           <p className="text-muted-foreground mb-6 text-center max-w-md">

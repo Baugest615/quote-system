@@ -1,10 +1,13 @@
 'use client'
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import type { MutateOptions } from '@tanstack/react-query'
 import { queryKeys } from '@/lib/queryKeys'
 import supabase from '@/lib/supabase/client'
 import { toast } from 'sonner'
 import type { AccountingExpense, AccountingPayroll, Employee, ExpenseClaim } from '@/types/custom.types'
+import { groupEmployeeData } from '@/lib/settlement/groupEmployeeData'
+import { calculateKpi } from '@/lib/settlement/calculateKpi'
 
 // ====== 型別 ======
 
@@ -40,6 +43,57 @@ export interface MonthlySettlementData {
   kpiExternalTotal: number
   kpiGrandTotal: number
   kpiUnpaidTotal: number
+}
+
+// ====== 內部型別 ======
+
+/** togglePaidMutation 的輸入參數 */
+interface TogglePaymentVariables {
+  items: { type: SettlementItemType; id: string }[]
+  paid: boolean
+}
+
+/** markPaid / markUnpaid 接受的可選 mutation 回呼（向後相容呼叫端傳入 onSuccess 等選項） */
+type MarkMutateOptions = MutateOptions<void, Error, TogglePaymentVariables, unknown>
+
+// ====== 內部：切換付款狀態 ======
+
+/**
+ * 批次更新付款狀態的共用邏輯。
+ * paid=true 時標記為已付（記錄 paid_at），paid=false 時標記為未付（清除 paid_at）。
+ */
+async function togglePaymentStatus(
+  items: { type: SettlementItemType; id: string }[],
+  paid: boolean,
+): Promise<void> {
+  const expenseIds = items.filter(i => i.type === 'expense').map(i => i.id)
+  const payrollIds = items.filter(i => i.type === 'payroll').map(i => i.id)
+  const claimIds = items.filter(i => i.type === 'claim').map(i => i.id)
+
+  const status = paid ? 'paid' : 'unpaid'
+  const paidAt = paid ? new Date().toISOString() : null
+
+  if (expenseIds.length > 0) {
+    const { error } = await supabase
+      .from('accounting_expenses')
+      .update({ payment_status: status, paid_at: paidAt })
+      .in('id', expenseIds)
+    if (error) throw error
+  }
+  if (payrollIds.length > 0) {
+    const { error } = await supabase
+      .from('accounting_payroll')
+      .update({ payment_status: status, paid_at: paidAt })
+      .in('id', payrollIds)
+    if (error) throw error
+  }
+  if (claimIds.length > 0) {
+    const { error } = await supabase
+      .from('expense_claims')
+      .update({ payment_status: status, paid_at: paidAt })
+      .in('id', claimIds)
+    if (error) throw error
+  }
 }
 
 // ====== Hook ======
@@ -88,95 +142,16 @@ export function useMonthlySettlement(year: number, month: string) {
       const employees = (employeesRes.data || []) as Employee[]
       const withholdingClaims = (withholdingClaimsRes.data || []) as ExpenseClaim[]
 
-      // ====== 員工分組 ======
-      // 建立 user_id → employee 映射
-      const userIdToEmployee = new Map<string, Employee>()
-      const employeeIdToEmployee = new Map<string, Employee>()
-      for (const emp of employees) {
-        if (emp.user_id) userIdToEmployee.set(emp.user_id, emp)
-        employeeIdToEmployee.set(emp.id, emp)
-      }
+      // 使用純函式計算員工分組
+      const { employeeGroups, externalExpenses } = groupEmployeeData({
+        expenses,
+        payroll,
+        employees,
+        withholdingClaims,
+      })
 
-      // 員工相關支出（payment_target_type = 'employee'）
-      const employeeExpenses = expenses.filter(e => e.payment_target_type === 'employee')
-      const externalExpenses = expenses.filter(e => e.payment_target_type !== 'employee')
-
-      // 建立員工分組 Map
-      const groupMap = new Map<string, EmployeeSettlementGroup>()
-
-      const getOrCreateGroup = (empId: string, empName: string): EmployeeSettlementGroup => {
-        const existing = groupMap.get(empId)
-        if (existing) return existing
-        const group: EmployeeSettlementGroup = {
-          employeeId: empId,
-          employeeName: empName,
-          payroll: null,
-          expenses: [],
-          withholdingClaims: [],
-          salaryTotal: 0,
-          expenseTotal: 0,
-          withholdingClaimTotal: 0,
-          grandTotal: 0,
-          allPaid: true,
-        }
-        groupMap.set(empId, group)
-        return group
-      }
-
-      // 1) 加入薪資
-      for (const p of payroll) {
-        const empId = p.employee_id || ''
-        const emp = empId ? employeeIdToEmployee.get(empId) : null
-        const group = getOrCreateGroup(empId, emp?.name || p.employee_name || '未知')
-        group.payroll = p
-        group.salaryTotal = p.net_salary || 0
-        if (p.payment_status !== 'paid') group.allPaid = false
-      }
-
-      // 2) 加入員工報帳（非代扣代繳）
-      for (const e of employeeExpenses) {
-        const emp = e.submitted_by ? userIdToEmployee.get(e.submitted_by) : null
-        const empId = emp?.id || `unknown-${e.submitted_by || e.id}`
-        const group = getOrCreateGroup(empId, emp?.name || e.vendor_name || '未知')
-        group.expenses.push(e)
-        group.expenseTotal += e.total_amount || 0
-        if (e.payment_status !== 'paid') group.allPaid = false
-      }
-
-      // 3) 加入代扣代繳報帳
-      for (const c of withholdingClaims) {
-        const emp = c.submitted_by ? userIdToEmployee.get(c.submitted_by) : null
-        const empId = emp?.id || `unknown-${c.submitted_by || c.id}`
-        const group = getOrCreateGroup(empId, emp?.name || c.vendor_name || '未知')
-        group.withholdingClaims.push(c)
-        group.withholdingClaimTotal += c.total_amount || 0
-        if (c.payment_status !== 'paid') group.allPaid = false
-      }
-
-      // 計算 grandTotal
-      const employeeGroups = Array.from(groupMap.values()).map(g => ({
-        ...g,
-        grandTotal: g.salaryTotal + g.expenseTotal + g.withholdingClaimTotal,
-      }))
-
-      // ====== KPI ======
-      const kpiSalaryTotal = payroll.reduce((s, p) => s + (p.net_salary || 0), 0)
-      const kpiEmployeeExpenseTotal =
-        employeeExpenses.reduce((s, e) => s + (e.total_amount || 0), 0) +
-        withholdingClaims.reduce((s, c) => s + (c.total_amount || 0), 0)
-      const kpiExternalTotal = externalExpenses.reduce((s, e) => s + (e.total_amount || 0), 0)
-      const kpiGrandTotal = kpiSalaryTotal + kpiEmployeeExpenseTotal + kpiExternalTotal
-
-      const unpaidSalary = payroll
-        .filter(p => p.payment_status !== 'paid')
-        .reduce((s, p) => s + (p.net_salary || 0), 0)
-      const unpaidExpenses = expenses
-        .filter(e => e.payment_status !== 'paid')
-        .reduce((s, e) => s + (e.total_amount || 0), 0)
-      const unpaidClaims = withholdingClaims
-        .filter(c => c.payment_status !== 'paid')
-        .reduce((s, c) => s + (c.total_amount || 0), 0)
-      const kpiUnpaidTotal = unpaidSalary + unpaidExpenses + unpaidClaims
+      // 使用純函式計算 KPI
+      const kpi = calculateKpi({ expenses, payroll, withholdingClaims })
 
       return {
         expenses,
@@ -185,100 +160,51 @@ export function useMonthlySettlement(year: number, month: string) {
         withholdingClaims,
         employeeGroups,
         externalExpenses,
-        kpiSalaryTotal,
-        kpiEmployeeExpenseTotal,
-        kpiExternalTotal,
-        kpiGrandTotal,
-        kpiUnpaidTotal,
+        ...kpi,
       }
     },
   })
 
-  // ====== 標記已付 Mutation ======
+  // ====== 統一的付款狀態切換 Mutation ======
 
-  const markPaidMutation = useMutation({
-    mutationFn: async (items: { type: SettlementItemType; id: string }[]) => {
-      const expenseIds = items.filter(i => i.type === 'expense').map(i => i.id)
-      const payrollIds = items.filter(i => i.type === 'payroll').map(i => i.id)
-      const claimIds = items.filter(i => i.type === 'claim').map(i => i.id)
-      const now = new Date().toISOString()
+  /** 使相關查詢快取失效 */
+  const invalidateSettlementQueries = () => {
+    queryClient.invalidateQueries({ queryKey: [...queryKeys.monthlySettlement(year, month)] })
+    queryClient.invalidateQueries({ queryKey: [...queryKeys.accountingExpenses(year)] })
+    queryClient.invalidateQueries({ queryKey: [...queryKeys.accountingPayroll(year)] })
+  }
 
-      if (expenseIds.length > 0) {
-        const { error } = await supabase
-          .from('accounting_expenses')
-          .update({ payment_status: 'paid', paid_at: now })
-          .in('id', expenseIds)
-        if (error) throw error
-      }
-      if (payrollIds.length > 0) {
-        const { error } = await supabase
-          .from('accounting_payroll')
-          .update({ payment_status: 'paid', paid_at: now })
-          .in('id', payrollIds)
-        if (error) throw error
-      }
-      if (claimIds.length > 0) {
-        const { error } = await supabase
-          .from('expense_claims')
-          .update({ payment_status: 'paid', paid_at: now })
-          .in('id', claimIds)
-        if (error) throw error
-      }
-    },
-    onSuccess: () => {
-      toast.success('已標記為已付')
-      queryClient.invalidateQueries({ queryKey: [...queryKeys.monthlySettlement(year, month)] })
-      queryClient.invalidateQueries({ queryKey: [...queryKeys.accountingExpenses(year)] })
-      queryClient.invalidateQueries({ queryKey: [...queryKeys.accountingPayroll(year)] })
+  const togglePaidMutation = useMutation({
+    mutationFn: ({ items, paid }: TogglePaymentVariables) =>
+      togglePaymentStatus(items, paid),
+    onSuccess: (_data, variables) => {
+      toast.success(variables.paid ? '已標記為已付' : '已標記為未付')
+      invalidateSettlementQueries()
     },
     onError: (err: Error) => {
       toast.error(`標記失敗：${err.message}`)
     },
   })
 
-  const markUnpaidMutation = useMutation({
-    mutationFn: async (items: { type: SettlementItemType; id: string }[]) => {
-      const expenseIds = items.filter(i => i.type === 'expense').map(i => i.id)
-      const payrollIds = items.filter(i => i.type === 'payroll').map(i => i.id)
-      const claimIds = items.filter(i => i.type === 'claim').map(i => i.id)
+  // 向後相容的 markPaid / markUnpaid 包裝（支援呼叫端傳入 onSuccess 等選項）
+  const markPaid = (
+    items: { type: SettlementItemType; id: string }[],
+    options?: MarkMutateOptions,
+  ) => {
+    togglePaidMutation.mutate({ items, paid: true }, options)
+  }
 
-      if (expenseIds.length > 0) {
-        const { error } = await supabase
-          .from('accounting_expenses')
-          .update({ payment_status: 'unpaid', paid_at: null })
-          .in('id', expenseIds)
-        if (error) throw error
-      }
-      if (payrollIds.length > 0) {
-        const { error } = await supabase
-          .from('accounting_payroll')
-          .update({ payment_status: 'unpaid', paid_at: null })
-          .in('id', payrollIds)
-        if (error) throw error
-      }
-      if (claimIds.length > 0) {
-        const { error } = await supabase
-          .from('expense_claims')
-          .update({ payment_status: 'unpaid', paid_at: null })
-          .in('id', claimIds)
-        if (error) throw error
-      }
-    },
-    onSuccess: () => {
-      toast.success('已標記為未付')
-      queryClient.invalidateQueries({ queryKey: [...queryKeys.monthlySettlement(year, month)] })
-      queryClient.invalidateQueries({ queryKey: [...queryKeys.accountingExpenses(year)] })
-      queryClient.invalidateQueries({ queryKey: [...queryKeys.accountingPayroll(year)] })
-    },
-    onError: (err: Error) => {
-      toast.error(`標記失敗：${err.message}`)
-    },
-  })
+  const markUnpaid = (
+    items: { type: SettlementItemType; id: string }[],
+    options?: MarkMutateOptions,
+  ) => {
+    togglePaidMutation.mutate({ items, paid: false }, options)
+  }
 
   return {
     ...query,
-    markPaid: markPaidMutation.mutate,
-    markUnpaid: markUnpaidMutation.mutate,
-    isMarking: markPaidMutation.isPending || markUnpaidMutation.isPending,
+    markPaid,
+    markUnpaid,
+    isMarking: togglePaidMutation.isPending,
   }
 }

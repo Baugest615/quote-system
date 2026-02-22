@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useMemo } from 'react'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query'
 import supabase from '@/lib/supabase/client'
 import { toast } from 'sonner'
 
@@ -25,6 +25,8 @@ interface UseCRUDTableOptions<T> {
   filters?: Record<string, unknown>
   /** 是否啟用查詢 */
   enabled?: boolean
+  /** 啟用 server-side 分頁（使用 .range() + count） */
+  serverSidePagination?: boolean
 }
 
 export function useCRUDTable<T extends { id: string }>({
@@ -37,18 +39,37 @@ export function useCRUDTable<T extends { id: string }>({
   pageSize = DEFAULT_PAGE_SIZE,
   filters = {},
   enabled = true,
+  serverSidePagination = false,
 }: UseCRUDTableOptions<T>) {
   const queryClient = useQueryClient()
 
-  // React Query 資料查詢
+  // 搜尋 + 分頁狀態
+  const [search, setSearch] = useState('')
+  const [currentPage, setCurrentPage] = useState(1)
+  const [isModalOpen, setIsModalOpen] = useState(false)
+  const [editing, setEditing] = useState<T | null>(null)
+
+  // 搜尋改變時重置到第一頁
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [search])
+
+  // === Server-side 分頁模式 ===
+  const serverQueryKey = serverSidePagination
+    ? [...queryKey, 'page', currentPage, pageSize, search]
+    : queryKey
+
   const {
-    data: records = [],
+    data: queryResult,
     isLoading: loading,
     refetch: fetchRecords,
   } = useQuery({
-    queryKey,
+    queryKey: serverQueryKey,
     queryFn: async () => {
-      let query = supabase.from(tableName).select(select)
+      let query = supabase.from(tableName).select(
+        select,
+        serverSidePagination ? { count: 'exact' } : undefined
+      )
 
       // 套用固定篩選條件
       Object.entries(filters).forEach(([key, value]) => {
@@ -57,22 +78,48 @@ export function useCRUDTable<T extends { id: string }>({
         }
       })
 
+      // Server-side 搜尋（使用 ilike）
+      if (serverSidePagination && search.trim() && searchFields.length > 0) {
+        const searchQuery = searchFields
+          .map(field => `${String(field)}.ilike.%${search.trim()}%`)
+          .join(',')
+        query = query.or(searchQuery)
+      }
+
       query = query.order(orderBy, { ascending })
 
-      const { data, error } = await query
+      // Server-side 分頁
+      if (serverSidePagination) {
+        const from = (currentPage - 1) * pageSize
+        const to = from + pageSize - 1
+        query = query.range(from, to)
+      }
+
+      const { data, error, count } = await query
       if (error) throw error
-      return (data as unknown as T[]) || []
+
+      if (serverSidePagination) {
+        return {
+          records: (data as unknown as T[]) || [],
+          totalCount: count ?? 0,
+        }
+      }
+
+      return {
+        records: (data as unknown as T[]) || [],
+        totalCount: (data?.length ?? 0),
+      }
     },
     enabled,
+    placeholderData: serverSidePagination ? keepPreviousData : undefined,
   })
 
-  // 搜尋 + 分頁（純 client-side 邏輯）
-  const [search, setSearch] = useState('')
-  const [currentPage, setCurrentPage] = useState(1)
-  const [isModalOpen, setIsModalOpen] = useState(false)
-  const [editing, setEditing] = useState<T | null>(null)
+  const records = queryResult?.records ?? []
+  const serverTotalCount = queryResult?.totalCount ?? 0
 
+  // === Client-side 篩選（僅 client-side 模式） ===
   const filtered = useMemo(() => {
+    if (serverSidePagination) return records
     if (!search.trim()) return records
     const q = search.toLowerCase()
     return records.filter(r =>
@@ -81,18 +128,14 @@ export function useCRUDTable<T extends { id: string }>({
         return typeof val === 'string' && val.toLowerCase().includes(q)
       })
     )
-  }, [search, records, searchFields])
+  }, [search, records, searchFields, serverSidePagination])
 
-  // 搜尋改變時重置到第一頁
-  useEffect(() => {
-    setCurrentPage(1)
-  }, [search])
-
-  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize))
-  const paginatedRecords = filtered.slice(
-    (currentPage - 1) * pageSize,
-    currentPage * pageSize
-  )
+  // === 分頁計算 ===
+  const totalItems = serverSidePagination ? serverTotalCount : filtered.length
+  const totalPages = Math.max(1, Math.ceil(totalItems / pageSize))
+  const paginatedRecords = serverSidePagination
+    ? records
+    : filtered.slice((currentPage - 1) * pageSize, currentPage * pageSize)
 
   // 新增 / 更新 mutation
   const saveMutation = useMutation({
@@ -184,6 +227,7 @@ export function useCRUDTable<T extends { id: string }>({
     currentPage,
     setCurrentPage,
     totalPages,
+    totalItems,
     paginatedRecords,
     pageSize,
     // 操作

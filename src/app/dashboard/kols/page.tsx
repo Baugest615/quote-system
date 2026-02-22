@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo, Fragment } from 'react'
+import { useState, useMemo, useEffect, Fragment } from 'react'
 import supabase from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -14,7 +14,9 @@ import { useKols, type KolWithServices } from '@/hooks/useKols'
 import { useKolTypes, useServiceTypes } from '@/hooks/useReferenceData'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { queryKeys } from '@/lib/queryKeys'
+import Pagination from '@/components/ui/Pagination'
 
+const PAGE_SIZE = 20
 
 export default function KolsPage() {
   const queryClient = useQueryClient()
@@ -26,7 +28,11 @@ export default function KolsPage() {
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [selectedKol, setSelectedKol] = useState<KolWithServices | null>(null)
   const [searchTerm, setSearchTerm] = useState('')
+  const [currentPage, setCurrentPage] = useState(1)
   const [isSyncing, setIsSyncing] = useState(false)
+
+  // 搜尋改變時重置到第一頁
+  useEffect(() => { setCurrentPage(1) }, [searchTerm])
 
   // 展開的行 ID 集合
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set())
@@ -42,6 +48,13 @@ export default function KolsPage() {
       );
     });
   }, [searchTerm, kols, kolTypes]);
+
+  // 分頁
+  const totalPages = Math.max(1, Math.ceil(filteredKols.length / PAGE_SIZE))
+  const paginatedKols = filteredKols.slice(
+    (currentPage - 1) * PAGE_SIZE,
+    currentPage * PAGE_SIZE
+  )
 
   const handleOpenModal = (kol: KolWithServices | null = null) => {
     setSelectedKol(kol)
@@ -239,7 +252,7 @@ export default function KolsPage() {
             </tr>
           </thead>
           <tbody>
-            {filteredKols.map((kol) => {
+            {paginatedKols.map((kol) => {
               const isExpanded = expandedRows.has(kol.id)
               const serviceCount = kol.kol_services?.length || 0
               const priceRange = kol.kol_services?.length > 0
@@ -352,6 +365,13 @@ export default function KolsPage() {
             })}
           </tbody>
         </table>
+        <Pagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          totalItems={filteredKols.length}
+          pageSize={PAGE_SIZE}
+          onPageChange={setCurrentPage}
+        />
       </div>
       <KolModal
         isOpen={isModalOpen}

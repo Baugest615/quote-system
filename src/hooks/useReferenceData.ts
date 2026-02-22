@@ -5,6 +5,7 @@ import supabase from '@/lib/supabase/client'
 import { Database } from '@/types/database.types'
 import { toast } from 'sonner'
 import { queryKeys } from '@/lib/queryKeys'
+import { staleTimes } from '@/lib/queryClient'
 
 type KolType = Database['public']['Tables']['kol_types']['Row']
 type ServiceType = Database['public']['Tables']['service_types']['Row']
@@ -22,6 +23,7 @@ export function useKolTypes() {
       if (error) throw error
       return data as KolType[]
     },
+    staleTime: staleTimes.dictionary,
   })
 }
 
@@ -37,6 +39,7 @@ export function useServiceTypes() {
       if (error) throw error
       return data as ServiceType[]
     },
+    staleTime: staleTimes.dictionary,
   })
 }
 
@@ -52,6 +55,7 @@ export function useQuoteCategories() {
       if (error) throw error
       return data as QuoteCategory[]
     },
+    staleTime: staleTimes.dictionary,
   })
 }
 

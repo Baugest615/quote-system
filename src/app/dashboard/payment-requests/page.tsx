@@ -24,6 +24,7 @@ import { RequestItemRow, ApprovalControls } from '@/components/payments/requests
 import type { PaymentRequestItem } from '@/lib/payments/types'
 import type { ExpenseClaim } from '@/types/custom.types'
 import { CLAIM_STATUS_LABELS, CLAIM_STATUS_COLORS } from '@/types/custom.types'
+import { ModuleErrorBoundary } from '@/components/ModuleErrorBoundary'
 
 type TabType = 'project' | 'personal'
 
@@ -172,6 +173,8 @@ export default function PaymentRequestsPage() {
         cost: req.cost_amount,
         remark: null,
         created_at: req.request_date,
+        expense_type: req.expense_type || null,
+        accounting_subject: req.accounting_subject || null,
         attachments: req.attachment_file_path ? JSON.parse(req.attachment_file_path) : [],
         parsed_attachments: req.attachment_file_path ? JSON.parse(req.attachment_file_path) : []
       } as PaymentRequestItem
@@ -250,12 +253,14 @@ export default function PaymentRequestsPage() {
   const fmt = (n: number) => new Intl.NumberFormat('zh-TW').format(n)
 
   // 專案請款操作
-  const handleApprove = async (item: PaymentRequestItem) => {
+  const handleApprove = async (item: PaymentRequestItem, overrideExpenseType?: string, overrideSubject?: string) => {
     if (!confirm(`確定要核准 "${item.quotations?.project_name} - ${item.service}" 的請款申請嗎？`)) return
     try {
       const { error } = await supabase.rpc('approve_payment_request', {
         request_id: item.payment_request_id,
-        verifier_id: (await supabase.auth.getUser()).data.user?.id
+        verifier_id: (await supabase.auth.getUser()).data.user?.id,
+        p_expense_type: overrideExpenseType || null,
+        p_accounting_subject: overrideSubject || null,
       })
       if (error) { console.error('RPC error details:', error); throw error }
       toast.success('已核准請款申請')
@@ -442,6 +447,7 @@ export default function PaymentRequestsPage() {
   }
 
   return (
+    <ModuleErrorBoundary module="請款審核">
     <div className="space-y-6">
       {/* 標題 */}
       <div className="flex justify-between items-center">
@@ -708,5 +714,6 @@ export default function PaymentRequestsPage() {
         request={selectedRequest}
       />
     </div>
+    </ModuleErrorBoundary>
   )
 }

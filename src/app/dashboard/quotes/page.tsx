@@ -12,6 +12,7 @@ import { SkeletonTable } from '@/components/ui/Skeleton'
 import { useQuotationsList } from '@/hooks/useQuotations'
 import { useClients } from '@/hooks/useClients'
 import { queryKeys } from '@/lib/queryKeys'
+import { ModuleErrorBoundary } from '@/components/ModuleErrorBoundary'
 
 // 類型定義 (與 V1 保持一致)
 type Quotation = Database['public']['Tables']['quotations']['Row']
@@ -152,6 +153,7 @@ export default function QuotesV2Page() {
     }, [])
 
     return (
+        <ModuleErrorBoundary module="報價單管理">
         <div className="h-[calc(100vh-4rem)] flex flex-col space-y-4 p-6 bg-secondary">
             {/* 頂部工具列 */}
             <div className="flex justify-between items-center bg-card p-4 rounded-lg shadow-sm border">
@@ -354,5 +356,6 @@ export default function QuotesV2Page() {
                 </div>
             )}
         </div>
+        </ModuleErrorBoundary>
     )
 }
