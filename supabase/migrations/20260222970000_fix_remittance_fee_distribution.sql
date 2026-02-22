@@ -98,7 +98,7 @@ BEGIN
             -- 個人報帳：提交人姓名 + '（個人報帳）'
             WHEN pci.source_type = 'personal' OR pci.expense_claim_id IS NOT NULL THEN
               COALESCE(
-                (SELECT full_name FROM profiles WHERE id = ec.submitted_by),
+                (SELECT name FROM employees WHERE user_id = ec.submitted_by LIMIT 1),
                 ec.vendor_name,
                 '個人報帳'
               ) || '（個人報帳）'
@@ -186,7 +186,7 @@ BEGIN
               CASE
                 WHEN pci.source_type = 'personal' OR pci.expense_claim_id IS NOT NULL THEN
                   COALESCE(
-                    (SELECT full_name FROM profiles WHERE id = ec.submitted_by),
+                    (SELECT name FROM employees WHERE user_id = ec.submitted_by LIMIT 1),
                     ec.vendor_name,
                     '個人報帳'
                   ) || '（個人報帳）'
