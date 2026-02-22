@@ -10,6 +10,8 @@ export const queryKeys = {
   kolTypes: ['kol-types'] as const,
   serviceTypes: ['service-types'] as const,
   quoteCategories: ['quote-categories'] as const,
+  expenseTypes: ['expense-types'] as const,
+  accountingSubjects: ['accounting-subjects'] as const,
 
   // 專案進度
   projects: ['projects'] as const,

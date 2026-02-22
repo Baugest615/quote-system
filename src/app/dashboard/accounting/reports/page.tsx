@@ -9,9 +9,7 @@ import { toast } from 'sonner'
 import { FileText, ChevronLeft } from 'lucide-react'
 import AccountingLoadingGuard from '@/components/accounting/AccountingLoadingGuard'
 import Link from 'next/link'
-
-const CURRENT_YEAR = new Date().getFullYear()
-const YEARS = [CURRENT_YEAR, CURRENT_YEAR - 1, CURRENT_YEAR - 2, CURRENT_YEAR - 3, CURRENT_YEAR - 4]
+import { CURRENT_YEAR, YEARS } from '@/lib/constants'
 
 interface YearSummary {
   year: number

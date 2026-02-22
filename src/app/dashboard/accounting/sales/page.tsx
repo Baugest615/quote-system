@@ -17,11 +17,9 @@ import type { AccountingSale } from '@/types/custom.types'
 import type { SpreadsheetColumn, BatchSaveResult, RowError } from '@/lib/spreadsheet-utils'
 import { useProjectNames } from '@/hooks/useProjectNames'
 import { SearchableSelect } from '@/components/ui/SearchableSelect'
+import { CURRENT_YEAR, MONTH_OPTIONS } from '@/lib/constants'
 
 const PAGE_SIZE = 20
-
-const CURRENT_YEAR = new Date().getFullYear()
-const MONTH_OPTIONS = ['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月']
 
 const emptyForm = (): Partial<AccountingSale> => ({
   year: CURRENT_YEAR,

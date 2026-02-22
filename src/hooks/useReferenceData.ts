@@ -11,6 +11,22 @@ type KolType = Database['public']['Tables']['kol_types']['Row']
 type ServiceType = Database['public']['Tables']['service_types']['Row']
 type QuoteCategory = Database['public']['Tables']['quote_categories']['Row']
 
+// expense_types / accounting_subjects 結構比其他字典表多 sort_order + default_subject
+export interface ExpenseTypeRow {
+  id: string
+  name: string
+  default_subject: string | null
+  sort_order: number
+  created_at: string | null
+}
+
+export interface AccountingSubjectRow {
+  id: string
+  name: string
+  sort_order: number
+  created_at: string | null
+}
+
 // KOL 類型
 export function useKolTypes() {
   return useQuery({
@@ -59,19 +75,57 @@ export function useQuoteCategories() {
   })
 }
 
+// 支出種類
+export function useExpenseTypes() {
+  return useQuery({
+    queryKey: [...queryKeys.expenseTypes],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('expense_types')
+        .select('*')
+        .order('sort_order')
+      if (error) throw error
+      return data as ExpenseTypeRow[]
+    },
+    staleTime: staleTimes.dictionary,
+  })
+}
+
+// 會計科目
+export function useAccountingSubjects() {
+  return useQuery({
+    queryKey: [...queryKeys.accountingSubjects],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('accounting_subjects')
+        .select('*')
+        .order('sort_order')
+      if (error) throw error
+      return data as AccountingSubjectRow[]
+    },
+    staleTime: staleTimes.dictionary,
+  })
+}
+
 // 通用的字典表 CRUD mutations
-export function useCreateReferenceItem(tableName: 'kol_types' | 'service_types' | 'quote_categories') {
+export type DictTableName = 'kol_types' | 'service_types' | 'quote_categories' | 'expense_types' | 'accounting_subjects'
+
+const dictKeyMap: Record<DictTableName, readonly string[]> = {
+  kol_types: queryKeys.kolTypes,
+  service_types: queryKeys.serviceTypes,
+  quote_categories: queryKeys.quoteCategories,
+  expense_types: queryKeys.expenseTypes,
+  accounting_subjects: queryKeys.accountingSubjects,
+}
+
+export function useCreateReferenceItem(tableName: DictTableName) {
   const queryClient = useQueryClient()
-  const keyMap = {
-    kol_types: queryKeys.kolTypes,
-    service_types: queryKeys.serviceTypes,
-    quote_categories: queryKeys.quoteCategories,
-  }
+  const keyMap = dictKeyMap
   return useMutation({
-    mutationFn: async (item: { name: string }) => {
+    mutationFn: async (item: { name: string; default_subject?: string | null; sort_order?: number }) => {
       const { data, error } = await supabase
         .from(tableName)
-        .insert(item)
+        .insert(item as any)
         .select()
         .single()
       if (error) throw error
@@ -87,18 +141,16 @@ export function useCreateReferenceItem(tableName: 'kol_types' | 'service_types' 
   })
 }
 
-export function useUpdateReferenceItem(tableName: 'kol_types' | 'service_types' | 'quote_categories') {
+export function useUpdateReferenceItem(tableName: DictTableName) {
   const queryClient = useQueryClient()
-  const keyMap = {
-    kol_types: queryKeys.kolTypes,
-    service_types: queryKeys.serviceTypes,
-    quote_categories: queryKeys.quoteCategories,
-  }
+  const keyMap = dictKeyMap
   return useMutation({
-    mutationFn: async ({ id, name }: { id: string; name: string }) => {
+    mutationFn: async ({ id, name, default_subject }: { id: string; name: string; default_subject?: string | null }) => {
+      const updates: Record<string, unknown> = { name }
+      if (default_subject !== undefined) updates.default_subject = default_subject
       const { error } = await supabase
         .from(tableName)
-        .update({ name })
+        .update(updates)
         .eq('id', id)
       if (error) throw error
     },
@@ -112,13 +164,9 @@ export function useUpdateReferenceItem(tableName: 'kol_types' | 'service_types' 
   })
 }
 
-export function useDeleteReferenceItem(tableName: 'kol_types' | 'service_types' | 'quote_categories') {
+export function useDeleteReferenceItem(tableName: DictTableName) {
   const queryClient = useQueryClient()
-  const keyMap = {
-    kol_types: queryKeys.kolTypes,
-    service_types: queryKeys.serviceTypes,
-    quote_categories: queryKeys.quoteCategories,
-  }
+  const keyMap = dictKeyMap
   return useMutation({
     mutationFn: async (id: string) => {
       const { error } = await supabase

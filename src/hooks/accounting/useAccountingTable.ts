@@ -5,8 +5,8 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { usePermission } from '@/lib/permissions'
 import supabase from '@/lib/supabase/client'
 import { toast } from 'sonner'
+import { CURRENT_YEAR } from '@/lib/constants'
 
-const CURRENT_YEAR = new Date().getFullYear()
 const PAGE_SIZE = 20
 
 interface UseAccountingTableOptions<T> {

@@ -10,8 +10,7 @@ import { BarChart3, ChevronLeft, Search } from 'lucide-react'
 import AccountingLoadingGuard from '@/components/accounting/AccountingLoadingGuard'
 import { EmptyState } from '@/components/ui/EmptyState'
 import Link from 'next/link'
-
-const CURRENT_YEAR = new Date().getFullYear()
+import { CURRENT_YEAR } from '@/lib/constants'
 
 interface ProjectSummary {
   project_name: string

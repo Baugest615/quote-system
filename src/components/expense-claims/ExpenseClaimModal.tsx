@@ -6,12 +6,9 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import AccountingModal from '@/components/accounting/AccountingModal'
 import { SearchableSelect } from '@/components/ui/SearchableSelect'
-import {
-  EXPENSE_TYPES, ACCOUNTING_SUBJECTS, EXPENSE_TYPE_DEFAULT_SUBJECTS,
-  type ExpenseClaim, type ExpenseType,
-} from '@/types/custom.types'
-
-const MONTH_OPTIONS = ['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月']
+import { type ExpenseClaim, type ExpenseType } from '@/types/custom.types'
+import { useExpenseDefaults } from '@/hooks/useExpenseDefaults'
+import { MONTH_OPTIONS } from '@/lib/constants'
 
 const schema = z.object({
   claim_month: z.string().optional(),
@@ -47,6 +44,7 @@ export default function ExpenseClaimModal({
   year,
   projectNames,
 }: ExpenseClaimModalProps) {
+  const { expenseTypeNames, accountingSubjectNames, defaultSubjectsMap } = useExpenseDefaults()
   const [saving, setSaving] = useState(false)
 
   const {
@@ -127,7 +125,7 @@ export default function ExpenseClaimModal({
     }
     const currentSubject = watch('accounting_subject')
     if (!currentSubject || currentSubject === '所得稅' || currentSubject === '二代健保') {
-      const suggested = EXPENSE_TYPE_DEFAULT_SUBJECTS[watchedExpenseType as ExpenseType]
+      const suggested = defaultSubjectsMap[watchedExpenseType]
       if (suggested) setValue('accounting_subject', suggested)
     }
   }, [watchedExpenseType, isWithholdingType, setValue, watch])
@@ -227,7 +225,7 @@ export default function ExpenseClaimModal({
             <div>
               <label className={labelClass}>支出種類 *</label>
               <select {...register('expense_type')} className={inputClass}>
-                {EXPENSE_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+                {expenseTypeNames.map(t => <option key={t} value={t}>{t}</option>)}
               </select>
               {errors.expense_type && (
                 <p className="text-xs text-destructive mt-1">{errors.expense_type.message}</p>
@@ -245,7 +243,7 @@ export default function ExpenseClaimModal({
               ) : (
                 <select {...register('accounting_subject')} className={inputClass}>
                   <option value="">請選擇</option>
-                  {ACCOUNTING_SUBJECTS.map(s => <option key={s} value={s}>{s}</option>)}
+                  {accountingSubjectNames.map(s => <option key={s} value={s}>{s}</option>)}
                 </select>
               )}
             </div>

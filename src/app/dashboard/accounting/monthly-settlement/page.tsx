@@ -11,10 +11,7 @@ import { PAYMENT_TARGET_LABELS } from '@/types/custom.types'
 import type { PaymentTargetType } from '@/types/custom.types'
 import { useMonthlySettlement } from '@/hooks/useMonthlySettlement'
 import type { EmployeeSettlementGroup, SettlementItemType } from '@/hooks/useMonthlySettlement'
-
-const CURRENT_YEAR = new Date().getFullYear()
-const CURRENT_MONTH = `${new Date().getMonth() + 1}月`
-const MONTH_OPTIONS = ['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月']
+import { CURRENT_YEAR, CURRENT_MONTH, MONTH_OPTIONS } from '@/lib/constants'
 
 const fmt = (n: number) => new Intl.NumberFormat('zh-TW').format(n)
 
@@ -22,7 +19,7 @@ export default function MonthlySettlementPage() {
   const { hasRole, loading: permLoading } = usePermission()
   const isAdmin = hasRole('Admin')
   const [year, setYear] = useState(CURRENT_YEAR)
-  const [month, setMonth] = useState(CURRENT_MONTH)
+  const [month, setMonth] = useState(`${CURRENT_MONTH}月`)
   const [activeTab, setActiveTab] = useState<'employee' | 'external'>('employee')
   const [externalFilter, setExternalFilter] = useState<string>('all')
   const [selectedItems, setSelectedItems] = useState<{ type: SettlementItemType; id: string }[]>([])

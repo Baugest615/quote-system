@@ -1,8 +1,8 @@
 import { Settings, ChevronDown, ChevronRight } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { EXPENSE_TYPES, ACCOUNTING_SUBJECTS } from '@/types/custom.types'
+import { useExpenseDefaults } from '@/hooks/useExpenseDefaults'
+import { CURRENT_YEAR } from '@/lib/constants'
 
-const CURRENT_YEAR = new Date().getFullYear()
 const PAYMENT_MONTH_OPTIONS = Array.from({ length: 12 }, (_, i) => `${CURRENT_YEAR}年${i + 1}月`)
 
 interface BatchSettingsBarProps {
@@ -30,6 +30,8 @@ export function BatchSettingsBar({
     isCollapsed,
     onToggleCollapse,
 }: BatchSettingsBarProps) {
+    const { expenseTypeNames, accountingSubjectNames } = useExpenseDefaults()
+
     return (
         <div className="bg-secondary/50 border border-border rounded-lg overflow-hidden">
             {/* 標題列（始終可見） */}
@@ -73,7 +75,7 @@ export function BatchSettingsBar({
                                 onChange={(e) => onExpenseTypeChange(e.target.value)}
                                 className="h-8 text-xs bg-card border border-border text-foreground rounded-md px-2 focus:outline-none focus:ring-1 focus:ring-ring min-w-[120px]"
                             >
-                                {EXPENSE_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+                                {expenseTypeNames.map(t => <option key={t} value={t}>{t}</option>)}
                             </select>
                         </div>
 
@@ -85,7 +87,7 @@ export function BatchSettingsBar({
                                 className="h-8 text-xs bg-card border border-border text-foreground rounded-md px-2 focus:outline-none focus:ring-1 focus:ring-ring min-w-[120px]"
                             >
                                 <option value="">未設定</option>
-                                {ACCOUNTING_SUBJECTS.map(s => <option key={s} value={s}>{s}</option>)}
+                                {accountingSubjectNames.map(s => <option key={s} value={s}>{s}</option>)}
                             </select>
                         </div>
 

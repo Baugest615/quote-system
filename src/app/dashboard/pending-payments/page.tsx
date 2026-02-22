@@ -22,7 +22,8 @@ import { toast } from 'sonner'
 import { Database, Json } from '@/types/database.types'
 import { PendingPaymentItem, PendingPaymentAttachment } from '@/lib/payments/types'
 import type { KolBankInfo } from '@/types/schemas'
-import { EXPENSE_TYPES, EXPENSE_TYPE_DEFAULT_SUBJECTS, getDefaultExpenseByBankType, type ExpenseType } from '@/types/custom.types'
+import { getDefaultExpenseByBankType } from '@/types/custom.types'
+import { useExpenseDefaults } from '@/hooks/useExpenseDefaults'
 import { queryKeys } from '@/lib/queryKeys'
 
 const MERGE_COLORS = ['bg-chart-3/15', 'bg-chart-4/15', 'bg-chart-1/15', 'bg-chart-2/15', 'bg-chart-5/15', 'bg-destructive/15']
@@ -43,6 +44,7 @@ const isValidInvoiceFormat = (invoiceNumber: string | null | undefined): boolean
 
 export default function PendingPaymentsPage() {
   const queryClient = useQueryClient()
+  const { defaultSubjectsMap } = useExpenseDefaults()
   const [items, setItems] = useState<PendingPaymentItem[]>([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
@@ -246,7 +248,7 @@ export default function PendingPaymentsPage() {
   };
 
   const handleExpenseTypeChange = (itemId: string, newType: string) => {
-    const defaultSubject = EXPENSE_TYPE_DEFAULT_SUBJECTS[newType as ExpenseType] || ''
+    const defaultSubject = defaultSubjectsMap[newType] || ''
     setItems(prev => prev.map(item =>
       item.id === itemId ? { ...item, expense_type_input: newType, accounting_subject_input: defaultSubject, isSettingsModified: true } : item
     ));

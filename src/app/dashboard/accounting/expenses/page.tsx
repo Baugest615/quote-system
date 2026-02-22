@@ -14,15 +14,15 @@ import SpreadsheetEditor from '@/components/accounting/SpreadsheetEditor'
 import { EmptyState } from '@/components/ui/EmptyState'
 import Link from 'next/link'
 import type { AccountingExpense, PaymentTargetType, ExpenseType, PaymentStatus } from '@/types/custom.types'
-import { EXPENSE_TYPES, ACCOUNTING_SUBJECTS, EXPENSE_TYPE_DEFAULT_SUBJECTS, PAYMENT_TARGET_LABELS, PAYMENT_TARGET_TYPES, PAYMENT_STATUS, PAYMENT_STATUS_LABELS } from '@/types/custom.types'
+import { PAYMENT_TARGET_LABELS, PAYMENT_TARGET_TYPES, PAYMENT_STATUS, PAYMENT_STATUS_LABELS } from '@/types/custom.types'
+import { useExpenseDefaults } from '@/hooks/useExpenseDefaults'
+import { CURRENT_YEAR, MONTH_OPTIONS } from '@/lib/constants'
 import { PaymentStatusBadge } from '@/components/accounting/monthly-settlement/PaymentStatusBadge'
 import type { SpreadsheetColumn, BatchSaveResult, RowError } from '@/lib/spreadsheet-utils'
 import { useProjectNames } from '@/hooks/useProjectNames'
 import { SearchableSelect } from '@/components/ui/SearchableSelect'
 
 const PAGE_SIZE = 20
-const CURRENT_YEAR = new Date().getFullYear()
-const MONTH_OPTIONS = ['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月']
 
 const EXPENSE_TYPE_COLORS: Record<string, string> = {
   '勞務報酬': 'bg-purple-100 text-purple-700 dark:bg-purple-500/20 dark:text-purple-400',
@@ -57,6 +57,7 @@ export default function AccountingExpensesPage() {
   const { userRole, loading: permLoading, hasRole } = usePermission()
   const isAdmin = userRole === 'Admin'
   const queryClient = useQueryClient()
+  const { expenseTypeNames, accountingSubjectNames, defaultSubjectsMap } = useExpenseDefaults()
   const [year, setYear] = useState(CURRENT_YEAR)
   const [typeFilter, setTypeFilter] = useState<string>('all')
   const [targetFilter, setTargetFilter] = useState<string>('all')
@@ -77,9 +78,9 @@ export default function AccountingExpensesPage() {
     { key: 'expense_month', label: '支出月份', type: 'select',
       options: MONTH_OPTIONS.map(m => `${year}年${m}`), width: 'w-28' },
     { key: 'expense_type', label: '支出種類', type: 'select',
-      options: [...EXPENSE_TYPES], required: true, width: 'w-28' },
+      options: [...expenseTypeNames], required: true, width: 'w-28' },
     { key: 'accounting_subject', label: '會計科目', type: 'select',
-      options: ['', ...ACCOUNTING_SUBJECTS], width: 'w-28' },
+      options: ['', ...accountingSubjectNames], width: 'w-28' },
     { key: 'vendor_name', label: '廠商/對象', type: 'text', width: 'w-32' },
     { key: 'amount', label: '金額（未稅）', type: 'number', autoCalcSource: true, width: 'w-28' },
     { key: 'tax_amount', label: '稅額', type: 'number', readOnly: true, width: 'w-24' },
@@ -89,7 +90,7 @@ export default function AccountingExpensesPage() {
     { key: 'invoice_number', label: '發票號碼', type: 'text', width: 'w-28' },
     { key: 'invoice_date', label: '發票日期', type: 'date', width: 'w-28' },
     { key: 'note', label: '備註', type: 'text', width: 'w-40' },
-  ], [year, projectNames])
+  ], [year, projectNames, expenseTypeNames, accountingSubjectNames])
 
   const currentQueryKey = queryKeys.accountingExpenses(year)
 
@@ -249,7 +250,7 @@ export default function AccountingExpensesPage() {
           className="border border-border rounded-lg px-3 py-2 text-sm bg-card focus:outline-none focus:ring-2 focus:ring-ring"
         >
           <option value="all">所有類型</option>
-          {EXPENSE_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+          {expenseTypeNames.map(t => <option key={t} value={t}>{t}</option>)}
         </select>
         <select
           value={targetFilter}
@@ -314,7 +315,7 @@ export default function AccountingExpensesPage() {
       <>
       {/* 統計 */}
       <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-8 gap-3">
-        {EXPENSE_TYPES.map(t => {
+        {expenseTypeNames.map(t => {
           const sub = records.filter(r => r.expense_type === t)
           const total = sub.reduce((s, r) => s + (r.amount || 0), 0)
           return (
@@ -449,7 +450,7 @@ export default function AccountingExpensesPage() {
                   <label className="block text-xs font-medium text-muted-foreground mb-1">支出種類 *</label>
                   <select value={form.expense_type || ''} onChange={(e) => {
                     const newType = e.target.value as ExpenseType
-                    const suggestedSubject = EXPENSE_TYPE_DEFAULT_SUBJECTS[newType] || ''
+                    const suggestedSubject = defaultSubjectsMap[newType] || ''
                     setForm(f => ({
                       ...f,
                       expense_type: newType,
@@ -457,7 +458,7 @@ export default function AccountingExpensesPage() {
                     }))
                   }}
                     className="w-full border border-border rounded-lg px-3 py-2 text-sm bg-card focus:outline-none focus:ring-2 focus:ring-ring">
-                    {EXPENSE_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+                    {expenseTypeNames.map(t => <option key={t} value={t}>{t}</option>)}
                   </select>
                 </div>
                 <div>
@@ -465,7 +466,7 @@ export default function AccountingExpensesPage() {
                   <select value={form.accounting_subject || ''} onChange={(e) => setForm(f => ({ ...f, accounting_subject: e.target.value }))}
                     className="w-full border border-border rounded-lg px-3 py-2 text-sm bg-card focus:outline-none focus:ring-2 focus:ring-ring">
                     <option value="">-- 選擇科目 --</option>
-                    {ACCOUNTING_SUBJECTS.map(s => <option key={s} value={s}>{s}</option>)}
+                    {accountingSubjectNames.map(s => <option key={s} value={s}>{s}</option>)}
                   </select>
                 </div>
               </div>

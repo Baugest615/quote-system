@@ -5,9 +5,9 @@ import { Input } from '@/components/ui/input'
 import { RejectionReasonDisplay } from './RejectionReasonDisplay'
 import type { PendingPaymentItem } from '@/lib/payments/types'
 import { parseKolBankInfo, isKolBankInfoComplete } from '@/types/schemas'
-import { EXPENSE_TYPES, ACCOUNTING_SUBJECTS } from '@/types/custom.types'
+import { useExpenseDefaults } from '@/hooks/useExpenseDefaults'
+import { CURRENT_YEAR } from '@/lib/constants'
 
-const CURRENT_YEAR = new Date().getFullYear()
 const PAYMENT_MONTH_OPTIONS = Array.from({ length: 12 }, (_, i) => `${CURRENT_YEAR}年${i + 1}月`)
 
 interface ExpandedItemPanelProps {
@@ -45,6 +45,7 @@ export function ExpandedItemPanel({
     onResetToBatch,
     onClose,
 }: ExpandedItemPanelProps) {
+    const { expenseTypeNames, accountingSubjectNames } = useExpenseDefaults()
     const [isSaving, setIsSaving] = useState(false)
     const panelRef = useRef<HTMLDivElement>(null)
 
@@ -100,7 +101,7 @@ export function ExpandedItemPanel({
                                 onChange={(e) => onExpenseTypeChange(item.id, e.target.value)}
                                 className="h-7 text-xs bg-card border border-border rounded px-1.5 text-foreground focus:outline-none focus:ring-1 focus:ring-ring min-w-[100px]"
                             >
-                                {EXPENSE_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+                                {expenseTypeNames.map(t => <option key={t} value={t}>{t}</option>)}
                             </select>
                         </div>
                         <div className="flex flex-col">
@@ -111,7 +112,7 @@ export function ExpandedItemPanel({
                                 className="h-7 text-xs bg-card border border-border rounded px-1.5 text-foreground focus:outline-none focus:ring-1 focus:ring-ring min-w-[100px]"
                             >
                                 <option value="">未設定</option>
-                                {ACCOUNTING_SUBJECTS.map(s => <option key={s} value={s}>{s}</option>)}
+                                {accountingSubjectNames.map(s => <option key={s} value={s}>{s}</option>)}
                             </select>
                         </div>
                         <div className="flex flex-col">

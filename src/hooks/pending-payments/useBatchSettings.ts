@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react'
-import { EXPENSE_TYPE_DEFAULT_SUBJECTS, type ExpenseType } from '@/types/custom.types'
+import { useExpenseDefaults } from '@/hooks/useExpenseDefaults'
 import type { PendingPaymentItem } from '@/lib/payments/types'
 import { toast } from 'sonner'
 
@@ -15,24 +15,23 @@ const getNextMonth = () => {
     return `${next.getFullYear()}年${next.getMonth() + 1}月`
 }
 
-const INITIAL_SETTINGS: BatchSettings = {
-    expenseType: '勞務報酬',
-    accountingSubject: EXPENSE_TYPE_DEFAULT_SUBJECTS['勞務報酬'] || '勞務成本',
-    paymentMonth: getNextMonth(),
-}
-
 export function useBatchSettings() {
-    const [settings, setSettings] = useState<BatchSettings>(INITIAL_SETTINGS)
+    const { defaultSubjectsMap } = useExpenseDefaults()
+    const [settings, setSettings] = useState<BatchSettings>({
+        expenseType: '勞務報酬',
+        accountingSubject: '勞務成本',
+        paymentMonth: getNextMonth(),
+    })
     const [isCollapsed, setIsCollapsed] = useState(true)
 
     const setExpenseType = useCallback((value: string) => {
-        const defaultSubject = EXPENSE_TYPE_DEFAULT_SUBJECTS[value as ExpenseType] || ''
+        const defaultSubject = defaultSubjectsMap[value] || ''
         setSettings(prev => ({
             ...prev,
             expenseType: value,
             accountingSubject: defaultSubject,
         }))
-    }, [])
+    }, [defaultSubjectsMap])
 
     const setAccountingSubject = useCallback((value: string) => {
         setSettings(prev => ({ ...prev, accountingSubject: value }))

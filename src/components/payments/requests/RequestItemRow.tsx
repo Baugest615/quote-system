@@ -5,7 +5,7 @@ import { PaymentStatusBadge } from '../shared/PaymentStatusBadge'
 import { Eye, Download, AlertCircle, CheckCircle, XCircle, FileText, Paperclip, Settings2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { PaymentRequestItem } from '@/lib/payments/types'
-import { EXPENSE_TYPES, ACCOUNTING_SUBJECTS, EXPENSE_TYPE_DEFAULT_SUBJECTS, type ExpenseType } from '@/types/custom.types'
+import { useExpenseDefaults } from '@/hooks/useExpenseDefaults'
 
 interface RequestItemRowProps {
     item: PaymentRequestItem
@@ -26,6 +26,7 @@ export function RequestItemRow({
     onViewFiles,
     isProcessing = false
 }: RequestItemRowProps) {
+    const { expenseTypeNames, accountingSubjectNames, defaultSubjectsMap } = useExpenseDefaults()
     const [rejectReason, setRejectReason] = React.useState('')
     const [showRejectInput, setShowRejectInput] = React.useState(false)
     const [showOverride, setShowOverride] = React.useState(false)
@@ -42,7 +43,7 @@ export function RequestItemRow({
     const handleOverrideExpenseTypeChange = (value: string) => {
         setOverrideExpenseType(value)
         if (value) {
-            setOverrideSubject(EXPENSE_TYPE_DEFAULT_SUBJECTS[value as ExpenseType] || '')
+            setOverrideSubject(defaultSubjectsMap[value] || '')
         }
     }
 
@@ -111,7 +112,7 @@ export function RequestItemRow({
                                 className="w-full h-6 text-[10px] bg-secondary border border-border rounded px-1 text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
                             >
                                 <option value="">維持原設定</option>
-                                {EXPENSE_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+                                {expenseTypeNames.map(t => <option key={t} value={t}>{t}</option>)}
                             </select>
                             <select
                                 value={overrideSubject}
@@ -119,7 +120,7 @@ export function RequestItemRow({
                                 className="w-full h-6 text-[10px] bg-secondary border border-border rounded px-1 text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
                             >
                                 <option value="">維持原設定</option>
-                                {ACCOUNTING_SUBJECTS.map(s => <option key={s} value={s}>{s}</option>)}
+                                {accountingSubjectNames.map(s => <option key={s} value={s}>{s}</option>)}
                             </select>
                         </div>
                     )}

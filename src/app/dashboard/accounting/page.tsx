@@ -12,6 +12,7 @@ import {
 } from 'lucide-react'
 import AccountingLoadingGuard from '@/components/accounting/AccountingLoadingGuard'
 import { ModuleErrorBoundary } from '@/components/ModuleErrorBoundary'
+import { CURRENT_YEAR } from '@/lib/constants'
 
 interface MonthlySummary {
   month: string
@@ -30,8 +31,6 @@ interface AnnualTotals {
   expensesCount: number
   payrollCount: number
 }
-
-const CURRENT_YEAR = new Date().getFullYear()
 
 export default function AccountingPage() {
   const { userRole, loading: permLoading, hasRole } = usePermission()

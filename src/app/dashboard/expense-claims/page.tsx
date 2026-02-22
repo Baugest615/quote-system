@@ -21,9 +21,9 @@ import {
   CLAIM_STATUS_LABELS, CLAIM_STATUS_COLORS,
   type ClaimStatus,
 } from '@/types/custom.types'
+import { CURRENT_YEAR } from '@/lib/constants'
 
 const PAGE_SIZE = 20
-const CURRENT_YEAR = new Date().getFullYear()
 
 export default function ExpenseClaimsPage() {
   const { userRole, loading: permLoading, checkPageAccess } = usePermission()
