@@ -316,6 +316,21 @@ export const EXPENSE_TYPE_DEFAULT_SUBJECTS: Record<ExpenseType, string> = {
   '代扣代繳': '所得稅',
 }
 
+// 根據 KOL 資訊推算預設支出種類與會計科目
+// - 無 KOL（非 KOL 項目）→ 專案費用 / 廣告費用
+// - KOL 公司帳戶 → 外包服務 / 外包費用
+// - KOL 個人帳戶或未設定 → 勞務報酬 / 勞務成本
+export function getDefaultExpenseByBankType(kols: { bank_info: unknown } | null | undefined): { expenseType: ExpenseType; accountingSubject: string } {
+  if (!kols) {
+    return { expenseType: '專案費用', accountingSubject: EXPENSE_TYPE_DEFAULT_SUBJECTS['專案費用'] }
+  }
+  const info = kols.bank_info as Record<string, unknown> | null | undefined
+  if (info?.bankType === 'company') {
+    return { expenseType: '外包服務', accountingSubject: EXPENSE_TYPE_DEFAULT_SUBJECTS['外包服務'] }
+  }
+  return { expenseType: '勞務報酬', accountingSubject: EXPENSE_TYPE_DEFAULT_SUBJECTS['勞務報酬'] }
+}
+
 export interface AccountingSale {
   id: string
   year: number

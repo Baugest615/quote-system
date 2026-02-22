@@ -9,6 +9,7 @@ import { Database } from '@/types/database.types'
 import type { PendingPaymentItem, PendingPaymentAttachment } from '@/lib/payments/types'
 import { queryKeys } from '@/lib/queryKeys'
 import { staleTimes } from '@/lib/queryClient'
+import { getDefaultExpenseByBankType } from '@/types/custom.types'
 
 type QuotationItemWithDetails = (Database['public']['Tables']['quotation_items']['Row'] & {
     quotations: Database['public']['Tables']['quotations']['Row'] & {
@@ -57,6 +58,7 @@ async function fetchPendingItemsData(): Promise<PendingPaymentItem[]> {
     // Process available items
     availableItems.forEach(item => {
         const cost = costsMap.get(item.id);
+        const expenseDefaults = getDefaultExpenseByBankType(item.kols);
         processedItems.push({
             ...(item as QuotationItemWithDetails),
             quotations: item.quotations ? JSON.parse(JSON.stringify(item.quotations)) : null,
@@ -76,9 +78,10 @@ async function fetchPendingItemsData(): Promise<PendingPaymentItem[]> {
             remittance_name_input: null,
             rejected_by: null,
             rejected_at: null,
-            expense_type_input: '勞務報酬',
-            accounting_subject_input: '勞務成本',
+            expense_type_input: expenseDefaults.expenseType,
+            accounting_subject_input: expenseDefaults.accountingSubject,
             expected_payment_month_input: '',
+            isSettingsModified: false,
         });
     });
 
@@ -86,6 +89,7 @@ async function fetchPendingItemsData(): Promise<PendingPaymentItem[]> {
     rejectedRequests.forEach(req => {
         if (req.quotation_items) {
             const rejectedCost = req.cost_amount ?? ((req.quotation_items.cost !== null && req.quotation_items.cost !== undefined) ? (req.quotation_items.cost * (req.quotation_items.quantity || 1)) : 0);
+            const rejDefaults = getDefaultExpenseByBankType(req.quotation_items.kols);
             processedItems.push({
                 ...(req.quotation_items as QuotationItemWithDetails),
                 payment_request_id: req.id,
@@ -103,9 +107,10 @@ async function fetchPendingItemsData(): Promise<PendingPaymentItem[]> {
                 remittance_name_input: null,
                 rejected_by: req.rejected_by,
                 rejected_at: req.rejected_at,
-                expense_type_input: (req as any).expense_type || '勞務報酬',
-                accounting_subject_input: (req as any).accounting_subject || '勞務成本',
+                expense_type_input: (req as any).expense_type || rejDefaults.expenseType,
+                accounting_subject_input: (req as any).accounting_subject || rejDefaults.accountingSubject,
                 expected_payment_month_input: (req as any).expected_payment_month || '',
+                isSettingsModified: false,
             });
         }
     });

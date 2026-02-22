@@ -1,14 +1,20 @@
+import React from 'react'
 import { ChevronDown, ChevronRight, Building2, FileText } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { CheckCircle, Paperclip, Trash2, AlertCircle, Unlink, X } from 'lucide-react'
 import { PendingPaymentItem } from '@/lib/payments/types'
 import { ProjectGroup } from '@/lib/payments/types'
-import { ItemRow } from './ItemRow'
+import { CompactItemRow } from './CompactItemRow'
+import { ExpandedItemPanel } from './ExpandedItemPanel'
 
 interface ProjectGroupViewProps {
     groups: ProjectGroup<PendingPaymentItem>[]
     onToggleProject: (projectId: string) => void
+    // 展開列管理
+    expandedRows: Set<string>
+    onToggleExpand: (itemId: string) => void
+    // 批次設定
+    batchExpenseType: string
+    batchAccountingSubject: string
+    batchPaymentMonth: string
     // 傳遞給列表項目的所有必要 props
     onSelect: (itemId: string, checked: boolean) => void
     onCostChange: (itemId: string, value: string) => void
@@ -20,13 +26,14 @@ interface ProjectGroupViewProps {
     onMergeSelection: (itemId: string, checked: boolean) => void
     onUnmerge: (groupId: string) => void
     onClearRejection: (requestId: string) => void
-    onExpenseTypeChange?: (itemId: string, value: string) => void
-    onAccountingSubjectChange?: (itemId: string, value: string) => void
-    onExpectedPaymentMonthChange?: (itemId: string, value: string) => void
+    onExpenseTypeChange: (itemId: string, value: string) => void
+    onAccountingSubjectChange: (itemId: string, value: string) => void
+    onExpectedPaymentMonthChange: (itemId: string, value: string) => void
+    onResetToBatch: (itemId: string) => void
     selectedItems: string[]
     selectedForMerge: string[]
     selectedMergeType: 'account' | null
-    isMergeMode: boolean // NEW PROP
+    isMergeMode: boolean
     canSelectForPayment: (item: PendingPaymentItem) => boolean
     canMergeWith: (item: PendingPaymentItem) => boolean
     shouldShowControls: (item: PendingPaymentItem) => boolean
@@ -36,6 +43,11 @@ interface ProjectGroupViewProps {
 export function ProjectGroupView({
     groups,
     onToggleProject,
+    expandedRows,
+    onToggleExpand,
+    batchExpenseType,
+    batchAccountingSubject,
+    batchPaymentMonth,
     onSelect,
     onCostChange,
     onRemittanceNameChange,
@@ -49,15 +61,18 @@ export function ProjectGroupView({
     onExpenseTypeChange,
     onAccountingSubjectChange,
     onExpectedPaymentMonthChange,
+    onResetToBatch,
     selectedItems,
     selectedForMerge,
     selectedMergeType,
-    isMergeMode, // NEW PROP
+    isMergeMode,
     canSelectForPayment,
     canMergeWith,
     shouldShowControls,
     isValidInvoiceFormat
 }: ProjectGroupViewProps) {
+
+    const colSpan = isMergeMode ? 7 : 6
 
     if (groups.length === 0) {
         return (
@@ -72,7 +87,7 @@ export function ProjectGroupView({
     return (
         <div className="space-y-4">
             {groups.map((group) => (
-                <div key={group.projectId} className="bg-card shadow-none border border-border rounded-lg overflow-hidden border border-border">
+                <div key={group.projectId} className="bg-card shadow-none border border-border rounded-lg overflow-hidden">
                     {/* 專案標題列 */}
                     <div
                         className="flex items-center justify-between p-3 bg-secondary cursor-pointer hover:bg-secondary/50 transition-colors"
@@ -121,17 +136,19 @@ export function ProjectGroupView({
 
                     {/* 展開的項目列表 */}
                     {group.isExpanded && (
-                        <div className="border-t border-border">
+                        <div className="border-t border-border overflow-x-auto">
                             <table className="min-w-full divide-y divide-border">
                                 <thead className="bg-secondary">
                                     <tr>
-                                        <th className="px-2 py-2 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider w-24">KOL/服務</th>
+                                        <th className="px-2 py-2 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider w-8"></th>
+                                        <th className="px-2 py-2 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider w-40">KOL/服務</th>
                                         <th className="px-2 py-2 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">合作項目</th>
-                                        <th className="px-2 py-2 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider w-32">匯款戶名/公司名稱</th>
-                                        <th className="px-2 py-2 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider w-32">成本金額</th>
-                                        <th className="px-2 py-2 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider w-24">合併</th>
+                                        <th className="px-2 py-2 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider w-56">匯款/成本</th>
+                                        {isMergeMode && (
+                                            <th className="px-2 py-2 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider w-20">合併</th>
+                                        )}
                                         <th className="px-2 py-2 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider w-48">檢核文件</th>
-                                        <th className="px-2 py-2 text-center text-xs font-medium text-muted-foreground uppercase tracking-wider w-16">申請付款</th>
+                                        <th className="px-2 py-2 text-center text-xs font-medium text-muted-foreground uppercase tracking-wider w-12">付款</th>
                                     </tr>
                                 </thead>
                                 <tbody className="bg-card divide-y divide-border">
@@ -139,33 +156,58 @@ export function ProjectGroupView({
                                         const displayItem = item.merge_group_id
                                             ? group.items.find(i => i.merge_group_id === item.merge_group_id && i.is_merge_leader) || item
                                             : item;
+                                        const isExpanded = expandedRows.has(item.id)
 
                                         return (
-                                            <ItemRow
-                                                key={item.id}
-                                                item={item}
-                                                displayItem={displayItem}
-                                                selectedMergeType={selectedMergeType}
-                                                selectedForMerge={selectedForMerge}
-                                                isMergeMode={isMergeMode} // Pass to ItemRow
-                                                canMergeWith={canMergeWith}
-                                                canSelectForPayment={canSelectForPayment}
-                                                shouldShowControls={shouldShowControls}
-                                                isValidInvoiceFormat={isValidInvoiceFormat}
-                                                onCostAmountChange={onCostChange}
-                                                onRemittanceNameChange={onRemittanceNameChange}
-                                                onSaveCost={onSaveCost}
-                                                onMergeSelection={onMergeSelection}
-                                                onUnmerge={onUnmerge}
-                                                onClearRejection={onClearRejection}
-                                                onOpenFileModal={onFileModalOpen}
-                                                onOpenBankInfoModal={onOpenBankInfoModal}
-                                                onInvoiceNumberChange={onInvoiceChange}
-                                                onPaymentSelection={onSelect}
-                                                onExpenseTypeChange={onExpenseTypeChange}
-                                                onAccountingSubjectChange={onAccountingSubjectChange}
-                                                onExpectedPaymentMonthChange={onExpectedPaymentMonthChange}
-                                            />
+                                            <React.Fragment key={item.id}>
+                                                <CompactItemRow
+                                                    item={item}
+                                                    displayItem={displayItem}
+                                                    isExpanded={isExpanded}
+                                                    onToggleExpand={onToggleExpand}
+                                                    batchExpenseType={batchExpenseType}
+                                                    batchAccountingSubject={batchAccountingSubject}
+                                                    batchPaymentMonth={batchPaymentMonth}
+                                                    isMergeMode={isMergeMode}
+                                                    selectedForMerge={selectedForMerge}
+                                                    canMergeWith={canMergeWith}
+                                                    onMergeSelection={onMergeSelection}
+                                                    onUnmerge={onUnmerge}
+                                                    canSelectForPayment={canSelectForPayment}
+                                                    shouldShowControls={shouldShowControls}
+                                                    onPaymentSelection={onSelect}
+                                                    onCostAmountChange={onCostChange}
+                                                    onRemittanceNameChange={onRemittanceNameChange}
+                                                    onSaveCost={onSaveCost}
+                                                    onOpenFileModal={onFileModalOpen}
+                                                    onOpenBankInfoModal={onOpenBankInfoModal}
+                                                    onInvoiceNumberChange={onInvoiceChange}
+                                                    isValidInvoiceFormat={isValidInvoiceFormat}
+                                                />
+                                                {isExpanded && (
+                                                    <tr>
+                                                        <td colSpan={colSpan} className="p-0">
+                                                            <ExpandedItemPanel
+                                                                item={item}
+                                                                batchExpenseType={batchExpenseType}
+                                                                batchAccountingSubject={batchAccountingSubject}
+                                                                batchPaymentMonth={batchPaymentMonth}
+                                                                onExpenseTypeChange={onExpenseTypeChange}
+                                                                onAccountingSubjectChange={onAccountingSubjectChange}
+                                                                onExpectedPaymentMonthChange={onExpectedPaymentMonthChange}
+                                                                onCostAmountChange={onCostChange}
+                                                                onRemittanceNameChange={onRemittanceNameChange}
+                                                                onSaveCost={onSaveCost}
+                                                                onClearRejection={onClearRejection}
+                                                                onUnmerge={onUnmerge}
+                                                                onOpenBankInfoModal={onOpenBankInfoModal}
+                                                                onResetToBatch={onResetToBatch}
+                                                                onClose={() => onToggleExpand(item.id)}
+                                                            />
+                                                        </td>
+                                                    </tr>
+                                                )}
+                                            </React.Fragment>
                                         )
                                     })}
                                 </tbody>

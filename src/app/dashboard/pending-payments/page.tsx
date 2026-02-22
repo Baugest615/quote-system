@@ -8,7 +8,9 @@ import { Input } from '@/components/ui/input'
 import { PendingPaymentFileModal } from '@/components/pending-payments/PendingPaymentFileModal'
 import { BankInfoEditModal } from '@/components/pending-payments/BankInfoEditModal'
 import { ProjectGroupView } from '@/components/pending-payments/ProjectGroupView'
+import { BatchSettingsBar } from '@/components/pending-payments/BatchSettingsBar'
 import { usePaymentGrouping } from '@/hooks/payments/usePaymentGrouping'
+import { useBatchSettings } from '@/hooks/pending-payments/useBatchSettings'
 import { isItemReady } from '@/lib/pending-payments/grouping-utils'
 import {
   Search, Paperclip, Receipt, Trash2, AlertCircle,
@@ -20,7 +22,7 @@ import { toast } from 'sonner'
 import { Database, Json } from '@/types/database.types'
 import { PendingPaymentItem, PendingPaymentAttachment } from '@/lib/payments/types'
 import type { KolBankInfo } from '@/types/schemas'
-import { EXPENSE_TYPES, EXPENSE_TYPE_DEFAULT_SUBJECTS, type ExpenseType } from '@/types/custom.types'
+import { EXPENSE_TYPES, EXPENSE_TYPE_DEFAULT_SUBJECTS, getDefaultExpenseByBankType, type ExpenseType } from '@/types/custom.types'
 import { queryKeys } from '@/lib/queryKeys'
 
 const MERGE_COLORS = ['bg-chart-3/15', 'bg-chart-4/15', 'bg-chart-1/15', 'bg-chart-2/15', 'bg-chart-5/15', 'bg-destructive/15']
@@ -53,6 +55,8 @@ export default function PendingPaymentsPage() {
   const [isMergeMode, setIsMergeMode] = useState(false)
   const [statusFilter, setStatusFilter] = useState<'all' | 'rejected' | 'in_progress' | 'complete'>('all')
   const [sortBy, setSortBy] = useState<'name' | 'pending' | 'cost'>('name')
+  const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set())
+  const batchSettings = useBatchSettings()
 
   const fetchPendingItems = useCallback(async () => {
     setLoading(true)
@@ -118,6 +122,7 @@ export default function PendingPaymentsPage() {
           }
         }
 
+        const expenseDefaults = getDefaultExpenseByBankType(item.kols);
         processedItems.push({
           ...item,
           quotations: item.quotations ? JSON.parse(JSON.stringify(item.quotations)) : null,
@@ -132,15 +137,17 @@ export default function PendingPaymentsPage() {
           cost_amount_input: (cost !== null && cost !== undefined) ? (Number(cost) || 0) : 0,
           original_cost: (cost !== null && cost !== undefined) ? (Number(cost) || 0) : 0,
           remittance_name_input: defaultRemittanceName || null,
-          expense_type_input: '勞務報酬',
-          accounting_subject_input: EXPENSE_TYPE_DEFAULT_SUBJECTS['勞務報酬'] || '',
+          expense_type_input: expenseDefaults.expenseType,
+          accounting_subject_input: expenseDefaults.accountingSubject,
           expected_payment_month_input: DEFAULT_PAYMENT_MONTH,
+          isSettingsModified: false,
         } as PendingPaymentItem);
       });
 
       // Process rejected requests
       rejectedRequests?.forEach(req => {
         if (req.quotation_items) {
+          const rejDefaults = getDefaultExpenseByBankType(req.quotation_items.kols);
           processedItems.push({
             ...(req.quotation_items as any),
             quotations: req.quotation_items.quotations,
@@ -159,9 +166,10 @@ export default function PendingPaymentsPage() {
             cost_amount_input: req.cost_amount ?? ((req.quotation_items.cost !== null && req.quotation_items.cost !== undefined) ? (req.quotation_items.cost * (req.quotation_items.quantity || 1)) : 0),
             original_cost: req.cost_amount ?? ((req.quotation_items.cost !== null && req.quotation_items.cost !== undefined) ? (req.quotation_items.cost * (req.quotation_items.quantity || 1)) : 0),
             remittance_name_input: req.quotation_items.remittance_name || null,
-            expense_type_input: (req as any).expense_type || '勞務報酬',
-            accounting_subject_input: (req as any).accounting_subject || EXPENSE_TYPE_DEFAULT_SUBJECTS[((req as any).expense_type || '勞務報酬') as ExpenseType] || '',
+            expense_type_input: (req as any).expense_type || rejDefaults.expenseType,
+            accounting_subject_input: (req as any).accounting_subject || rejDefaults.accountingSubject,
             expected_payment_month_input: (req as any).expected_payment_month || DEFAULT_PAYMENT_MONTH,
+            isSettingsModified: !!((req as any).expense_type && (req as any).expense_type !== rejDefaults.expenseType) || !!((req as any).accounting_subject && (req as any).accounting_subject !== rejDefaults.accountingSubject) || !!((req as any).expected_payment_month && (req as any).expected_payment_month !== DEFAULT_PAYMENT_MONTH),
           } as PendingPaymentItem);
         }
       });
@@ -169,6 +177,7 @@ export default function PendingPaymentsPage() {
       // Process draft requests
       draftRequests?.forEach(req => {
         if (req.quotation_items) {
+          const draftDefaults = getDefaultExpenseByBankType(req.quotation_items.kols);
           processedItems.push({
             ...(req.quotation_items as any),
             quotations: req.quotation_items.quotations,
@@ -187,9 +196,10 @@ export default function PendingPaymentsPage() {
             cost_amount_input: req.cost_amount ?? ((req.quotation_items.cost !== null && req.quotation_items.cost !== undefined) ? (req.quotation_items.cost * (req.quotation_items.quantity || 1)) : 0),
             original_cost: req.cost_amount ?? ((req.quotation_items.cost !== null && req.quotation_items.cost !== undefined) ? (req.quotation_items.cost * (req.quotation_items.quantity || 1)) : 0),
             remittance_name_input: req.quotation_items.remittance_name || null,
-            expense_type_input: (req as any).expense_type || '勞務報酬',
-            accounting_subject_input: (req as any).accounting_subject || EXPENSE_TYPE_DEFAULT_SUBJECTS[((req as any).expense_type || '勞務報酬') as ExpenseType] || '',
+            expense_type_input: (req as any).expense_type || draftDefaults.expenseType,
+            accounting_subject_input: (req as any).accounting_subject || draftDefaults.accountingSubject,
             expected_payment_month_input: (req as any).expected_payment_month || DEFAULT_PAYMENT_MONTH,
+            isSettingsModified: !!((req as any).expense_type && (req as any).expense_type !== draftDefaults.expenseType) || !!((req as any).accounting_subject && (req as any).accounting_subject !== draftDefaults.accountingSubject) || !!((req as any).expected_payment_month && (req as any).expected_payment_month !== DEFAULT_PAYMENT_MONTH),
           } as PendingPaymentItem);
         }
       });
@@ -238,21 +248,49 @@ export default function PendingPaymentsPage() {
   const handleExpenseTypeChange = (itemId: string, newType: string) => {
     const defaultSubject = EXPENSE_TYPE_DEFAULT_SUBJECTS[newType as ExpenseType] || ''
     setItems(prev => prev.map(item =>
-      item.id === itemId ? { ...item, expense_type_input: newType, accounting_subject_input: defaultSubject } : item
+      item.id === itemId ? { ...item, expense_type_input: newType, accounting_subject_input: defaultSubject, isSettingsModified: true } : item
     ));
   };
 
   const handleAccountingSubjectChange = (itemId: string, newSubject: string) => {
     setItems(prev => prev.map(item =>
-      item.id === itemId ? { ...item, accounting_subject_input: newSubject } : item
+      item.id === itemId ? { ...item, accounting_subject_input: newSubject, isSettingsModified: true } : item
     ));
   };
 
   const handleExpectedPaymentMonthChange = (itemId: string, newMonth: string) => {
     setItems(prev => prev.map(item =>
-      item.id === itemId ? { ...item, expected_payment_month_input: newMonth } : item
+      item.id === itemId ? { ...item, expected_payment_month_input: newMonth, isSettingsModified: true } : item
     ));
   };
+
+  const handleToggleExpand = useCallback((itemId: string) => {
+    setExpandedRows(prev => {
+      const newSet = new Set(prev)
+      if (newSet.has(itemId)) {
+        newSet.delete(itemId)
+      } else {
+        newSet.add(itemId)
+      }
+      return newSet
+    })
+  }, [])
+
+  const handleResetToBatch = useCallback((itemId: string) => {
+    setItems(prev => prev.map(item =>
+      item.id === itemId ? {
+        ...item,
+        expense_type_input: batchSettings.settings.expenseType,
+        accounting_subject_input: batchSettings.settings.accountingSubject,
+        expected_payment_month_input: batchSettings.settings.paymentMonth,
+        isSettingsModified: false,
+      } : item
+    ))
+  }, [batchSettings.settings])
+
+  const handleApplyBatchToUnmodified = useCallback(() => {
+    batchSettings.applyToUnmodified(items, setItems)
+  }, [batchSettings, items])
 
   const handleRemittanceNameChange = (itemId: string, newValue: string) => {
     setItems(prev => prev.map(item =>
@@ -309,6 +347,8 @@ export default function PendingPaymentsPage() {
     const rejectedCount = projectGroups.filter(g => g.hasRejected).length
     return { totalProjects, totalItems, totalReady, totalPending, totalCost, rejectedCount }
   }, [projectGroups])
+
+  const unmodifiedCount = useMemo(() => items.filter(i => !i.isSettingsModified).length, [items])
 
   // 篩選 + 排序後的顯示群組
   const displayGroups = useMemo(() => {
@@ -776,12 +816,33 @@ export default function PendingPaymentsPage() {
         </div>
       </div>
 
+      {/* 批次設定面板 */}
+      {!loading && (
+        <BatchSettingsBar
+          expenseType={batchSettings.settings.expenseType}
+          accountingSubject={batchSettings.settings.accountingSubject}
+          paymentMonth={batchSettings.settings.paymentMonth}
+          onExpenseTypeChange={batchSettings.setExpenseType}
+          onAccountingSubjectChange={batchSettings.setAccountingSubject}
+          onPaymentMonthChange={batchSettings.setPaymentMonth}
+          onApplyToUnmodified={handleApplyBatchToUnmodified}
+          unmodifiedCount={unmodifiedCount}
+          isCollapsed={batchSettings.isCollapsed}
+          onToggleCollapse={batchSettings.toggleCollapsed}
+        />
+      )}
+
       {loading ? (
         <div className="text-center py-12 text-muted-foreground">載入中...</div>
       ) : (
         <ProjectGroupView
           groups={displayGroups}
           onToggleProject={toggleProject}
+          expandedRows={expandedRows}
+          onToggleExpand={handleToggleExpand}
+          batchExpenseType={batchSettings.settings.expenseType}
+          batchAccountingSubject={batchSettings.settings.accountingSubject}
+          batchPaymentMonth={batchSettings.settings.paymentMonth}
           selectedMergeType={selectedMergeType}
           selectedForMerge={selectedForMerge}
           isMergeMode={isMergeMode}
@@ -803,6 +864,7 @@ export default function PendingPaymentsPage() {
           onExpenseTypeChange={handleExpenseTypeChange}
           onAccountingSubjectChange={handleAccountingSubjectChange}
           onExpectedPaymentMonthChange={handleExpectedPaymentMonthChange}
+          onResetToBatch={handleResetToBatch}
           selectedItems={items.filter(i => i.is_selected).map(i => i.id)}
           shouldShowControls={(item: PendingPaymentItem) => true}
           isValidInvoiceFormat={isValidInvoiceFormat}

@@ -55,6 +55,7 @@ export interface PendingPaymentItem extends BasePaymentItem {
 
     // UI 狀態
     is_selected: boolean
+    isSettingsModified: boolean // 是否已個別修改過帳務設定（用於批次套用判斷）
 
     // 輸入欄位
     invoice_number_input: string | null

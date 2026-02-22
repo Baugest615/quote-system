@@ -5,6 +5,44 @@
 
 ## 已完成
 
+### 待請款專案管理 — UI 重構 + 智慧預設（2026-02-22）
+
+將 177 筆項目 / 49 個專案的待請款頁面從每列 ~100px 降至 ~40px，大幅減少垂直捲動量。
+
+#### UI 重構：批量預設 + 精簡列
+
+**新增元件（5 個）**：
+- [x] `BatchSettingsBar.tsx` — 可收合批次設定面板（支出種類/會計科目/月份）+ 一鍵套用
+- [x] `CompactItemRow.tsx` — 精簡列（取代 ItemRow），內嵌匯款/成本/發票編輯
+- [x] `ExpandedItemPanel.tsx` — 點擊展開的 inline 編輯面板（3 下拉選單 + 駁回原因）
+- [x] `StatusDot.tsx` — 狀態圓點指示器（🔴駁回/🟡不完整/🟢就緒/⬜未開始）
+- [x] `useBatchSettings.ts` — 批次設定狀態管理 hook
+
+**表格重構**：
+- [x] 表頭 7 欄→5 欄（合併模式 6 欄），移除每列 3 個 dropdown
+- [x] 非預設值以小 badge 提示，點擊展開可修改
+- [x] 合併欄僅在合併模式時顯示
+- [x] 刪除舊 `ItemRow.tsx`
+
+#### 智慧支出分類預設
+
+根據 KOL 資訊自動推算支出種類與會計科目，減少手動操作：
+
+| 條件 | 支出種類 | 會計科目 |
+|------|----------|----------|
+| 無 KOL（非 KOL 項目） | 專案費用 | 廣告費用 |
+| KOL 公司帳戶 | 外包服務 | 外包費用 |
+| KOL 個人帳戶或未設定 | 勞務報酬 | 勞務成本 |
+
+- [x] `getDefaultExpenseByBankType()` helper（`custom.types.ts`）
+- [x] `page.tsx` 三處項目初始化（available / rejected / draft）套用智慧預設
+- [x] `usePendingItems.ts` 兩處初始化同步更新
+- [x] `isSettingsModified` 判斷改為對比智慧預設（非硬編碼值）
+
+驗證結果：TypeScript 零錯誤、Production build 成功（31 頁面）
+
+---
+
 ### 架構優化 — 6 階段重構（2026-02-22）
 
 專案已成長至 167+ TS/TSX 檔案、31 頁面、25+ hooks，進行全面架構優化以提升可維護性、效能與穩定性。
@@ -404,6 +442,7 @@ Migration 安全修復（`20260221100000_fix_expense_claims_security.sql`）：
 
 - `npm run build` 通過，零型別錯誤（31 頁面）
 - `npm test` 通過，85/85 測試
+- **✅ 待請款 UI 重構已完成**：批量預設面板 + 精簡列 + 智慧支出分類（bankType 自動推算）
 - **✅ 架構優化已完成**：6 階段重構（env 集中化、CRUD Factory、分頁、元件拆分、錯誤邊界、測試）
 - **✅ 匯費分配已修復**：匯費分配到勞務記錄，消除重複計算
 - **✅ v2.5 帳務進階已完成**：代扣代繳全流程 + 月結總覽 + 三分頁重構 + Bug 修復
