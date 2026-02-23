@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import supabase from '@/lib/supabase/client'
 import { Database } from '@/types/database.types'
 import { Button } from '@/components/ui/button'
-import { Plus, Trash2, Loader2, Save, XCircle, ClipboardPaste } from 'lucide-react'
+import { Plus, Trash2, Loader2, Save, XCircle, ClipboardPaste, ArrowUp, ArrowDown, ArrowUpDown } from 'lucide-react'
 import { EditableCell } from './EditableCell'
 import { SearchableSelectCell } from './SearchableSelectCell'
 import { toast } from 'sonner'
@@ -391,6 +391,74 @@ export function QuotationItemsList({ quotationId, onUpdate }: QuotationItemsList
         // 如果是純文字且在 Input 中，則不攔截，讓用戶正常編輯
     }
 
+    // 排序狀態
+    type SortKey = 'category' | 'kol' | 'service' | 'quantity' | 'price' | 'cost' | 'subtotal'
+    const [sortConfig, setSortConfig] = useState<{ key: SortKey; direction: 'asc' | 'desc' } | null>(null)
+
+    const handleSort = (key: SortKey) => {
+        setSortConfig(prev => {
+            if (prev?.key === key) {
+                // 同欄位：asc → desc → 取消
+                if (prev.direction === 'asc') return { key, direction: 'desc' }
+                return null
+            }
+            return { key, direction: 'asc' }
+        })
+    }
+
+    const sortedItems = useMemo(() => {
+        if (!sortConfig) return items
+
+        const { key, direction } = sortConfig
+        const sorted = [...items].sort((a, b) => {
+            let aVal: string | number = ''
+            let bVal: string | number = ''
+
+            switch (key) {
+                case 'category':
+                    aVal = a.category || ''
+                    bVal = b.category || ''
+                    break
+                case 'kol':
+                    aVal = kols.find(k => k.id === a.kol_id)?.name || ''
+                    bVal = kols.find(k => k.id === b.kol_id)?.name || ''
+                    break
+                case 'service':
+                    aVal = a.service || ''
+                    bVal = b.service || ''
+                    break
+                case 'quantity':
+                    aVal = a.quantity
+                    bVal = b.quantity
+                    break
+                case 'price':
+                    aVal = a.price
+                    bVal = b.price
+                    break
+                case 'cost':
+                    aVal = a.cost ?? 0
+                    bVal = b.cost ?? 0
+                    break
+                case 'subtotal':
+                    aVal = a.quantity * a.price
+                    bVal = b.quantity * b.price
+                    break
+            }
+
+            if (typeof aVal === 'string' && typeof bVal === 'string') {
+                return direction === 'asc' ? aVal.localeCompare(bVal, 'zh-Hant') : bVal.localeCompare(aVal, 'zh-Hant')
+            }
+            return direction === 'asc' ? (aVal as number) - (bVal as number) : (bVal as number) - (aVal as number)
+        })
+        return sorted
+    }, [items, sortConfig, kols])
+
+    const SortIcon = ({ columnKey }: { columnKey: SortKey }) => {
+        if (sortConfig?.key !== columnKey) return <ArrowUpDown className="h-3 w-3 ml-1 opacity-0 group-hover/th:opacity-50" />
+        if (sortConfig.direction === 'asc') return <ArrowUp className="h-3 w-3 ml-1 text-primary" />
+        return <ArrowDown className="h-3 w-3 ml-1 text-primary" />
+    }
+
     // 選項準備
     const categoryOptions = useMemo(() =>
         categories.map(c => ({ label: c.name, value: c.name })),
@@ -471,18 +539,32 @@ export function QuotationItemsList({ quotationId, onUpdate }: QuotationItemsList
                 <table className="w-full text-sm bg-card border rounded-md overflow-hidden">
                     <thead className="bg-secondary/50 text-muted-foreground">
                         <tr>
-                            <th className="px-3 py-2 text-left w-32">類別</th>
-                            <th className="px-3 py-2 text-left w-40">KOL/服務</th>
-                            <th className="px-3 py-2 text-left min-w-[160px]">執行內容</th>
-                            <th className="px-3 py-2 text-right w-20">數量</th>
-                            <th className="px-3 py-2 text-right w-24">單價</th>
-                            <th className="px-3 py-2 text-right w-24">成本</th>
-                            <th className="px-3 py-2 text-right w-24">小計</th>
+                            <th className="px-3 py-2 text-left w-32 group/th cursor-pointer select-none hover:text-foreground transition-colors" onClick={() => handleSort('category')}>
+                                <span className="inline-flex items-center">類別<SortIcon columnKey="category" /></span>
+                            </th>
+                            <th className="px-3 py-2 text-left w-40 group/th cursor-pointer select-none hover:text-foreground transition-colors" onClick={() => handleSort('kol')}>
+                                <span className="inline-flex items-center">KOL/服務<SortIcon columnKey="kol" /></span>
+                            </th>
+                            <th className="px-3 py-2 text-left min-w-[160px] group/th cursor-pointer select-none hover:text-foreground transition-colors" onClick={() => handleSort('service')}>
+                                <span className="inline-flex items-center">執行內容<SortIcon columnKey="service" /></span>
+                            </th>
+                            <th className="px-3 py-2 text-right w-20 group/th cursor-pointer select-none hover:text-foreground transition-colors" onClick={() => handleSort('quantity')}>
+                                <span className="inline-flex items-center justify-end">數量<SortIcon columnKey="quantity" /></span>
+                            </th>
+                            <th className="px-3 py-2 text-right w-24 group/th cursor-pointer select-none hover:text-foreground transition-colors" onClick={() => handleSort('price')}>
+                                <span className="inline-flex items-center justify-end">單價<SortIcon columnKey="price" /></span>
+                            </th>
+                            <th className="px-3 py-2 text-right w-24 group/th cursor-pointer select-none hover:text-foreground transition-colors" onClick={() => handleSort('cost')}>
+                                <span className="inline-flex items-center justify-end">成本<SortIcon columnKey="cost" /></span>
+                            </th>
+                            <th className="px-3 py-2 text-right w-24 group/th cursor-pointer select-none hover:text-foreground transition-colors" onClick={() => handleSort('subtotal')}>
+                                <span className="inline-flex items-center justify-end">小計<SortIcon columnKey="subtotal" /></span>
+                            </th>
                             <th className="px-3 py-2 text-center w-10"></th>
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-border/50">
-                        {items.map((item) => {
+                        {sortedItems.map((item) => {
                             const selectedKol = kols.find(k => k.id === item.kol_id)
                             const serviceOptions = selectedKol?.kol_services.map(s => ({
                                 label: s.service_types?.name || '未知服務',
