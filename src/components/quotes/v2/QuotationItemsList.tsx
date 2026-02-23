@@ -238,46 +238,47 @@ export function QuotationItemsList({ quotationId, onUpdate }: QuotationItemsList
                 }
             }
 
-            // 1. 計算需要刪除的項目：
-            //    - 使用者明確刪除的項目 (deletedItemIds)
-            //    - DB 中存在但不在本地列表中的孤兒項目（修復歷史髒資料）
-            const currentItemIds = new Set(items.map(i => i.id))
-            const orphanIds = originalItems
-                .filter(o => !currentItemIds.has(o.id) && !deletedItemIds.has(o.id))
-                .map(o => o.id)
-            const allDeleteIds = [...Array.from(deletedItemIds), ...orphanIds]
-
-            if (allDeleteIds.length > 0) {
-                const { error: deleteError } = await supabase
-                    .from('quotation_items')
-                    .delete()
-                    .in('id', allDeleteIds)
-                if (deleteError) throw new Error(`刪除項目失敗: ${deleteError.message}`)
-            }
-
-            // 2. 執行新增與更新（upsert 保留原有 ID，避免破壞 payment_requests 關聯）
-            const itemsToUpsert = items.map(item => {
-                // 移除 created_at，讓資料庫處理 (新增時 default now()，更新時不變)
-                // 移除 payment_requests，這是關聯資料，不能寫入
-                // 必須保留 id，因為我們現在全都是 UUID
-                // @ts-ignore
+            // 1. 準備要保存的項目資料
+            const itemsToSave = items.map(item => {
+                // @ts-ignore - payment_requests 是 join 的關聯資料
                 const { created_at, payment_requests, ...rest } = item
-
-                // 確保數值正確
                 return {
                     ...rest,
                     quotation_id: quotationId,
                     price: Number(item.price) || 0,
                     cost: Number(item.cost) || 0,
                     quantity: Number(item.quantity) || 1,
-                    service: item.service || '' // 確保不為 null
+                    service: item.service || ''
                 }
             })
 
-            if (itemsToUpsert.length > 0) {
+            // 2. 刪除 DB 中不該存在的項目（伺服器端篩選，徹底清理髒資料）
+            const keepIds = items
+                .filter(item => originalItems.some(o => o.id === item.id))
+                .map(item => item.id)
+
+            if (keepIds.length > 0) {
+                // 刪除此報價單中不在保留清單裡的所有項目
+                const { error: deleteError } = await supabase
+                    .from('quotation_items')
+                    .delete()
+                    .eq('quotation_id', quotationId)
+                    .not('id', 'in', `(${keepIds.join(',')})`)
+                if (deleteError) throw new Error(`刪除項目失敗: ${deleteError.message}`)
+            } else {
+                // 沒有要保留的既有項目，全部刪除
+                const { error: deleteError } = await supabase
+                    .from('quotation_items')
+                    .delete()
+                    .eq('quotation_id', quotationId)
+                if (deleteError) throw new Error(`刪除項目失敗: ${deleteError.message}`)
+            }
+
+            // 3. 寫入項目（明確指定 onConflict 避免 PostgREST 衝突偵測問題）
+            if (itemsToSave.length > 0) {
                 const { error } = await supabase
                     .from('quotation_items')
-                    .upsert(itemsToUpsert)
+                    .upsert(itemsToSave, { onConflict: 'id' })
                 if (error) throw error
             }
 

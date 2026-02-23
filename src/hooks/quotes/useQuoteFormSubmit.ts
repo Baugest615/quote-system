@@ -197,8 +197,21 @@ export function useQuoteFormSubmit({
         quoteId = newQuote.id
       }
 
-      const { error: deleteError } = await supabase.from('quotation_items').delete().eq('quotation_id', quoteId)
+      // 先刪除所有項目
+      const { error: deleteError } = await supabase
+        .from('quotation_items')
+        .delete()
+        .eq('quotation_id', quoteId)
       if (deleteError) throw new Error(`清除舊項目失敗: ${deleteError.message}`)
+
+      // 驗證刪除後 DB 確實乾淨（防止靜默失敗）
+      const { count: remainingCount } = await supabase
+        .from('quotation_items')
+        .select('*', { count: 'exact', head: true })
+        .eq('quotation_id', quoteId)
+      if (remainingCount && remainingCount > 0) {
+        throw new Error(`刪除未完全生效，仍有 ${remainingCount} 筆殘留項目，請重新整理後再試`)
+      }
 
       const itemsToInsert = resolvedItems
         .filter(item => item.service || item.price)
