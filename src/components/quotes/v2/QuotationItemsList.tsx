@@ -238,16 +238,24 @@ export function QuotationItemsList({ quotationId, onUpdate }: QuotationItemsList
                 }
             }
 
-            // 1. 執行刪除
-            if (deletedItemIds.size > 0) {
-                const { error } = await supabase
+            // 1. 計算需要刪除的項目：
+            //    - 使用者明確刪除的項目 (deletedItemIds)
+            //    - DB 中存在但不在本地列表中的孤兒項目（修復歷史髒資料）
+            const currentItemIds = new Set(items.map(i => i.id))
+            const orphanIds = originalItems
+                .filter(o => !currentItemIds.has(o.id) && !deletedItemIds.has(o.id))
+                .map(o => o.id)
+            const allDeleteIds = [...Array.from(deletedItemIds), ...orphanIds]
+
+            if (allDeleteIds.length > 0) {
+                const { error: deleteError } = await supabase
                     .from('quotation_items')
                     .delete()
-                    .in('id', Array.from(deletedItemIds))
-                if (error) throw error
+                    .in('id', allDeleteIds)
+                if (deleteError) throw new Error(`刪除項目失敗: ${deleteError.message}`)
             }
 
-            // 2. 執行新增與更新
+            // 2. 執行新增與更新（upsert 保留原有 ID，避免破壞 payment_requests 關聯）
             const itemsToUpsert = items.map(item => {
                 // 移除 created_at，讓資料庫處理 (新增時 default now()，更新時不變)
                 // 移除 payment_requests，這是關聯資料，不能寫入

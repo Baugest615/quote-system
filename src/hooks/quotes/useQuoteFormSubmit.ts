@@ -197,7 +197,9 @@ export function useQuoteFormSubmit({
         quoteId = newQuote.id
       }
 
-      await supabase.from('quotation_items').delete().eq('quotation_id', quoteId)
+      const { error: deleteError } = await supabase.from('quotation_items').delete().eq('quotation_id', quoteId)
+      if (deleteError) throw new Error(`清除舊項目失敗: ${deleteError.message}`)
+
       const itemsToInsert = resolvedItems
         .filter(item => item.service || item.price)
         .map(item => ({
