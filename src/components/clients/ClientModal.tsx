@@ -156,7 +156,7 @@ export function ClientModal({ isOpen, onClose, onSave, client }: ClientModalProp
         if (typeof client.contacts === 'string') {
           contacts = JSON.parse(client.contacts)
         } else if (Array.isArray(client.contacts)) {
-          contacts = client.contacts as Contact[]
+          contacts = client.contacts as unknown as Contact[]
         }
       }
 

@@ -62,7 +62,7 @@ export default function ViewQuotePage() {
   const params = useParams();
   const router = useRouter();
   const id = params.id as string;
-  const { hasRole } = usePermission();
+  const { userId, hasRole } = usePermission();
   const { data: quote, isLoading: loading } = useQuotation(id);
   const deleteQuotation = useDeleteQuotation();
   const [isProcessing, setIsProcessing] = useState(false);
@@ -348,9 +348,11 @@ export default function ViewQuotePage() {
           <Button onClick={handleExportPDF} disabled={isProcessing}>
             <Printer className="mr-2 h-4 w-4" /> {isProcessing ? '處理中...' : '匯出 PDF'}
           </Button>
-          <Button variant="destructive" onClick={handleDelete} disabled={isProcessing}>
-            <Trash2 className="mr-2 h-4 w-4" /> 刪除
-          </Button>
+          {(hasRole('Editor') || ((quote as any)?.created_by != null && (quote as any)?.created_by === userId)) && (
+            <Button variant="destructive" onClick={handleDelete} disabled={isProcessing}>
+              <Trash2 className="mr-2 h-4 w-4" /> 刪除
+            </Button>
+          )}
         </div>
       </div>
 

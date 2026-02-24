@@ -140,7 +140,9 @@ export function QuotationItemsList({ quotationId, onUpdate }: QuotationItemsList
             category: null,
             kol_id: null,
             created_at: new Date().toISOString(),
-            remark: null
+            created_by: null,
+            remark: null,
+            remittance_name: null,
         }
         setItems(prev => [...prev, newItem])
     }
@@ -283,7 +285,7 @@ export function QuotationItemsList({ quotationId, onUpdate }: QuotationItemsList
             }
 
             // 3. 計算並更新報價單總金額
-            const subtotalUntaxed = items.reduce((acc, item) => acc + (item.price * item.quantity), 0)
+            const subtotalUntaxed = items.reduce((acc, item) => acc + (item.price * (item.quantity ?? 1)), 0)
             const tax = Math.round(subtotalUntaxed * 0.05)
             const grandTotalTaxed = subtotalUntaxed + tax
 
@@ -359,7 +361,9 @@ export function QuotationItemsList({ quotationId, onUpdate }: QuotationItemsList
                 price,
                 cost,
                 created_at: new Date().toISOString(),
-                remark: null
+                created_by: null,
+                remark: null,
+                remittance_name: null,
             })
         })
 
@@ -428,8 +432,8 @@ export function QuotationItemsList({ quotationId, onUpdate }: QuotationItemsList
                     bVal = b.service || ''
                     break
                 case 'quantity':
-                    aVal = a.quantity
-                    bVal = b.quantity
+                    aVal = a.quantity ?? 0
+                    bVal = b.quantity ?? 0
                     break
                 case 'price':
                     aVal = a.price
@@ -440,8 +444,8 @@ export function QuotationItemsList({ quotationId, onUpdate }: QuotationItemsList
                     bVal = b.cost ?? 0
                     break
                 case 'subtotal':
-                    aVal = a.quantity * a.price
-                    bVal = b.quantity * b.price
+                    aVal = (a.quantity ?? 0) * a.price
+                    bVal = (b.quantity ?? 0) * b.price
                     break
             }
 
@@ -629,7 +633,7 @@ export function QuotationItemsList({ quotationId, onUpdate }: QuotationItemsList
                                         />
                                     </td>
                                     <td className="px-3 py-2 text-right font-medium text-foreground/70">
-                                        {(item.quantity * item.price).toLocaleString()}
+                                        {((item.quantity ?? 0) * item.price).toLocaleString()}
                                     </td>
                                     <td className="px-1 py-1 text-center">
                                         <Button

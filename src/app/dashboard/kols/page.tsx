@@ -8,6 +8,7 @@ import { KolModal, type KolFormData } from '@/components/kols/KolModal'
 import { PlusCircle, Edit, Trash2, Facebook, Instagram, Youtube, Twitch, Twitter, Link as LinkIcon, Search, ChevronDown, ChevronRight, RefreshCw } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
+import { usePermission } from '@/lib/permissions'
 import { runInitialKolPriceSync } from '@/lib/kol/sync-kol-prices'
 import { SkeletonPageHeader, SkeletonTable } from '@/components/ui/Skeleton'
 import { useKols, type KolWithServices } from '@/hooks/useKols'
@@ -20,6 +21,7 @@ const PAGE_SIZE = 20
 
 export default function KolsPage() {
   const queryClient = useQueryClient()
+  const { userId, hasRole } = usePermission()
   const { data: kols = [], isLoading: kolsLoading } = useKols()
   const { data: kolTypes = [], isLoading: typesLoading } = useKolTypes()
   const { data: serviceTypes = [], isLoading: servicesLoading } = useServiceTypes()
@@ -307,9 +309,11 @@ export default function KolsPage() {
                       <Button variant="outline" size="sm" onClick={() => handleOpenModal(kol)}>
                         <Edit className="mr-1 h-3 w-3" /> 編輯
                       </Button>
-                      <Button variant="destructive" size="sm" onClick={() => handleDeleteKol(kol.id)}>
-                        <Trash2 className="mr-1 h-3 w-3" /> 刪除
-                      </Button>
+                      {(hasRole('Editor') || ((kol as any).created_by != null && (kol as any).created_by === userId)) && (
+                        <Button variant="destructive" size="sm" onClick={() => handleDeleteKol(kol.id)}>
+                          <Trash2 className="mr-1 h-3 w-3" /> 刪除
+                        </Button>
+                      )}
                     </td>
                   </tr>
 

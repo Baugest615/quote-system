@@ -11,6 +11,7 @@ import { QuotationItemsList } from './QuotationItemsList'
 import { FileModal } from '@/components/quotes/FileModal'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
+import { usePermission } from '@/lib/permissions'
 import { handleQuotationAccountingSync } from '@/lib/accounting/sync-quote-accounting'
 import { handleKolPriceSync } from '@/lib/kol/sync-kol-prices'
 import { EmptyState } from '@/components/ui/EmptyState'
@@ -24,6 +25,7 @@ interface QuotesDataGridProps {
 
 export function QuotesDataGrid({ data, clients, onRefresh }: QuotesDataGridProps) {
     const router = useRouter()
+    const { userId, hasRole } = usePermission()
     const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set())
 
     // 檔案上傳 Modal 狀態
@@ -224,15 +226,17 @@ export function QuotesDataGrid({ data, clients, onRefresh }: QuotesDataGridProps
                                     >
                                         <ExternalLink className="h-4 w-4 text-info" />
                                     </Button>
-                                    <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        className="h-8 w-8 p-0"
-                                        onClick={() => handleDelete(quote.id)}
-                                        title="刪除"
-                                    >
-                                        <Trash2 className="h-4 w-4 text-destructive" />
-                                    </Button>
+                                    {(hasRole('Editor') || ((quote as any).created_by != null && (quote as any).created_by === userId)) && (
+                                        <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            className="h-8 w-8 p-0"
+                                            onClick={() => handleDelete(quote.id)}
+                                            title="刪除"
+                                        >
+                                            <Trash2 className="h-4 w-4 text-destructive" />
+                                        </Button>
+                                    )}
                                 </div>
                             </div>
 

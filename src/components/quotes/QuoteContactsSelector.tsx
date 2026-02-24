@@ -359,7 +359,7 @@ export function useClientsWithContacts() {
               if (typeof client.contacts === 'string') {
                 parsedContacts = JSON.parse(client.contacts)
               } else if (Array.isArray(client.contacts)) {
-                parsedContacts = client.contacts as Contact[]
+                parsedContacts = client.contacts as unknown as Contact[]
               }
             }
           } catch (error) {

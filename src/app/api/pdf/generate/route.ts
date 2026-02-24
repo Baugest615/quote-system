@@ -105,8 +105,25 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: '缺少 HTML 內容' }, { status: 400 });
         }
 
+        // HTML sanitization — 移除危險標籤與屬性
+        const dangerousPatterns = [
+            /<script[\s>]/gi,
+            /<\/script>/gi,
+            /<iframe[\s>]/gi,
+            /<\/iframe>/gi,
+            /<object[\s>]/gi,
+            /<\/object>/gi,
+            /<embed[\s>]/gi,
+            /javascript\s*:/gi,
+            /on\w+\s*=/gi,
+        ];
+        let sanitizedHtml = html;
+        for (const pattern of dangerousPatterns) {
+            sanitizedHtml = sanitizedHtml.replace(pattern, '<!-- removed -->');
+        }
+
         console.log(`[PDF API] Received HTML length: ${html.length}`);
-        console.log(`[PDF API] HTML Preview: ${html.substring(0, 200)}...`);
+        console.log(`[PDF API] HTML Preview: ${sanitizedHtml.substring(0, 200)}...`);
 
         // 啟動瀏覽器
         browser = await getBrowser();
@@ -115,9 +132,9 @@ export async function POST(request: NextRequest) {
         // 設定視窗大小為 A4
         await page.setViewport({ width: 794, height: 1123, deviceScaleFactor: 2 });
 
-        // 直接設定 HTML 內容 (HTML Injection)
+        // 設定已清理的 HTML 內容
         // 改用 domcontentloaded 避免因圖片加載緩慢而超時
-        await page.setContent(html, {
+        await page.setContent(sanitizedHtml, {
             waitUntil: 'domcontentloaded',
             timeout: 60000,
         });

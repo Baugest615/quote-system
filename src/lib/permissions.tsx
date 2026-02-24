@@ -49,10 +49,14 @@ export function getAllowedPages(userRole: UserRole): PageConfig[] {
 export function hasRole(requiredRole: UserRole, userRole?: UserRole): boolean {
   if (!userRole) return false
 
-  // 使用大寫版本匹配您的資料庫
+  // 角色階層 — 小寫 'admin'/'member' 和 'Reader' 是 DB enum 歷史遺留值，
+  // 已透過 get_my_role() 正規化為大寫，實際不會出現，但 Record<UserRole> 要求完整列出
   const roleHierarchy: Record<UserRole, number> = {
+    'Reader': 0,
+    'member': 1,
     'Member': 1,
     'Editor': 2,
+    'admin': 3,
     'Admin': 3,
   }
 
@@ -63,10 +67,14 @@ export function hasRole(requiredRole: UserRole, userRole?: UserRole): boolean {
  * 取得角色的中文顯示名稱
  */
 export function getRoleDisplayName(role: UserRole): string {
+  // 小寫值為 DB enum 歷史遺留，實際已全部正規化為大寫
   const roleNames: Record<UserRole, string> = {
+    'admin': '管理員',
     'Admin': '管理員',
     'Editor': '編輯者',
+    'member': '成員',
     'Member': '成員',
+    'Reader': '唯讀',
   }
 
   return roleNames[role] || '未知角色'
@@ -111,15 +119,13 @@ export function PermissionProvider({ children }: { children: React.ReactNode }) 
         }
 
         const { data: profile, error: profileError } = await supabase
-          .from('profiles')
-          .select('role')
-          .eq('id', user.id)
-          .single()
+          .rpc('get_my_profile')
+          .single() as { data: { role: UserRole; user_id: string } | null; error: any }
 
         if (profileError) throw profileError
 
         setState({
-          userRole: profile?.role || null,
+          userRole: (profile as any)?.role || null,
           userId: user.id,
           loading: false,
           error: null,

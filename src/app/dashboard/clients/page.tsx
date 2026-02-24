@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input'
 import { ClientModal, type ClientFormData } from '@/components/clients/ClientModal'
 import { PlusCircle, Edit, Trash2, Search, Users, Mail, Phone, Star } from 'lucide-react'
 import { toast } from 'sonner'
+import { usePermission } from '@/lib/permissions'
 import { SkeletonPageHeader, SkeletonStatCards, SkeletonTable } from '@/components/ui/Skeleton'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { useClients } from '@/hooks/useClients'
@@ -36,6 +37,7 @@ type ClientWithContacts = Client & {
 
 export default function ClientsPage() {
   const queryClient = useQueryClient()
+  const { userId, hasRole } = usePermission()
   const { data: rawClients = [], isLoading: loading } = useClients()
   const [searchTerm, setSearchTerm] = useState('')
   const [currentPage, setCurrentPage] = useState(1)
@@ -55,7 +57,7 @@ export default function ClientsPage() {
           if (typeof client.contacts === 'string') {
             parsedContacts = JSON.parse(client.contacts)
           } else if (Array.isArray(client.contacts)) {
-            parsedContacts = client.contacts as Contact[]
+            parsedContacts = client.contacts as unknown as Contact[]
           }
         }
       } catch (err) {
@@ -334,15 +336,17 @@ export default function ClientsPage() {
                       >
                         <Edit className="h-3 w-3" />
                       </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleDeleteClient(client.id)}
-                        className="text-destructive hover:text-destructive/80 border-border"
-                        title="刪除客戶"
-                      >
-                        <Trash2 className="h-3 w-3" />
-                      </Button>
+                      {(hasRole('Editor') || ((client as any).created_by != null && (client as any).created_by === userId)) && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleDeleteClient(client.id)}
+                          className="text-destructive hover:text-destructive/80 border-border"
+                          title="刪除客戶"
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </Button>
+                      )}
                     </div>
                   </td>
                 </tr>

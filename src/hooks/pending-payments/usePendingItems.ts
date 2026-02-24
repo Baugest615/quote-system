@@ -61,6 +61,7 @@ async function fetchPendingItemsData(): Promise<PendingPaymentItem[]> {
         const expenseDefaults = getDefaultExpenseByBankType(item.kols);
         processedItems.push({
             ...(item as QuotationItemWithDetails),
+            quantity: item.quantity ?? 1,
             quotations: item.quotations ? JSON.parse(JSON.stringify(item.quotations)) : null,
             kols: item.kols ? JSON.parse(JSON.stringify(item.kols)) : null,
             merge_type: null,
@@ -92,6 +93,7 @@ async function fetchPendingItemsData(): Promise<PendingPaymentItem[]> {
             const rejDefaults = getDefaultExpenseByBankType(req.quotation_items.kols);
             processedItems.push({
                 ...(req.quotation_items as QuotationItemWithDetails),
+                quantity: req.quotation_items.quantity ?? 1,
                 payment_request_id: req.id,
                 rejection_reason: req.rejection_reason,
                 attachments: req.attachment_file_path ? JSON.parse(req.attachment_file_path) : [],

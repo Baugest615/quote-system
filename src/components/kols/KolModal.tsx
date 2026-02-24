@@ -122,12 +122,12 @@ export function KolModal({ isOpen, onClose, onSave, kol, kolTypes, serviceTypes 
           withholding_exempt_reason: kol.withholding_exempt_reason ?? null,
           services: kol.kol_services.length > 0
             ? kol.kol_services.map(s => ({
-                service_type_id: s.service_type_id,
+                service_type_id: s.service_type_id ?? undefined,
                 service_type_name: s.service_types?.name || '',
-                is_new_service_type: false,
+                is_new_service_type: false as const,
                 price: s.price,
                 cost: s.cost,
-                last_quote_info: s.last_quote_info,
+                last_quote_info: s.last_quote_info ?? undefined,
               }))
             : [{ service_type_id: '', service_type_name: '', is_new_service_type: false, price: 0, cost: 0 }],
         })

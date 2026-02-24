@@ -135,6 +135,23 @@ export function FileModal({ isOpen, onClose, quote, onUpdate }: FileModalProps) 
 
     if (!file) return;
 
+    // MIME type 白名單驗證
+    const ALLOWED_MIMES = [
+      'application/pdf',
+      'application/msword',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      'application/vnd.ms-excel',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'image/jpeg', 'image/png', 'image/gif', 'image/webp',
+      'text/plain',
+    ];
+
+    if (file.type && !ALLOWED_MIMES.includes(file.type)) {
+      setUploadError(`不支援的檔案類型：${file.type}。僅接受 PDF、Word、Excel、圖片、純文字檔案。`);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+      return;
+    }
+
     if (file.size > 5 * 1024 * 1024) {
       setUploadError('檔案大小不可超過 5MB');
       if (fileInputRef.current) fileInputRef.current.value = "";
