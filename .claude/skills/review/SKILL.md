@@ -36,6 +36,14 @@ agent: Explore
 - 存取控制與權限驗證是否完整
 - 輸入驗證是否充分
 
+### 🔐 Supabase RLS 安全（quote-system 專用）
+- 新增/修改的資料表是否啟用 RLS
+- RLS 政策是否遵循 CLAUDE.md 中的模板（`{table}_{operation}_{scope}_policy`）
+- 是否使用 `get_my_role()` 而非直接查詢 profiles 表（避免 RLS 無限遞迴）
+- 權限分級是否正確（Admin/Editor/Member）
+- search_path 是否設為 `''` 防止劫持
+- JSONB 欄位（bank_info）是否使用 camelCase keys
+
 ### 🧹 可維護性
 - 程式碼是否過於複雜（建議簡化）
 - 重複程式碼是否需要抽象化

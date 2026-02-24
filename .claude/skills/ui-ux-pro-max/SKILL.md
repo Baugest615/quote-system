@@ -7,6 +7,19 @@ description: "UI/UX design intelligence. 50 styles, 21 palettes, 50 font pairing
 
 Comprehensive design guide for web and mobile applications. Contains 50+ styles, 97 color palettes, 57 font pairings, 99 UX guidelines, and 25 chart types across 9 technology stacks. Searchable database with priority-based recommendations.
 
+## quote-system 專案覆蓋規則（優先於以下通用規則）
+
+- **深色模式唯一**：所有設計建議僅限暗色模式，忽略 Light/Dark Mode 切換建議
+- **主題系統**：使用 CSS 變數（`bg-card`、`text-foreground`、`text-muted-foreground`），勿使用硬編碼色碼
+- **語義色彩**：`primary`、`destructive`、`warning`、`success`、`info`
+- **KPI 卡片色彩**：`chart-1`（綠）、`chart-3`（紅）、`chart-4`（藍）、`chart-5`（紫）
+- **UI 元件庫**：一律使用 shadcn/ui（`src/components/ui/`）
+- **圖標**：Lucide React
+- **載入狀態**：`Skeleton` 元件
+- **空狀態**：`EmptyState` 元件
+- **Pre-Delivery Checklist 覆蓋**：移除「Light mode text contrast」等淺色模式相關檢查
+- **PDF/列印元件例外**：`src/components/pdf/` 和 `src/app/print/` 故意使用淺色，**勿修改**
+
 ## When to Apply
 
 Reference these guidelines when:
