@@ -19,12 +19,14 @@ import { usePaymentFilters } from '@/hooks/payments/usePaymentFilters'
 import { usePaymentActions } from '@/hooks/payments/usePaymentActions'
 
 // Components
-import { LoadingState, EmptyState } from '@/components/payments/shared'
+import { LoadingState } from '@/components/payments/shared'
+import { EmptyState } from '@/components/ui/EmptyState'
 import { RequestItemRow, ApprovalControls } from '@/components/payments/requests'
 import type { PaymentRequestItem } from '@/lib/payments/types'
 import type { ExpenseClaim } from '@/types/custom.types'
 import { CLAIM_STATUS_LABELS, CLAIM_STATUS_COLORS } from '@/types/custom.types'
 import { ModuleErrorBoundary } from '@/components/ModuleErrorBoundary'
+import { useConfirm } from '@/components/ui/ConfirmDialog'
 
 type TabType = 'project' | 'personal'
 
@@ -110,6 +112,7 @@ const FileViewerModal = ({ isOpen, onClose, request }: {
 }
 
 export default function PaymentRequestsPage() {
+  const confirm = useConfirm()
   const { loading: permLoading, checkPageAccess } = usePermission()
   const hasAccess = checkPageAccess('payment_requests')
 
@@ -254,7 +257,12 @@ export default function PaymentRequestsPage() {
 
   // 專案請款操作
   const handleApprove = async (item: PaymentRequestItem, overrideExpenseType?: string, overrideSubject?: string) => {
-    if (!confirm(`確定要核准 "${item.quotations?.project_name} - ${item.service}" 的請款申請嗎？`)) return
+    const ok = await confirm({
+      title: '確認核准',
+      description: `確定要核准 "${item.quotations?.project_name} - ${item.service}" 的請款申請嗎？`,
+      confirmLabel: '核准',
+    })
+    if (!ok) return
     try {
       const { error } = await supabase.rpc('approve_payment_request', {
         request_id: item.payment_request_id,
@@ -294,7 +302,12 @@ export default function PaymentRequestsPage() {
   }
 
   const handleBatchApprove = async () => {
-    if (!confirm(`確定要核准選中的 ${selectedItems.size} 筆申請嗎？`)) return
+    const ok = await confirm({
+      title: '確認批量核准',
+      description: `確定要核准選中的 ${selectedItems.size} 筆申請嗎？`,
+      confirmLabel: '批量核准',
+    })
+    if (!ok) return
     await handleBatchAction(
       async (items) => {
         const user = (await supabase.auth.getUser()).data.user
@@ -350,7 +363,12 @@ export default function PaymentRequestsPage() {
 
   // 個人報帳操作
   const handleClaimApprove = async (claim: ExpenseClaim) => {
-    if (!confirm(`確定要核准「${claim.vendor_name || claim.expense_type} - NT$ ${fmt(claim.total_amount)}」的報帳申請嗎？`)) return
+    const ok = await confirm({
+      title: '確認核准',
+      description: `確定要核准「${claim.vendor_name || claim.expense_type} - NT$ ${fmt(claim.total_amount)}」的報帳申請嗎？`,
+      confirmLabel: '核准',
+    })
+    if (!ok) return
     try {
       const { error } = await supabase.rpc('approve_expense_claim', {
         claim_id: claim.id,
@@ -385,7 +403,12 @@ export default function PaymentRequestsPage() {
 
   const handleClaimBatchApprove = async () => {
     if (selectedClaimIds.size === 0) return
-    if (!confirm(`確定要核准選中的 ${selectedClaimIds.size} 筆個人報帳嗎？`)) return
+    const ok = await confirm({
+      title: '確認批量核准',
+      description: `確定要核准選中的 ${selectedClaimIds.size} 筆個人報帳嗎？`,
+      confirmLabel: '批量核准',
+    })
+    if (!ok) return
     setClaimProcessing(true)
     try {
       const user = (await supabase.auth.getUser()).data.user

@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import type { PaymentConfirmation } from '@/lib/payments/types'
 import type { WithholdingSettings } from '@/types/custom.types'
-import { EmptyState } from '@/components/payments/shared'
+import { EmptyState } from '@/components/ui/EmptyState'
 import { ConfirmationRow } from '../ConfirmationRow'
 
 interface ConfirmationHistoryTabProps {

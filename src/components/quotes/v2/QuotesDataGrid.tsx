@@ -12,6 +12,7 @@ import { FileModal } from '@/components/quotes/FileModal'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import { usePermission } from '@/lib/permissions'
+import { useConfirm } from '@/components/ui/ConfirmDialog'
 import { handleQuotationAccountingSync } from '@/lib/accounting/sync-quote-accounting'
 import { handleKolPriceSync } from '@/lib/kol/sync-kol-prices'
 import { EmptyState } from '@/components/ui/EmptyState'
@@ -26,6 +27,7 @@ interface QuotesDataGridProps {
 export function QuotesDataGrid({ data, clients, onRefresh }: QuotesDataGridProps) {
     const router = useRouter()
     const { userId, hasRole } = usePermission()
+    const confirm = useConfirm()
     const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set())
 
     // 檔案上傳 Modal 狀態
@@ -97,7 +99,13 @@ export function QuotesDataGrid({ data, clients, onRefresh }: QuotesDataGridProps
 
     // 刪除報價單
     const handleDelete = async (id: string) => {
-        if (!confirm('確定要刪除此報價單嗎？')) return
+        const ok = await confirm({
+            title: '確認刪除',
+            description: '確定要刪除此報價單嗎？',
+            confirmLabel: '刪除',
+            variant: 'destructive',
+        })
+        if (!ok) return
 
         const { error } = await supabase
             .from('quotations')
@@ -226,7 +234,7 @@ export function QuotesDataGrid({ data, clients, onRefresh }: QuotesDataGridProps
                                     >
                                         <ExternalLink className="h-4 w-4 text-info" />
                                     </Button>
-                                    {(hasRole('Editor') || ((quote as any).created_by != null && (quote as any).created_by === userId)) && (
+                                    {(hasRole('Editor') || (quote.created_by != null && quote.created_by === userId)) && (
                                         <Button
                                             variant="ghost"
                                             size="sm"

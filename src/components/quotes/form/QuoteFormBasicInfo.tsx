@@ -7,6 +7,7 @@ import { Controller } from 'react-hook-form'
 import { Input } from '@/components/ui/input'
 import { AutocompleteWithCreate } from '@/components/ui/AutocompleteWithCreate'
 import { FileSignature } from 'lucide-react'
+import { toast } from 'sonner'
 import type { QuoteFormBasicInfoProps, QuotationStatus } from './types'
 
 export function QuoteFormBasicInfo({ form, formData, initialData }: QuoteFormBasicInfoProps) {
@@ -35,7 +36,7 @@ export function QuoteFormBasicInfo({ form, formData, initialData }: QuoteFormBas
   const hasAttachment = (attachments: any): boolean => attachments && Array.isArray(attachments) && attachments.length > 0
   const handleStatusChange = (newStatus: QuotationStatus) => {
     if (newStatus === '已簽約' && !hasAttachment(initialData?.attachments)) {
-      alert('請上傳雙方用印的委刊報價單')
+      toast.error('請上傳雙方用印的委刊報價單')
       return
     }
     setValue('status', newStatus)

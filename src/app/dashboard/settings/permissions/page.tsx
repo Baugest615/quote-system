@@ -24,6 +24,7 @@ import {
   Link2,
   Unlink,
 } from 'lucide-react'
+import { useConfirm } from '@/components/ui/ConfirmDialog'
 
 interface UserProfile {
   id: string
@@ -51,6 +52,7 @@ type RoleFilter = 'all' | UserRole
 type LinkFilter = 'all' | 'linked' | 'unlinked'
 
 export default function UserManagementPage() {
+  const confirm = useConfirm()
   const { hasRole, userId: currentUserId, loading: permLoading } = usePermission()
   const queryClient = useQueryClient()
   const [searchTerm, setSearchTerm] = useState('')
@@ -180,7 +182,7 @@ export default function UserManagementPage() {
     }
   }
 
-  const handleDelete = (user: UserWithEmployee) => {
+  const handleDelete = async (user: UserWithEmployee) => {
     if (user.id === currentUserId) {
       toast.error('無法刪除自己的帳號')
       return
@@ -189,7 +191,13 @@ export default function UserManagementPage() {
       toast.error('無法刪除管理員帳號')
       return
     }
-    if (!confirm(`確定要刪除帳號 ${user.email} 嗎？此操作無法復原。`)) return
+    const ok = await confirm({
+      title: '確認刪除',
+      description: `確定要刪除帳號 ${user.email} 嗎？此操作無法復原。`,
+      confirmLabel: '刪除',
+      variant: 'destructive',
+    })
+    if (!ok) return
     deleteMutation.mutate(user.id)
   }
 

@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import supabase from '@/lib/supabase/client'
 import { Database } from '@/types/database.types'
+import { QuotationItemWithPayments } from '@/types/custom.types'
 import { Button } from '@/components/ui/button'
 import { Plus, Trash2, Loader2, Save, XCircle, ClipboardPaste, ArrowUp, ArrowDown, ArrowUpDown } from 'lucide-react'
 import { EditableCell } from './EditableCell'
@@ -10,6 +11,7 @@ import { SearchableSelectCell } from './SearchableSelectCell'
 import { toast } from 'sonner'
 import { Modal } from '@/components/ui/modal'
 import { Textarea } from "@/components/ui/textarea"
+import { useConfirm } from '@/components/ui/ConfirmDialog'
 
 type QuotationItem = Database['public']['Tables']['quotation_items']['Row']
 type Kol = Database['public']['Tables']['kols']['Row']
@@ -25,10 +27,11 @@ interface QuotationItemsListProps {
 }
 
 export function QuotationItemsList({ quotationId, onUpdate }: QuotationItemsListProps) {
+    const confirm = useConfirm()
     // 原始資料 (用於取消還原)
-    const [originalItems, setOriginalItems] = useState<QuotationItem[]>([])
+    const [originalItems, setOriginalItems] = useState<QuotationItemWithPayments[]>([])
     // 本地編輯狀態
-    const [items, setItems] = useState<QuotationItem[]>([])
+    const [items, setItems] = useState<QuotationItemWithPayments[]>([])
     const [deletedItemIds, setDeletedItemIds] = useState<Set<string>>(new Set())
     const [loading, setLoading] = useState(true)
     const [isSaving, setIsSaving] = useState(false)
@@ -152,8 +155,7 @@ export function QuotationItemsList({ quotationId, onUpdate }: QuotationItemsList
         // 檢查是否有關聯的付款申請
         const item = items.find(i => i.id === id);
         if (item) {
-            // @ts-ignore - payment_requests is joined
-            const paymentRequests = item.payment_requests as any[];
+            const paymentRequests = item.payment_requests;
             if (paymentRequests && paymentRequests.length > 0) {
                 const hasActiveRequest = paymentRequests.some(pr => pr.verification_status !== 'rejected');
                 if (hasActiveRequest) {
@@ -242,7 +244,6 @@ export function QuotationItemsList({ quotationId, onUpdate }: QuotationItemsList
 
             // 1. 準備要保存的項目資料
             const itemsToSave = items.map(item => {
-                // @ts-ignore - payment_requests 是 join 的關聯資料
                 const { created_at, payment_requests, ...rest } = item
                 return {
                     ...rest,
@@ -318,8 +319,12 @@ export function QuotationItemsList({ quotationId, onUpdate }: QuotationItemsList
     }
 
     // 取消變更
-    const handleCancel = () => {
-        if (confirm('確定要放棄所有未儲存的變更嗎？')) {
+    const handleCancel = async () => {
+        const ok = await confirm({
+            title: '放棄變更',
+            description: '確定要放棄所有未儲存的變更嗎？',
+        })
+        if (ok) {
             setItems(originalItems)
             setDeletedItemIds(new Set())
         }
@@ -640,19 +645,16 @@ export function QuotationItemsList({ quotationId, onUpdate }: QuotationItemsList
                                             variant="ghost"
                                             size="sm"
                                             className={`h-6 w-6 p-0 ${
-                                                // @ts-ignore
-                                                item.payment_requests?.some((pr: any) => pr.verification_status !== 'rejected')
+                                                item.payment_requests?.some(pr => pr.verification_status !== 'rejected')
                                                     ? 'text-muted-foreground cursor-not-allowed'
                                                     : 'opacity-0 group-hover:opacity-100 text-destructive/70 hover:text-destructive'
                                                 }`}
                                             onClick={() => handleDeleteItem(item.id)}
                                             disabled={
-                                                // @ts-ignore
-                                                item.payment_requests?.some((pr: any) => pr.verification_status !== 'rejected')
+                                                item.payment_requests?.some(pr => pr.verification_status !== 'rejected')
                                             }
                                             title={
-                                                // @ts-ignore
-                                                item.payment_requests?.some((pr: any) => pr.verification_status !== 'rejected')
+                                                item.payment_requests?.some(pr => pr.verification_status !== 'rejected')
                                                     ? '此項目已有付款申請，無法刪除'
                                                     : '刪除項目'
                                             }

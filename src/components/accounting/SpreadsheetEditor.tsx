@@ -3,6 +3,7 @@
 import { useCallback, useRef } from 'react'
 import { Plus, Save, X, Undo2, Trash2, Table2, ClipboardList } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { useConfirm } from '@/components/ui/ConfirmDialog'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { SearchableSelectCell } from '@/components/quotes/v2/SearchableSelectCell'
 import type { SpreadsheetColumn, RowStatus, BatchSaveResult } from '@/lib/spreadsheet-utils'
@@ -77,12 +78,19 @@ export default function SpreadsheetEditor<T extends { id: string }>({
     handleSave,
   } = useSpreadsheetOperations({ columns, initialRows, year, emptyRow, onAutoCalc, onBatchSave })
 
+  const confirm = useConfirm()
   const containerRef = useRef<HTMLDivElement>(null)
 
-  const handleClose = useCallback(() => {
-    if (hasUnsaved && !confirm('試算表中有未儲存的變更，確定要離開嗎？')) return
+  const handleClose = useCallback(async () => {
+    if (hasUnsaved) {
+      const ok = await confirm({
+        title: '未儲存的變更',
+        description: '試算表中有未儲存的變更，確定要離開嗎？',
+      })
+      if (!ok) return
+    }
     onClose()
-  }, [hasUnsaved, onClose])
+  }, [hasUnsaved, onClose, confirm])
 
   const fmt = (n: unknown) => {
     const num = typeof n === 'number' ? n : 0

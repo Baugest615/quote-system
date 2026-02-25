@@ -4,6 +4,7 @@
 import { useState, useCallback } from 'react'
 import supabase from '@/lib/supabase/client'
 import { toast } from 'sonner'
+import { useConfirm } from '@/components/ui/ConfirmDialog'
 import {
     generateMergeGroupId,
     getMergeGroupItems
@@ -50,6 +51,7 @@ export function usePendingMerge<T extends {
 ): UsePendingMergeReturn<T> {
     const [selectedForMerge, setSelectedForMerge] = useState<string[]>([])
     const [selectedMergeType, setSelectedMergeType] = useState<'account' | null>(null)
+    const confirm = useConfirm()
 
     // 切換合併模式
     const handleMergeTypeChange = useCallback(() => {
@@ -77,7 +79,7 @@ export function usePendingMerge<T extends {
     }, [items, selectedForMerge, selectedMergeType])
 
     // 執行合併
-    const handleMerge = useCallback(() => {
+    const handleMerge = useCallback(async () => {
         const selectedItems = items.filter(item => selectedForMerge.includes(item.id))
 
         // 驗證
@@ -87,7 +89,8 @@ export function usePendingMerge<T extends {
             return
         }
 
-        if (!window.confirm(CONFIRM_MESSAGES.merge)) return
+        const ok = await confirm({ title: '確認合併', description: CONFIRM_MESSAGES.merge })
+        if (!ok) return
 
         // 生成群組ID和顏色
         const groupId = generateMergeGroupId()
@@ -115,12 +118,13 @@ export function usePendingMerge<T extends {
         setSelectedForMerge([])
         setSelectedMergeType(null)
         toast.success(`${SUCCESS_MESSAGES.merge}（${selectedForMerge.length} 筆資料）`)
-    }, [items, selectedForMerge, setItems])
+    }, [items, selectedForMerge, setItems, confirm])
 
     const handleUnmerge = useCallback(async (groupId: string) => {
         const groupItems = getMergeGroupItems(items as any[], groupId)
 
-        if (!window.confirm(CONFIRM_MESSAGES.unmerge(groupItems.length))) return
+        const ok = await confirm({ title: '確認解除合併', description: CONFIRM_MESSAGES.unmerge(groupItems.length) })
+        if (!ok) return
 
         const leaderItem = groupItems.find(item => item.is_merge_leader)
         if (!leaderItem) {
@@ -188,7 +192,7 @@ export function usePendingMerge<T extends {
         } catch (error: unknown) {
             toast.error("解除合併失敗: " + (error instanceof Error ? error.message : String(error)))
         }
-    }, [items, setItems])
+    }, [items, setItems, confirm])
 
     // 清除選擇
     const clearSelection = useCallback(() => {

@@ -216,6 +216,11 @@ export type QuotationWithItems = Database['public']['Tables']['quotations']['Row
   clients: Database['public']['Tables']['clients']['Row'] | null
 }
 
+// 帶有請款關聯的報價項目（用於 QuotationItemsList join 查詢結果）
+export type QuotationItemWithPayments = Database['public']['Tables']['quotation_items']['Row'] & {
+  payment_requests?: Database['public']['Tables']['payment_requests']['Row'][]
+}
+
 // 表單相關類型
 export interface FormValidationResult {
   isValid: boolean

@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { ChevronDown, PlusCircle, Edit, Trash2, Save, BookOpen } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { useConfirm } from '@/components/ui/ConfirmDialog'
 import {
   useServiceTypes,
   useQuoteCategories,
@@ -32,6 +33,7 @@ const DICT_SECTIONS: { key: DictTableName; title: string }[] = [
 ]
 
 export default function ReferenceDictCard() {
+  const confirm = useConfirm()
   const { data: serviceTypes = [] } = useServiceTypes()
   const { data: quoteCategories = [] } = useQuoteCategories()
   const { data: kolTypes = [] } = useKolTypes()
@@ -120,7 +122,13 @@ export default function ReferenceDictCard() {
   }
 
   const handleDelete = async (tableName: DictTableName, id: string) => {
-    if (window.confirm('確定要刪除這個項目嗎？')) {
+    const ok = await confirm({
+      title: '確認刪除',
+      description: '確定要刪除這個項目嗎？',
+      confirmLabel: '刪除',
+      variant: 'destructive',
+    })
+    if (ok) {
       await mutations[tableName].delete.mutateAsync(id)
     }
   }

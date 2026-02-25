@@ -17,6 +17,7 @@ import type { AccountingPayroll, Employee } from '@/types/custom.types'
 import type { SpreadsheetColumn, BatchSaveResult, RowError } from '@/lib/spreadsheet-utils'
 import { calculateInsurance, calculateNetSalary, calculateCompanyTotal, type InsuranceCalculation } from '@/lib/accounting/insurance-calculator'
 import { CURRENT_YEAR, MONTH_OPTIONS } from '@/lib/constants'
+import { useConfirm } from '@/components/ui/ConfirmDialog'
 
 const PAGE_SIZE = 20
 
@@ -48,6 +49,7 @@ const emptyForm = (): Partial<AccountingPayroll> => ({
 })
 
 export default function AccountingPayrollPage() {
+  const confirm = useConfirm()
   const { userRole, loading: permLoading, hasRole } = usePermission()
   const isAdmin = userRole === 'Admin'
   const queryClient = useQueryClient()
@@ -271,7 +273,13 @@ export default function AccountingPayrollPage() {
   }
 
   const handleDelete = async (id: string) => {
-    if (!confirm('確定要刪除這筆記錄嗎？')) return
+    const ok = await confirm({
+      title: '確認刪除',
+      description: '確定要刪除這筆記錄嗎？',
+      confirmLabel: '刪除',
+      variant: 'destructive',
+    })
+    if (!ok) return
     deleteMutation.mutate(id)
   }
 

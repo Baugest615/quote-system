@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useRef, useEffect, useMemo } from 'react'
 import { toast } from 'sonner'
+import { useConfirm } from '@/components/ui/ConfirmDialog'
 import type { SpreadsheetColumn, SpreadsheetRow, RowStatus, BatchSaveResult } from '@/lib/spreadsheet-utils'
 import { parseTSV } from '@/lib/spreadsheet-utils'
 
@@ -26,6 +27,8 @@ export function useSpreadsheetOperations<T extends { id: string }>({
   onAutoCalc,
   onBatchSave,
 }: UseSpreadsheetOperationsOptions<T>) {
+  const confirm = useConfirm()
+
   // ------ Row state ------
   const [rows, setRows] = useState<SpreadsheetRow<T>[]>(() =>
     initialRows.map(r => ({
@@ -126,8 +129,9 @@ export function useSpreadsheetOperations<T extends { id: string }>({
     ))
   }, [])
 
-  const discardAll = useCallback(() => {
-    if (!confirm('確定要放棄所有未儲存的變更嗎？')) return
+  const discardAll = useCallback(async () => {
+    const ok = await confirm({ title: '放棄變更', description: '確定要放棄所有未儲存的變更嗎？' })
+    if (!ok) return
     setRows(
       initialRows.map(r => ({
         tempId: r.id,
@@ -139,7 +143,7 @@ export function useSpreadsheetOperations<T extends { id: string }>({
     )
     setActiveCell(null)
     toast.info('已放棄所有變更')
-  }, [initialRows])
+  }, [initialRows, confirm])
 
   // ------ Paste handler ------
   const handlePaste = useCallback(

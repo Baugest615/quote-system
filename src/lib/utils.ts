@@ -1,9 +1,24 @@
 import { type ClassValue, clsx } from "clsx"
 import { twMerge } from "tailwind-merge"
-import { Contact } from '@/types/custom.types'  // 🆕 引入自定義類型
+import { toast } from 'sonner'
+import { Contact } from '@/types/custom.types'
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
+}
+
+/**
+ * 安全解析 Supabase JSONB 欄位為陣列
+ * 處理 Json[] | string | null 等各種可能的回傳型別
+ */
+export function parseJsonArray<T = Contact>(raw: unknown): T[] {
+  if (!raw) return []
+  if (Array.isArray(raw)) return raw as T[]
+  if (typeof raw === 'string') {
+    try { return JSON.parse(raw) as T[] }
+    catch { return [] }
+  }
+  return []
 }
 
 /**
@@ -50,8 +65,7 @@ export function formatDate(date: string | Date | null | undefined): string {
  */
 export function exportToCSV(data: Record<string, unknown>[], fileName: string) {
   if (!data || data.length === 0) {
-    // 使用 alert 或 toast 通知使用者
-    alert("No data to export");
+    toast.error('沒有資料可匯出');
     return;
   }
 

@@ -11,6 +11,7 @@ import { Database } from '@/types/database.types'
 import { useEffect, useState } from 'react'
 import { PlusCircle, Trash2, User, Building2, Star, StarOff } from 'lucide-react'
 import { toast } from 'sonner'
+import { parseJsonArray } from '@/lib/utils'
 
 type Client = Database['public']['Tables']['clients']['Row']
 
@@ -149,16 +150,7 @@ export function ClientModal({ isOpen, onClose, onSave, client }: ClientModalProp
     if (!client) return
 
     try {
-      // 安全解析 JSONB contacts 資料
-      let contacts: Contact[] = []
-
-      if (client.contacts) {
-        if (typeof client.contacts === 'string') {
-          contacts = JSON.parse(client.contacts)
-        } else if (Array.isArray(client.contacts)) {
-          contacts = client.contacts as unknown as Contact[]
-        }
-      }
+      let contacts = parseJsonArray<Contact>(client.contacts)
 
       // 如果沒有聯絡人，使用舊的單一聯絡人欄位建立預設聯絡人
       if (contacts.length === 0 && client.contact_person) {

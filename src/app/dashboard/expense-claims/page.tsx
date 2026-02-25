@@ -22,10 +22,12 @@ import {
   type ClaimStatus,
 } from '@/types/custom.types'
 import { CURRENT_YEAR } from '@/lib/constants'
+import { useConfirm } from '@/components/ui/ConfirmDialog'
 
 const PAGE_SIZE = 20
 
 export default function ExpenseClaimsPage() {
+  const confirm = useConfirm()
   const { userRole, loading: permLoading, checkPageAccess } = usePermission()
   const hasAccess = checkPageAccess('expense_claims')
   const queryClient = useQueryClient()
@@ -172,28 +174,44 @@ export default function ExpenseClaimsPage() {
     await saveMutation.mutateAsync({ data, id })
   }, [saveMutation])
 
-  const handleDelete = useCallback((id: string) => {
-    if (!confirm('確定要刪除此報帳項目嗎？')) return
+  const handleDelete = useCallback(async (id: string) => {
+    const ok = await confirm({
+      title: '確認刪除',
+      description: '確定要刪除此報帳項目嗎？',
+      confirmLabel: '刪除',
+      variant: 'destructive',
+    })
+    if (!ok) return
     deleteMutation.mutate(id)
-  }, [deleteMutation])
+  }, [deleteMutation, confirm])
 
-  const handleSubmitSelected = () => {
+  const handleSubmitSelected = async () => {
     const ids = Array.from(selectedIds).filter(id => submittableItems.some(item => item.id === id))
     if (ids.length === 0) {
       toast.error('請選擇要送出的項目')
       return
     }
-    if (!confirm(`確定要送出 ${ids.length} 筆報帳申請進行審核嗎？`)) return
+    const ok = await confirm({
+      title: '確認送出',
+      description: `確定要送出 ${ids.length} 筆報帳申請進行審核嗎？`,
+      confirmLabel: '送出',
+    })
+    if (!ok) return
     submitMutation.mutate(ids)
   }
 
-  const handleSubmitAll = () => {
+  const handleSubmitAll = async () => {
     const ids = submittableItems.map(item => item.id)
     if (ids.length === 0) {
       toast.error('沒有可送出的項目')
       return
     }
-    if (!confirm(`確定要送出全部 ${ids.length} 筆報帳申請進行審核嗎？`)) return
+    const ok = await confirm({
+      title: '確認送出',
+      description: `確定要送出全部 ${ids.length} 筆報帳申請進行審核嗎？`,
+      confirmLabel: '全部送出',
+    })
+    if (!ok) return
     submitMutation.mutate(ids)
   }
 

@@ -11,6 +11,7 @@ import { cn } from '@/lib/utils'
 import { usePermission } from '@/lib/permissions'
 import { runInitialKolPriceSync } from '@/lib/kol/sync-kol-prices'
 import { SkeletonPageHeader, SkeletonTable } from '@/components/ui/Skeleton'
+import { useConfirm } from '@/components/ui/ConfirmDialog'
 import { useKols, type KolWithServices } from '@/hooks/useKols'
 import { useKolTypes, useServiceTypes } from '@/hooks/useReferenceData'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
@@ -20,6 +21,7 @@ import Pagination from '@/components/ui/Pagination'
 const PAGE_SIZE = 20
 
 export default function KolsPage() {
+  const confirm = useConfirm()
   const queryClient = useQueryClient()
   const { userId, hasRole } = usePermission()
   const { data: kols = [], isLoading: kolsLoading } = useKols()
@@ -180,9 +182,14 @@ export default function KolsPage() {
   })
 
   const handleDeleteKol = async (id: string) => {
-    if (window.confirm('確定要刪除這筆 KOL/服務嗎？所有相關執行內容也會被刪除。')) {
-      deleteMutation.mutate(id)
-    }
+    const ok = await confirm({
+      title: '確認刪除',
+      description: '確定要刪除這筆 KOL/服務嗎？所有相關執行內容也會被刪除。',
+      confirmLabel: '刪除',
+      variant: 'destructive',
+    })
+    if (!ok) return
+    deleteMutation.mutate(id)
   }
 
   const toggleRow = (id: string) => {
@@ -196,7 +203,12 @@ export default function KolsPage() {
   }
 
   const handleInitialSync = async () => {
-    if (!confirm('此操作將根據所有歷史報價單的平均價格更新 KOL 服務定價。確定繼續嗎？')) return
+    const ok = await confirm({
+      title: '確認同步',
+      description: '此操作將根據所有歷史報價單的平均價格更新 KOL 服務定價。確定繼續嗎？',
+      confirmLabel: '確認同步',
+    })
+    if (!ok) return
     setIsSyncing(true)
     const result = await runInitialKolPriceSync()
     if (result.success) {
@@ -309,7 +321,7 @@ export default function KolsPage() {
                       <Button variant="outline" size="sm" onClick={() => handleOpenModal(kol)}>
                         <Edit className="mr-1 h-3 w-3" /> 編輯
                       </Button>
-                      {(hasRole('Editor') || ((kol as any).created_by != null && (kol as any).created_by === userId)) && (
+                      {(hasRole('Editor') || (kol.created_by != null && kol.created_by === userId)) && (
                         <Button variant="destructive" size="sm" onClick={() => handleDeleteKol(kol.id)}>
                           <Trash2 className="mr-1 h-3 w-3" /> 刪除
                         </Button>

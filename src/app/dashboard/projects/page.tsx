@@ -11,6 +11,7 @@ import { Input } from '@/components/ui/input'
 import { Plus, Search, MessageSquare, Flame, ClipboardList, CheckCircle2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
+import { useConfirm } from '@/components/ui/ConfirmDialog'
 import type { Project, ProjectStatus } from '@/types/custom.types'
 
 const TABS: { key: ProjectStatus; label: string; icon: typeof MessageSquare; color: string }[] = [
@@ -35,6 +36,7 @@ const TAB_ACTIVE_RING: Record<string, string> = {
 }
 
 export default function ProjectsPage() {
+  const confirm = useConfirm()
   const { data: projects, isLoading } = useProjects()
   const createProject = useCreateProject()
   const updateProject = useUpdateProject()
@@ -93,9 +95,15 @@ export default function ProjectsPage() {
   }, [editingProject, updateProject])
 
   const handleDelete = useCallback(async (project: Project) => {
-    if (!confirm(`確定要刪除「${project.project_name}」嗎？`)) return
+    const ok = await confirm({
+      title: '確認刪除',
+      description: `確定要刪除「${project.project_name}」嗎？`,
+      confirmLabel: '刪除',
+      variant: 'destructive',
+    })
+    if (!ok) return
     await deleteProject.mutateAsync(project.id)
-  }, [deleteProject])
+  }, [deleteProject, confirm])
 
   const handleStatusChange = useCallback(async (projectId: string, newStatus: ProjectStatus) => {
     await updateProject.mutateAsync({ id: projectId, data: { status: newStatus } })

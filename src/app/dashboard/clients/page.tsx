@@ -16,6 +16,8 @@ import { useClients } from '@/hooks/useClients'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { queryKeys } from '@/lib/queryKeys'
 import Pagination from '@/components/ui/Pagination'
+import { useConfirm } from '@/components/ui/ConfirmDialog'
+import { parseJsonArray } from '@/lib/utils'
 
 const PAGE_SIZE = 20
 
@@ -36,6 +38,7 @@ type ClientWithContacts = Client & {
 }
 
 export default function ClientsPage() {
+  const confirm = useConfirm()
   const queryClient = useQueryClient()
   const { userId, hasRole } = usePermission()
   const { data: rawClients = [], isLoading: loading } = useClients()
@@ -50,20 +53,7 @@ export default function ClientsPage() {
   // 解析 JSONB contacts 並排序（client-side 轉換，有快取時不會重複計算）
   const clients = useMemo(() => {
     return rawClients.map(client => {
-      let parsedContacts: Contact[] = []
-
-      try {
-        if (client.contacts) {
-          if (typeof client.contacts === 'string') {
-            parsedContacts = JSON.parse(client.contacts)
-          } else if (Array.isArray(client.contacts)) {
-            parsedContacts = client.contacts as unknown as Contact[]
-          }
-        }
-      } catch (err) {
-        console.error(`解析客戶 ${client.name} 的聯絡人資料失敗:`, err)
-        parsedContacts = []
-      }
+      let parsedContacts = parseJsonArray<Contact>(client.contacts)
 
       // 如果沒有聯絡人但有舊的單一聯絡人資料，建立相容性聯絡人
       if (parsedContacts.length === 0 && client.contact_person) {
@@ -172,9 +162,14 @@ export default function ClientsPage() {
   })
 
   const handleDeleteClient = async (id: string) => {
-    if (window.confirm('確定要刪除這位客戶嗎？此操作無法復原，同時會刪除所有相關聯絡人資料。')) {
-      await deleteMutation.mutateAsync(id)
-    }
+    const ok = await confirm({
+      title: '確認刪除',
+      description: '確定要刪除這位客戶嗎？此操作無法復原，同時會刪除所有相關聯絡人資料。',
+      confirmLabel: '刪除',
+      variant: 'destructive',
+    })
+    if (!ok) return
+    await deleteMutation.mutateAsync(id)
   }
 
   const getPrimaryContact = (contacts: Contact[]) => {
@@ -336,7 +331,7 @@ export default function ClientsPage() {
                       >
                         <Edit className="h-3 w-3" />
                       </Button>
-                      {(hasRole('Editor') || ((client as any).created_by != null && (client as any).created_by === userId)) && (
+                      {(hasRole('Editor') || (client.created_by != null && client.created_by === userId)) && (
                         <Button
                           variant="outline"
                           size="sm"

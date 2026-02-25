@@ -2,10 +2,12 @@
 
 import { useState, useRef } from 'react';
 import supabase from '@/lib/supabase/client';
+import { toast } from 'sonner';
 import { Modal } from '@/components/ui/modal';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Trash2, Link as LinkIcon, Eye, Download, ExternalLink } from 'lucide-react';
+import { useConfirm } from '@/components/ui/ConfirmDialog';
 
 interface Attachment {
   name: string;
@@ -22,6 +24,7 @@ interface FileModalProps {
 }
 
 export function FileModal({ isOpen, onClose, quote, onUpdate }: FileModalProps) {
+  const confirm = useConfirm();
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [downloadError, setDownloadError] = useState<string | null>(null);
@@ -228,7 +231,7 @@ export function FileModal({ isOpen, onClose, quote, onUpdate }: FileModalProps) 
       }
 
       console.log('File upload completed successfully');
-      alert('檔案已成功上傳！');
+      toast.success('檔案已成功上傳');
 
       // 關閉modal並更新父組件
       onClose();
@@ -252,46 +255,52 @@ export function FileModal({ isOpen, onClose, quote, onUpdate }: FileModalProps) 
   const handleFileDelete = async () => {
     if (!currentAttachment?.path) return;
 
-    if (window.confirm(`確定要刪除檔案 "${currentAttachment.name}" 嗎？`)) {
-      try {
-        console.log('Deleting file:', currentAttachment.path);
+    const ok = await confirm({
+      title: '確認刪除',
+      description: `確定要刪除檔案 "${currentAttachment.name}" 嗎？`,
+      confirmLabel: '刪除',
+      variant: 'destructive',
+    });
+    if (!ok) return;
 
-        // 從儲存空間刪除檔案
-        const { error: storageError } = await supabase.storage
-          .from('attachments')
-          .remove([currentAttachment.path]);
+    try {
+      console.log('Deleting file:', currentAttachment.path);
 
-        if (storageError) {
-          console.warn('從儲存空間刪除檔案失敗:', storageError.message);
-        }
+      // 從儲存空間刪除檔案
+      const { error: storageError } = await supabase.storage
+        .from('attachments')
+        .remove([currentAttachment.path]);
 
-        // 更新資料庫
-        const { error: dbError } = await supabase
-          .from('quotations')
-          .update({ attachments: [] })
-          .eq('id', quote.id);
-
-        if (dbError) {
-          console.error('Database update error:', dbError);
-          setUploadError('更新報價單資料失敗: ' + dbError.message);
-          return;
-        }
-
-        console.log('File deletion completed successfully');
-        alert('檔案已成功刪除！');
-
-        // 關閉modal並更新父組件
-        onClose();
-
-        // 延遲執行更新，避免狀態衝突
-        setTimeout(() => {
-          onUpdate();
-        }, 100);
-
-      } catch (error) {
-        console.error('Delete process error:', error);
-        setUploadError('刪除失敗: ' + (error instanceof Error ? error.message : '未知錯誤'));
+      if (storageError) {
+        console.warn('從儲存空間刪除檔案失敗:', storageError.message);
       }
+
+      // 更新資料庫
+      const { error: dbError } = await supabase
+        .from('quotations')
+        .update({ attachments: [] })
+        .eq('id', quote.id);
+
+      if (dbError) {
+        console.error('Database update error:', dbError);
+        setUploadError('更新報價單資料失敗: ' + dbError.message);
+        return;
+      }
+
+      console.log('File deletion completed successfully');
+      toast.success('檔案已成功刪除');
+
+      // 關閉modal並更新父組件
+      onClose();
+
+      // 延遲執行更新，避免狀態衝突
+      setTimeout(() => {
+        onUpdate();
+      }, 100);
+
+    } catch (error) {
+      console.error('Delete process error:', error);
+      setUploadError('刪除失敗: ' + (error instanceof Error ? error.message : '未知錯誤'));
     }
   };
 

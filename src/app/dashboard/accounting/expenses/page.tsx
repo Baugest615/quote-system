@@ -21,6 +21,7 @@ import { PaymentStatusBadge } from '@/components/accounting/monthly-settlement/P
 import type { SpreadsheetColumn, BatchSaveResult, RowError } from '@/lib/spreadsheet-utils'
 import { useProjectNames } from '@/hooks/useProjectNames'
 import { SearchableSelect } from '@/components/ui/SearchableSelect'
+import { useConfirm } from '@/components/ui/ConfirmDialog'
 
 const PAGE_SIZE = 20
 
@@ -54,6 +55,7 @@ const emptyForm = (): Partial<AccountingExpense> => ({
 })
 
 export default function AccountingExpensesPage() {
+  const confirm = useConfirm()
   const { userRole, loading: permLoading, hasRole } = usePermission()
   const isAdmin = userRole === 'Admin'
   const queryClient = useQueryClient()
@@ -205,7 +207,13 @@ export default function AccountingExpensesPage() {
   }
 
   const handleDelete = async (id: string) => {
-    if (!confirm('確定要刪除這筆記錄嗎？')) return
+    const ok = await confirm({
+      title: '確認刪除',
+      description: '確定要刪除這筆記錄嗎？',
+      confirmLabel: '刪除',
+      variant: 'destructive',
+    })
+    if (!ok) return
     deleteMutation.mutate(id)
   }
 

@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Trash2, Link as LinkIcon, Eye, Download, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
+import { useConfirm } from '@/components/ui/ConfirmDialog';
 import { PendingPaymentAttachment } from '@/lib/payments/types';
 
 interface PendingPaymentFileModalProps {
@@ -26,6 +27,7 @@ export function PendingPaymentFileModal({
   currentAttachments,
   onUpdate
 }: PendingPaymentFileModalProps) {
+  const confirm = useConfirm();
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [downloadError, setDownloadError] = useState<string | null>(null);
@@ -235,33 +237,39 @@ export function PendingPaymentFileModal({
 
   // 刪除檔案
   const handleFileDelete = async (attachment: PendingPaymentAttachment) => {
-    if (window.confirm(`確定要刪除檔案 "${attachment.name}" 嗎？`)) {
-      try {
-        console.log('Deleting file:', attachment.path);
+    const ok = await confirm({
+      title: '確認刪除',
+      description: `確定要刪除檔案 "${attachment.name}" 嗎？`,
+      confirmLabel: '刪除',
+      variant: 'destructive',
+    });
+    if (!ok) return;
 
-        // 從儲存空間刪除檔案
-        const { error: storageError } = await supabase.storage
-          .from('attachments')
-          .remove([attachment.path]);
+    try {
+      console.log('Deleting file:', attachment.path);
 
-        if (storageError) {
-          console.warn('從儲存空間刪除檔案失敗:', storageError.message);
-        }
+      // 從儲存空間刪除檔案
+      const { error: storageError } = await supabase.storage
+        .from('attachments')
+        .remove([attachment.path]);
 
-        // 從陣列中移除
-        const updatedAttachments = attachments.filter(a => a.path !== attachment.path);
-        setAttachments(updatedAttachments);
-
-        console.log('File deletion completed successfully');
-        toast.success('檔案已成功刪除！');
-
-        // 通知父組件更新
-        onUpdate(itemId, updatedAttachments);
-
-      } catch (error) {
-        console.error('Delete process error:', error);
-        setUploadError('刪除失敗: ' + (error instanceof Error ? error.message : '未知錯誤'));
+      if (storageError) {
+        console.warn('從儲存空間刪除檔案失敗:', storageError.message);
       }
+
+      // 從陣列中移除
+      const updatedAttachments = attachments.filter(a => a.path !== attachment.path);
+      setAttachments(updatedAttachments);
+
+      console.log('File deletion completed successfully');
+      toast.success('檔案已成功刪除！');
+
+      // 通知父組件更新
+      onUpdate(itemId, updatedAttachments);
+
+    } catch (error) {
+      console.error('Delete process error:', error);
+      setUploadError('刪除失敗: ' + (error instanceof Error ? error.message : '未知錯誤'));
     }
   };
 

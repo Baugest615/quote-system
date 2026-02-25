@@ -25,6 +25,7 @@ import { PaymentOverviewTab } from '@/components/payments/confirmed/tabs/Payment
 import { WithholdingTab } from '@/components/payments/confirmed/tabs/WithholdingTab'
 import { ConfirmationHistoryTab } from '@/components/payments/confirmed/tabs/ConfirmationHistoryTab'
 import { ModuleErrorBoundary } from '@/components/ModuleErrorBoundary'
+import { useConfirm } from '@/components/ui/ConfirmDialog'
 
 type TabKey = 'overview' | 'withholding' | 'history'
 
@@ -35,6 +36,7 @@ const TABS: { key: TabKey; label: string; icon: React.ReactNode }[] = [
 ]
 
 export default function ConfirmedPaymentsPage() {
+  const confirm = useConfirm()
   const { loading: permLoading, checkPageAccess } = usePermission()
   const hasAccess = checkPageAccess('confirmed_payments')
 
@@ -157,7 +159,12 @@ export default function ConfirmedPaymentsPage() {
       return
     }
 
-    if (!confirm('確定要將此清單中的 ' + itemsToRevert.length + ' 筆項目退回到「請款申請」頁面嗎？')) return
+    const ok = await confirm({
+      title: '確認退回',
+      description: '確定要將此清單中的 ' + itemsToRevert.length + ' 筆項目退回到「請款申請」頁面嗎？',
+      confirmLabel: '退回',
+    })
+    if (!ok) return
 
     try {
       const projectItems = itemsToRevert.filter(item => item.payment_request_id && item.source_type !== 'personal')

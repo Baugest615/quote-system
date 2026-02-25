@@ -5,6 +5,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { usePermission } from '@/lib/permissions'
 import supabase from '@/lib/supabase/client'
 import { toast } from 'sonner'
+import { useConfirm } from '@/components/ui/ConfirmDialog'
 import { CURRENT_YEAR } from '@/lib/constants'
 
 const PAGE_SIZE = 20
@@ -26,6 +27,7 @@ export function useAccountingTable<T extends { id: string }>({
   searchFields = [],
 }: UseAccountingTableOptions<T>) {
   const { userRole, loading: permLoading, hasRole } = usePermission()
+  const confirm = useConfirm()
   const isAdmin = userRole === 'Admin'
 
   const [year, setYear] = useState(CURRENT_YEAR)
@@ -134,7 +136,8 @@ export function useAccountingTable<T extends { id: string }>({
   }
 
   const handleDelete = async (id: string) => {
-    if (!confirm('確定要刪除這筆記錄嗎？')) return
+    const ok = await confirm({ title: '確認刪除', description: '確定要刪除這筆記錄嗎？', confirmLabel: '刪除', variant: 'destructive' })
+    if (!ok) return
     try {
       await deleteMutation.mutateAsync(id)
     } catch {

@@ -11,6 +11,7 @@ import AccountingLoadingGuard from '@/components/accounting/AccountingLoadingGua
 import AccountingModal from '@/components/accounting/AccountingModal'
 import Pagination from '@/components/accounting/Pagination'
 import Link from 'next/link'
+import { useConfirm } from '@/components/ui/ConfirmDialog'
 import type { InsuranceRateTable } from '@/types/custom.types'
 
 const PAGE_SIZE = 20
@@ -37,6 +38,7 @@ const emptyForm = (): Partial<InsuranceRateTable> => ({
 })
 
 export default function InsuranceRatesPage() {
+  const confirm = useConfirm()
   const { userRole, loading: permLoading, hasRole } = usePermission()
   const isAdmin = userRole === 'Admin'
   const queryClient = useQueryClient()
@@ -114,8 +116,14 @@ export default function InsuranceRatesPage() {
     saveMutation.mutate()
   }
 
-  const handleDelete = (id: string) => {
-    if (!confirm('確定要刪除這個費率嗎？此操作無法復原。')) return
+  const handleDelete = async (id: string) => {
+    const ok = await confirm({
+      title: '確認刪除',
+      description: '確定要刪除這個費率嗎？此操作無法復原。',
+      confirmLabel: '刪除',
+      variant: 'destructive',
+    })
+    if (!ok) return
     deleteMutation.mutate(id)
   }
 

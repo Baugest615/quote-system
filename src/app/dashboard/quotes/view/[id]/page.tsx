@@ -6,6 +6,7 @@ import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Database } from '@/types/database.types';
 import { Button } from '@/components/ui/button';
+import { toast } from 'sonner';
 import { Edit, Trash2, Printer, ArrowLeft, Stamp, UserCheck } from 'lucide-react';
 import { Modal } from '@/components/ui/modal';
 import { SealStampConfig, SealStampManager } from '@/components/pdf/SealStampManager';
@@ -14,6 +15,7 @@ import { QuotePrintableTable } from '@/components/pdf/QuotePrintableTable';
 import { usePermission } from '@/lib/permissions';
 import { Skeleton, SkeletonCard } from '@/components/ui/Skeleton';
 import { useQuotation, useDeleteQuotation } from '@/hooks/useQuotations';
+import { useConfirm } from '@/components/ui/ConfirmDialog';
 
 type Quotation = Database['public']['Tables']['quotations']['Row'];
 type QuotationItem = Database['public']['Tables']['quotation_items']['Row'];
@@ -59,6 +61,7 @@ const defaultElectronicSealConfig: SealStampConfig = {
 };
 
 export default function ViewQuotePage() {
+  const confirm = useConfirm();
   const params = useParams();
   const router = useRouter();
   const id = params.id as string;
@@ -133,13 +136,13 @@ export default function ViewQuotePage() {
     if (savedSealConfig) {
       try {
         setSealStampConfig(JSON.parse(savedSealConfig));
-      } catch (e) { console.warn("Failed to load seal stamp config.") }
+      } catch (e) { console.warn('載入印章設定失敗') }
     }
     const savedElectronicConfig = localStorage.getItem(`electronicSealConfig_${id}`);
     if (savedElectronicConfig) {
       try {
         setElectronicSealConfig(JSON.parse(savedElectronicConfig));
-      } catch (e) { console.warn("Failed to load electronic seal config.") }
+      } catch (e) { console.warn('載入電子印章設定失敗') }
     }
   }, [id]);
 
@@ -154,17 +157,22 @@ export default function ViewQuotePage() {
   }, [id]);
 
   const handleDelete = async () => {
-    if (window.confirm('確定要刪除這份報價單嗎？')) {
-      setIsProcessing(true);
-      deleteQuotation.mutate(id, {
-        onSuccess: () => {
-          router.push('/dashboard/quotes');
-        },
-        onSettled: () => {
-          setIsProcessing(false);
-        },
-      });
-    }
+    const ok = await confirm({
+      title: '確認刪除',
+      description: '確定要刪除這份報價單嗎？',
+      confirmLabel: '刪除',
+      variant: 'destructive',
+    });
+    if (!ok) return;
+    setIsProcessing(true);
+    deleteQuotation.mutate(id, {
+      onSuccess: () => {
+        router.push('/dashboard/quotes');
+      },
+      onSettled: () => {
+        setIsProcessing(false);
+      },
+    });
   };
 
   const handleExportPDF = async () => {
@@ -272,7 +280,7 @@ export default function ViewQuotePage() {
 
     } catch (error: unknown) {
       console.error('PDF 匯出錯誤:', error);
-      alert('PDF 生成失敗：' + (error instanceof Error ? error.message : String(error)));
+      toast.error('PDF 生成失敗：' + (error instanceof Error ? error.message : String(error)));
     } finally {
       setIsProcessing(false);
     }
@@ -348,7 +356,7 @@ export default function ViewQuotePage() {
           <Button onClick={handleExportPDF} disabled={isProcessing}>
             <Printer className="mr-2 h-4 w-4" /> {isProcessing ? '處理中...' : '匯出 PDF'}
           </Button>
-          {(hasRole('Editor') || ((quote as any)?.created_by != null && (quote as any)?.created_by === userId)) && (
+          {(hasRole('Editor') || (quote?.created_by != null && quote?.created_by === userId)) && (
             <Button variant="destructive" onClick={handleDelete} disabled={isProcessing}>
               <Trash2 className="mr-2 h-4 w-4" /> 刪除
             </Button>

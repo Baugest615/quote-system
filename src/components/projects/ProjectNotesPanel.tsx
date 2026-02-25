@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Send, Trash2, Loader2, MessageSquare } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { useConfirm } from '@/components/ui/ConfirmDialog'
 
 interface ProjectNotesPanelProps {
   projectId: string
@@ -29,6 +30,7 @@ function getAuthorDisplayName(email: string): string {
 }
 
 export function ProjectNotesPanel({ projectId, isAdmin, currentUserId }: ProjectNotesPanelProps) {
+  const confirm = useConfirm()
   const { data: notes = [], isLoading } = useProjectNotes(projectId)
   const createNote = useCreateProjectNote()
   const deleteNote = useDeleteProjectNote()
@@ -43,7 +45,13 @@ export function ProjectNotesPanel({ projectId, isAdmin, currentUserId }: Project
   }
 
   const handleDelete = async (noteId: string) => {
-    if (!confirm('確定要刪除這則備註嗎？')) return
+    const ok = await confirm({
+      title: '確認刪除',
+      description: '確定要刪除這則備註嗎？',
+      confirmLabel: '刪除',
+      variant: 'destructive',
+    })
+    if (!ok) return
     await deleteNote.mutateAsync({ noteId, projectId })
   }
 

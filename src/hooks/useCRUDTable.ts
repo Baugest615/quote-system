@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo } from 'react'
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query'
 import supabase from '@/lib/supabase/client'
 import { toast } from 'sonner'
+import { useConfirm } from '@/components/ui/ConfirmDialog'
 
 const DEFAULT_PAGE_SIZE = 20
 
@@ -42,6 +43,7 @@ export function useCRUDTable<T extends { id: string }>({
   serverSidePagination = false,
 }: UseCRUDTableOptions<T>) {
   const queryClient = useQueryClient()
+  const confirm = useConfirm()
 
   // 搜尋 + 分頁狀態
   const [search, setSearch] = useState('')
@@ -187,7 +189,8 @@ export function useCRUDTable<T extends { id: string }>({
   }
 
   const handleDelete = async (id: string) => {
-    if (!confirm('確定要刪除這筆記錄嗎？')) return
+    const ok = await confirm({ title: '確認刪除', description: '確定要刪除這筆記錄嗎？', confirmLabel: '刪除', variant: 'destructive' })
+    if (!ok) return
     try {
       await deleteMutation.mutateAsync(id)
     } catch {

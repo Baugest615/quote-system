@@ -6,7 +6,8 @@ import { Controller } from 'react-hook-form'
 import { Input } from '@/components/ui/input'
 import { Database } from '@/types/database.types'
 import { Building2, User, Star, Mail, Phone } from 'lucide-react'
-import supabase from '@/lib/supabase/client' // 新增缺少的 import
+import supabase from '@/lib/supabase/client'
+import { parseJsonArray } from '@/lib/utils'
 
 type Client = Database['public']['Tables']['clients']['Row']
 
@@ -352,20 +353,7 @@ export function useClientsWithContacts() {
         if (error) throw error
 
         const clientsWithContacts = (data || []).map((client: Client) => {
-          let parsedContacts: Contact[] = []
-          
-          try {
-            if (client.contacts) {
-              if (typeof client.contacts === 'string') {
-                parsedContacts = JSON.parse(client.contacts)
-              } else if (Array.isArray(client.contacts)) {
-                parsedContacts = client.contacts as unknown as Contact[]
-              }
-            }
-          } catch (error) {
-            console.error(`解析客戶 ${client.name} 的聯絡人資料失敗:`, error)
-            parsedContacts = []
-          }
+          let parsedContacts = parseJsonArray<Contact>(client.contacts)
 
           // 如果沒有聯絡人但有舊的單一聯絡人資料，建立相容性聯絡人
           if (parsedContacts.length === 0 && client.contact_person) {
