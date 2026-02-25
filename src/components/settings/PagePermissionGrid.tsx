@@ -46,14 +46,31 @@ export default function PagePermissionGrid() {
 
   const updateMutation = useMutation({
     mutationFn: async ({ pageKey, newRoles }: { pageKey: string; newRoles: UserRole[] }) => {
-      const { error } = await supabase
+      const config = pagePermissions[pageKey]
+
+      // 先嘗試 UPDATE 既有列
+      const { data: updated, error: updateError } = await supabase
         .from('page_permissions')
         .update({
           allowed_roles: newRoles,
           updated_at: new Date().toISOString(),
         })
         .eq('page_key', pageKey)
-      if (error) throw error
+        .select('id')
+      if (updateError) throw updateError
+
+      // 如果 UPDATE 匹配 0 筆（DB 中不存在此頁面），則 INSERT
+      if (!updated || updated.length === 0) {
+        const { error: insertError } = await supabase
+          .from('page_permissions')
+          .insert({
+            page_key: pageKey,
+            page_name: config?.name || pageKey,
+            allowed_roles: newRoles,
+            allowed_functions: config?.allowedFunctions || [],
+          })
+        if (insertError) throw insertError
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.pagePermissions })

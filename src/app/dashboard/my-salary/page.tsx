@@ -7,7 +7,7 @@ import AccountingLoadingGuard from '@/components/accounting/AccountingLoadingGua
 import Link from 'next/link'
 import { useMyEmployeeData } from '@/hooks/useMyEmployeeData'
 
-const fmt = (n: number) => n.toLocaleString('zh-TW', { minimumFractionDigits: 0, maximumFractionDigits: 0 })
+const fmt = (n: number | null | undefined) => (n ?? 0).toLocaleString('zh-TW', { minimumFractionDigits: 0, maximumFractionDigits: 0 })
 
 export default function MySalaryPage() {
   const { loading: permLoading, userId } = usePermission()
