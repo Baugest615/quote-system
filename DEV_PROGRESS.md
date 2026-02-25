@@ -1,7 +1,7 @@
 # 開發進度追蹤
 
-> 最後更新：2026-02-22
-> 分支：`feature/v2.5-accounting-withholding`
+> 最後更新：2026-02-26
+> 分支：`feature/phase1-security-hardening`
 
 ## 已完成
 
@@ -438,6 +438,58 @@ Migration 安全修復（`20260221100000_fix_expense_claims_security.sql`）：
 - [x] 會計模組新增
 - [x] 報價單檢視頁面暗色主題優化 & PDF 生成修復
 
+### 月結總覽 Bug 修復 + UI 優化（2026-02-26）
+
+修復月結總覽頁面員工分組錯誤，並將 UI 從手風琴卡片改為摘要表格。
+
+**Bug 修復：員工分組邏輯**（`src/lib/settlement/groupEmployeeData.ts`）：
+- [x] 根因：薪資用 `employee_id`、報帳用 `submitted_by` → `user_id`，當缺少對應 ID 時同一員工被拆成多個群組
+- [x] 新增 `employeeNameToEmployee` 映射作為第三層 fallback（名字唯一時啟用）
+- [x] 薪資：`employee_id` miss → 用 `employee_name` 匹配員工
+- [x] 報帳/代扣：`submitted_by` miss → 用 `vendor_name` 匹配員工
+- [x] 安全機制：同名員工不啟用 name fallback（避免誤合併）
+- [x] 新增 5 個測試案例，全部 20/20 通過
+
+**UI 優化：摘要表格**（`src/app/dashboard/accounting/monthly-settlement/page.tsx`）：
+- [x] EmployeeTab 從手風琴卡片改為表格式排版
+- [x] 欄位：員工 | 薪資 | 報帳 | 代扣代繳 | 合計 | 狀態
+- [x] 點擊行展開明細子行（checkbox + badge + 付款狀態）
+- [x] 表尾顯示各欄合計（人數 + 分項小計）
+
+驗證結果：TypeScript 零錯誤、Production build 成功、20/20 測試通過
+
+---
+
+### 多項 Bug 修復 — 快取同步、稅額計算、效能、審核狀態（2026-02-26）
+
+一次性修復多個跨頁面的 Bug。
+
+**1. 個人請款刪除後我的薪資頁未更新**（`expense-claims/page.tsx`）：
+- [x] 三個 mutation（新增/刪除/送出）加入 `invalidateQueries({ queryKey: ['my-employee'] })`
+
+**2. 進項管理儲存後 UI 未重置**（`useSpreadsheetOperations.ts`）：
+- [x] 成功儲存後重置所有 row 為 clean 狀態、移除已刪除列
+- [x] 新增 `useEffect` 同步 `initialRows` 變化（React Query refetch 後自動更新）
+
+**3. 進項管理稅額自動計算錯誤**（`accounting/expenses/page.tsx`）：
+- [x] 修正：有發票號碼才自動計算 5% 稅額，無發票則稅額為 0
+- [x] `invoice_number` 欄位加入 `autoCalcTrigger`，填入/清除發票時即時重算
+- [x] Modal 表單同步修正
+
+**4. Modal 開啟時操作遲鈍**（4 個檔案）：
+- [x] 移除 `backdrop-blur-sm` CSS 濾鏡（GPU 密集型重繪）
+- [x] 影響：`modal.tsx`、`AccountingModal.tsx`、`ConfirmDialog.tsx`、`Sidebar.tsx`
+
+**5. 請款審核後狀態未更新**（`payment-requests/page.tsx`）：
+- [x] 單筆核准/駁回 + 批量核准/駁回 4 個操作加入 `invalidateQueries(['expense-claims'])`
+
+**6. 空白確認清單無法刪除**（`confirmed-payments/page.tsx`）：
+- [x] `handleRevert` 偵測無項目的確認清單時，提供直接刪除選項
+
+驗證結果：TypeScript 零錯誤、Production build 成功
+
+---
+
 ### 成本明細表格排序功能（2026-02-23）
 
 報價單管理的成本明細（報價項目）表格新增 Excel 風格欄位排序功能，方便檢視與校對。
@@ -457,7 +509,9 @@ Migration 安全修復（`20260221100000_fix_expense_claims_security.sql`）：
 ## 目前狀態
 
 - `npm run build` 通過，零型別錯誤（31 頁面）
-- `npm test` 通過，85/85 測試
+- `npm test` 通過，90/90 測試（新增 5 個 groupEmployeeData 測試）
+- **✅ 月結總覽已優化**：分組 Bug 修復（name fallback）+ 摘要表格 UI
+- **✅ 多項 Bug 已修復**：快取同步、稅額計算、Modal 效能、審核狀態、空白清單刪除
 - **✅ 成本明細排序功能已完成**：Excel 風格欄位標題排序（類別/KOL/執行內容/數量/單價/成本/小計）
 - **✅ 待請款 UI 重構已完成**：批量預設面板 + 精簡列 + 智慧支出分類（bankType 自動推算）
 - **✅ 架構優化已完成**：6 階段重構（env 集中化、CRUD Factory、分頁、元件拆分、錯誤邊界、測試）

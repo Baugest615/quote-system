@@ -42,9 +42,16 @@ export function groupEmployeeData(input: GroupEmployeeDataInput): GroupEmployeeD
   const userIdToEmployee = new Map<string, Employee>()
   // 建立 employee_id -> Employee 映射（用於薪資的 employee_id 對照）
   const employeeIdToEmployee = new Map<string, Employee>()
+  // 建立 name -> Employee 映射（第三層 fallback，僅限名字唯一時使用）
+  const employeeNameToEmployee = new Map<string, Employee | null>()
   for (const emp of employees) {
     if (emp.user_id) userIdToEmployee.set(emp.user_id, emp)
     employeeIdToEmployee.set(emp.id, emp)
+    if (employeeNameToEmployee.has(emp.name)) {
+      employeeNameToEmployee.set(emp.name, null) // 重複名字標記為不可用
+    } else {
+      employeeNameToEmployee.set(emp.name, emp)
+    }
   }
 
   // 區分員工相關支出與外部支出
@@ -74,10 +81,18 @@ export function groupEmployeeData(input: GroupEmployeeDataInput): GroupEmployeeD
     return group
   }
 
+  /** 透過名字 fallback 查找員工（僅限名字唯一） */
+  const resolveByName = (name: string | null | undefined): Employee | null => {
+    if (!name) return null
+    const emp = employeeNameToEmployee.get(name)
+    return emp ?? null // null 表示重複名字，不可用
+  }
+
   // 1) 加入薪資
   for (const p of payroll) {
-    const empId = p.employee_id || ''
-    const emp = empId ? employeeIdToEmployee.get(empId) : null
+    let emp = p.employee_id ? employeeIdToEmployee.get(p.employee_id) : null
+    if (!emp) emp = resolveByName(p.employee_name) // fallback: 用姓名匹配
+    const empId = emp?.id || p.employee_id || `unknown-payroll-${p.id}`
     const group = getOrCreateGroup(empId, emp?.name || p.employee_name || '未知')
     group.payroll = p
     group.salaryTotal = p.net_salary || 0
@@ -86,7 +101,8 @@ export function groupEmployeeData(input: GroupEmployeeDataInput): GroupEmployeeD
 
   // 2) 加入員工報帳（非代扣代繳）
   for (const e of employeeExpenses) {
-    const emp = e.submitted_by ? userIdToEmployee.get(e.submitted_by) : null
+    let emp = e.submitted_by ? userIdToEmployee.get(e.submitted_by) : null
+    if (!emp) emp = resolveByName(e.vendor_name) // fallback: 用廠商名匹配員工名
     const empId = emp?.id || `unknown-${e.submitted_by || e.id}`
     const group = getOrCreateGroup(empId, emp?.name || e.vendor_name || '未知')
     group.expenses.push(e)
@@ -96,7 +112,8 @@ export function groupEmployeeData(input: GroupEmployeeDataInput): GroupEmployeeD
 
   // 3) 加入代扣代繳報帳
   for (const c of withholdingClaims) {
-    const emp = c.submitted_by ? userIdToEmployee.get(c.submitted_by) : null
+    let emp = c.submitted_by ? userIdToEmployee.get(c.submitted_by) : null
+    if (!emp) emp = resolveByName(c.vendor_name) // fallback: 用廠商名匹配員工名
     const empId = emp?.id || `unknown-${c.submitted_by || c.id}`
     const group = getOrCreateGroup(empId, emp?.name || c.vendor_name || '未知')
     group.withholdingClaims.push(c)

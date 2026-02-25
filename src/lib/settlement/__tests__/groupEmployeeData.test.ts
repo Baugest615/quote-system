@@ -436,4 +436,106 @@ describe('groupEmployeeData — 員工分組邏輯', () => {
       expect(result.employeeGroups[0].expenseTotal).toBe(5000)
     })
   })
+
+  describe('名字 fallback 分組', () => {
+    it('薪資無 employee_id 但 employee_name 匹配員工時應正確歸組', () => {
+      const emp = makeEmployee({ id: 'emp-1', name: '巫信中' })
+      const p = makePayroll({ id: 'p-1', employee_id: null, employee_name: '巫信中', net_salary: 40000 })
+
+      const result = groupEmployeeData({
+        ...emptyInput,
+        employees: [emp],
+        payroll: [p],
+      })
+
+      expect(result.employeeGroups).toHaveLength(1)
+      expect(result.employeeGroups[0].employeeId).toBe('emp-1')
+      expect(result.employeeGroups[0].employeeName).toBe('巫信中')
+      expect(result.employeeGroups[0].salaryTotal).toBe(40000)
+    })
+
+    it('報帳無 submitted_by 但 vendor_name 匹配員工時應正確歸組', () => {
+      const emp = makeEmployee({ id: 'emp-1', name: '巫信中' })
+      const expense = makeExpense({
+        id: 'e-1',
+        payment_target_type: 'employee',
+        submitted_by: null,
+        vendor_name: '巫信中',
+        total_amount: 10000,
+      })
+
+      const result = groupEmployeeData({
+        ...emptyInput,
+        employees: [emp],
+        expenses: [expense],
+      })
+
+      expect(result.employeeGroups).toHaveLength(1)
+      expect(result.employeeGroups[0].employeeId).toBe('emp-1')
+      expect(result.employeeGroups[0].expenseTotal).toBe(10000)
+    })
+
+    it('薪資和報帳透過 name fallback 應合併到同一群組', () => {
+      const emp = makeEmployee({ id: 'emp-1', name: '巫信中' })
+      const p = makePayroll({ id: 'p-1', employee_id: null, employee_name: '巫信中', net_salary: 40000 })
+      const expense = makeExpense({
+        id: 'e-1',
+        payment_target_type: 'employee',
+        submitted_by: null,
+        vendor_name: '巫信中',
+        total_amount: 10500,
+      })
+
+      const result = groupEmployeeData({
+        ...emptyInput,
+        employees: [emp],
+        payroll: [p],
+        expenses: [expense],
+      })
+
+      expect(result.employeeGroups).toHaveLength(1)
+      const group = result.employeeGroups[0]
+      expect(group.employeeId).toBe('emp-1')
+      expect(group.salaryTotal).toBe(40000)
+      expect(group.expenseTotal).toBe(10500)
+      expect(group.grandTotal).toBe(50500)
+    })
+
+    it('同名員工不應透過 name fallback 合併（安全機制）', () => {
+      const emp1 = makeEmployee({ id: 'emp-1', name: '張三' })
+      const emp2 = makeEmployee({ id: 'emp-2', name: '張三' })
+      const p = makePayroll({ id: 'p-1', employee_id: null, employee_name: '張三', net_salary: 50000 })
+
+      const result = groupEmployeeData({
+        ...emptyInput,
+        employees: [emp1, emp2],
+        payroll: [p],
+      })
+
+      expect(result.employeeGroups).toHaveLength(1)
+      // 因為名字重複，fallback 不啟用，使用 unknown-payroll-{id} 作為 key
+      expect(result.employeeGroups[0].employeeId).toBe('unknown-payroll-p-1')
+      expect(result.employeeGroups[0].employeeName).toBe('張三')
+    })
+
+    it('代扣代繳無 submitted_by 但 vendor_name 匹配員工時應正確歸組', () => {
+      const emp = makeEmployee({ id: 'emp-1', name: '巫信中' })
+      const claim = makeClaim({
+        id: 'c-1',
+        submitted_by: null,
+        vendor_name: '巫信中',
+        total_amount: 1500,
+      })
+
+      const result = groupEmployeeData({
+        ...emptyInput,
+        employees: [emp],
+        withholdingClaims: [claim],
+      })
+
+      expect(result.employeeGroups).toHaveLength(1)
+      expect(result.employeeGroups[0].employeeId).toBe('emp-1')
+      expect(result.employeeGroups[0].withholdingClaimTotal).toBe(1500)
+    })
+  })
 })

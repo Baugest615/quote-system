@@ -233,6 +233,18 @@ function EmployeeTab({
   expandedGroups: Set<string>
   toggleGroup: (id: string) => void
 }) {
+  // 計算合計
+  const totals = useMemo(() => {
+    let salary = 0, expense = 0, withholding = 0, grand = 0
+    for (const g of groups) {
+      salary += g.salaryTotal
+      expense += g.expenseTotal
+      withholding += g.withholdingClaimTotal
+      grand += g.grandTotal
+    }
+    return { salary, expense, withholding, grand }
+  }, [groups])
+
   if (groups.length === 0) {
     return <EmptyState type="no-data" icon={Users} title="本月無員工付款" description="尚無薪資或員工報帳記錄" />
   }
@@ -249,130 +261,194 @@ function EmployeeTab({
         isMarking={isMarking}
       />
 
-      {/* 員工分組卡片 */}
-      {groups.map(g => (
-        <div key={g.employeeId} className="bg-card rounded-xl border border-border overflow-hidden">
-          {/* 標題列 */}
-          <button
-            onClick={() => toggleGroup(g.employeeId)}
-            className="w-full flex items-center justify-between px-5 py-3 hover:bg-accent transition-colors"
-          >
-            <div className="flex items-center gap-3">
-              {expandedGroups.has(g.employeeId) ? (
-                <ChevronDown className="w-4 h-4 text-muted-foreground" />
-              ) : (
-                <ChevronRight className="w-4 h-4 text-muted-foreground" />
-              )}
-              <span className="font-medium text-foreground">{g.employeeName}</span>
-              {g.allPaid ? (
-                <span className="inline-flex items-center gap-1 text-xs text-success">
-                  <CheckCircle2 className="w-3.5 h-3.5" /> 全部已付
-                </span>
-              ) : (
-                <span className="inline-flex items-center gap-1 text-xs text-warning">
-                  <Circle className="w-3.5 h-3.5" /> 有未付項目
-                </span>
-              )}
-            </div>
-            <span className="text-sm font-bold text-foreground">NT$ {fmt(g.grandTotal)}</span>
-          </button>
-
-          {/* 展開內容 */}
-          {expandedGroups.has(g.employeeId) && (
-            <div className="border-t border-border/50">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="bg-muted text-muted-foreground text-xs">
-                    <th className="w-10 px-3 py-2"></th>
-                    <th className="text-left px-3 py-2">項目</th>
-                    <th className="text-left px-3 py-2">說明</th>
-                    <th className="text-right px-3 py-2">金額</th>
-                    <th className="text-center px-3 py-2">狀態</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {/* 薪資 */}
-                  {g.payroll && (
-                    <tr className="border-t border-border/30 hover:bg-accent/50">
-                      <td className="px-3 py-2 text-center">
-                        <input
-                          type="checkbox"
-                          checked={isSelected('payroll', g.payroll.id)}
-                          onChange={() => toggleSelect('payroll', g.payroll!.id)}
-                          className="rounded border-border"
-                        />
-                      </td>
-                      <td className="px-3 py-2">
-                        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-chart-5/20 text-chart-5">
-                          薪資
-                        </span>
-                      </td>
-                      <td className="px-3 py-2 text-muted-foreground">
-                        實領薪資（底薪 {fmt(g.payroll.base_salary)} + 餐費 {fmt(g.payroll.meal_allowance)}）
-                      </td>
-                      <td className="px-3 py-2 text-right font-medium">NT$ {fmt(g.payroll.net_salary || 0)}</td>
-                      <td className="px-3 py-2 text-center">
-                        <PaymentStatusBadge status={g.payroll.payment_status || 'unpaid'} />
-                      </td>
-                    </tr>
-                  )}
-                  {/* 報帳 */}
-                  {g.expenses.map(e => (
-                    <tr key={e.id} className="border-t border-border/30 hover:bg-accent/50">
-                      <td className="px-3 py-2 text-center">
-                        <input
-                          type="checkbox"
-                          checked={isSelected('expense', e.id)}
-                          onChange={() => toggleSelect('expense', e.id)}
-                          className="rounded border-border"
-                        />
-                      </td>
-                      <td className="px-3 py-2">
-                        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-chart-4/20 text-chart-4">
-                          報帳
-                        </span>
-                      </td>
-                      <td className="px-3 py-2 text-muted-foreground">
-                        {e.expense_type} — {e.accounting_subject || e.project_name || '-'}
-                      </td>
-                      <td className="px-3 py-2 text-right font-medium">NT$ {fmt(e.total_amount || 0)}</td>
-                      <td className="px-3 py-2 text-center">
-                        <PaymentStatusBadge status={e.payment_status || 'unpaid'} />
-                      </td>
-                    </tr>
-                  ))}
-                  {/* 代扣代繳代墊 */}
-                  {g.withholdingClaims.map(c => (
-                    <tr key={c.id} className="border-t border-border/30 hover:bg-accent/50">
-                      <td className="px-3 py-2 text-center">
-                        <input
-                          type="checkbox"
-                          checked={isSelected('claim', c.id)}
-                          onChange={() => toggleSelect('claim', c.id)}
-                          className="rounded border-border"
-                        />
-                      </td>
-                      <td className="px-3 py-2">
-                        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-orange-500/20 text-orange-400">
-                          代扣代繳
-                        </span>
-                      </td>
-                      <td className="px-3 py-2 text-muted-foreground">
-                        {c.accounting_subject || '所得稅'}{c.withholding_month ? ` (${c.withholding_month})` : ''}
-                      </td>
-                      <td className="px-3 py-2 text-right font-medium">NT$ {fmt(c.total_amount || 0)}</td>
-                      <td className="px-3 py-2 text-center">
-                        <PaymentStatusBadge status={c.payment_status || 'unpaid'} />
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
-      ))}
+      {/* 摘要表格 */}
+      <div className="bg-card rounded-xl border border-border overflow-hidden">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="bg-muted text-muted-foreground text-xs">
+              <th className="w-8 px-3 py-3"></th>
+              <th className="text-left px-3 py-3 font-medium">員工</th>
+              <th className="text-right px-3 py-3 font-medium">薪資</th>
+              <th className="text-right px-3 py-3 font-medium">報帳</th>
+              <th className="text-right px-3 py-3 font-medium">代扣代繳</th>
+              <th className="text-right px-3 py-3 font-medium">合計</th>
+              <th className="text-center px-3 py-3 font-medium">狀態</th>
+            </tr>
+          </thead>
+          <tbody>
+            {groups.map(g => {
+              const isExpanded = expandedGroups.has(g.employeeId)
+              const itemCount = (g.payroll ? 1 : 0) + g.expenses.length + g.withholdingClaims.length
+              return (
+                <EmployeeGroupRow
+                  key={g.employeeId}
+                  group={g}
+                  itemCount={itemCount}
+                  isExpanded={isExpanded}
+                  onToggle={() => toggleGroup(g.employeeId)}
+                  isSelected={isSelected}
+                  toggleSelect={toggleSelect}
+                />
+              )
+            })}
+          </tbody>
+          <tfoot>
+            <tr className="border-t-2 border-border bg-muted/50">
+              <td className="px-3 py-3"></td>
+              <td className="px-3 py-3 font-bold text-foreground">合計（{groups.length} 人）</td>
+              <td className="px-3 py-3 text-right font-bold text-chart-5">{totals.salary > 0 ? `NT$ ${fmt(totals.salary)}` : '-'}</td>
+              <td className="px-3 py-3 text-right font-bold text-chart-4">{totals.expense > 0 ? `NT$ ${fmt(totals.expense)}` : '-'}</td>
+              <td className="px-3 py-3 text-right font-bold text-orange-400">{totals.withholding > 0 ? `NT$ ${fmt(totals.withholding)}` : '-'}</td>
+              <td className="px-3 py-3 text-right font-bold text-foreground">NT$ {fmt(totals.grand)}</td>
+              <td className="px-3 py-3"></td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
     </div>
+  )
+}
+
+// ====== 員工群組行（摘要 + 可展開明細） ======
+
+function EmployeeGroupRow({
+  group: g,
+  itemCount,
+  isExpanded,
+  onToggle,
+  isSelected,
+  toggleSelect,
+}: {
+  group: EmployeeSettlementGroup
+  itemCount: number
+  isExpanded: boolean
+  onToggle: () => void
+  isSelected: (type: SettlementItemType, id: string) => boolean
+  toggleSelect: (type: SettlementItemType, id: string) => void
+}) {
+  return (
+    <>
+      {/* 摘要行 */}
+      <tr
+        onClick={onToggle}
+        className="border-t border-border/50 hover:bg-accent cursor-pointer transition-colors"
+      >
+        <td className="px-3 py-3 text-center text-muted-foreground">
+          {isExpanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+        </td>
+        <td className="px-3 py-3">
+          <div className="flex items-center gap-2">
+            <span className="font-medium text-foreground">{g.employeeName}</span>
+            <span className="text-xs text-muted-foreground">{itemCount} 筆</span>
+          </div>
+        </td>
+        <td className="px-3 py-3 text-right text-chart-5">{g.salaryTotal > 0 ? `NT$ ${fmt(g.salaryTotal)}` : '-'}</td>
+        <td className="px-3 py-3 text-right text-chart-4">{g.expenseTotal > 0 ? `NT$ ${fmt(g.expenseTotal)}` : '-'}</td>
+        <td className="px-3 py-3 text-right text-orange-400">{g.withholdingClaimTotal > 0 ? `NT$ ${fmt(g.withholdingClaimTotal)}` : '-'}</td>
+        <td className="px-3 py-3 text-right font-bold text-foreground">NT$ {fmt(g.grandTotal)}</td>
+        <td className="px-3 py-3 text-center">
+          {g.allPaid ? (
+            <span className="inline-flex items-center gap-1 text-xs text-success">
+              <CheckCircle2 className="w-3.5 h-3.5" /> 已付
+            </span>
+          ) : (
+            <span className="inline-flex items-center gap-1 text-xs text-warning">
+              <Circle className="w-3.5 h-3.5" /> 未付
+            </span>
+          )}
+        </td>
+      </tr>
+
+      {/* 展開明細行 */}
+      {isExpanded && (
+        <>
+          {g.payroll && (
+            <tr className="bg-muted/30 hover:bg-accent/50">
+              <td className="px-3 py-2"></td>
+              <td className="px-3 py-2" colSpan={2}>
+                <div className="flex items-center gap-2 pl-4">
+                  <input
+                    type="checkbox"
+                    checked={isSelected('payroll', g.payroll.id)}
+                    onChange={(e) => { e.stopPropagation(); toggleSelect('payroll', g.payroll!.id) }}
+                    onClick={(e) => e.stopPropagation()}
+                    className="rounded border-border"
+                  />
+                  <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-chart-5/20 text-chart-5">
+                    薪資
+                  </span>
+                  <span className="text-xs text-muted-foreground">
+                    實領薪資（底薪 {fmt(g.payroll.base_salary)} + 餐費 {fmt(g.payroll.meal_allowance)}）
+                  </span>
+                </div>
+              </td>
+              <td className="px-3 py-2" colSpan={2}>
+                <div className="text-right text-sm font-medium">NT$ {fmt(g.payroll.net_salary || 0)}</div>
+              </td>
+              <td className="px-3 py-2 text-center">
+                <PaymentStatusBadge status={g.payroll.payment_status || 'unpaid'} />
+              </td>
+            </tr>
+          )}
+          {g.expenses.map(e => (
+            <tr key={e.id} className="bg-muted/30 hover:bg-accent/50">
+              <td className="px-3 py-2"></td>
+              <td className="px-3 py-2" colSpan={2}>
+                <div className="flex items-center gap-2 pl-4">
+                  <input
+                    type="checkbox"
+                    checked={isSelected('expense', e.id)}
+                    onChange={(ev) => { ev.stopPropagation(); toggleSelect('expense', e.id) }}
+                    onClick={(ev) => ev.stopPropagation()}
+                    className="rounded border-border"
+                  />
+                  <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-chart-4/20 text-chart-4">
+                    報帳
+                  </span>
+                  <span className="text-xs text-muted-foreground">
+                    {e.expense_type} — {e.accounting_subject || e.project_name || '-'}
+                  </span>
+                </div>
+              </td>
+              <td className="px-3 py-2" colSpan={2}>
+                <div className="text-right text-sm font-medium">NT$ {fmt(e.total_amount || 0)}</div>
+              </td>
+              <td className="px-3 py-2 text-center">
+                <PaymentStatusBadge status={e.payment_status || 'unpaid'} />
+              </td>
+            </tr>
+          ))}
+          {g.withholdingClaims.map(c => (
+            <tr key={c.id} className="bg-muted/30 hover:bg-accent/50">
+              <td className="px-3 py-2"></td>
+              <td className="px-3 py-2" colSpan={2}>
+                <div className="flex items-center gap-2 pl-4">
+                  <input
+                    type="checkbox"
+                    checked={isSelected('claim', c.id)}
+                    onChange={(ev) => { ev.stopPropagation(); toggleSelect('claim', c.id) }}
+                    onClick={(ev) => ev.stopPropagation()}
+                    className="rounded border-border"
+                  />
+                  <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-orange-500/20 text-orange-400">
+                    代扣代繳
+                  </span>
+                  <span className="text-xs text-muted-foreground">
+                    {c.accounting_subject || '所得稅'}{c.withholding_month ? ` (${c.withholding_month})` : ''}
+                  </span>
+                </div>
+              </td>
+              <td className="px-3 py-2" colSpan={2}>
+                <div className="text-right text-sm font-medium">NT$ {fmt(c.total_amount || 0)}</div>
+              </td>
+              <td className="px-3 py-2 text-center">
+                <PaymentStatusBadge status={c.payment_status || 'unpaid'} />
+              </td>
+            </tr>
+          ))}
+        </>
+      )}
+    </>
   )
 }
 
