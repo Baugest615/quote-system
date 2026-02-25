@@ -35,6 +35,7 @@ interface CompactItemRowProps {
     onOpenBankInfoModal: (item: PendingPaymentItem) => void
     onInvoiceNumberChange: (itemId: string, value: string) => void
     isValidInvoiceFormat: (invoice: string | null | undefined) => boolean
+    mergeGroupItems: PendingPaymentItem[]
 }
 
 export function CompactItemRow({
@@ -60,6 +61,7 @@ export function CompactItemRow({
     onOpenBankInfoModal,
     onInvoiceNumberChange,
     isValidInvoiceFormat,
+    mergeGroupItems,
 }: CompactItemRowProps) {
     const [isSaving, setIsSaving] = useState(false)
     const status = getItemStatus(item)
@@ -141,9 +143,20 @@ export function CompactItemRow({
                             {bankTypeLabel}
                         </span>
                     )}
-                    {item.merge_group_id && (
-                        <span className="px-1 py-0.5 rounded text-[10px] bg-info/15 text-info">
-                            合併{item.is_merge_leader && '(主)'}
+                    {item.merge_group_id && mergeGroupItems.length > 1 && (
+                        <span
+                            className="px-1 py-0.5 rounded text-[10px] bg-info/15 text-info cursor-help"
+                            title={`合併群組：${mergeGroupItems.map(mi => mi.kols?.name || '自訂項目').join('、')}`}
+                        >
+                            合併{item.is_merge_leader && '(主)'} · {mergeGroupItems.length}筆
+                        </span>
+                    )}
+                    {item.merge_group_id && mergeGroupItems.length <= 1 && (
+                        <span
+                            className="px-1 py-0.5 rounded text-[10px] bg-warning/15 text-warning cursor-help"
+                            title="孤立合併記錄，請展開明細清除"
+                        >
+                            合併異常
                         </span>
                     )}
                 </div>

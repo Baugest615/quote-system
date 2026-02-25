@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { X, Save, AlertTriangle, RotateCcw } from 'lucide-react'
+import { X, Save, AlertTriangle, RotateCcw, Unlink } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { RejectionReasonDisplay } from './RejectionReasonDisplay'
@@ -12,6 +12,7 @@ const PAYMENT_MONTH_OPTIONS = Array.from({ length: 12 }, (_, i) => `${CURRENT_YE
 
 interface ExpandedItemPanelProps {
     item: PendingPaymentItem
+    mergeGroupItems: PendingPaymentItem[]
     batchExpenseType: string
     batchAccountingSubject: string
     batchPaymentMonth: string
@@ -30,6 +31,7 @@ interface ExpandedItemPanelProps {
 
 export function ExpandedItemPanel({
     item,
+    mergeGroupItems,
     batchExpenseType,
     batchAccountingSubject,
     batchPaymentMonth,
@@ -206,6 +208,66 @@ export function ExpandedItemPanel({
                     </div>
                 </div>
             </div>
+
+            {/* 合併資訊 */}
+            {item.merge_group_id && mergeGroupItems.length > 1 && (
+                <div className="mt-3 p-2.5 rounded-md border border-info/20 bg-info/5">
+                    <div className="flex items-center justify-between mb-1.5">
+                        <div className="flex items-center gap-1.5">
+                            <Unlink className="h-3 w-3 text-info" />
+                            <span className="text-[10px] font-medium text-info uppercase tracking-wider">
+                                合併群組（共 {mergeGroupItems.length} 筆）
+                            </span>
+                        </div>
+                        <button
+                            onClick={() => onUnmerge(item.merge_group_id!)}
+                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] text-warning hover:text-warning/80 hover:bg-warning/10 transition-colors"
+                        >
+                            <Unlink className="h-3 w-3" />
+                            解除合併
+                        </button>
+                    </div>
+                    <div className="space-y-0.5">
+                        {mergeGroupItems.map(mi => (
+                            <div key={mi.id} className="flex items-center gap-2 text-xs text-muted-foreground">
+                                <span className="w-1.5 h-1.5 rounded-full bg-info/50 flex-shrink-0" />
+                                <span className={mi.id === item.id ? 'text-foreground font-medium' : ''}>
+                                    {mi.kols?.name || '自訂項目'}
+                                </span>
+                                <span className="text-muted-foreground/60">—</span>
+                                <span className={mi.id === item.id ? 'text-foreground' : ''}>{mi.service}</span>
+                                {mi.is_merge_leader && (
+                                    <span className="px-1 py-0.5 rounded text-[9px] bg-info/15 text-info">主</span>
+                                )}
+                                {mi.id === item.id && (
+                                    <span className="text-[9px] text-muted-foreground">← 目前</span>
+                                )}
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
+
+            {/* 孤立合併記錄（群組中只剩自己） */}
+            {item.merge_group_id && mergeGroupItems.length <= 1 && (
+                <div className="mt-3 p-2.5 rounded-md border border-warning/20 bg-warning/5">
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-1.5">
+                            <AlertTriangle className="h-3 w-3 text-warning" />
+                            <span className="text-[10px] font-medium text-warning">
+                                此項目有殘留的合併記錄，合併群組中的其他成員已不存在
+                            </span>
+                        </div>
+                        <button
+                            onClick={() => onUnmerge(item.merge_group_id!)}
+                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] text-warning hover:text-warning/80 hover:bg-warning/10 transition-colors"
+                        >
+                            <Unlink className="h-3 w-3" />
+                            清除合併狀態
+                        </button>
+                    </div>
+                </div>
+            )}
 
             {/* 駁回原因 */}
             {item.rejection_reason && (

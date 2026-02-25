@@ -157,6 +157,9 @@ export function ProjectGroupView({
                                             ? group.items.find(i => i.merge_group_id === item.merge_group_id && i.is_merge_leader) || item
                                             : item;
                                         const isExpanded = expandedRows.has(item.id)
+                                        const mergeGroupItems = item.merge_group_id
+                                            ? group.items.filter(i => i.merge_group_id === item.merge_group_id)
+                                            : []
 
                                         return (
                                             <React.Fragment key={item.id}>
@@ -183,12 +186,14 @@ export function ProjectGroupView({
                                                     onOpenBankInfoModal={onOpenBankInfoModal}
                                                     onInvoiceNumberChange={onInvoiceChange}
                                                     isValidInvoiceFormat={isValidInvoiceFormat}
+                                                    mergeGroupItems={mergeGroupItems}
                                                 />
                                                 {isExpanded && (
                                                     <tr>
                                                         <td colSpan={colSpan} className="p-0">
                                                             <ExpandedItemPanel
                                                                 item={item}
+                                                                mergeGroupItems={mergeGroupItems}
                                                                 batchExpenseType={batchExpenseType}
                                                                 batchAccountingSubject={batchAccountingSubject}
                                                                 batchPaymentMonth={batchPaymentMonth}
