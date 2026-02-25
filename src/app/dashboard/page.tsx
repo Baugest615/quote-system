@@ -15,12 +15,20 @@ import {
 } from 'lucide-react'
 import Link from 'next/link'
 
+import dynamic from 'next/dynamic'
 import { formatCurrency } from '@/lib/utils'
 import { useDashboardData } from '@/hooks/dashboard/useDashboardData'
 import { KpiCard } from '@/components/dashboard/KpiCard'
-import { RevenueChart } from '@/components/dashboard/RevenueChart'
-import { QuoteStatusChart } from '@/components/dashboard/QuoteStatusChart'
 import { ActionItems } from '@/components/dashboard/ActionItems'
+
+const RevenueChart = dynamic(
+  () => import('@/components/dashboard/RevenueChart').then(m => ({ default: m.RevenueChart })),
+  { loading: () => <div className="h-64 bg-muted/50 animate-pulse rounded-lg" />, ssr: false }
+)
+const QuoteStatusChart = dynamic(
+  () => import('@/components/dashboard/QuoteStatusChart').then(m => ({ default: m.QuoteStatusChart })),
+  { loading: () => <div className="h-64 bg-muted/50 animate-pulse rounded-lg" />, ssr: false }
+)
 
 // 快速功能按鈕
 function QuickAction({

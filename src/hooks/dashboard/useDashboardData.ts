@@ -70,15 +70,17 @@ async function fetchDashboardData(): Promise<DashboardData> {
   const buckets = getMonthBuckets(6)
   const sixMonthsAgo = buckets[0].start.toISOString()
 
-  // 平行查詢
+  // 平行查詢（限制近 6 個月，避免全表掃描）
   const [quotationsRes, paymentRes, clientCountRes, kolCountRes] =
     await Promise.all([
       supabase
         .from('quotations')
-        .select('status, created_at, grand_total_taxed'),
+        .select('status, created_at, grand_total_taxed')
+        .gte('created_at', sixMonthsAgo),
       supabase
         .from('payment_requests')
-        .select('verification_status, cost_amount, created_at'),
+        .select('verification_status, cost_amount, created_at')
+        .gte('created_at', sixMonthsAgo),
       supabase.from('clients').select('*', { count: 'exact', head: true }),
       supabase.from('kols').select('*', { count: 'exact', head: true }),
     ])
@@ -215,6 +217,5 @@ export function useDashboardData() {
     queryKey: [...queryKeys.dashboardStats],
     queryFn: fetchDashboardData,
     staleTime: 5 * 60 * 1000,
-    refetchOnWindowFocus: true,
   })
 }
