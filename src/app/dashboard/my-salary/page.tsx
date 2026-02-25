@@ -2,7 +2,8 @@
 
 import { useState } from 'react'
 import { usePermission } from '@/lib/permissions'
-import { User, Calendar, Briefcase, TrendingUp, DollarSign, FileText, Clock, ChevronLeft } from 'lucide-react'
+import { User, Calendar, Briefcase, TrendingUp, DollarSign, FileText, Clock, ChevronLeft, Receipt } from 'lucide-react'
+import { CLAIM_STATUS_LABELS, CLAIM_STATUS_COLORS } from '@/types/custom.types'
 import AccountingLoadingGuard from '@/components/accounting/AccountingLoadingGuard'
 import Link from 'next/link'
 import { useMyEmployeeData } from '@/hooks/useMyEmployeeData'
@@ -17,7 +18,7 @@ export default function MySalaryPage() {
   const employee = data?.employee ?? null
   const currentSalary = data?.currentSalary ?? null
   const salaryHistory = data?.salaryHistory ?? []
-  const paymentRequests = data?.paymentRequests ?? []
+  const expenseClaims = data?.expenseClaims ?? []
   const loading = permLoading || isLoading
 
   // 計算年資
@@ -218,34 +219,28 @@ export default function MySalaryPage() {
         </div>
 
         {/* 個人請款記錄 */}
-        {paymentRequests.length > 0 && (
+        {expenseClaims.length > 0 && (
           <div className="bg-card rounded-xl border border-border p-6">
             <h3 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
-              <FileText className="w-5 h-5 text-chart-5" />
+              <Receipt className="w-5 h-5 text-chart-5" />
               我的請款記錄
             </h3>
             <div className="space-y-3">
-              {paymentRequests.map(pr => (
-                <div key={pr.id} className="flex items-center justify-between p-4 bg-muted rounded-lg">
+              {expenseClaims.map(claim => (
+                <div key={claim.id} className="flex items-center justify-between p-4 bg-muted rounded-lg">
                   <div>
                     <p className="font-medium text-foreground">
-                      {pr.project_name || '未命名專案'} - {pr.service || '服務'}
+                      {claim.expense_type}{claim.vendor_name ? ` — ${claim.vendor_name}` : ''}
                     </p>
                     <p className="text-xs text-muted-foreground mt-1">
-                      {pr.kol_name && `${pr.kol_name} · `}
-                      {new Date(pr.created_at).toLocaleDateString('zh-TW')}
+                      {claim.project_name && `${claim.project_name} · `}
+                      {claim.claim_month || new Date(claim.created_at).toLocaleDateString('zh-TW')}
                     </p>
                   </div>
                   <div className="text-right">
-                    <p className="font-semibold text-foreground">NT$ {fmt(pr.cost_amount)}</p>
-                    <span className={`inline-block mt-1 px-2 py-0.5 rounded text-xs font-medium ${
-                      pr.verification_status === 'approved' ? 'bg-success/10 text-success' :
-                      pr.verification_status === 'rejected' ? 'bg-destructive/10 text-destructive' :
-                      'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400'
-                    }`}>
-                      {pr.verification_status === 'approved' ? '已核准' :
-                       pr.verification_status === 'rejected' ? '已拒絕' :
-                       '待審核'}
+                    <p className="font-semibold text-foreground">NT$ {fmt(claim.total_amount)}</p>
+                    <span className={`inline-block mt-1 px-2 py-0.5 rounded text-xs font-medium ${CLAIM_STATUS_COLORS[claim.status] || ''}`}>
+                      {CLAIM_STATUS_LABELS[claim.status] || claim.status}
                     </span>
                   </div>
                 </div>

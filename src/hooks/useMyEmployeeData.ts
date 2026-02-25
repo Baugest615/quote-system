@@ -3,24 +3,13 @@
 import { useQuery } from '@tanstack/react-query'
 import supabase from '@/lib/supabase/client'
 import { queryKeys } from '@/lib/queryKeys'
-import type { Employee, AccountingPayroll } from '@/types/custom.types'
-
-export interface PaymentRequest {
-  id: string
-  cost_amount: number
-  verification_status: string
-  approved_at: string | null
-  created_at: string
-  kol_name: string | null
-  project_name: string | null
-  service: string | null
-}
+import type { Employee, AccountingPayroll, ExpenseClaim } from '@/types/custom.types'
 
 export interface MyEmployeeData {
   employee: Employee
   currentSalary: AccountingPayroll | null
   salaryHistory: AccountingPayroll[]
-  paymentRequests: PaymentRequest[]
+  expenseClaims: ExpenseClaim[]
 }
 
 export function useMyEmployeeData(userId: string | null | undefined, selectedYear: number) {
@@ -54,37 +43,19 @@ export function useMyEmployeeData(userId: string | null | undefined, selectedYea
           .eq('year', selectedYear)
           .order('salary_month', { ascending: false }),
         supabase
-          .from('payment_requests')
-          .select(`
-            id,
-            cost_amount,
-            verification_status,
-            approved_at,
-            created_at,
-            quotation_items:quotation_item_id (
-              service,
-              kols:kol_id (name),
-              quotations:quotation_id (project_name)
-            )
-          `)
+          .from('expense_claims')
+          .select('*')
+          .eq('created_by', userId)
+          .eq('year', selectedYear)
           .order('created_at', { ascending: false })
-          .limit(10),
+          .limit(20),
       ])
 
       return {
         employee: emp,
         currentSalary: currentRes.data || null,
         salaryHistory: historyRes.data || [],
-        paymentRequests: (paymentsRes.data || []).map((p: any) => ({
-          id: p.id,
-          cost_amount: p.cost_amount,
-          verification_status: p.verification_status,
-          approved_at: p.approved_at,
-          created_at: p.created_at,
-          kol_name: p.quotation_items?.kols?.name || null,
-          project_name: p.quotation_items?.quotations?.project_name || null,
-          service: p.quotation_items?.service || null,
-        })),
+        expenseClaims: (paymentsRes.data || []) as ExpenseClaim[],
       }
     },
     enabled: !!userId,
