@@ -1,17 +1,19 @@
 'use client'
 
 import { useEffect, useState, createContext, useContext, useCallback, useMemo } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import supabase from '@/lib/supabase/client'
+import { queryKeys } from '@/lib/queryKeys'
 import {
   UserRole,
   PageConfig,
   PAGE_PERMISSIONS
 } from '@/types/custom.types'
 
-// ===== 權限檢查工具函數 =====
+// ===== 權限檢查工具函數（靜態版，用於 server-side 或非 hook 場景） =====
 
 /**
- * 檢查用戶是否有存取特定頁面的權限
+ * 檢查用戶是否有存取特定頁面的權限（靜態常量版，建議改用 usePermission hook）
  */
 export function checkPageAccess(pageKey: string, userRole?: UserRole): boolean {
   const pageConfig = PAGE_PERMISSIONS[pageKey]
@@ -21,7 +23,7 @@ export function checkPageAccess(pageKey: string, userRole?: UserRole): boolean {
 }
 
 /**
- * 檢查用戶是否有執行特定功能的權限
+ * 檢查用戶是否有執行特定功能的權限（靜態常量版）
  */
 export function checkFunctionAccess(
   pageKey: string,
@@ -35,7 +37,7 @@ export function checkFunctionAccess(
 }
 
 /**
- * 取得用戶可存取的所有頁面
+ * 取得用戶可存取的所有頁面（靜態常量版）
  */
 export function getAllowedPages(userRole: UserRole): PageConfig[] {
   return Object.values(PAGE_PERMISSIONS).filter(page =>
@@ -80,13 +82,14 @@ export function getRoleDisplayName(role: UserRole): string {
   return roleNames[role] || '未知角色'
 }
 
-// ===== Permission Context (全局快取，只查一次 DB) =====
+// ===== Permission Context (全局快取) =====
 
 interface PermissionContextType {
   userRole: UserRole | null
   userId: string | null
   loading: boolean
   error: string | null
+  pagePermissions: Record<string, PageConfig>
 }
 
 const PermissionContext = createContext<PermissionContextType>({
@@ -94,19 +97,27 @@ const PermissionContext = createContext<PermissionContextType>({
   userId: null,
   loading: true,
   error: null,
+  pagePermissions: PAGE_PERMISSIONS,
 })
 
 /**
- * PermissionProvider - 在 layout 層級包裹，整個 session 只查一次角色
+ * PermissionProvider - 在 layout 層級包裹
+ * 查詢用戶角色 + 從 DB 讀取頁面權限配置
  */
 export function PermissionProvider({ children }: { children: React.ReactNode }) {
-  const [state, setState] = useState<PermissionContextType>({
+  const [authState, setAuthState] = useState<{
+    userRole: UserRole | null
+    userId: string | null
+    loading: boolean
+    error: string | null
+  }>({
     userRole: null,
     userId: null,
     loading: true,
     error: null,
   })
 
+  // 1. 查詢用戶角色
   useEffect(() => {
     async function fetchUserRole() {
       try {
@@ -114,7 +125,7 @@ export function PermissionProvider({ children }: { children: React.ReactNode }) 
         if (authError) throw authError
 
         if (!user) {
-          setState({ userRole: null, userId: null, loading: false, error: null })
+          setAuthState({ userRole: null, userId: null, loading: false, error: null })
           return
         }
 
@@ -124,7 +135,7 @@ export function PermissionProvider({ children }: { children: React.ReactNode }) 
 
         if (profileError) throw profileError
 
-        setState({
+        setAuthState({
           userRole: (profile as any)?.role || null,
           userId: user.id,
           loading: false,
@@ -132,7 +143,7 @@ export function PermissionProvider({ children }: { children: React.ReactNode }) 
         })
       } catch (err) {
         console.error('Error fetching user role:', err)
-        setState(prev => ({
+        setAuthState(prev => ({
           ...prev,
           loading: false,
           error: err instanceof Error ? err.message : '取得用戶權限失敗',
@@ -143,8 +154,46 @@ export function PermissionProvider({ children }: { children: React.ReactNode }) 
     fetchUserRole()
   }, [])
 
+  // 2. 從 DB 查詢頁面權限配置
+  const { data: dbPagePermissions } = useQuery({
+    queryKey: queryKeys.pagePermissions,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('page_permissions')
+        .select('*')
+      if (error) throw error
+      return data
+    },
+    staleTime: 5 * 60 * 1000,
+    gcTime: 10 * 60 * 1000,
+  })
+
+  // 3. 合併 DB 與靜態常量（DB 覆蓋 allowedRoles/allowedFunctions，靜態常量提供 route/icon）
+  const pagePermissions = useMemo(() => {
+    const merged = { ...PAGE_PERMISSIONS }
+    if (dbPagePermissions) {
+      for (const row of dbPagePermissions) {
+        merged[row.page_key] = {
+          key: row.page_key,
+          name: row.page_name,
+          allowedRoles: row.allowed_roles as UserRole[],
+          allowedFunctions: row.allowed_functions || [],
+          route: PAGE_PERMISSIONS[row.page_key]?.route || `/dashboard/${row.page_key.replace(/_/g, '-')}`,
+          icon: PAGE_PERMISSIONS[row.page_key]?.icon,
+        }
+      }
+    }
+    return merged
+  }, [dbPagePermissions])
+
+  // 4. 組合 Context 值
+  const contextValue = useMemo<PermissionContextType>(() => ({
+    ...authState,
+    pagePermissions,
+  }), [authState, pagePermissions])
+
   return (
-    <PermissionContext.Provider value={state}>
+    <PermissionContext.Provider value={contextValue}>
       {children}
     </PermissionContext.Provider>
   )
@@ -153,27 +202,41 @@ export function PermissionProvider({ children }: { children: React.ReactNode }) 
 // ===== React Hook =====
 
 /**
- * usePermission Hook - 從 Context 讀取快取的權限（不再每次查 DB）
+ * usePermission Hook - 從 Context 讀取快取的權限（DB 驅動）
  */
 export function usePermission() {
-  const { userRole, userId, loading, error } = useContext(PermissionContext)
+  const { userRole, userId, loading, error, pagePermissions } = useContext(PermissionContext)
 
   const checkPageAccessFn = useCallback(
-    (pageKey: string) => checkPageAccess(pageKey, userRole || undefined),
-    [userRole]
+    (pageKey: string) => {
+      const config = pagePermissions[pageKey]
+      if (!config || !userRole) return false
+      return config.allowedRoles.includes(userRole)
+    },
+    [userRole, pagePermissions]
   )
+
   const checkFunctionAccessFn = useCallback(
-    (pageKey: string, functionName: string) => checkFunctionAccess(pageKey, functionName, userRole || undefined),
-    [userRole]
+    (pageKey: string, functionName: string) => {
+      if (!checkPageAccessFn(pageKey)) return false
+      const config = pagePermissions[pageKey]
+      return config?.allowedFunctions?.includes(functionName) ?? false
+    },
+    [checkPageAccessFn, pagePermissions]
   )
+
   const getAllowedPagesFn = useCallback(
-    () => userRole ? getAllowedPages(userRole) : [],
-    [userRole]
+    () => userRole
+      ? Object.values(pagePermissions).filter(p => p.allowedRoles.includes(userRole))
+      : [],
+    [userRole, pagePermissions]
   )
+
   const hasRoleFn = useCallback(
     (requiredRole: UserRole) => hasRole(requiredRole, userRole || undefined),
     [userRole]
   )
+
   const getRoleDisplayNameFn = useCallback(
     () => userRole ? getRoleDisplayName(userRole) : '未登入',
     [userRole]
@@ -184,22 +247,23 @@ export function usePermission() {
     userId,
     loading,
     error,
+    pagePermissions,
     checkPageAccess: checkPageAccessFn,
     checkFunctionAccess: checkFunctionAccessFn,
     getAllowedPages: getAllowedPagesFn,
     hasRole: hasRoleFn,
     getRoleDisplayName: getRoleDisplayNameFn,
-  }), [userRole, userId, loading, error, checkPageAccessFn, checkFunctionAccessFn, getAllowedPagesFn, hasRoleFn, getRoleDisplayNameFn])
+  }), [userRole, userId, loading, error, pagePermissions, checkPageAccessFn, checkFunctionAccessFn, getAllowedPagesFn, hasRoleFn, getRoleDisplayNameFn])
 }
 
 /**
  * usePagePermission Hook - 檢查特定頁面權限
  */
 export function usePagePermission(pageKey: string) {
-  const { userRole, loading, checkPageAccess, checkFunctionAccess } = usePermission()
+  const { userRole, loading, checkPageAccess, checkFunctionAccess, pagePermissions } = usePermission()
 
   const hasAccess = checkPageAccess(pageKey)
-  const pageConfig = PAGE_PERMISSIONS[pageKey]
+  const pageConfig = pagePermissions[pageKey]
 
   return {
     hasAccess,

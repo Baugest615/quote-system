@@ -55,7 +55,12 @@ export const PAGE_KEYS = {
   MY_SALARY: 'my_salary',
 } as const
 
-// 頁面權限配置
+/**
+ * 靜態頁面權限配置（DB page_permissions 表的 fallback）
+ *
+ * 實際權限來源為資料庫 page_permissions 表，由 PermissionProvider 合併。
+ * 此常量提供 route、icon 等前端顯示資訊，以及 DB 查詢失敗時的降級方案。
+ */
 export const PAGE_PERMISSIONS: Record<string, PageConfig> = {
   [PAGE_KEYS.DASHBOARD]: {
     key: PAGE_KEYS.DASHBOARD,

@@ -34,6 +34,7 @@ export const queryKeys = {
 
   // 設定 + 權限
   profiles: ['profiles'] as const,
+  pagePermissions: ['page-permissions'] as const,
 
   // 個人
   myEmployee: (userId: string) => ['my-employee', userId] as const,
