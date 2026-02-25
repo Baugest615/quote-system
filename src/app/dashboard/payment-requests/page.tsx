@@ -377,6 +377,8 @@ export default function PaymentRequestsPage() {
       if (error) throw error
       toast.success('已核准個人報帳')
       refreshClaims()
+      queryClient.invalidateQueries({ queryKey: ['expense-claims'] })
+      queryClient.invalidateQueries({ queryKey: ['my-employee'] })
       queryClient.invalidateQueries({ queryKey: [...queryKeys.confirmedPayments] })
       queryClient.invalidateQueries({ queryKey: [...queryKeys.dashboardStats] })
     } catch (error: unknown) {
@@ -396,6 +398,8 @@ export default function PaymentRequestsPage() {
       if (error) throw error
       toast.success('已駁回個人報帳')
       refreshClaims()
+      queryClient.invalidateQueries({ queryKey: ['expense-claims'] })
+      queryClient.invalidateQueries({ queryKey: ['my-employee'] })
     } catch (error: unknown) {
       toast.error('駁回失敗: ' + (error instanceof Error ? error.message : String(error)))
     }
@@ -421,6 +425,8 @@ export default function PaymentRequestsPage() {
       toast.success(`成功核准 ${selectedClaimIds.size} 筆個人報帳`)
       setSelectedClaimIds(new Set())
       refreshClaims()
+      queryClient.invalidateQueries({ queryKey: ['expense-claims'] })
+      queryClient.invalidateQueries({ queryKey: ['my-employee'] })
       queryClient.invalidateQueries({ queryKey: [...queryKeys.confirmedPayments] })
       queryClient.invalidateQueries({ queryKey: [...queryKeys.dashboardStats] })
     } catch (error: unknown) {
@@ -446,6 +452,8 @@ export default function PaymentRequestsPage() {
       toast.success(`成功駁回 ${selectedClaimIds.size} 筆個人報帳`)
       setSelectedClaimIds(new Set())
       refreshClaims()
+      queryClient.invalidateQueries({ queryKey: ['expense-claims'] })
+      queryClient.invalidateQueries({ queryKey: ['my-employee'] })
     } catch (error: unknown) {
       toast.error('批量駁回失敗: ' + (error instanceof Error ? error.message : String(error)))
     } finally {

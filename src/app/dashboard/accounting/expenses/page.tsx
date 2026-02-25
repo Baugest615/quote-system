@@ -89,7 +89,7 @@ export default function AccountingExpensesPage() {
     { key: 'total_amount', label: '實付金額', type: 'number', readOnly: true, width: 'w-28' },
     { key: 'project_name', label: '專案名稱', type: 'autocomplete', suggestions: projectNames, width: 'w-36' },
     { key: 'payment_date', label: '匯款日', type: 'date', width: 'w-28' },
-    { key: 'invoice_number', label: '發票號碼', type: 'text', width: 'w-28' },
+    { key: 'invoice_number', label: '發票號碼', type: 'text', autoCalcTrigger: true, width: 'w-28' },
     { key: 'invoice_date', label: '發票日期', type: 'date', width: 'w-28' },
     { key: 'note', label: '備註', type: 'text', width: 'w-40' },
   ], [year, projectNames, expenseTypeNames, accountingSubjectNames])
@@ -111,8 +111,10 @@ export default function AccountingExpensesPage() {
   })
 
   const handleAutoCalcExpenses = (row: Partial<AccountingExpense>) => {
-    const tax = Math.round((row.amount || 0) * 0.05 * 100) / 100
-    const total = Math.round(((row.amount || 0) + tax) * 100) / 100
+    const amount = row.amount || 0
+    const hasInvoice = !!(row.invoice_number?.trim())
+    const tax = hasInvoice ? Math.round(amount * 0.05 * 100) / 100 : 0
+    const total = Math.round((amount + tax) * 100) / 100
     return { tax_amount: tax, total_amount: total } as Partial<AccountingExpense>
   }
 
@@ -164,7 +166,8 @@ export default function AccountingExpensesPage() {
   }, [search, typeFilter, targetFilter, paymentStatusFilter, records])
 
   const handleAmountChange = (value: number) => {
-    const tax = Math.round(value * 0.05 * 100) / 100
+    const hasInvoice = !!(form.invoice_number?.trim())
+    const tax = hasInvoice ? Math.round(value * 0.05 * 100) / 100 : 0
     const total = Math.round((value + tax) * 100) / 100
     setForm(f => ({ ...f, amount: value, tax_amount: tax, total_amount: total }))
   }
@@ -528,7 +531,14 @@ export default function AccountingExpensesPage() {
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-muted-foreground mb-1">發票號碼</label>
-                  <input type="text" value={form.invoice_number || ''} onChange={(e) => setForm(f => ({ ...f, invoice_number: e.target.value }))}
+                  <input type="text" value={form.invoice_number || ''} onChange={(e) => {
+                    const invoiceNumber = e.target.value
+                    const hasInvoice = !!(invoiceNumber.trim())
+                    const amount = form.amount || 0
+                    const tax = hasInvoice ? Math.round(amount * 0.05 * 100) / 100 : 0
+                    const total = Math.round((amount + tax) * 100) / 100
+                    setForm(f => ({ ...f, invoice_number: invoiceNumber, tax_amount: tax, total_amount: total }))
+                  }}
                     className="w-full border border-border rounded-lg px-3 py-2 text-sm font-mono bg-card focus:outline-none focus:ring-2 focus:ring-ring" placeholder="如 AB-12345678" />
                 </div>
               </div>

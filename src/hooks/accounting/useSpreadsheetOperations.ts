@@ -43,6 +43,27 @@ export function useSpreadsheetOperations<T extends { id: string }>({
   const [saving, setSaving] = useState(false)
   const cellRefs = useRef<Map<string, HTMLInputElement | HTMLSelectElement>>(new Map())
 
+  // ------ Sync from server data (React Query refetch) ------
+  const prevInitialRef = useRef(initialRows)
+  useEffect(() => {
+    // 只有在 initialRows 實際變化且無未儲存的變更時，才同步
+    if (prevInitialRef.current === initialRows) return
+    prevInitialRef.current = initialRows
+
+    const hasPending = rows.some(r => r.status !== 'clean')
+    if (hasPending) return
+
+    setRows(
+      initialRows.map(r => ({
+        tempId: r.id,
+        originalId: r.id,
+        data: { ...r } as Partial<T>,
+        status: 'clean' as RowStatus,
+        errors: [],
+      }))
+    )
+  }, [initialRows, rows])
+
   // ------ Derived ------
   const visibleRows = useMemo(() => rows.filter(r => r.status !== 'deleted'), [rows])
   const deletedCount = useMemo(() => rows.filter(r => r.status === 'deleted').length, [rows])
@@ -303,6 +324,17 @@ export function useSpreadsheetOperations<T extends { id: string }>({
       const result = await onBatchSave(toInsert, toUpdate, toDelete)
 
       if (result.errors.length === 0) {
+        // 重置所有列為 clean 狀態，移除已刪除列
+        setRows(prev =>
+          prev
+            .filter(r => r.status !== 'deleted')
+            .map(r => ({
+              ...r,
+              status: 'clean' as RowStatus,
+              errors: [],
+            }))
+        )
+        setActiveCell(null)
         toast.success(`已成功儲存 ${result.successCount} 筆記錄`)
       } else {
         toast.warning(`${result.successCount} 筆成功，${result.errors.length} 筆失敗`)

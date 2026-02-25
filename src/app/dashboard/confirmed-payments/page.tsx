@@ -154,8 +154,23 @@ export default function ConfirmedPaymentsPage() {
   const handleRevert = async (confirmation: PaymentConfirmation) => {
     const itemsToRevert = confirmation.payment_confirmation_items
 
+    // 孤立記錄（無關聯項目）：直接刪除確認記錄
     if (!itemsToRevert || itemsToRevert.length === 0) {
-      toast.error('此確認清單沒有項目可退回。')
+      const ok = await confirm({
+        title: '刪除空白清單',
+        description: '此確認清單沒有關聯項目，是否直接刪除？',
+        confirmLabel: '刪除',
+        variant: 'destructive',
+      })
+      if (!ok) return
+      try {
+        await supabase.from('accounting_expenses').delete().eq('payment_confirmation_id', confirmation.id)
+        await supabase.from('payment_confirmations').delete().eq('id', confirmation.id)
+        toast.success('已刪除空白確認清單')
+        refresh()
+      } catch (error: unknown) {
+        toast.error('刪除失敗: ' + (error instanceof Error ? error.message : String(error)))
+      }
       return
     }
 

@@ -138,7 +138,7 @@ export default function Sidebar() {
   const MobileMenuButton = () => (
     <button
       onClick={() => setIsMobileOpen(true)}
-      className="lg:hidden fixed top-4 left-4 z-50 bg-secondary/80 backdrop-blur-sm border border-border rounded-lg p-2.5 shadow-lg"
+      className="lg:hidden fixed top-4 left-4 z-50 bg-secondary/80 border border-border rounded-lg p-2.5 shadow-lg"
       aria-label="開啟選單"
     >
       <Menu className="w-5 h-5 text-foreground" />
@@ -401,7 +401,7 @@ export default function Sidebar() {
         <div className="fixed inset-0 z-[60]">
           {/* 半透明遮罩 */}
           <div
-            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            className="absolute inset-0 bg-black/60"
             onClick={() => setIsMobileOpen(false)}
           />
           {/* 側邊欄 */}

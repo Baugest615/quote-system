@@ -96,6 +96,7 @@ export default function ExpenseClaimsPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [...currentQueryKey] })
       queryClient.invalidateQueries({ queryKey: [...queryKeys.expenseClaimsPending] })
+      queryClient.invalidateQueries({ queryKey: ['my-employee'] })
       toast.success(editingClaim ? '已更新報帳項目' : '已新增報帳項目')
       setIsModalOpen(false)
       setEditingClaim(null)
@@ -115,6 +116,7 @@ export default function ExpenseClaimsPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [...currentQueryKey] })
       queryClient.invalidateQueries({ queryKey: [...queryKeys.expenseClaimsPending] })
+      queryClient.invalidateQueries({ queryKey: ['my-employee'] })
       toast.success('已刪除報帳項目')
     },
     onError: (err: Error) => toast.error(`刪除失敗：${err.message}`),
@@ -139,6 +141,7 @@ export default function ExpenseClaimsPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [...currentQueryKey] })
       queryClient.invalidateQueries({ queryKey: [...queryKeys.paymentRequests] })
+      queryClient.invalidateQueries({ queryKey: ['my-employee'] })
       setSelectedIds(new Set())
       toast.success('已送出審核')
     },
