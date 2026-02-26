@@ -748,7 +748,12 @@ export default function PendingPaymentsPage() {
     const firstItemId = selectedForMerge[0];
     const firstItem = items.find(i => i.id === firstItemId);
     if (!firstItem) return false;
-    return item.kol_id === firstItem.kol_id;
+    // 同名 KOL 或相同銀行帳戶皆可合併
+    if (item.kol_id === firstItem.kol_id) return true;
+    const bankInfo1 = item.kols?.bank_info;
+    const bankInfo2 = firstItem.kols?.bank_info;
+    if (!bankInfo1 || !bankInfo2) return false;
+    return JSON.stringify(bankInfo1) === JSON.stringify(bankInfo2);
   };
 
   const canSelectForPayment = (item: PendingPaymentItem) => {

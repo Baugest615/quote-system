@@ -153,7 +153,7 @@ export const PAGE_PERMISSIONS: Record<string, PageConfig> = {
   [PAGE_KEYS.ACCOUNTING]: {
     key: PAGE_KEYS.ACCOUNTING,
     name: '帳務管理',
-    allowedRoles: [USER_ROLES.ADMIN],
+    allowedRoles: [USER_ROLES.ADMIN, USER_ROLES.EDITOR],
     allowedFunctions: ['view', 'create', 'update', 'delete', 'export'],
     route: '/dashboard/accounting',
     icon: 'BookOpen'

@@ -455,7 +455,7 @@ export default function ViewQuotePage() {
                     </td>
                   )}
 
-                  {/* 服務內容 */}
+                  {/* 執行內容 */}
                   <td className="border p-2 text-center">{row.item.service}</td>
 
                   {/* 單價 */}

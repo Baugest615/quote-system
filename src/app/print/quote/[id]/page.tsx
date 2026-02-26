@@ -137,12 +137,11 @@ export default async function PrintQuotePage({ params, searchParams }: PageProps
             font-family: 'PingFang TC', 'Noto Sans TC', 'Microsoft JhengHei', 'Apple LiGothic', system-ui, sans-serif !important;
           }
           body { font-size: 13px; line-height: 1.5; color: #1f2937; }
-          .container { padding: 0; background: white; }
+          .container { padding: 0; background: white; max-width: 100%; overflow: hidden; }
           .header { text-align: center; margin-bottom: 12px; padding-bottom: 8px; border-bottom: 1px solid #e5e7eb; }
           .header img { height: 36px; }
           .header h1 { font-size: 18px; font-weight: bold; margin-top: 6px; }
-          table { width: 100%; border-collapse: collapse; margin-bottom: 16px; }
-          th, td { border: 1px solid #d1d5db; padding: 6px; }
+          th, td { border: 1px solid #d1d5db; padding: 6px; word-wrap: break-word; }
           th { background-color: #f9fafb; text-align: center; font-weight: 600; font-size: 12px; }
           .info-table td { font-size: 12px; }
           .info-label { background-color: #f9fafb; font-weight: bold; white-space: nowrap; width: 100px; }
@@ -160,7 +159,8 @@ export default async function PrintQuotePage({ params, searchParams }: PageProps
           .text-gray { color: #6b7280; }
           .text-sm { font-size: 12px; }
           .text-xs { font-size: 10px; }
-          .section { border: 1px solid #d1d5db; padding: 12px; margin-bottom: 12px; }
+          table { width: 100%; border-collapse: collapse; margin-bottom: 16px; table-layout: fixed; }
+          .section { border: 1px solid #d1d5db; padding: 12px; margin-bottom: 12px; overflow: hidden; word-wrap: break-word; }
           .section-title { font-weight: bold; font-size: 13px; background: #f9fafb; padding: 6px; margin: -12px -12px 10px; border-bottom: 1px solid #d1d5db; }
           .signature-area { display: flex; justify-content: space-between; gap: 24px; margin-top: 24px; }
           .signature-box { width: 48%; text-align: center; border: 1px solid #d1d5db; padding: 12px; height: 110px; display: flex; flex-direction: column; justify-content: space-between; position: relative; }

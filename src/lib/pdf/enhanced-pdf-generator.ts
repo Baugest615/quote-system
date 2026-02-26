@@ -117,12 +117,42 @@ export class EnhancedPDFGenerator {
                 }
               });
 
+              // 修復 .section-title 負邊距導致右側邊框被截斷
+              const sectionTitles = clonedElement.querySelectorAll('.section-title');
+              sectionTitles.forEach(title => {
+                const titleEl = title as HTMLElement;
+                titleEl.style.margin = '0 0 10px 0';
+                titleEl.style.padding = '6px 12px';
+                titleEl.style.borderBottom = '1px solid #d1d5db';
+              });
+              // section 本身移除 padding，由內容自帶
+              const sections = clonedElement.querySelectorAll('.section');
+              sections.forEach(section => {
+                const sectionEl = section as HTMLElement;
+                sectionEl.style.padding = '0';
+                sectionEl.style.overflow = 'hidden';
+                // 為非 section-title 的子元素加 padding
+                Array.from(sectionEl.children).forEach(child => {
+                  const childEl = child as HTMLElement;
+                  if (!childEl.classList.contains('section-title')) {
+                    childEl.style.padding = '8px 12px 12px';
+                  }
+                });
+              });
+
+              // 確保容器不超出頁面寬度
+              clonedElement.style.maxWidth = '100%';
+              clonedElement.style.overflow = 'hidden';
+              clonedElement.style.boxSizing = 'border-box';
+
               // 確保表格邊框樣式
               const tables = clonedElement.querySelectorAll('table');
               tables.forEach(table => {
                 const tableEl = table as HTMLElement;
                 tableEl.style.borderCollapse = 'collapse';
                 tableEl.style.border = '1px solid #d1d5db';
+                tableEl.style.tableLayout = 'fixed';
+                tableEl.style.maxWidth = '100%';
               });
 
               // 確保所有 td, th 都有正確的邊框
@@ -130,6 +160,16 @@ export class EnhancedPDFGenerator {
               cells.forEach(cell => {
                 const cellEl = cell as HTMLElement;
                 cellEl.style.border = '1px solid #d1d5db';
+                cellEl.style.overflowWrap = 'break-word';
+              });
+
+              // no-border 表格排除邊框（銀行資訊等）
+              const noBorderTables = clonedElement.querySelectorAll('.no-border');
+              noBorderTables.forEach(table => {
+                (table as HTMLElement).style.border = 'none';
+                table.querySelectorAll('td, th').forEach(cell => {
+                  (cell as HTMLElement).style.border = 'none';
+                });
               });
             }
           }
