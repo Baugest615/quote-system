@@ -28,6 +28,7 @@ $$;
 
 -- 1.2 重建 INSERT 政策: 全員可新增
 DROP POLICY IF EXISTS "payment_requests_insert" ON payment_requests;
+DROP POLICY IF EXISTS "payment_requests_insert_authenticated_policy" ON payment_requests;
 CREATE POLICY "payment_requests_insert_authenticated_policy" ON payment_requests
   FOR INSERT TO authenticated
   WITH CHECK (true);

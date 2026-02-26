@@ -8,12 +8,15 @@ import { queryKeys } from '@/lib/queryKeys'
 import { toast } from 'sonner'
 import {
   Receipt, Search, Plus, Pencil, Trash2,
-  Send, AlertCircle, CheckCircle, XCircle, FileEdit, Shield,
+  Send, AlertCircle, CheckCircle, XCircle, FileEdit, Shield, Table2,
 } from 'lucide-react'
 import Pagination from '@/components/accounting/Pagination'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { useProjectNames } from '@/hooks/useProjectNames'
+import { useExpenseDefaults } from '@/hooks/useExpenseDefaults'
+import SpreadsheetEditor from '@/components/accounting/SpreadsheetEditor'
+import type { SpreadsheetColumn, BatchSaveResult, RowError } from '@/lib/spreadsheet-utils'
 import ExpenseClaimModal from '@/components/expense-claims/ExpenseClaimModal'
 import type { ExpenseClaimFormData } from '@/components/expense-claims/ExpenseClaimModal'
 import type { ExpenseClaim } from '@/types/custom.types'
@@ -22,7 +25,7 @@ import {
   PAYMENT_STATUS_LABELS, PAYMENT_STATUS_COLORS,
   type ClaimStatus,
 } from '@/types/custom.types'
-import { CURRENT_YEAR } from '@/lib/constants'
+import { CURRENT_YEAR, MONTH_OPTIONS } from '@/lib/constants'
 import { useConfirm } from '@/components/ui/ConfirmDialog'
 
 const PAGE_SIZE = 20
@@ -42,11 +45,70 @@ export default function ExpenseClaimsPage() {
   // Modal 狀態
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingClaim, setEditingClaim] = useState<ExpenseClaim | null>(null)
+  const [isSpreadsheetMode, setIsSpreadsheetMode] = useState(false)
 
-  // 專案名稱建議
+  // 專案名稱建議 + 支出種類/會計科目
   const { data: projectNames = [] } = useProjectNames()
+  const { expenseTypeNames, accountingSubjectNames } = useExpenseDefaults()
+
+  // 取得目前登入者的員工姓名（用於 vendor_name 預設值）
+  const { data: myEmployeeName } = useQuery({
+    queryKey: ['my-employee-name'],
+    queryFn: async () => {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return ''
+      const { data } = await supabase
+        .from('employees').select('name').eq('user_id', user.id).maybeSingle()
+      return data?.name ?? ''
+    },
+  })
+  const employeeName = myEmployeeName ?? ''
 
   const currentQueryKey = queryKeys.expenseClaims(year)
+
+  // 試算表欄位定義
+  const spreadsheetColumns = useMemo<SpreadsheetColumn<ExpenseClaim>[]>(() => [
+    { key: 'claim_month', label: '報帳月份', type: 'select',
+      options: MONTH_OPTIONS.map(m => `${year}年${m}`), width: 'w-28' },
+    { key: 'expense_type', label: '支出種類', type: 'select',
+      options: [...expenseTypeNames], required: true, width: 'w-28' },
+    { key: 'accounting_subject', label: '會計科目', type: 'select',
+      options: ['', ...accountingSubjectNames], width: 'w-28' },
+    { key: 'vendor_name', label: '廠商/對象', type: 'text', width: 'w-32' },
+    { key: 'amount', label: '金額（未稅）', type: 'number', autoCalcSource: true, width: 'w-28' },
+    { key: 'tax_amount', label: '稅額', type: 'number', readOnly: true, width: 'w-24' },
+    { key: 'total_amount', label: '總額（含稅）', type: 'number', readOnly: true, width: 'w-28' },
+    { key: 'project_name', label: '專案名稱', type: 'autocomplete', suggestions: projectNames, width: 'w-36' },
+    { key: 'invoice_number', label: '發票號碼', type: 'text', autoCalcTrigger: true, width: 'w-28' },
+    { key: 'invoice_date', label: '發票日期', type: 'date', width: 'w-28' },
+    { key: 'note', label: '備註', type: 'text', width: 'w-40' },
+  ], [year, projectNames, expenseTypeNames, accountingSubjectNames])
+
+  const emptyClaimRow = useCallback((): Partial<ExpenseClaim> => ({
+    claim_month: '',
+    expense_type: '員工代墊' as ExpenseClaim['expense_type'],
+    accounting_subject: '',
+    vendor_name: employeeName || '',
+    amount: 0,
+    tax_amount: 0,
+    total_amount: 0,
+    project_name: '',
+    invoice_number: '',
+    invoice_date: null,
+    note: '',
+    status: 'draft' as const,
+  }), [employeeName])
+
+  const handleAutoCalcClaims = useCallback(
+    (row: Partial<ExpenseClaim>): Partial<ExpenseClaim> => {
+      const amount = row.amount || 0
+      const hasInvoice = !!(row.invoice_number?.trim())
+      const tax = hasInvoice ? Math.round(amount * 0.05 * 100) / 100 : 0
+      const total = Math.round((amount + tax) * 100) / 100
+      return { tax_amount: tax, total_amount: total }
+    },
+    []
+  )
 
   // 載入資料
   const { data: records = [], isLoading: loading } = useQuery({
@@ -79,12 +141,16 @@ export default function ExpenseClaimsPage() {
       if (id) {
         const { error } = await supabase
           .from('expense_claims')
-          .update(data)
+          .update({
+            ...data,
+            vendor_name: data.vendor_name?.trim() || employeeName || undefined,
+          })
           .eq('id', id)
         if (error) throw error
       } else {
         const payload = {
           ...data,
+          vendor_name: data.vendor_name?.trim() || employeeName || undefined,
           year,
           status: 'draft' as const,
           created_by: user?.id,
@@ -152,6 +218,60 @@ export default function ExpenseClaimsPage() {
     },
     onError: () => toast.error('送出失敗，請重試'),
   })
+
+  // 試算表批次儲存
+  const handleBatchSave = useCallback(async (
+    toInsert: Partial<ExpenseClaim>[],
+    toUpdate: { id: string; data: Partial<ExpenseClaim> }[],
+    toDelete: string[]
+  ): Promise<BatchSaveResult> => {
+    const { data: { user } } = await supabase.auth.getUser()
+    const errors: RowError[] = []
+    let successCount = 0
+
+    if (toInsert.length > 0) {
+      const payload = toInsert.map(r => ({
+        ...r,
+        vendor_name: (r.vendor_name as string)?.trim() || employeeName || undefined,
+        year,
+        status: 'draft' as const,
+        created_by: user?.id,
+        submitted_by: user?.id,
+      }))
+      const { error } = await supabase.from('expense_claims').insert(payload)
+      if (error) toInsert.forEach((_, i) => errors.push({ tempId: `insert-${i}`, message: error.message }))
+      else successCount += toInsert.length
+    }
+
+    for (const { id, data } of toUpdate) {
+      const { error } = await supabase
+        .from('expense_claims')
+        .update({
+          ...data,
+          vendor_name: (data.vendor_name as string)?.trim() || employeeName || undefined,
+        })
+        .eq('id', id)
+        .eq('status', 'draft')
+      if (error) errors.push({ tempId: id, message: error.message })
+      else successCount++
+    }
+
+    if (toDelete.length > 0) {
+      const { error } = await supabase
+        .from('expense_claims')
+        .delete()
+        .in('id', toDelete)
+        .eq('status', 'draft')
+      if (error) errors.push({ tempId: 'batch-delete', message: error.message })
+      else successCount += toDelete.length
+    }
+
+    queryClient.invalidateQueries({ queryKey: [...currentQueryKey] })
+    queryClient.invalidateQueries({ queryKey: [...queryKeys.expenseClaimsPending] })
+    queryClient.invalidateQueries({ queryKey: ['my-employee'] })
+    queryClient.invalidateQueries({ queryKey: ['monthly-settlement'] })
+    return { successCount, errors }
+  }, [year, employeeName, queryClient, currentQueryKey])
 
   // 篩選
   const filtered = useMemo(() => {
@@ -333,15 +453,41 @@ export default function ExpenseClaimsPage() {
             className="w-full pl-9 pr-4 py-2 border border-border rounded-lg text-sm bg-card focus:outline-none focus:ring-2 focus:ring-ring"
           />
         </div>
+        {!isSpreadsheetMode && (
+          <button
+            onClick={() => handleOpenModal()}
+            className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors"
+          >
+            <Plus className="w-4 h-4" />
+            新增報帳
+          </button>
+        )}
         <button
-          onClick={() => handleOpenModal()}
-          className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors"
+          onClick={() => setIsSpreadsheetMode(!isSpreadsheetMode)}
+          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+            isSpreadsheetMode
+              ? 'bg-info/10 text-info border border-info/30'
+              : 'bg-muted text-foreground hover:bg-accent'
+          }`}
         >
-          <Plus className="w-4 h-4" />
-          新增報帳
+          <Table2 className="w-4 h-4" />
+          {isSpreadsheetMode ? '表格模式' : '試算表模式'}
         </button>
       </div>
 
+      {isSpreadsheetMode ? (
+        <SpreadsheetEditor<ExpenseClaim>
+          columns={spreadsheetColumns}
+          initialRows={records.filter(r => r.status === 'draft')}
+          year={year}
+          emptyRow={emptyClaimRow}
+          onAutoCalc={handleAutoCalcClaims}
+          onBatchSave={handleBatchSave}
+          accentColor="blue"
+          onClose={() => setIsSpreadsheetMode(false)}
+        />
+      ) : (
+      <>
       {/* 批量送出操作列 */}
       {selectedIds.size > 0 && (
         <div className="flex items-center gap-3 bg-info/10 border border-info/30 rounded-xl px-4 py-3">
@@ -517,6 +663,8 @@ export default function ExpenseClaimsPage() {
         year={year}
         projectNames={projectNames}
       />
+      </>
+      )}
     </div>
   )
 }

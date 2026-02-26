@@ -15,6 +15,18 @@ import { CURRENT_YEAR, CURRENT_MONTH, MONTH_OPTIONS } from '@/lib/constants'
 
 const fmt = (n: number) => new Intl.NumberFormat('zh-TW').format(n)
 
+/** 從 accounting_expenses.note 提取有意義的內容，過濾系統前綴 */
+function extractNote(note: string | null | undefined): string {
+  if (!note) return ''
+  // 新格式：'個人報帳核准 (使用者備註)' 或 '請款核准 (服務描述)'
+  const parenMatch = note.match(/\((.+)\)\s*$/)
+  if (parenMatch) return parenMatch[1]
+  // 舊格式：'系統自動建立 - xxx' → 過濾掉
+  if (note.startsWith('系統自動建立')) return ''
+  // 使用者自行輸入的備註 → 原樣返回
+  return note
+}
+
 export default function MonthlySettlementPage() {
   const { hasRole, loading: permLoading } = usePermission()
   const isAdmin = hasRole('Admin')
@@ -366,20 +378,32 @@ function EmployeeGroupRow({
             <tr className="bg-muted/30 hover:bg-accent/50">
               <td className="px-3 py-2"></td>
               <td className="px-3 py-2" colSpan={2}>
-                <div className="flex items-center gap-2 pl-4">
-                  <input
-                    type="checkbox"
-                    checked={isSelected('payroll', g.payroll.id)}
-                    onChange={(e) => { e.stopPropagation(); toggleSelect('payroll', g.payroll!.id) }}
-                    onClick={(e) => e.stopPropagation()}
-                    className="rounded border-border"
-                  />
-                  <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-chart-5/20 text-chart-5">
-                    薪資
-                  </span>
-                  <span className="text-xs text-muted-foreground">
-                    實領薪資（底薪 {fmt(g.payroll.base_salary)} + 餐費 {fmt(g.payroll.meal_allowance)}）
-                  </span>
+                <div className="pl-4">
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={isSelected('payroll', g.payroll.id)}
+                      onChange={(e) => { e.stopPropagation(); toggleSelect('payroll', g.payroll!.id) }}
+                      onClick={(e) => e.stopPropagation()}
+                      className="rounded border-border"
+                    />
+                    <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-chart-5/20 text-chart-5">
+                      薪資
+                    </span>
+                    <span className="text-xs text-muted-foreground">
+                      實領薪資（底薪 {fmt(g.payroll.base_salary)} + 餐費 {fmt(g.payroll.meal_allowance)}）
+                    </span>
+                  </div>
+                  {(g.payroll.labor_insurance_personal > 0 || g.payroll.health_insurance_personal > 0 || g.payroll.bonus > 0 || g.payroll.deduction > 0) && (
+                    <div className="text-xs text-muted-foreground/70 pl-6 mt-0.5">
+                      {[
+                        g.payroll.labor_insurance_personal > 0 && `勞保 -${fmt(g.payroll.labor_insurance_personal)}`,
+                        g.payroll.health_insurance_personal > 0 && `健保 -${fmt(g.payroll.health_insurance_personal)}`,
+                        g.payroll.bonus > 0 && `獎金 +${fmt(g.payroll.bonus)}`,
+                        g.payroll.deduction > 0 && `扣款 -${fmt(g.payroll.deduction)}`,
+                      ].filter(Boolean).join(' | ')}
+                    </div>
+                  )}
                 </div>
               </td>
               <td className="px-3 py-2" colSpan={2}>
@@ -394,20 +418,36 @@ function EmployeeGroupRow({
             <tr key={e.id} className="bg-muted/30 hover:bg-accent/50">
               <td className="px-3 py-2"></td>
               <td className="px-3 py-2" colSpan={2}>
-                <div className="flex items-center gap-2 pl-4">
-                  <input
-                    type="checkbox"
-                    checked={isSelected('expense', e.id)}
-                    onChange={(ev) => { ev.stopPropagation(); toggleSelect('expense', e.id) }}
-                    onClick={(ev) => ev.stopPropagation()}
-                    className="rounded border-border"
-                  />
-                  <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-chart-4/20 text-chart-4">
-                    報帳
-                  </span>
-                  <span className="text-xs text-muted-foreground">
-                    {e.expense_type} — {e.accounting_subject || e.project_name || '-'}
-                  </span>
+                <div className="pl-4">
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={isSelected('expense', e.id)}
+                      onChange={(ev) => { ev.stopPropagation(); toggleSelect('expense', e.id) }}
+                      onClick={(ev) => ev.stopPropagation()}
+                      className="rounded border-border"
+                    />
+                    <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-chart-4/20 text-chart-4">
+                      報帳
+                    </span>
+                    <span className="text-xs text-muted-foreground">
+                      {e.expense_type} — {e.accounting_subject || e.project_name || '-'}
+                    </span>
+                  </div>
+                  <div className="text-xs text-muted-foreground/70 pl-6 mt-0.5">
+                    {e.payment_request_id ? (
+                      <span className="text-blue-400">KOL請款</span>
+                    ) : e.expense_claim_id ? (
+                      <span className="text-purple-400">個人報帳</span>
+                    ) : (
+                      <span>手動建立</span>
+                    )}
+                    {[
+                      e.vendor_name && `廠商: ${e.vendor_name}`,
+                      e.invoice_number && `發票: ${e.invoice_number}`,
+                      extractNote(e.note),
+                    ].filter(Boolean).map((s, i) => <span key={i}> | {s}</span>)}
+                  </div>
                 </div>
               </td>
               <td className="px-3 py-2" colSpan={2}>
@@ -422,20 +462,25 @@ function EmployeeGroupRow({
             <tr key={c.id} className="bg-muted/30 hover:bg-accent/50">
               <td className="px-3 py-2"></td>
               <td className="px-3 py-2" colSpan={2}>
-                <div className="flex items-center gap-2 pl-4">
-                  <input
-                    type="checkbox"
-                    checked={isSelected('claim', c.id)}
-                    onChange={(ev) => { ev.stopPropagation(); toggleSelect('claim', c.id) }}
-                    onClick={(ev) => ev.stopPropagation()}
-                    className="rounded border-border"
-                  />
-                  <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-orange-500/20 text-orange-400">
-                    代扣代繳
-                  </span>
-                  <span className="text-xs text-muted-foreground">
-                    {c.accounting_subject || '所得稅'}{c.withholding_month ? ` (${c.withholding_month})` : ''}
-                  </span>
+                <div className="pl-4">
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={isSelected('claim', c.id)}
+                      onChange={(ev) => { ev.stopPropagation(); toggleSelect('claim', c.id) }}
+                      onClick={(ev) => ev.stopPropagation()}
+                      className="rounded border-border"
+                    />
+                    <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-orange-500/20 text-orange-400">
+                      代扣代繳
+                    </span>
+                    <span className="text-xs text-muted-foreground">
+                      {c.accounting_subject || '所得稅'}{c.withholding_month ? ` (${c.withholding_month})` : ''}
+                    </span>
+                  </div>
+                  {c.note && (
+                    <div className="text-xs text-muted-foreground/70 pl-6 mt-0.5">{c.note}</div>
+                  )}
                 </div>
               </td>
               <td className="px-3 py-2" colSpan={2}>
@@ -539,9 +584,35 @@ function ExternalTab({
                         className="rounded border-border"
                       />
                     </td>
-                    <td className="px-3 py-3 font-medium text-foreground">{e.vendor_name || '-'}</td>
-                    <td className="px-3 py-3 text-muted-foreground">{e.expense_type}</td>
-                    <td className="px-3 py-3 text-muted-foreground max-w-40 truncate">{e.project_name || '-'}</td>
+                    <td className="px-3 py-3">
+                      <div className="font-medium text-foreground">{e.vendor_name || '-'}</div>
+                      <div className="text-xs text-muted-foreground/70 mt-0.5">
+                        {e.payment_request_id ? (
+                          <span className="text-blue-400">KOL請款</span>
+                        ) : e.expense_claim_id ? (
+                          <span className="text-purple-400">個人報帳</span>
+                        ) : (
+                          <span>手動建立</span>
+                        )}
+                      </div>
+                    </td>
+                    <td className="px-3 py-3">
+                      <div className="text-muted-foreground">{e.expense_type}</div>
+                      {e.accounting_subject && (
+                        <div className="text-xs text-muted-foreground/70 mt-0.5">{e.accounting_subject}</div>
+                      )}
+                    </td>
+                    <td className="px-3 py-3 max-w-40">
+                      <div className="text-muted-foreground truncate">{e.project_name || '-'}</div>
+                      {(e.invoice_number || extractNote(e.note)) && (
+                        <div className="text-xs text-muted-foreground/70 mt-0.5 truncate">
+                          {[
+                            e.invoice_number && `發票: ${e.invoice_number}`,
+                            extractNote(e.note),
+                          ].filter(Boolean).join(' | ')}
+                        </div>
+                      )}
+                    </td>
                     <td className="px-3 py-3 text-right font-medium">NT$ {fmt(e.total_amount || 0)}</td>
                     <td className="px-3 py-3 text-center">
                       <span className="text-xs text-muted-foreground">

@@ -1,16 +1,15 @@
 -- =====================================================
--- 修復駁回原因殘留 + 備註欄位可見性
--- 1. approve_expense_claim: 核准時清除駁回欄位
--- 2. approve_payment_request: 核准時清除駁回欄位
+-- 改善 RPC 寫入 accounting_expenses 的 note 欄位
+-- 1. approve_expense_claim: 帶入使用者原始備註
+-- 2. approve_payment_request: 帶入服務描述
+-- 3. 回填既有 accounting_expenses 的 note
 -- =====================================================
 
 -- ============================================================
--- 1. approve_expense_claim — 核准時清除 rejection_reason/rejected_by/rejected_at
--- 根因: 駁回後重新核准，舊的駁回原因仍殘留在記錄中
+-- 1. approve_expense_claim — note 帶入使用者原始備註
+-- 原：'系統自動建立 - 個人報帳核准'
+-- 新：'個人報帳核准' 或 '個人報帳核准 (使用者備註)'
 -- ============================================================
-
--- 只需更新 UPDATE 語句，其餘邏輯不變
--- 使用 CREATE OR REPLACE 重建完整函數
 
 DROP FUNCTION IF EXISTS approve_expense_claim(uuid, uuid);
 
@@ -205,7 +204,11 @@ BEGIN
         v_claim.invoice_date,
         claim_id,
         v_payment_target,
-        '系統自動建立 - 個人報帳核准',
+        '個人報帳核准' || CASE
+          WHEN v_claim.note IS NOT NULL AND v_claim.note != ''
+          THEN ' (' || v_claim.note || ')'
+          ELSE ''
+        END,
         v_actual_approver_id
       );
     END IF;
@@ -214,13 +217,10 @@ END;
 $$;
 
 -- ============================================================
--- 2. approve_payment_request — 核准時清除駁回欄位
--- 根因: 同上，專案請款駁回後重新核准也會殘留駁回原因
--- 注意: 只更新最終的 UPDATE 語句，不動其他邏輯
+-- 2. approve_payment_request — note 帶入服務描述
+-- 原：'系統自動建立 - 請款核准'
+-- 新：'請款核准 (服務描述)'
 -- ============================================================
-
--- 讀取最新版本的完整函數並更新 UPDATE 語句
--- 最新版本來自 20260222980000_add_accounting_subject_to_payment_requests.sql
 
 DROP FUNCTION IF EXISTS approve_payment_request(uuid, uuid, text, text);
 
@@ -388,9 +388,35 @@ BEGIN
       v_kol_name,
       v_project_name,
       request_id,
-      '系統自動建立 - 請款核准',
+      '請款核准 (' || v_service || ')',
       v_actual_verifier_id
     );
   END IF;
 END;
 $$;
+
+-- ============================================================
+-- 3. 回填既有 accounting_expenses 的 note
+-- ============================================================
+
+-- 3a. 個人報帳產生的記錄：補上原始 claim 備註
+UPDATE accounting_expenses ae
+SET note = '個人報帳核准' || CASE
+    WHEN ec.note IS NOT NULL AND ec.note != ''
+    THEN ' (' || ec.note || ')'
+    ELSE ''
+  END
+FROM expense_claims ec
+WHERE ae.expense_claim_id = ec.id
+  AND ae.note LIKE '系統自動建立%';
+
+-- 3b. KOL 請款產生的記錄：補上服務描述
+UPDATE accounting_expenses ae
+SET note = '請款核准 (' || COALESCE(qi.service, 'Unknown Service') || ')'
+FROM payment_requests pr
+JOIN quotation_items qi ON qi.id = pr.quotation_item_id
+WHERE ae.payment_request_id = pr.id
+  AND ae.note LIKE '系統自動建立%';
+
+-- Notify PostgREST to reload schema cache
+NOTIFY pgrst, 'reload schema';

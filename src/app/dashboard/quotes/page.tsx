@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback, useMemo } from 'react'
+import { useState, useCallback, useMemo, useEffect } from 'react'
 import Link from 'next/link'
 import { useQueryClient } from '@tanstack/react-query'
 import { Database } from '@/types/database.types'
@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input'
 import { Search, PlusCircle, Filter, ChevronLeft, ChevronRight, Calendar, DollarSign } from 'lucide-react'
 import { QuotesDataGrid } from '@/components/quotes/v2/QuotesDataGrid'
 import { SkeletonTable } from '@/components/ui/Skeleton'
-import { useQuotationsList } from '@/hooks/useQuotations'
+import { useQuotations } from '@/hooks/useQuotations'
 import { useClients } from '@/hooks/useClients'
 import { queryKeys } from '@/lib/queryKeys'
 import { ModuleErrorBoundary } from '@/components/ModuleErrorBoundary'
@@ -58,11 +58,9 @@ export default function QuotesV2Page() {
         { value: '已歸檔', label: '已歸檔', color: 'bg-info/15 text-info' }
     ]
 
-    // React Query 資料獲取
-    const { data: quotationsData, isLoading: loading } = useQuotationsList(currentPage)
+    // React Query 資料獲取（全量載入，搜尋涵蓋所有資料）
+    const { data: quotations = [], isLoading: loading } = useQuotations()
     const { data: clients = [] } = useClients()
-    const quotations = quotationsData?.data ?? []
-    const totalCount = quotationsData?.totalCount ?? 0
 
     // 重新整理回呼（含跨頁快取失效）
     const handleRefresh = useCallback(() => {
@@ -144,10 +142,17 @@ export default function QuotesV2Page() {
         return result
     }, [quotations, searchTerm, filters])
 
-    // 分頁邏輯 (伺服器端分頁，前端篩選在當頁資料上)
-    const totalPages = Math.ceil(totalCount / itemsPerPage)
+    // 搜尋或篩選改變時重置到第 1 頁
+    useEffect(() => { setCurrentPage(1) }, [searchTerm, filters])
 
-    // 換頁時重新從伺服器撈資料
+    // 客戶端分頁
+    const totalCount = filteredQuotations.length
+    const totalPages = Math.ceil(totalCount / itemsPerPage)
+    const paginatedQuotations = filteredQuotations.slice(
+        (currentPage - 1) * itemsPerPage,
+        currentPage * itemsPerPage
+    )
+
     const handlePageChange = useCallback((page: number) => {
         setCurrentPage(page)
     }, [])
@@ -319,7 +324,7 @@ export default function QuotesV2Page() {
                     </div>
                 ) : (
                     <QuotesDataGrid
-                        data={filteredQuotations}
+                        data={paginatedQuotations}
                         clients={clients}
                         onRefresh={handleRefresh}
                     />
