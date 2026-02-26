@@ -13,10 +13,17 @@ export function PaymentRecordRow({ item }: PaymentRecordRowProps) {
         return (
             <tr className="text-sm hover:bg-secondary">
                 <td className="px-4 py-3 text-foreground">
-                    {claim?.project_name || '—'}
-                    <span className="ml-2 inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-chart-5/20 text-chart-5">
-                        個人
-                    </span>
+                    <div>
+                        {claim?.project_name || '—'}
+                        <span className="ml-2 inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-chart-5/20 text-chart-5">
+                            個人
+                        </span>
+                    </div>
+                    {claim?.note && (
+                        <p className="text-[10px] text-muted-foreground/60 mt-0.5 truncate max-w-48" title={claim.note}>
+                            {claim.note}
+                        </p>
+                    )}
                 </td>
                 <td className="px-4 py-3 text-foreground/70">{claim?.vendor_name || '—'}</td>
                 <td className="px-4 py-3 text-foreground/70">{claim?.expense_type || '—'}</td>

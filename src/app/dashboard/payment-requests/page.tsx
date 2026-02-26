@@ -696,7 +696,14 @@ export default function PaymentRequestsPage() {
                       <td className="px-4 py-3 text-sm text-muted-foreground">{claim.claim_month || '-'}</td>
                       <td className="px-4 py-3 text-sm">{claim.expense_type}</td>
                       <td className="px-4 py-3 text-sm font-medium">{claim.vendor_name || '-'}</td>
-                      <td className="px-4 py-3 text-sm text-muted-foreground max-w-32 truncate">{claim.project_name || '-'}</td>
+                      <td className="px-4 py-3 text-sm text-muted-foreground max-w-32">
+                        <div className="truncate">{claim.project_name || '-'}</div>
+                        {claim.note && (
+                          <p className="text-[10px] text-muted-foreground/60 mt-0.5 truncate" title={claim.note}>
+                            {claim.note}
+                          </p>
+                        )}
+                      </td>
                       <td className="px-4 py-3 text-sm text-right">NT$ {fmt(claim.amount || 0)}</td>
                       <td className="px-4 py-3 text-sm text-right text-muted-foreground">{fmt(claim.tax_amount || 0)}</td>
                       <td className="px-4 py-3 text-sm text-right font-medium">NT$ {fmt(claim.total_amount || 0)}</td>

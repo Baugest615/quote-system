@@ -436,7 +436,7 @@ export default function ExpenseClaimsPage() {
                       <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${CLAIM_STATUS_COLORS[r.status]}`}>
                         {CLAIM_STATUS_LABELS[r.status]}
                       </span>
-                      {r.rejection_reason && (
+                      {r.status === 'rejected' && r.rejection_reason && (
                         <p className="text-[10px] text-destructive mt-0.5 max-w-24 truncate" title={r.rejection_reason}>
                           {r.rejection_reason}
                         </p>
@@ -448,7 +448,14 @@ export default function ExpenseClaimsPage() {
                     <td className="px-4 py-3 text-right">NT$ {fmt(r.amount || 0)}</td>
                     <td className="px-4 py-3 text-right text-muted-foreground">{fmt(r.tax_amount || 0)}</td>
                     <td className="px-4 py-3 text-right font-medium">NT$ {fmt(r.total_amount || 0)}</td>
-                    <td className="px-4 py-3 text-muted-foreground max-w-32 truncate">{r.project_name || '-'}</td>
+                    <td className="px-4 py-3 text-muted-foreground max-w-32">
+                      <div className="truncate">{r.project_name || '-'}</div>
+                      {r.note && (
+                        <p className="text-[10px] text-muted-foreground/60 mt-0.5 truncate" title={r.note}>
+                          {r.note}
+                        </p>
+                      )}
+                    </td>
                     <td className="px-4 py-3 text-muted-foreground font-mono text-xs">{r.invoice_number || '-'}</td>
                     <td className="px-3 py-3">
                       {(canEdit || canDelete) && (
