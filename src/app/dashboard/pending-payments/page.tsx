@@ -395,12 +395,11 @@ export default function PendingPaymentsPage() {
   useEffect(() => { fetchPendingItems() }, [fetchPendingItems]);
 
   const filteredItems = useMemo(() => {
-    // 文字搜尋只比對項目層級欄位（KOL、服務、客戶）
-    // 專案名稱篩選請使用專案下拉篩選器
     let result = searchTerm
       ? items.filter(item => {
           const term = searchTerm.toLowerCase()
           return (
+            (item.quotations?.project_name || '').toLowerCase().includes(term) ||
             (item.kols?.name || '').toLowerCase().includes(term) ||
             item.service.toLowerCase().includes(term) ||
             (item.quotations?.clients?.name || '').toLowerCase().includes(term)
