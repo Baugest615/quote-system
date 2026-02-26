@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { ChevronDown, ChevronRight, User, ShieldCheck, Building2 } from 'lucide-react'
 import type { MergedRemittanceGroup } from '@/lib/payments/types'
 import type { WithholdingSettings } from '@/types/custom.types'
@@ -15,6 +15,20 @@ interface RemittanceGroupCardProps {
 export function RemittanceGroupCard({ group, withholdingRates }: RemittanceGroupCardProps) {
     const [isExpanded, setIsExpanded] = useState(false)
     const applicability = checkWithholdingApplicability(group, withholdingRates)
+
+    // 合併群組標籤映射
+    const mergeGroupLabelMap = useMemo(() => {
+        const map = new Map<string, string>()
+        let index = 0
+        group.items.forEach(item => {
+            const mgId = item.payment_requests?.merge_group_id
+            if (mgId && !map.has(mgId)) {
+                map.set(mgId, String.fromCharCode(65 + index))
+                index++
+            }
+        })
+        return map
+    }, [group.items])
 
     return (
         <div className="bg-card border border-border rounded-lg overflow-hidden">
@@ -111,39 +125,44 @@ export function RemittanceGroupCard({ group, withholdingRates }: RemittanceGroup
                                     <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">KOL/服務</th>
                                     <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">執行內容</th>
                                     <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">匯款戶名</th>
+                                    <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">備註</th>
                                     <th className="px-4 py-2 text-right text-xs font-medium text-muted-foreground uppercase tracking-wider">匯款金額</th>
                                 </tr>
                             </thead>
                             <tbody className="bg-card divide-y divide-border">
                                 {group.items.map((item) => (
-                                    <PaymentRecordRow key={item.id} item={item} />
+                                    <PaymentRecordRow
+                                        key={item.id}
+                                        item={item}
+                                        groupLabel={item.payment_requests?.merge_group_id ? mergeGroupLabelMap.get(item.payment_requests.merge_group_id) : undefined}
+                                    />
                                 ))}
                             </tbody>
                             <tfoot className="bg-muted/20 font-medium text-sm">
                                 <tr>
-                                    <td colSpan={4} className="px-4 py-2 text-right text-muted-foreground">小計</td>
+                                    <td colSpan={5} className="px-4 py-2 text-right text-muted-foreground">小計</td>
                                     <td className="px-4 py-2 text-right">NT$ {group.totalAmount.toLocaleString()}</td>
                                 </tr>
                                 {group.totalTax > 0 && (
                                     <tr className="text-destructive">
-                                        <td colSpan={4} className="px-4 py-1 text-right">扣除：所得稅</td>
+                                        <td colSpan={5} className="px-4 py-1 text-right">扣除：所得稅</td>
                                         <td className="px-4 py-1 text-right">- NT$ {group.totalTax.toLocaleString()}</td>
                                     </tr>
                                 )}
                                 {group.totalInsurance > 0 && (
                                     <tr className="text-destructive">
-                                        <td colSpan={4} className="px-4 py-1 text-right">扣除：二代健保</td>
+                                        <td colSpan={5} className="px-4 py-1 text-right">扣除：二代健保</td>
                                         <td className="px-4 py-1 text-right">- NT$ {group.totalInsurance.toLocaleString()}</td>
                                     </tr>
                                 )}
                                 {group.totalFee > 0 && (
                                     <tr className="text-destructive">
-                                        <td colSpan={4} className="px-4 py-1 text-right">扣除：匯費</td>
+                                        <td colSpan={5} className="px-4 py-1 text-right">扣除：匯費</td>
                                         <td className="px-4 py-1 text-right">- NT$ {group.totalFee.toLocaleString()}</td>
                                     </tr>
                                 )}
                                 <tr className="bg-info/10 border-t border-info/25">
-                                    <td colSpan={4} className="px-4 py-2 text-right text-info font-bold">實付金額</td>
+                                    <td colSpan={5} className="px-4 py-2 text-right text-info font-bold">實付金額</td>
                                     <td className="px-4 py-2 text-right text-info font-bold text-lg">
                                         NT$ {group.netTotal.toLocaleString()}
                                     </td>

@@ -57,6 +57,8 @@ export default function ConfirmedPaymentsPage() {
             quotation_item_id,
             cost_amount,
             invoice_number,
+            merge_group_id,
+            merge_color,
             quotation_items (
               id,
               quotation_id,
@@ -242,10 +244,14 @@ export default function ConfirmedPaymentsPage() {
       toast.success('清單已退回，相關項目已回到「請款申請」頁面。')
       refresh()
       queryClient.invalidateQueries({ queryKey: [...queryKeys.paymentRequests] })
+      queryClient.invalidateQueries({ queryKey: [...queryKeys.pendingPayments] })
+      queryClient.invalidateQueries({ queryKey: [...queryKeys.dashboardStats] })
+      queryClient.invalidateQueries({ queryKey: ['monthly-settlement'] })
+      queryClient.invalidateQueries({ queryKey: ['accounting-expenses'] })
       if (personalItems.length > 0) {
         queryClient.invalidateQueries({ queryKey: ['expense-claims'] })
         queryClient.invalidateQueries({ queryKey: [...queryKeys.expenseClaimsPending] })
-        queryClient.invalidateQueries({ queryKey: ['accounting-expenses'] })
+        queryClient.invalidateQueries({ queryKey: ['my-employee'] })
         queryClient.invalidateQueries({ queryKey: [...queryKeys.withholdingSettlements] })
       }
 

@@ -19,6 +19,7 @@ import type { ExpenseClaimFormData } from '@/components/expense-claims/ExpenseCl
 import type { ExpenseClaim } from '@/types/custom.types'
 import {
   CLAIM_STATUS_LABELS, CLAIM_STATUS_COLORS,
+  PAYMENT_STATUS_LABELS, PAYMENT_STATUS_COLORS,
   type ClaimStatus,
 } from '@/types/custom.types'
 import { CURRENT_YEAR } from '@/lib/constants'
@@ -97,6 +98,7 @@ export default function ExpenseClaimsPage() {
       queryClient.invalidateQueries({ queryKey: [...currentQueryKey] })
       queryClient.invalidateQueries({ queryKey: [...queryKeys.expenseClaimsPending] })
       queryClient.invalidateQueries({ queryKey: ['my-employee'] })
+      queryClient.invalidateQueries({ queryKey: ['monthly-settlement'] })
       toast.success(editingClaim ? '已更新報帳項目' : '已新增報帳項目')
       setIsModalOpen(false)
       setEditingClaim(null)
@@ -117,6 +119,7 @@ export default function ExpenseClaimsPage() {
       queryClient.invalidateQueries({ queryKey: [...currentQueryKey] })
       queryClient.invalidateQueries({ queryKey: [...queryKeys.expenseClaimsPending] })
       queryClient.invalidateQueries({ queryKey: ['my-employee'] })
+      queryClient.invalidateQueries({ queryKey: ['monthly-settlement'] })
       toast.success('已刪除報帳項目')
     },
     onError: (err: Error) => toast.error(`刪除失敗：${err.message}`),
@@ -141,7 +144,9 @@ export default function ExpenseClaimsPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [...currentQueryKey] })
       queryClient.invalidateQueries({ queryKey: [...queryKeys.paymentRequests] })
+      queryClient.invalidateQueries({ queryKey: [...queryKeys.expenseClaimsPending] })
       queryClient.invalidateQueries({ queryKey: ['my-employee'] })
+      queryClient.invalidateQueries({ queryKey: ['monthly-settlement'] })
       setSelectedIds(new Set())
       toast.success('已送出審核')
     },
@@ -433,10 +438,17 @@ export default function ExpenseClaimsPage() {
                       )}
                     </td>
                     <td className="px-4 py-3">
-                      <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${CLAIM_STATUS_COLORS[r.status]}`}>
-                        {CLAIM_STATUS_LABELS[r.status]}
-                      </span>
-                      {r.status === 'rejected' && r.rejection_reason && (
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${CLAIM_STATUS_COLORS[r.status]}`}>
+                          {CLAIM_STATUS_LABELS[r.status]}
+                        </span>
+                        {r.status === 'approved' && r.payment_status && (
+                          <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${PAYMENT_STATUS_COLORS[r.payment_status]}`}>
+                            {PAYMENT_STATUS_LABELS[r.payment_status]}
+                          </span>
+                        )}
+                      </div>
+                      {r.rejection_reason && (
                         <p className="text-[10px] text-destructive mt-0.5 max-w-24 truncate" title={r.rejection_reason}>
                           {r.rejection_reason}
                         </p>

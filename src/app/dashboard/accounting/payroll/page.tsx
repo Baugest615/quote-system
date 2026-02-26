@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useCallback } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { usePermission } from '@/lib/permissions'
 import supabase from '@/lib/supabase/client'
@@ -89,6 +89,12 @@ export default function AccountingPayrollPage() {
 
   const currentQueryKey = queryKeys.accountingPayroll(year)
 
+  /** 失效薪資快取 + 月結總覽快取 */
+  const invalidatePayrollCaches = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: [...currentQueryKey] })
+    queryClient.invalidateQueries({ queryKey: ['monthly-settlement'] })
+  }, [queryClient, currentQueryKey])
+
   const { data: records = [], isLoading: loading } = useQuery({
     queryKey: [...currentQueryKey],
     queryFn: async () => {
@@ -154,7 +160,7 @@ export default function AccountingPayrollPage() {
       else successCount += toDelete.length
     }
 
-    await queryClient.invalidateQueries({ queryKey: [...currentQueryKey] })
+    await invalidatePayrollCaches()
     return { successCount, errors }
   }
 
@@ -246,7 +252,7 @@ export default function AccountingPayrollPage() {
       }
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [...currentQueryKey] })
+      invalidatePayrollCaches()
       toast.success(editing ? '已更新薪資記錄' : '已新增薪資記錄')
       setIsModalOpen(false)
       setSelectedEmployee(null)
@@ -261,7 +267,7 @@ export default function AccountingPayrollPage() {
       if (error) throw error
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [...currentQueryKey] })
+      invalidatePayrollCaches()
       toast.success('已刪除')
     },
     onError: () => toast.error('刪除失敗'),

@@ -1,4 +1,4 @@
-import { useRef, useEffect } from 'react'
+import { useRef, useEffect, useMemo } from 'react'
 import { FileText, User, Calculator, ShieldCheck, Zap } from 'lucide-react'
 import { PaymentConfirmation } from '@/lib/payments/types'
 import { groupItemsByRemittance } from '@/lib/payments/grouping'
@@ -18,6 +18,20 @@ interface ConfirmationDetailsProps {
 
 export function ConfirmationDetails({ confirmation, settings, updateSettings, getSettings, withholdingRates }: ConfirmationDetailsProps) {
     const remittanceGroups = groupItemsByRemittance(confirmation.payment_confirmation_items)
+
+    // 合併群組標籤映射（A, B, C...）
+    const mergeGroupLabelMap = useMemo(() => {
+        const map = new Map<string, string>()
+        let index = 0
+        confirmation.payment_confirmation_items.forEach(item => {
+            const mgId = item.payment_requests?.merge_group_id
+            if (mgId && !map.has(mgId)) {
+                map.set(mgId, String.fromCharCode(65 + index))
+                index++
+            }
+        })
+        return map
+    }, [confirmation.payment_confirmation_items])
 
     // 從 DB 或 fallback 取得費率
     const taxRate = withholdingRates?.income_tax_rate ?? DEFAULT_WITHHOLDING.income_tax_rate
@@ -235,19 +249,24 @@ export function ConfirmationDetails({ confirmation, settings, updateSettings, ge
                                         <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">KOL/服務</th>
                                         <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">執行內容</th>
                                         <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">匯款戶名</th>
+                                        <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">備註</th>
                                         <th className="px-4 py-3 text-right text-xs font-medium text-muted-foreground uppercase tracking-wider">匯款金額</th>
                                     </tr>
                                 </thead>
                                 <tbody className="bg-card divide-y divide-border">
                                     {group.items.map((item) => (
-                                        <PaymentRecordRow key={item.id} item={item} />
+                                        <PaymentRecordRow
+                                            key={item.id}
+                                            item={item}
+                                            groupLabel={item.payment_requests?.merge_group_id ? mergeGroupLabelMap.get(item.payment_requests.merge_group_id) : undefined}
+                                        />
                                     ))}
                                 </tbody>
                                 {/* 結算列 */}
                                 <tfoot className="bg-muted/20 font-medium text-sm">
                                     {/* 小計 */}
                                     <tr>
-                                        <td colSpan={4} className="px-4 py-2 text-right text-muted-foreground">小計 (Subtotal)</td>
+                                        <td colSpan={5} className="px-4 py-2 text-right text-muted-foreground">小計 (Subtotal)</td>
                                         <td className="px-4 py-2 text-right text-foreground">
                                             NT$ {subtotal.toLocaleString()}
                                         </td>
@@ -256,26 +275,26 @@ export function ConfirmationDetails({ confirmation, settings, updateSettings, ge
                                     {/* 扣除項 */}
                                     {settings.hasRemittanceFee && (
                                         <tr className="text-destructive">
-                                            <td colSpan={4} className="px-4 py-1 text-right">扣除：匯費</td>
+                                            <td colSpan={5} className="px-4 py-1 text-right">扣除：匯費</td>
                                             <td className="px-4 py-1 text-right">- NT$ {fee.toLocaleString()}</td>
                                         </tr>
                                     )}
                                     {settings.hasTax && (
                                         <tr className="text-destructive">
-                                            <td colSpan={4} className="px-4 py-1 text-right">扣除：所得稅 ({(taxRate * 100).toFixed(0)}%)</td>
+                                            <td colSpan={5} className="px-4 py-1 text-right">扣除：所得稅 ({(taxRate * 100).toFixed(0)}%)</td>
                                             <td className="px-4 py-1 text-right">- NT$ {tax.toLocaleString()}</td>
                                         </tr>
                                     )}
                                     {settings.hasInsurance && (
                                         <tr className="text-destructive">
-                                            <td colSpan={4} className="px-4 py-1 text-right">扣除：二代健保 ({(nhiRate * 100).toFixed(2)}%)</td>
+                                            <td colSpan={5} className="px-4 py-1 text-right">扣除：二代健保 ({(nhiRate * 100).toFixed(2)}%)</td>
                                             <td className="px-4 py-1 text-right">- NT$ {insurance.toLocaleString()}</td>
                                         </tr>
                                     )}
 
                                     {/* 實付金額 */}
                                     <tr className="bg-info/10 border-t border-info/25">
-                                        <td colSpan={4} className="px-4 py-3 text-right text-info font-bold">實付金額 (Net Payment)</td>
+                                        <td colSpan={5} className="px-4 py-3 text-right text-info font-bold">實付金額 (Net Payment)</td>
                                         <td className="px-4 py-3 text-right text-info font-bold text-lg">
                                             NT$ {netTotal.toLocaleString()}
                                         </td>

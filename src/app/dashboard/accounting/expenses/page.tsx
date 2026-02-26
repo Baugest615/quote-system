@@ -25,6 +25,28 @@ import { useConfirm } from '@/components/ui/ConfirmDialog'
 
 const PAGE_SIZE = 20
 
+// 合併群組視覺標記
+const MERGE_BORDER_COLORS: Record<string, string> = {
+  'bg-chart-1/15': 'hsl(var(--chart-1))',
+  'bg-chart-2/15': 'hsl(var(--chart-2))',
+  'bg-chart-3/15': 'hsl(var(--chart-3))',
+  'bg-chart-4/15': 'hsl(var(--chart-4))',
+  'bg-chart-5/15': 'hsl(var(--chart-5))',
+  'bg-destructive/15': 'hsl(var(--destructive))',
+}
+const MERGE_BADGE_COLORS: Record<string, string> = {
+  'bg-chart-1/15': 'bg-[hsl(var(--chart-1))]/20 text-[hsl(var(--chart-1))]',
+  'bg-chart-2/15': 'bg-[hsl(var(--chart-2))]/20 text-[hsl(var(--chart-2))]',
+  'bg-chart-3/15': 'bg-[hsl(var(--chart-3))]/20 text-[hsl(var(--chart-3))]',
+  'bg-chart-4/15': 'bg-[hsl(var(--chart-4))]/20 text-[hsl(var(--chart-4))]',
+  'bg-chart-5/15': 'bg-[hsl(var(--chart-5))]/20 text-[hsl(var(--chart-5))]',
+  'bg-destructive/15': 'bg-destructive/20 text-destructive',
+}
+
+type ExpenseWithMerge = AccountingExpense & {
+  payment_requests: { merge_group_id: string | null; merge_color: string | null } | null
+}
+
 const EXPENSE_TYPE_COLORS: Record<string, string> = {
   '勞務報酬': 'bg-purple-100 text-purple-700 dark:bg-purple-500/20 dark:text-purple-400',
   '外包服務': 'bg-cyan-100 text-cyan-700 dark:bg-cyan-500/20 dark:text-cyan-400',
@@ -96,16 +118,23 @@ export default function AccountingExpensesPage() {
 
   const currentQueryKey = queryKeys.accountingExpenses(year)
 
+  /** 失效進項快取 + 月結總覽快取 */
+  const invalidateExpenseCaches = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: [...currentQueryKey] })
+    // 月結總覽也查 accounting_expenses，需同步失效
+    queryClient.invalidateQueries({ queryKey: ['monthly-settlement'] })
+  }, [queryClient, currentQueryKey])
+
   const { data: records = [], isLoading: loading } = useQuery({
     queryKey: [...currentQueryKey],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('accounting_expenses')
-        .select('*')
+        .select('*, payment_requests(merge_group_id, merge_color)')
         .eq('year', year)
         .order('created_at', { ascending: false })
       if (error) throw error
-      return (data || []) as AccountingExpense[]
+      return (data || []) as ExpenseWithMerge[]
     },
     enabled: !permLoading && isAdmin,
   })
@@ -146,7 +175,7 @@ export default function AccountingExpensesPage() {
       else successCount += toDelete.length
     }
 
-    await queryClient.invalidateQueries({ queryKey: [...currentQueryKey] })
+    await invalidateExpenseCaches()
     return { successCount, errors }
   }
 
@@ -164,6 +193,20 @@ export default function AccountingExpensesPage() {
       return matchesType && matchesTarget && matchesPaymentStatus && matchesSearch
     })
   }, [search, typeFilter, targetFilter, paymentStatusFilter, records])
+
+  // 合併群組標籤映射（A, B, C...）
+  const mergeGroupLabelMap = useMemo(() => {
+    const map = new Map<string, string>()
+    let index = 0
+    filtered.forEach(r => {
+      const mgId = r.payment_requests?.merge_group_id
+      if (mgId && !map.has(mgId)) {
+        map.set(mgId, String.fromCharCode(65 + index))
+        index++
+      }
+    })
+    return map
+  }, [filtered])
 
   const handleAmountChange = (value: number) => {
     const hasInvoice = !!(form.invoice_number?.trim())
@@ -185,7 +228,7 @@ export default function AccountingExpensesPage() {
       }
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [...currentQueryKey] })
+      invalidateExpenseCaches()
       toast.success(editing ? '已更新進項記錄' : '已新增進項記錄')
       setIsModalOpen(false)
     },
@@ -193,13 +236,55 @@ export default function AccountingExpensesPage() {
   })
 
   const deleteMutation = useMutation({
-    mutationFn: async (id: string) => {
-      const { error } = await supabase.from('accounting_expenses').delete().eq('id', id)
-      if (error) throw error
+    mutationFn: async ({ id, cascadeClaimId }: { id: string; cascadeClaimId?: string }) => {
+      if (cascadeClaimId) {
+        // 連動刪除：清除整條資料鏈
+        // 1. 刪除 payment_confirmation_items
+        const { data: pciItems } = await supabase
+          .from('payment_confirmation_items')
+          .select('id, payment_confirmation_id')
+          .eq('expense_claim_id', cascadeClaimId)
+        if (pciItems && pciItems.length > 0) {
+          const confirmationIds = Array.from(new Set(pciItems.map(i => i.payment_confirmation_id)))
+          await supabase.from('payment_confirmation_items').delete().eq('expense_claim_id', cascadeClaimId)
+          // 更新或刪除空的 payment_confirmations
+          for (const cid of confirmationIds) {
+            const { data: remaining } = await supabase
+              .from('payment_confirmation_items')
+              .select('id')
+              .eq('payment_confirmation_id', cid)
+              .limit(1)
+            if (!remaining || remaining.length === 0) {
+              await supabase.from('accounting_expenses').delete().eq('payment_confirmation_id', cid)
+              await supabase.from('payment_confirmations').delete().eq('id', cid)
+            }
+          }
+        }
+        // 2. 刪除 withholding_settlements
+        await supabase.from('withholding_settlements').delete().eq('expense_claim_id', cascadeClaimId)
+        // 3. 刪除 accounting_expenses（本筆）
+        const { error: aeError } = await supabase.from('accounting_expenses').delete().eq('id', id)
+        if (aeError) throw aeError
+        // 4. 刪除 expense_claims
+        const { error: ecError } = await supabase.from('expense_claims').delete().eq('id', cascadeClaimId)
+        if (ecError) throw ecError
+      } else {
+        const { error } = await supabase.from('accounting_expenses').delete().eq('id', id)
+        if (error) throw error
+      }
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [...currentQueryKey] })
-      toast.success('已刪除')
+    onSuccess: (_data, variables) => {
+      invalidateExpenseCaches()
+      if (variables.cascadeClaimId) {
+        queryClient.invalidateQueries({ queryKey: ['expense-claims'] })
+        queryClient.invalidateQueries({ queryKey: [...queryKeys.expenseClaimsPending] })
+        queryClient.invalidateQueries({ queryKey: [...queryKeys.confirmedPayments] })
+        queryClient.invalidateQueries({ queryKey: ['my-employee'] })
+        queryClient.invalidateQueries({ queryKey: [...queryKeys.dashboardStats] })
+        toast.success('已刪除進項記錄及關聯的個人請款')
+      } else {
+        toast.success('已刪除')
+      }
     },
     onError: () => toast.error('刪除失敗'),
   })
@@ -210,14 +295,19 @@ export default function AccountingExpensesPage() {
   }
 
   const handleDelete = async (id: string) => {
+    const record = records.find(r => r.id === id)
+    const hasClaimLink = !!record?.expense_claim_id
+
     const ok = await confirm({
-      title: '確認刪除',
-      description: '確定要刪除這筆記錄嗎？',
+      title: hasClaimLink ? '連動刪除確認' : '確認刪除',
+      description: hasClaimLink
+        ? '此記錄由個人報帳核准自動建立，刪除後將同時移除：\n• 對應的個人請款申請\n• 已確認請款清單中的項目\n確定要刪除嗎？'
+        : '確定要刪除這筆記錄嗎？',
       confirmLabel: '刪除',
       variant: 'destructive',
     })
     if (!ok) return
-    deleteMutation.mutate(id)
+    deleteMutation.mutate({ id, cascadeClaimId: record?.expense_claim_id || undefined })
   }
 
   const saving = saveMutation.isPending
@@ -364,6 +454,7 @@ export default function AccountingExpensesPage() {
                   <th className="text-right px-4 py-3">金額（未稅）</th>
                   <th className="text-right px-4 py-3">實付金額</th>
                   <th className="text-left px-4 py-3">專案名稱</th>
+                  <th className="text-left px-4 py-3">備註</th>
                   <th className="text-left px-4 py-3">匯款日</th>
                   <th className="text-center px-4 py-3">付款狀態</th>
                   <th className="text-center px-4 py-3">操作</th>
@@ -371,9 +462,15 @@ export default function AccountingExpensesPage() {
               </thead>
               <tbody>
                 {filtered.length === 0 ? (
-                  <tr><td colSpan={10}><EmptyState type="no-data" icon={TrendingDown} title="尚無支出記錄" description="新增第一筆支出記錄開始追蹤" /></td></tr>
-                ) : filtered.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE).map(r => (
-                  <tr key={r.id} className="border-t border-border/50 hover:bg-accent">
+                  <tr><td colSpan={11}><EmptyState type="no-data" icon={TrendingDown} title="尚無支出記錄" description="新增第一筆支出記錄開始追蹤" /></td></tr>
+                ) : filtered.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE).map(r => {
+                  const mgId = r.payment_requests?.merge_group_id
+                  const mgColor = r.payment_requests?.merge_color
+                  const mgBorderColor = mgId && mgColor ? MERGE_BORDER_COLORS[mgColor] || 'hsl(var(--info))' : undefined
+                  const mgBadgeClass = mgId && mgColor ? MERGE_BADGE_COLORS[mgColor] || 'bg-info/15 text-info' : ''
+                  const mgLabel = mgId ? mergeGroupLabelMap.get(mgId) : undefined
+                  return (
+                  <tr key={r.id} className="border-t border-border/50 hover:bg-accent" style={mgBorderColor ? { borderLeft: `4px solid ${mgBorderColor}` } : undefined}>
                     <td className="px-4 py-3 text-muted-foreground">{r.expense_month || '-'}</td>
                     <td className="px-4 py-3">
                       <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${EXPENSE_TYPE_COLORS[r.expense_type] || 'bg-muted text-muted-foreground'}`}>
@@ -384,6 +481,7 @@ export default function AccountingExpensesPage() {
                     <td className="px-4 py-3 font-medium text-foreground">
                       {r.vendor_name || '-'}
                       {r.payment_request_id && <span className="ml-1.5 text-[10px] text-destructive bg-destructive/10 px-1 py-0.5 rounded" title="由請款核准自動建立">自動</span>}
+                      {mgId && mgLabel && <span className={`ml-1.5 inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium ${mgBadgeClass}`}>合併 {mgLabel}</span>}
                     </td>
                     <td className="px-4 py-3 text-right text-destructive">NT$ {fmt(r.amount || 0)}</td>
                     <td className="px-4 py-3 text-right text-foreground">
@@ -395,6 +493,7 @@ export default function AccountingExpensesPage() {
                       )}
                     </td>
                     <td className="px-4 py-3 text-muted-foreground max-w-32 truncate">{r.project_name || '-'}</td>
+                    <td className="px-4 py-3 text-muted-foreground max-w-40 truncate" title={r.note || ''}>{r.note || '-'}</td>
                     <td className="px-4 py-3 text-muted-foreground">{r.payment_date || '-'}</td>
                     <td className="px-4 py-3 text-center">
                       <PaymentStatusBadge status={r.payment_status || 'unpaid'} />
@@ -410,7 +509,8 @@ export default function AccountingExpensesPage() {
                       </div>
                     </td>
                   </tr>
-                ))}
+                  )
+                })}
               </tbody>
             </table>
           </div>

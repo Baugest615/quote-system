@@ -167,11 +167,15 @@ export function useMonthlySettlement(year: number, month: string) {
 
   // ====== 統一的付款狀態切換 Mutation ======
 
-  /** 使相關查詢快取失效 */
+  /** 使相關查詢快取失效（月結涉及 expenses, payroll, expense_claims 三張表） */
   const invalidateSettlementQueries = () => {
     queryClient.invalidateQueries({ queryKey: [...queryKeys.monthlySettlement(year, month)] })
     queryClient.invalidateQueries({ queryKey: [...queryKeys.accountingExpenses(year)] })
     queryClient.invalidateQueries({ queryKey: [...queryKeys.accountingPayroll(year)] })
+    // 標記已付/未付也可能影響個人報帳和我的薪資頁面
+    queryClient.invalidateQueries({ queryKey: ['expense-claims'] })
+    queryClient.invalidateQueries({ queryKey: ['my-employee'] })
+    queryClient.invalidateQueries({ queryKey: [...queryKeys.dashboardStats] })
   }
 
   const togglePaidMutation = useMutation({

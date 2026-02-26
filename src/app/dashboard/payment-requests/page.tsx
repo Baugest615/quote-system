@@ -170,11 +170,12 @@ export default function PaymentRequestsPage() {
           real_name: kol?.real_name,
           bank_info: kol?.bank_info
         },
-        service: qItem?.service_item || '',
-        price: 0,
-        quantity: 1,
+        service: qItem?.service || '',
+        price: qItem?.price || 0,
+        quantity: qItem?.quantity || 1,
         cost: req.cost_amount,
-        remark: null,
+        remark: qItem?.remark || null,
+        category: qItem?.category || null,
         created_at: req.request_date,
         expense_type: req.expense_type || null,
         accounting_subject: req.accounting_subject || null,
@@ -215,6 +216,69 @@ export default function PaymentRequestsPage() {
     deselectAll,
     handleBatchAction
   } = usePaymentActions(items, setData)
+
+  // 合併群組排序 + 映射
+  const { sortedItems, groupLabelMap, mergeGroupMap } = useMemo(() => {
+    // 建立 merge_group_id → 群組編號（A, B, C...按首次出現順序）
+    const labelMap = new Map<string, string>()
+    let labelIndex = 0
+    for (const item of filteredItems) {
+      if (item.merge_group_id && !labelMap.has(item.merge_group_id)) {
+        labelMap.set(item.merge_group_id, String.fromCharCode(65 + labelIndex))
+        labelIndex++
+      }
+    }
+
+    // 排序：同群組排在一起，leader 在前
+    const originalIndices = new Map(filteredItems.map((item, idx) => [item.id, idx]))
+    const sorted = [...filteredItems].sort((a, b) => {
+      const aGroup = a.merge_group_id
+      const bGroup = b.merge_group_id
+      if (!aGroup && !bGroup) return 0
+      if (aGroup && bGroup && aGroup === bGroup) {
+        return (b.is_merge_leader ? 1 : 0) - (a.is_merge_leader ? 1 : 0)
+      }
+      if (aGroup && bGroup) {
+        return (labelMap.get(aGroup) || '').localeCompare(labelMap.get(bGroup) || '')
+      }
+      // 有群組的維持其在原列表中的位置
+      return (originalIndices.get(a.id) || 0) - (originalIndices.get(b.id) || 0)
+    })
+
+    // merge_group_id → 同群組所有項目
+    const mgMap = new Map<string, PaymentRequestItem[]>()
+    for (const item of sorted) {
+      if (item.merge_group_id) {
+        if (!mgMap.has(item.merge_group_id)) mgMap.set(item.merge_group_id, [])
+        mgMap.get(item.merge_group_id)!.push(item)
+      }
+    }
+
+    return { sortedItems: sorted, groupLabelMap: labelMap, mergeGroupMap: mgMap }
+  }, [filteredItems])
+
+  // 可選取項目：只有 leader 和非合併項目（非 leader 的 checkbox 被隱藏）
+  const selectableItems = useMemo(
+    () => sortedItems.filter(i => !i.merge_group_id || i.is_merge_leader),
+    [sortedItems]
+  )
+
+  // 展開選取：若 selected 中有 leader，加入其所有群組成員
+  const expandSelectedToGroupMembers = useCallback((selected: Set<string>): PaymentRequestItem[] => {
+    const expandedIds = new Set<string>()
+    for (const id of Array.from(selected)) {
+      const item = items.find(i => i.id === id)
+      if (item?.merge_group_id && item.is_merge_leader) {
+        const groupItems = mergeGroupMap.get(item.merge_group_id)
+        if (groupItems) {
+          groupItems.forEach(gi => expandedIds.add(gi.id))
+          continue
+        }
+      }
+      expandedIds.add(id)
+    }
+    return items.filter(i => expandedIds.has(i.id))
+  }, [items, mergeGroupMap])
 
   const [isFileViewerOpen, setIsFileViewerOpen] = useState(false)
   const [selectedRequest, setSelectedRequest] = useState<PaymentRequestItem | null>(null)
@@ -257,108 +321,154 @@ export default function PaymentRequestsPage() {
 
   // 專案請款操作
   const handleApprove = async (item: PaymentRequestItem, overrideExpenseType?: string, overrideSubject?: string) => {
+    // 合併群組：連動核准所有成員
+    const groupItems = item.merge_group_id ? mergeGroupMap.get(item.merge_group_id) : undefined
+    const isGroupApproval = groupItems && groupItems.length > 1
+
     const ok = await confirm({
       title: '確認核准',
-      description: `確定要核准 "${item.quotations?.project_name} - ${item.service}" 的請款申請嗎？`,
+      description: isGroupApproval
+        ? `將同時核准合併群組的 ${groupItems.length} 筆項目（${item.quotations?.project_name}）`
+        : `確定要核准 "${item.quotations?.project_name} - ${item.service}" 的請款申請嗎？`,
       confirmLabel: '核准',
     })
     if (!ok) return
     try {
-      const { error } = await supabase.rpc('approve_payment_request', {
-        request_id: item.payment_request_id,
-        verifier_id: (await supabase.auth.getUser()).data.user?.id,
-        p_expense_type: overrideExpenseType || null,
-        p_accounting_subject: overrideSubject || null,
-      })
-      if (error) { console.error('RPC error details:', error); throw error }
-      toast.success('已核准請款申請')
+      const user = (await supabase.auth.getUser()).data.user
+      const itemsToApprove = isGroupApproval ? groupItems : [item]
+
+      for (const approveItem of itemsToApprove) {
+        // leader 使用 override 參數，其他成員用各自預設
+        const isLeader = approveItem.id === item.id
+        const rpcParams: Record<string, unknown> = {
+          request_id: approveItem.payment_request_id,
+          verifier_id: user?.id,
+        }
+        // 只在有實際覆蓋值時才傳入，避免 PostgREST 參數問題
+        if (isLeader && overrideExpenseType) rpcParams.p_expense_type = overrideExpenseType
+        if (isLeader && overrideSubject) rpcParams.p_accounting_subject = overrideSubject
+
+        const { error } = await supabase.rpc('approve_payment_request', rpcParams)
+        if (error) {
+          console.error('RPC error details:', JSON.stringify(error), 'item:', approveItem.payment_request_id)
+          throw error
+        }
+      }
+
+      toast.success(isGroupApproval ? `已核准合併群組 ${groupItems.length} 筆項目` : '已核准請款申請')
       refresh()
       queryClient.invalidateQueries({ queryKey: [...queryKeys.confirmedPayments] })
       queryClient.invalidateQueries({ queryKey: [...queryKeys.pendingPayments] })
       queryClient.invalidateQueries({ queryKey: [...queryKeys.dashboardStats] })
+      queryClient.invalidateQueries({ queryKey: ['accounting-expenses'] })
+      queryClient.invalidateQueries({ queryKey: ['monthly-settlement'] })
     } catch (error: unknown) {
       toast.error('核准失敗: ' + (error instanceof Error ? error.message : String(error)))
     }
   }
 
   const handleReject = async (item: PaymentRequestItem, reason: string) => {
+    // 合併群組：連動駁回所有成員
+    const groupItems = item.merge_group_id ? mergeGroupMap.get(item.merge_group_id) : undefined
+    const isGroupReject = groupItems && groupItems.length > 1
+
+    if (isGroupReject) {
+      const ok = await confirm({
+        title: '確認駁回',
+        description: `將同時駁回合併群組的 ${groupItems.length} 筆項目`,
+        confirmLabel: '駁回',
+      })
+      if (!ok) return
+    }
+
     try {
+      const user = (await supabase.auth.getUser()).data.user
+      const ids = isGroupReject
+        ? groupItems.map(i => i.payment_request_id)
+        : [item.payment_request_id]
+
       const { error } = await supabase
         .from('payment_requests')
         .update({
           verification_status: 'rejected',
           rejection_reason: reason,
-          rejected_by: (await supabase.auth.getUser()).data.user?.id,
+          rejected_by: user?.id,
           rejected_at: new Date().toISOString()
         })
-        .eq('id', item.payment_request_id)
+        .in('id', ids)
       if (error) throw error
-      toast.success('已駁回請款申請')
+      toast.success(isGroupReject ? `已駁回合併群組 ${groupItems.length} 筆項目` : '已駁回請款申請')
       refresh()
       queryClient.invalidateQueries({ queryKey: [...queryKeys.pendingPayments] })
+      queryClient.invalidateQueries({ queryKey: [...queryKeys.dashboardStats] })
     } catch (error: unknown) {
       toast.error('駁回失敗: ' + (error instanceof Error ? error.message : String(error)))
     }
   }
 
   const handleBatchApprove = async () => {
+    // 展開 leader → 加入群組所有成員
+    const expandedItems = expandSelectedToGroupMembers(selectedItems)
+    const totalCount = expandedItems.length
+    const extraCount = totalCount - selectedItems.size
+
     const ok = await confirm({
       title: '確認批量核准',
-      description: `確定要核准選中的 ${selectedItems.size} 筆申請嗎？`,
+      description: `確定要核准選中的 ${totalCount} 筆申請嗎？${extraCount > 0 ? `（含合併群組展開 ${extraCount} 筆）` : ''}`,
       confirmLabel: '批量核准',
     })
     if (!ok) return
-    await handleBatchAction(
-      async (items) => {
-        const user = (await supabase.auth.getUser()).data.user
-        const promises = items.map(item =>
-          supabase.rpc('approve_payment_request', {
-            request_id: item.payment_request_id,
-            verifier_id: user?.id
-          })
-        )
-        const results = await Promise.all(promises)
-        const errors = results.filter(r => r.error)
-        if (errors.length > 0) {
-          console.error('RPC errors:', errors.map(e => ({ error: e.error, message: e.error?.message })))
-          throw new Error(`${errors.length} 筆項目處理失敗`)
-        }
-      },
-      {
-        onSuccess: () => {
-          toast.success(`成功核准 ${selectedItems.size} 筆申請`)
-          refresh(); deselectAll()
-          queryClient.invalidateQueries({ queryKey: [...queryKeys.confirmedPayments] })
-          queryClient.invalidateQueries({ queryKey: [...queryKeys.pendingPayments] })
-          queryClient.invalidateQueries({ queryKey: [...queryKeys.dashboardStats] })
-        },
-        onError: (error) => toast.error('批量核准失敗: ' + error.message)
+
+    try {
+      const user = (await supabase.auth.getUser()).data.user
+      const promises = expandedItems.map(item =>
+        supabase.rpc('approve_payment_request', {
+          request_id: item.payment_request_id,
+          verifier_id: user?.id
+        })
+      )
+      const results = await Promise.all(promises)
+      const errors = results.filter(r => r.error)
+      if (errors.length > 0) {
+        console.error('RPC errors:', errors.map(e => ({ error: e.error, message: e.error?.message })))
+        throw new Error(`${errors.length} 筆項目處理失敗`)
       }
-    )
+      toast.success(`成功核准 ${totalCount} 筆申請`)
+      refresh(); deselectAll()
+      queryClient.invalidateQueries({ queryKey: [...queryKeys.confirmedPayments] })
+      queryClient.invalidateQueries({ queryKey: [...queryKeys.pendingPayments] })
+      queryClient.invalidateQueries({ queryKey: [...queryKeys.dashboardStats] })
+      queryClient.invalidateQueries({ queryKey: ['accounting-expenses'] })
+      queryClient.invalidateQueries({ queryKey: ['monthly-settlement'] })
+    } catch (error: unknown) {
+      toast.error('批量核准失敗: ' + (error instanceof Error ? error.message : String(error)))
+    }
   }
 
   const handleBatchReject = async () => {
-    const reason = prompt('請輸入批量駁回原因：')
+    // 展開 leader → 加入群組所有成員
+    const expandedItems = expandSelectedToGroupMembers(selectedItems)
+    const totalCount = expandedItems.length
+    const extraCount = totalCount - selectedItems.size
+
+    const reason = prompt(`請輸入批量駁回原因（共 ${totalCount} 筆${extraCount > 0 ? `，含合併群組 ${extraCount} 筆` : ''}）：`)
     if (!reason) return
-    await handleBatchAction(
-      async (items) => {
-        const user = (await supabase.auth.getUser()).data.user
-        const ids = items.map(i => i.payment_request_id)
-        const { error } = await supabase
-          .from('payment_requests')
-          .update({ verification_status: 'rejected', rejection_reason: reason, rejected_by: user?.id, rejected_at: new Date().toISOString() })
-          .in('id', ids)
-        if (error) throw error
-      },
-      {
-        onSuccess: () => {
-          toast.success(`成功駁回 ${selectedItems.size} 筆申請`)
-          refresh(); deselectAll()
-          queryClient.invalidateQueries({ queryKey: [...queryKeys.pendingPayments] })
-        },
-        onError: (error) => toast.error('批量駁回失敗: ' + error.message)
-      }
-    )
+
+    try {
+      const user = (await supabase.auth.getUser()).data.user
+      const ids = expandedItems.map(i => i.payment_request_id)
+      const { error } = await supabase
+        .from('payment_requests')
+        .update({ verification_status: 'rejected', rejection_reason: reason, rejected_by: user?.id, rejected_at: new Date().toISOString() })
+        .in('id', ids)
+      if (error) throw error
+      toast.success(`成功駁回 ${totalCount} 筆申請`)
+      refresh(); deselectAll()
+      queryClient.invalidateQueries({ queryKey: [...queryKeys.pendingPayments] })
+      queryClient.invalidateQueries({ queryKey: [...queryKeys.dashboardStats] })
+    } catch (error: unknown) {
+      toast.error('批量駁回失敗: ' + (error instanceof Error ? error.message : String(error)))
+    }
   }
 
   // 個人報帳操作
@@ -381,6 +491,9 @@ export default function PaymentRequestsPage() {
       queryClient.invalidateQueries({ queryKey: ['my-employee'] })
       queryClient.invalidateQueries({ queryKey: [...queryKeys.confirmedPayments] })
       queryClient.invalidateQueries({ queryKey: [...queryKeys.dashboardStats] })
+      // 核准會建立會計記錄
+      queryClient.invalidateQueries({ queryKey: ['accounting-expenses'] })
+      queryClient.invalidateQueries({ queryKey: ['monthly-settlement'] })
     } catch (error: unknown) {
       toast.error('核准失敗: ' + (error instanceof Error ? error.message : String(error)))
     }
@@ -400,6 +513,7 @@ export default function PaymentRequestsPage() {
       refreshClaims()
       queryClient.invalidateQueries({ queryKey: ['expense-claims'] })
       queryClient.invalidateQueries({ queryKey: ['my-employee'] })
+      queryClient.invalidateQueries({ queryKey: [...queryKeys.dashboardStats] })
     } catch (error: unknown) {
       toast.error('駁回失敗: ' + (error instanceof Error ? error.message : String(error)))
     }
@@ -429,6 +543,8 @@ export default function PaymentRequestsPage() {
       queryClient.invalidateQueries({ queryKey: ['my-employee'] })
       queryClient.invalidateQueries({ queryKey: [...queryKeys.confirmedPayments] })
       queryClient.invalidateQueries({ queryKey: [...queryKeys.dashboardStats] })
+      queryClient.invalidateQueries({ queryKey: ['accounting-expenses'] })
+      queryClient.invalidateQueries({ queryKey: ['monthly-settlement'] })
     } catch (error: unknown) {
       toast.error('批量核准失敗: ' + (error instanceof Error ? error.message : String(error)))
     } finally {
@@ -454,6 +570,7 @@ export default function PaymentRequestsPage() {
       refreshClaims()
       queryClient.invalidateQueries({ queryKey: ['expense-claims'] })
       queryClient.invalidateQueries({ queryKey: ['my-employee'] })
+      queryClient.invalidateQueries({ queryKey: [...queryKeys.dashboardStats] })
     } catch (error: unknown) {
       toast.error('批量駁回失敗: ' + (error instanceof Error ? error.message : String(error)))
     } finally {
@@ -560,8 +677,13 @@ export default function PaymentRequestsPage() {
                     <th className="px-4 py-3 text-left w-10">
                       <input
                         type="checkbox"
-                        checked={selectedItems.size > 0 && selectedItems.size === filteredItems.length}
-                        onChange={(e) => e.target.checked ? selectAll() : deselectAll()}
+                        checked={selectableItems.length > 0 && selectableItems.every(i => selectedItems.has(i.id))}
+                        onChange={(e) => {
+                          deselectAll()
+                          if (e.target.checked) {
+                            selectableItems.forEach(i => toggleSelection(i.id))
+                          }
+                        }}
                         className="h-4 w-4 text-primary focus:ring-ring border-border rounded"
                       />
                     </th>
@@ -574,7 +696,7 @@ export default function PaymentRequestsPage() {
                   </tr>
                 </thead>
                 <tbody className="bg-card divide-y divide-gray-200">
-                  {filteredItems.map((item) => (
+                  {sortedItems.map((item) => (
                     <RequestItemRow
                       key={item.id}
                       item={item}
@@ -584,6 +706,8 @@ export default function PaymentRequestsPage() {
                       onReject={handleReject}
                       onViewFiles={handleViewFiles}
                       isProcessing={isProcessing}
+                      groupLabel={item.merge_group_id ? groupLabelMap.get(item.merge_group_id) : undefined}
+                      mergeGroupItems={item.merge_group_id ? mergeGroupMap.get(item.merge_group_id) : undefined}
                     />
                   ))}
                 </tbody>
@@ -672,6 +796,7 @@ export default function PaymentRequestsPage() {
                     <th className="px-4 py-3 text-right text-xs font-medium text-muted-foreground uppercase tracking-wider">稅額</th>
                     <th className="px-4 py-3 text-right text-xs font-medium text-muted-foreground uppercase tracking-wider">總額</th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">發票號碼</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">備註</th>
                     <th className="px-4 py-3 text-right text-xs font-medium text-muted-foreground uppercase tracking-wider">操作</th>
                   </tr>
                 </thead>
@@ -708,6 +833,7 @@ export default function PaymentRequestsPage() {
                       <td className="px-4 py-3 text-sm text-right text-muted-foreground">{fmt(claim.tax_amount || 0)}</td>
                       <td className="px-4 py-3 text-sm text-right font-medium">NT$ {fmt(claim.total_amount || 0)}</td>
                       <td className="px-4 py-3 text-sm text-muted-foreground font-mono">{claim.invoice_number || '-'}</td>
+                      <td className="px-4 py-3 text-sm text-muted-foreground max-w-40 truncate" title={claim.note || ''}>{claim.note || '-'}</td>
                       <td className="px-4 py-3 text-right">
                         <div className="flex items-center justify-end gap-1">
                           <Button

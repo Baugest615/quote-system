@@ -32,6 +32,7 @@ export interface BasePaymentItem {
         bank_info: Json
     } | null
     service: string
+    category: string | null
     quantity: number
     price: number
     cost: number | null
@@ -126,6 +127,8 @@ export interface PaymentConfirmationItem {
         quotation_item_id: string
         cost_amount: number
         invoice_number: string | null
+        merge_group_id: string | null
+        merge_color: string | null
         quotation_items: BasePaymentItem
     } | null
 
