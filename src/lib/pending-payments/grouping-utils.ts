@@ -4,6 +4,7 @@ export interface ProjectGroup<T = PendingPaymentItem> {
     projectId: string
     projectName: string
     clientName: string | null
+    quotationCreatedAt: string | null
     items: T[]
     totalCost: number
     readyItems: number
@@ -33,6 +34,7 @@ export const groupItemsByProject = (items: PendingPaymentItem[]): ProjectGroup[]
                 projectId,
                 projectName,
                 clientName,
+                quotationCreatedAt: item.quotations?.created_at || null,
                 items: [],
                 totalCost: 0,
                 readyItems: 0,

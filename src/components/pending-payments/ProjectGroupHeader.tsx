@@ -1,6 +1,6 @@
 // Project Group Header Component for Pending Payments
 
-import { ChevronDown, ChevronRight, FolderOpen, AlertCircle, CheckCircle } from 'lucide-react'
+import { ChevronDown, ChevronRight, FolderOpen, AlertCircle, CheckCircle, CalendarDays } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { ProjectGroup, getCompletionPercentage, getStatusBadgeColor } from '@/lib/pending-payments/grouping-utils'
 
@@ -48,11 +48,19 @@ export function ProjectGroupHeader({ group, onToggle, onSelectAll }: ProjectGrou
                                 </span>
                             )}
                         </div>
-                        {group.clientName && (
-                            <p className="text-sm text-muted-foreground truncate">
-                                客戶：{group.clientName}
-                            </p>
-                        )}
+                        <div className="flex items-center gap-3 text-sm text-muted-foreground">
+                            {group.clientName && (
+                                <span className="truncate">
+                                    客戶：{group.clientName}
+                                </span>
+                            )}
+                            {group.quotationCreatedAt && (
+                                <span className="flex items-center gap-1 flex-shrink-0">
+                                    <CalendarDays className="h-3 w-3" />
+                                    成案：{new Date(group.quotationCreatedAt).toLocaleDateString('zh-TW', { year: 'numeric', month: '2-digit', day: '2-digit' })}
+                                </span>
+                            )}
+                        </div>
                     </div>
                 </div>
 

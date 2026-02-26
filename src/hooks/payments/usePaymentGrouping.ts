@@ -25,6 +25,7 @@ export function usePaymentGrouping<T extends {
     quotations: {
         project_name: string
         clients: { name: string } | null
+        created_at?: string | null
     } | null
     cost_amount_input?: number
     price?: number

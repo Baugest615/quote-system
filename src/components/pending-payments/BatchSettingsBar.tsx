@@ -12,8 +12,9 @@ interface BatchSettingsBarProps {
     onExpenseTypeChange: (value: string) => void
     onAccountingSubjectChange: (value: string) => void
     onPaymentMonthChange: (value: string) => void
-    onApplyToUnmodified: () => void
-    unmodifiedCount: number
+    onApplyToFiltered: () => void
+    filteredItemCount: number
+    hasActiveFilters: boolean
     isCollapsed: boolean
     onToggleCollapse: () => void
 }
@@ -25,8 +26,9 @@ export function BatchSettingsBar({
     onExpenseTypeChange,
     onAccountingSubjectChange,
     onPaymentMonthChange,
-    onApplyToUnmodified,
-    unmodifiedCount,
+    onApplyToFiltered,
+    filteredItemCount,
+    hasActiveFilters,
     isCollapsed,
     onToggleCollapse,
 }: BatchSettingsBarProps) {
@@ -57,9 +59,9 @@ export function BatchSettingsBar({
                         <span className="text-sm font-medium text-foreground">批次設定</span>
                     )}
                 </div>
-                {isCollapsed && unmodifiedCount > 0 && (
+                {isCollapsed && (
                     <span className="text-xs text-muted-foreground">
-                        {unmodifiedCount} 筆可套用
+                        {hasActiveFilters ? `篩選中 ${filteredItemCount} 筆` : `共 ${filteredItemCount} 筆`}
                     </span>
                 )}
             </div>
@@ -105,11 +107,13 @@ export function BatchSettingsBar({
                         <Button
                             size="sm"
                             variant="outline"
-                            onClick={onApplyToUnmodified}
-                            disabled={unmodifiedCount === 0}
+                            onClick={onApplyToFiltered}
+                            disabled={filteredItemCount === 0}
                             className="h-8 text-xs"
                         >
-                            套用至 {unmodifiedCount} 筆未修改項目
+                            {hasActiveFilters
+                                ? `套用至篩選結果 ${filteredItemCount} 筆`
+                                : `套用至全部 ${filteredItemCount} 筆`}
                         </Button>
                     </div>
                 </div>

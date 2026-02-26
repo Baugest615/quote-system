@@ -23,6 +23,7 @@ export function groupItemsByProject<T extends {
     quotations: {
         project_name: string
         clients: { name: string } | null
+        created_at?: string | null
     } | null
     cost_amount_input?: number
     price?: number
@@ -43,6 +44,7 @@ export function groupItemsByProject<T extends {
                 projectId,
                 projectName,
                 clientName,
+                quotationCreatedAt: (item.quotations as any)?.created_at || null,
                 items: [],
                 totalCost: 0,
                 totalItems: 0,

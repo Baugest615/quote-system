@@ -78,18 +78,6 @@ export function CompactItemRow({
     const hasBankInfo = item.kols?.bank_info ? isKolBankInfoComplete(item.kols.bank_info) : false
     const isCostModified = item.original_cost > 0 && item.cost_amount_input !== item.original_cost
 
-    // 非預設 badge 判斷
-    const isNonDefault =
-        item.expense_type_input !== batchExpenseType ||
-        item.accounting_subject_input !== batchAccountingSubject ||
-        item.expected_payment_month_input !== batchPaymentMonth
-
-    // 建立非預設 badge 文字
-    const nonDefaultParts: string[] = []
-    if (item.expense_type_input !== batchExpenseType) nonDefaultParts.push(item.expense_type_input)
-    if (item.accounting_subject_input !== batchAccountingSubject) nonDefaultParts.push(item.accounting_subject_input)
-    if (item.expected_payment_month_input !== batchPaymentMonth) nonDefaultParts.push(item.expected_payment_month_input)
-
     const handleRowClick = (e: React.MouseEvent) => {
         // 排除互動元素的點擊
         const target = e.target as HTMLElement
@@ -123,8 +111,8 @@ export function CompactItemRow({
 
             {/* KOL/服務 */}
             <td className="px-2 py-2 align-middle text-xs">
-                <div className="flex items-center gap-1">
-                    <span className="text-foreground">{item.kols?.name || '自訂項目'}</span>
+                <div className="flex items-center gap-1 flex-wrap">
+                    <span className="text-foreground font-medium">{item.kols?.name || '自訂項目'}</span>
                     {item.kols && !hasBankInfo && (
                         <button
                             onClick={(e) => { e.stopPropagation(); onOpenBankInfoModal(item) }}
@@ -159,15 +147,22 @@ export function CompactItemRow({
                             合併異常
                         </span>
                     )}
-                </div>
-                {/* 非預設 badge */}
-                {isNonDefault && (
-                    <div className="mt-0.5">
-                        <span className="text-[10px] px-1 py-0.5 rounded bg-info/10 text-info border border-info/20">
-                            {nonDefaultParts.join(' | ')}
+                    {/* 帳務標籤 */}
+                    {(item.expense_type_input || item.accounting_subject_input) && (
+                        <span className="text-[10px] px-1 py-0.5 rounded bg-muted text-muted-foreground border border-border">
+                            {[item.expense_type_input, item.accounting_subject_input].filter(Boolean).join('/')}
                         </span>
-                    </div>
-                )}
+                    )}
+                    {item.expected_payment_month_input && (
+                        <span className={`text-[10px] px-1 py-0.5 rounded border ${
+                            item.expected_payment_month_input !== batchPaymentMonth
+                                ? 'bg-info/10 text-info border-info/20'
+                                : 'bg-muted/50 text-muted-foreground border-border/50'
+                        }`}>
+                            {item.expected_payment_month_input}
+                        </span>
+                    )}
+                </div>
             </td>
 
             {/* 合作項目 (Service) */}

@@ -22,6 +22,7 @@ export interface BasePaymentItem {
         project_name: string
         client_id: string | null
         clients: { name: string } | null
+        created_at: string | null
     } | null
     kol_id: string | null
     kols: {
@@ -178,6 +179,7 @@ export interface ProjectGroup<T = PendingPaymentItem> {
     projectId: string
     projectName: string
     clientName: string | null
+    quotationCreatedAt: string | null
     items: T[]
     totalCost: number
     totalItems: number

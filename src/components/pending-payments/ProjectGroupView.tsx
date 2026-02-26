@@ -1,5 +1,5 @@
 import React from 'react'
-import { ChevronDown, ChevronRight, Building2, FileText } from 'lucide-react'
+import { ChevronDown, ChevronRight, Building2, FileText, CalendarDays } from 'lucide-react'
 import { PendingPaymentItem } from '@/lib/payments/types'
 import { ProjectGroup } from '@/lib/payments/types'
 import { CompactItemRow } from './CompactItemRow'
@@ -30,9 +30,7 @@ interface ProjectGroupViewProps {
     onAccountingSubjectChange: (itemId: string, value: string) => void
     onExpectedPaymentMonthChange: (itemId: string, value: string) => void
     onResetToBatch: (itemId: string) => void
-    selectedItems: string[]
     selectedForMerge: string[]
-    selectedMergeType: 'account' | null
     isMergeMode: boolean
     canSelectForPayment: (item: PendingPaymentItem) => boolean
     canMergeWith: (item: PendingPaymentItem) => boolean
@@ -62,9 +60,7 @@ export function ProjectGroupView({
     onAccountingSubjectChange,
     onExpectedPaymentMonthChange,
     onResetToBatch,
-    selectedItems,
     selectedForMerge,
-    selectedMergeType,
     isMergeMode,
     canSelectForPayment,
     canMergeWith,
@@ -102,8 +98,14 @@ export function ProjectGroupView({
                             <Building2 className="h-5 w-5 text-info" />
                             <div>
                                 <div className="font-medium text-foreground">{group.projectName}</div>
-                                <div className="text-xs text-muted-foreground">
-                                    {group.clientName || '未知客戶'} • {group.items.length} 筆項目
+                                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                    <span>{group.clientName || '未知客戶'} · {group.items.length} 筆項目</span>
+                                    {group.quotationCreatedAt && (
+                                        <span className="flex items-center gap-1">
+                                            <CalendarDays className="h-3 w-3" />
+                                            成案：{new Date(group.quotationCreatedAt).toLocaleDateString('zh-TW', { year: 'numeric', month: '2-digit', day: '2-digit' })}
+                                        </span>
+                                    )}
                                 </div>
                             </div>
                         </div>
@@ -141,8 +143,8 @@ export function ProjectGroupView({
                                 <thead className="bg-secondary">
                                     <tr>
                                         <th className="px-2 py-2 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider w-8"></th>
-                                        <th className="px-2 py-2 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider w-40">KOL/服務</th>
-                                        <th className="px-2 py-2 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">合作項目</th>
+                                        <th className="px-2 py-2 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider w-52">KOL/服務</th>
+                                        <th className="px-2 py-2 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider w-40">合作項目</th>
                                         <th className="px-2 py-2 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider w-56">匯款/成本</th>
                                         {isMergeMode && (
                                             <th className="px-2 py-2 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider w-20">合併</th>
@@ -200,9 +202,6 @@ export function ProjectGroupView({
                                                                 onExpenseTypeChange={onExpenseTypeChange}
                                                                 onAccountingSubjectChange={onAccountingSubjectChange}
                                                                 onExpectedPaymentMonthChange={onExpectedPaymentMonthChange}
-                                                                onCostAmountChange={onCostChange}
-                                                                onRemittanceNameChange={onRemittanceNameChange}
-                                                                onSaveCost={onSaveCost}
                                                                 onClearRejection={onClearRejection}
                                                                 onUnmerge={onUnmerge}
                                                                 onOpenBankInfoModal={onOpenBankInfoModal}

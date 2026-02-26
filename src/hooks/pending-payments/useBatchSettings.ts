@@ -45,28 +45,30 @@ export function useBatchSettings() {
         setIsCollapsed(prev => !prev)
     }, [])
 
-    const applyToUnmodified = useCallback((
-        items: PendingPaymentItem[],
+    const applyToFiltered = useCallback((
+        visibleItemIds: string[],
         setItems: React.Dispatch<React.SetStateAction<PendingPaymentItem[]>>
     ): number => {
+        if (visibleItemIds.length === 0) {
+            toast.info('目前沒有可套用的項目')
+            return 0
+        }
+        const idSet = new Set(visibleItemIds)
         let count = 0
         setItems(prev => prev.map(item => {
-            if (!item.isSettingsModified) {
+            if (idSet.has(item.id)) {
                 count++
                 return {
                     ...item,
                     expense_type_input: settings.expenseType,
                     accounting_subject_input: settings.accountingSubject,
                     expected_payment_month_input: settings.paymentMonth,
+                    isSettingsModified: true,
                 }
             }
             return item
         }))
-        if (count > 0) {
-            toast.success(`已套用至 ${count} 筆未修改項目`)
-        } else {
-            toast.info('沒有未修改的項目需要套用')
-        }
+        toast.success(`已套用批次設定至 ${count} 筆項目`)
         return count
     }, [settings])
 
@@ -75,7 +77,7 @@ export function useBatchSettings() {
         setExpenseType,
         setAccountingSubject,
         setPaymentMonth,
-        applyToUnmodified,
+        applyToFiltered,
         isCollapsed,
         toggleCollapsed,
     }
