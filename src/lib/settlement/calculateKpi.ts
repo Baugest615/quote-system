@@ -1,4 +1,4 @@
-import type { AccountingExpense, AccountingPayroll, ExpenseClaim } from '@/types/custom.types'
+import type { AccountingExpense, AccountingPayroll, AccountingSale, ExpenseClaim } from '@/types/custom.types'
 
 /**
  * KPI 計算輸入資料
@@ -7,6 +7,7 @@ export interface CalculateKpiInput {
   expenses: AccountingExpense[]
   payroll: AccountingPayroll[]
   withholdingClaims: ExpenseClaim[]
+  sales: AccountingSale[]
 }
 
 /**
@@ -23,6 +24,8 @@ export interface KpiResult {
   kpiGrandTotal: number
   /** 未付款合計（薪資 + 支出 + 代扣代繳中尚未付款的部分） */
   kpiUnpaidTotal: number
+  /** 當月收入合計（銷項發票 total_amount 總和） */
+  kpiIncomeTotal: number
 }
 
 /**
@@ -37,7 +40,7 @@ export interface KpiResult {
  * - 未付款：各類別中 payment_status!='paid' 的金額加總
  */
 export function calculateKpi(input: CalculateKpiInput): KpiResult {
-  const { expenses, payroll, withholdingClaims } = input
+  const { expenses, payroll, withholdingClaims, sales } = input
 
   // 區分員工相關支出與外部支出
   const employeeExpenses = expenses.filter(e => e.payment_target_type === 'employee')
@@ -69,11 +72,15 @@ export function calculateKpi(input: CalculateKpiInput): KpiResult {
     .reduce((sum, c) => sum + (c.total_amount || 0), 0)
   const kpiUnpaidTotal = unpaidSalary + unpaidExpenses + unpaidClaims
 
+  // 當月收入合計
+  const kpiIncomeTotal = sales.reduce((sum, s) => sum + (s.total_amount || 0), 0)
+
   return {
     kpiSalaryTotal,
     kpiEmployeeExpenseTotal,
     kpiExternalTotal,
     kpiGrandTotal,
     kpiUnpaidTotal,
+    kpiIncomeTotal,
   }
 }

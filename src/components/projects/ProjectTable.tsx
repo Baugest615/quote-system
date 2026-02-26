@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback, useEffect, Fragment } from 'react'
+import { useState, useCallback, useEffect, useMemo, Fragment } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   Table,
@@ -15,8 +15,12 @@ import { FilePlus, Pencil, Trash2, ChevronRight, MessageSquare } from 'lucide-re
 import { EmptyState } from '@/components/ui/EmptyState'
 import { ProjectNotesPanel } from './ProjectNotesPanel'
 import { useProjectNotesCounts } from '@/hooks/useProjectNotes'
+import { useTableSort } from '@/hooks/useTableSort'
+import { SortableHeader } from '@/components/ui/SortableHeader'
 import type { Project, ProjectStatus } from '@/types/custom.types'
 import { cn } from '@/lib/utils'
+
+type ProjectSortKey = 'client_name' | 'project_name' | 'project_type' | 'budget_with_tax'
 
 interface ProjectTableProps {
   projects: Project[]
@@ -55,6 +59,22 @@ export function ProjectTable({
   const router = useRouter()
   const { data: notesCounts = {} } = useProjectNotesCounts()
   const [expandedId, setExpandedId] = useState<string | null>(null)
+  const { sortState, toggleSort } = useTableSort<ProjectSortKey>()
+
+  const sortedProjects = useMemo(() => {
+    if (!sortState.key || !sortState.direction) return projects
+    const key = sortState.key
+    const dir = sortState.direction === 'asc' ? 1 : -1
+    return [...projects].sort((a, b) => {
+      const aVal = a[key as keyof Project]
+      const bVal = b[key as keyof Project]
+      if (aVal == null && bVal == null) return 0
+      if (aVal == null) return 1
+      if (bVal == null) return -1
+      if (typeof aVal === 'number' && typeof bVal === 'number') return (aVal - bVal) * dir
+      return String(aVal).localeCompare(String(bVal), 'zh-Hant') * dir
+    })
+  }, [projects, sortState.key, sortState.direction])
 
   // 切換 tab 時收合展開列
   useEffect(() => {
@@ -91,10 +111,18 @@ export function ProjectTable({
         <TableHeader>
           <TableRow className="bg-secondary/50">
             <TableHead className="w-8" />
-            <TableHead className="w-[170px]">廠商名稱</TableHead>
-            <TableHead className="min-w-[200px]">專案名稱</TableHead>
-            <TableHead className="w-[70px] text-center">類型</TableHead>
-            <TableHead className="w-[110px] text-right">預算（含稅）</TableHead>
+            <TableHead className="w-[170px]">
+              <SortableHeader label="廠商名稱" sortKey="client_name" sortState={sortState} onToggleSort={toggleSort} />
+            </TableHead>
+            <TableHead className="min-w-[200px]">
+              <SortableHeader label="專案名稱" sortKey="project_name" sortState={sortState} onToggleSort={toggleSort} />
+            </TableHead>
+            <TableHead className="w-[70px] text-center">
+              <SortableHeader label="類型" sortKey="project_type" sortState={sortState} onToggleSort={toggleSort} />
+            </TableHead>
+            <TableHead className="w-[110px] text-right">
+              <SortableHeader label="預算（含稅）" sortKey="budget_with_tax" sortState={sortState} onToggleSort={toggleSort} className="justify-end" />
+            </TableHead>
             {showStatusColumn && (
               <TableHead className="w-[110px]">目前進度</TableHead>
             )}
@@ -102,7 +130,7 @@ export function ProjectTable({
           </TableRow>
         </TableHeader>
         <TableBody>
-          {projects.map((project) => {
+          {sortedProjects.map((project) => {
             const isExpanded = expandedId === project.id
             const notesCount = notesCounts[project.id] || 0
 

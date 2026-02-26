@@ -1,13 +1,17 @@
 'use client'
 
-import { useCallback, useRef } from 'react'
-import { Plus, Save, X, Undo2, Trash2, Table2, ClipboardList } from 'lucide-react'
+import { useCallback, useRef, useMemo } from 'react'
+import { Plus, Save, X, Undo2, Trash2, Table2, ClipboardList, FilterX } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useConfirm } from '@/components/ui/ConfirmDialog'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { SearchableSelectCell } from '@/components/quotes/v2/SearchableSelectCell'
-import type { SpreadsheetColumn, RowStatus, BatchSaveResult } from '@/lib/spreadsheet-utils'
+import type { SpreadsheetColumn, RowStatus, SpreadsheetRow, BatchSaveResult } from '@/lib/spreadsheet-utils'
 import { useSpreadsheetOperations } from '@/hooks/accounting/useSpreadsheetOperations'
+import { useTableSort } from '@/hooks/useTableSort'
+import { useColumnFilters } from '@/hooks/useColumnFilters'
+import { SortableHeader } from '@/components/ui/SortableHeader'
+import { ColumnFilterPopover } from '@/components/ui/ColumnFilterPopover'
 
 // ---------------------------------------------------------------------------
 // Props
@@ -46,6 +50,15 @@ const ACCENT_COLORS = {
 }
 
 // ---------------------------------------------------------------------------
+// Display row type (row + original visible index for operation mapping)
+// ---------------------------------------------------------------------------
+
+interface DisplayRow<T> {
+  row: SpreadsheetRow<T>
+  origIdx: number
+}
+
+// ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
 
@@ -68,6 +81,7 @@ export default function SpreadsheetEditor<T extends { id: string }>({
     setActiveCell,
     saving,
     cellRefs,
+    editableColumns,
     addRow,
     updateCell,
     toggleDelete,
@@ -80,6 +94,119 @@ export default function SpreadsheetEditor<T extends { id: string }>({
 
   const confirm = useConfirm()
   const containerRef = useRef<HTMLDivElement>(null)
+
+  // ------ Filtering ------
+  const { filters, setFilter, clearAll: clearFilters, filterData, activeCount: filterCount } = useColumnFilters<T>()
+  const isFiltered = filterCount > 0
+
+  // ------ Sorting ------
+  const { sortState, toggleSort, resetSort } = useTableSort<string>()
+  const isSorted = sortState.key != null
+
+  // Build display rows: filter → index → sort
+  const displayRows: DisplayRow<T>[] = useMemo(() => {
+    // 1. Filter
+    const filteredVisible = isFiltered
+      ? visibleRows.filter(row => filterData([row.data as T]).length > 0)
+      : visibleRows
+
+    // 2. Index (map back to visibleRows original position)
+    const indexed = filteredVisible.map(row => ({
+      row,
+      origIdx: visibleRows.indexOf(row),
+    }))
+
+    // 3. Sort
+    if (!sortState.key || !sortState.direction) return indexed
+
+    const key = sortState.key
+    const dir = sortState.direction === 'asc' ? 1 : -1
+
+    return [...indexed].sort((a, b) => {
+      const aVal = (a.row.data as Record<string, unknown>)[key]
+      const bVal = (b.row.data as Record<string, unknown>)[key]
+      if (aVal == null && bVal == null) return 0
+      if (aVal == null) return 1
+      if (bVal == null) return -1
+      if (typeof aVal === 'number' && typeof bVal === 'number') return (aVal - bVal) * dir
+      return String(aVal).localeCompare(String(bVal), 'zh-Hant') * dir
+    })
+  }, [visibleRows, sortState.key, sortState.direction, isFiltered, filterData])
+
+  // ------ Sorted/filtered addRow / paste ------
+  const handleAddRow = useCallback(() => {
+    if (isFiltered) return // disabled during filtering
+    if (isSorted) resetSort()
+    addRow()
+  }, [isFiltered, isSorted, resetSort, addRow])
+
+  const handlePasteWithSort = useCallback(
+    (e: React.ClipboardEvent) => {
+      if (isFiltered) {
+        e.preventDefault()
+        return
+      }
+      if (isSorted) resetSort()
+      handlePaste(e)
+    },
+    [isFiltered, isSorted, resetSort, handlePaste],
+  )
+
+  // ------ Keyboard navigation that works in sorted view ------
+  const handleSortedCellKeyDown = useCallback(
+    (e: React.KeyboardEvent, origIdx: number, visualRow: number, colIndex: number) => {
+      if (!isSorted) {
+        // No sort: delegate directly (hook uses origIdx which = visualRow)
+        handleCellKeyDown(e, origIdx, colIndex)
+        return
+      }
+
+      switch (e.key) {
+        case 'Tab': {
+          e.preventDefault()
+          const currentNavIdx = editableColumns.findIndex(({ i }) => i === colIndex)
+          if (e.shiftKey) {
+            const prev = editableColumns[currentNavIdx - 1]
+            if (prev) {
+              setActiveCell({ row: origIdx, col: prev.i })
+            } else if (visualRow > 0) {
+              const lastCol = editableColumns[editableColumns.length - 1]
+              setActiveCell({ row: displayRows[visualRow - 1].origIdx, col: lastCol.i })
+            }
+          } else {
+            const next = editableColumns[currentNavIdx + 1]
+            if (next) {
+              setActiveCell({ row: origIdx, col: next.i })
+            } else {
+              const nextVi = visualRow + 1
+              if (nextVi >= displayRows.length) {
+                handleAddRow()
+                return
+              }
+              setActiveCell({ row: displayRows[nextVi].origIdx, col: editableColumns[0].i })
+            }
+          }
+          break
+        }
+        case 'Enter': {
+          e.preventDefault()
+          const nextVi = visualRow + 1
+          if (nextVi >= displayRows.length) {
+            handleAddRow()
+            return
+          }
+          setActiveCell({ row: displayRows[nextVi].origIdx, col: colIndex })
+          break
+        }
+        case 'Escape': {
+          e.preventDefault()
+          setActiveCell(null)
+          break
+        }
+      }
+    },
+    [isSorted, handleCellKeyDown, editableColumns, displayRows, setActiveCell, handleAddRow],
+  )
 
   const handleClose = useCallback(async () => {
     if (hasUnsaved) {
@@ -109,9 +236,20 @@ export default function SpreadsheetEditor<T extends { id: string }>({
           <span>試算表模式</span>
         </div>
         <div className="flex-1" />
+        {isFiltered && (
+          <button
+            onClick={clearFilters}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-primary bg-primary/10 hover:bg-primary/20 rounded-lg transition-colors"
+          >
+            <FilterX className="w-3.5 h-3.5" />
+            清除篩選 ({filterCount})
+          </button>
+        )}
         <button
-          onClick={addRow}
-          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-foreground bg-muted hover:bg-accent rounded-lg transition-colors"
+          onClick={handleAddRow}
+          disabled={isFiltered}
+          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-foreground bg-muted hover:bg-accent rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          title={isFiltered ? '篩選中無法新增列，請先清除篩選' : undefined}
         >
           <Plus className="w-3.5 h-3.5" />
           新增列
@@ -159,7 +297,7 @@ export default function SpreadsheetEditor<T extends { id: string }>({
       <div
         ref={containerRef}
         className="bg-card rounded-xl border border-border overflow-hidden"
-        onPaste={handlePaste}
+        onPaste={handlePasteWithSort}
         tabIndex={0}
       >
         <div className="overflow-x-auto">
@@ -172,7 +310,20 @@ export default function SpreadsheetEditor<T extends { id: string }>({
                     key={String(col.key)}
                     className={cn('px-2 py-2.5 text-left whitespace-nowrap', col.width)}
                   >
-                    {col.label}
+                    <SortableHeader
+                      label={col.label}
+                      sortKey={String(col.key)}
+                      sortState={sortState}
+                      onToggleSort={toggleSort}
+                      filterContent={
+                        <ColumnFilterPopover
+                          filterType={col.type === 'select' ? 'select' : col.type === 'number' ? 'number' : col.type === 'date' ? 'date' : 'text'}
+                          options={col.type === 'select' ? col.options : undefined}
+                          value={filters.get(col.key as keyof T) ?? null}
+                          onChange={(v) => setFilter(col.key as keyof T, v)}
+                        />
+                      }
+                    />
                     {col.required && <span className="text-destructive ml-0.5">*</span>}
                     {col.readOnly && <span className="text-muted-foreground/60 ml-1 text-[10px]">自動</span>}
                   </th>
@@ -181,7 +332,7 @@ export default function SpreadsheetEditor<T extends { id: string }>({
               </tr>
             </thead>
             <tbody>
-              {visibleRows.length === 0 ? (
+              {displayRows.length === 0 ? (
                 <tr>
                   <td colSpan={columns.length + 2}>
                     <EmptyState
@@ -193,7 +344,7 @@ export default function SpreadsheetEditor<T extends { id: string }>({
                   </td>
                 </tr>
               ) : (
-                visibleRows.map((row, ri) => (
+                displayRows.map(({ row, origIdx }, vi) => (
                   <tr
                     key={row.tempId}
                     className={cn(
@@ -204,14 +355,14 @@ export default function SpreadsheetEditor<T extends { id: string }>({
                   >
                     {/* Row number */}
                     <td className="px-2 py-1 text-center text-xs text-muted-foreground/60 tabular-nums">
-                      {ri + 1}
+                      {vi + 1}
                     </td>
 
                     {/* Data cells */}
                     {columns.map((col, ci) => {
-                      const isActive = activeCell?.row === ri && activeCell?.col === ci
+                      const isActive = activeCell?.row === origIdx && activeCell?.col === ci
                       const value = row.data[col.key]
-                      const cellKey = `${ri}:${ci}`
+                      const cellKey = `${origIdx}:${ci}`
                       const isRequired = col.required && row.errors.some(e => e.includes(col.label))
 
                       if (col.readOnly) {
@@ -236,7 +387,7 @@ export default function SpreadsheetEditor<T extends { id: string }>({
                             col.width,
                             isRequired && 'bg-destructive/10'
                           )}
-                          onClick={() => setActiveCell({ row: ri, col: ci })}
+                          onClick={() => setActiveCell({ row: origIdx, col: ci })}
                         >
                           {col.type === 'select' ? (
                             <select
@@ -245,9 +396,9 @@ export default function SpreadsheetEditor<T extends { id: string }>({
                                 else cellRefs.current.delete(cellKey)
                               }}
                               value={String(value ?? '')}
-                              onChange={e => updateCell(ri, col.key, e.target.value)}
-                              onKeyDown={e => handleCellKeyDown(e, ri, ci)}
-                              onFocus={() => setActiveCell({ row: ri, col: ci })}
+                              onChange={e => updateCell(origIdx, col.key, e.target.value)}
+                              onKeyDown={e => handleSortedCellKeyDown(e, origIdx, vi, ci)}
+                              onFocus={() => setActiveCell({ row: origIdx, col: ci })}
                               className={cn(
                                 'w-full h-8 px-1.5 text-xs border rounded transition-all bg-transparent',
                                 isActive
@@ -268,9 +419,9 @@ export default function SpreadsheetEditor<T extends { id: string }>({
                               }}
                               type="date"
                               value={String(value ?? '')}
-                              onChange={e => updateCell(ri, col.key, e.target.value || null)}
-                              onKeyDown={e => handleCellKeyDown(e, ri, ci)}
-                              onFocus={() => setActiveCell({ row: ri, col: ci })}
+                              onChange={e => updateCell(origIdx, col.key, e.target.value || null)}
+                              onKeyDown={e => handleSortedCellKeyDown(e, origIdx, vi, ci)}
+                              onFocus={() => setActiveCell({ row: origIdx, col: ci })}
                               className={cn(
                                 'w-full h-8 px-1.5 text-xs border rounded transition-all bg-transparent',
                                 isActive
@@ -286,9 +437,9 @@ export default function SpreadsheetEditor<T extends { id: string }>({
                               }}
                               type="number"
                               value={value === 0 ? '' : String(value ?? '')}
-                              onChange={e => updateCell(ri, col.key, e.target.value === '' ? 0 : Number(e.target.value))}
-                              onKeyDown={e => handleCellKeyDown(e, ri, ci)}
-                              onFocus={() => setActiveCell({ row: ri, col: ci })}
+                              onChange={e => updateCell(origIdx, col.key, e.target.value === '' ? 0 : Number(e.target.value))}
+                              onKeyDown={e => handleSortedCellKeyDown(e, origIdx, vi, ci)}
+                              onFocus={() => setActiveCell({ row: origIdx, col: ci })}
                               className={cn(
                                 'w-full h-8 px-1.5 text-xs text-right border rounded transition-all bg-transparent tabular-nums',
                                 isActive
@@ -300,7 +451,7 @@ export default function SpreadsheetEditor<T extends { id: string }>({
                           ) : col.type === 'autocomplete' ? (
                             <SearchableSelectCell
                               value={String(value ?? '')}
-                              onChange={(val) => updateCell(ri, col.key, val)}
+                              onChange={(val) => updateCell(origIdx, col.key, val)}
                               options={(col.suggestions || []).map(s => ({ label: s, value: s }))}
                               placeholder="搜尋..."
                               allowCustomValue={true}
@@ -314,9 +465,9 @@ export default function SpreadsheetEditor<T extends { id: string }>({
                               }}
                               type="text"
                               value={String(value ?? '')}
-                              onChange={e => updateCell(ri, col.key, e.target.value)}
-                              onKeyDown={e => handleCellKeyDown(e, ri, ci)}
-                              onFocus={() => setActiveCell({ row: ri, col: ci })}
+                              onChange={e => updateCell(origIdx, col.key, e.target.value)}
+                              onKeyDown={e => handleSortedCellKeyDown(e, origIdx, vi, ci)}
+                              onFocus={() => setActiveCell({ row: origIdx, col: ci })}
                               className={cn(
                                 'w-full h-8 px-1.5 text-xs border rounded transition-all bg-transparent',
                                 isActive
@@ -332,7 +483,7 @@ export default function SpreadsheetEditor<T extends { id: string }>({
                     {/* Delete action */}
                     <td className="px-1 py-1 text-center">
                       <button
-                        onClick={() => toggleDelete(ri)}
+                        onClick={() => toggleDelete(origIdx)}
                         className="p-1 text-muted-foreground hover:text-destructive rounded hover:bg-destructive/10 transition-colors"
                         title="刪除此列"
                       >
@@ -365,7 +516,7 @@ export default function SpreadsheetEditor<T extends { id: string }>({
           <span className="w-2.5 h-2.5 rounded-sm bg-destructive/20 border border-destructive" />
           驗證錯誤
         </span>
-        <span className="ml-auto text-muted-foreground/60">支援從 Excel 直接貼上（Ctrl+V）</span>
+        <span className="ml-auto text-muted-foreground/60">支援從 Excel 直接貼上（Ctrl+V）| 點擊欄標題排序 | 點擊漏斗圖示篩選</span>
       </div>
     </div>
   )

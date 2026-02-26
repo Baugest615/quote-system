@@ -56,7 +56,7 @@ export default function AccountingSalesPage() {
 
   // 試算表欄位定義
   const spreadsheetColumns = useMemo<SpreadsheetColumn<AccountingSale>[]>(() => [
-    { key: 'invoice_month', label: '發票月份', type: 'select',
+    { key: 'invoice_month', label: '報價年月', type: 'select',
       options: MONTH_OPTIONS.map(m => `${year}年${m}`), width: 'w-28' },
     { key: 'project_name', label: '案件名稱', type: 'autocomplete', suggestions: projectNames, required: true, width: 'w-40' },
     { key: 'client_name', label: '開立對象', type: 'text', width: 'w-32' },
@@ -306,7 +306,7 @@ export default function AccountingSalesPage() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="bg-muted text-muted-foreground text-xs">
-                  <th className="text-left px-4 py-3">發票月份</th>
+                  <th className="text-left px-4 py-3">報價年月</th>
                   <th className="text-left px-4 py-3">案件名稱</th>
                   <th className="text-left px-4 py-3">開立對象</th>
                   <th className="text-right px-4 py-3">銷售額</th>
@@ -381,7 +381,7 @@ export default function AccountingSalesPage() {
         <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-medium text-muted-foreground mb-1">年度</label>
+                  <label className="block text-xs font-medium text-muted-foreground mb-1">報價年份</label>
                   <select
                     value={form.year}
                     onChange={(e) => setForm(f => ({ ...f, year: Number(e.target.value) }))}
@@ -391,7 +391,7 @@ export default function AccountingSalesPage() {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-muted-foreground mb-1">發票月份</label>
+                  <label className="block text-xs font-medium text-muted-foreground mb-1">報價月份</label>
                   <select
                     value={form.invoice_month || ''}
                     onChange={(e) => setForm(f => ({ ...f, invoice_month: e.target.value }))}

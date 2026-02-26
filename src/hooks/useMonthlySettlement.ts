@@ -5,7 +5,7 @@ import type { MutateOptions } from '@tanstack/react-query'
 import { queryKeys } from '@/lib/queryKeys'
 import supabase from '@/lib/supabase/client'
 import { toast } from 'sonner'
-import type { AccountingExpense, AccountingPayroll, Employee, ExpenseClaim } from '@/types/custom.types'
+import type { AccountingExpense, AccountingPayroll, AccountingSale, Employee, ExpenseClaim } from '@/types/custom.types'
 import { groupEmployeeData } from '@/lib/settlement/groupEmployeeData'
 import { calculateKpi } from '@/lib/settlement/calculateKpi'
 
@@ -32,6 +32,7 @@ export interface MonthlySettlementData {
   payroll: AccountingPayroll[]
   employees: Employee[]
   withholdingClaims: ExpenseClaim[]
+  sales: AccountingSale[]
 
   // 分組
   employeeGroups: EmployeeSettlementGroup[]
@@ -43,6 +44,7 @@ export interface MonthlySettlementData {
   kpiExternalTotal: number
   kpiGrandTotal: number
   kpiUnpaidTotal: number
+  kpiIncomeTotal: number
 }
 
 // ====== 內部型別 ======
@@ -106,7 +108,7 @@ export function useMonthlySettlement(year: number, month: string) {
   const query = useQuery({
     queryKey: [...queryKeys.monthlySettlement(year, month)],
     queryFn: async (): Promise<MonthlySettlementData> => {
-      const [expensesRes, payrollRes, employeesRes, withholdingClaimsRes] = await Promise.all([
+      const [expensesRes, payrollRes, employeesRes, withholdingClaimsRes, salesRes] = await Promise.all([
         supabase
           .from('accounting_expenses')
           .select('*')
@@ -130,17 +132,25 @@ export function useMonthlySettlement(year: number, month: string) {
           .eq('status', 'approved')
           .eq('claim_month', monthLabel)
           .order('created_at', { ascending: false }),
+        // 銷項（收入）
+        supabase
+          .from('accounting_sales')
+          .select('*')
+          .eq('invoice_month', monthLabel)
+          .order('created_at', { ascending: false }),
       ])
 
       if (expensesRes.error) throw expensesRes.error
       if (payrollRes.error) throw payrollRes.error
       if (employeesRes.error) throw employeesRes.error
       if (withholdingClaimsRes.error) throw withholdingClaimsRes.error
+      if (salesRes.error) throw salesRes.error
 
       const expenses = (expensesRes.data || []) as AccountingExpense[]
       const payroll = (payrollRes.data || []) as AccountingPayroll[]
       const employees = (employeesRes.data || []) as Employee[]
       const withholdingClaims = (withholdingClaimsRes.data || []) as ExpenseClaim[]
+      const sales = (salesRes.data || []) as AccountingSale[]
 
       // 使用純函式計算員工分組
       const { employeeGroups, externalExpenses } = groupEmployeeData({
@@ -151,13 +161,14 @@ export function useMonthlySettlement(year: number, month: string) {
       })
 
       // 使用純函式計算 KPI
-      const kpi = calculateKpi({ expenses, payroll, withholdingClaims })
+      const kpi = calculateKpi({ expenses, payroll, withholdingClaims, sales })
 
       return {
         expenses,
         payroll,
         employees,
         withholdingClaims,
+        sales,
         employeeGroups,
         externalExpenses,
         ...kpi,

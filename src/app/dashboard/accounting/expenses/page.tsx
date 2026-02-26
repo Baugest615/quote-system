@@ -451,7 +451,6 @@ export default function AccountingExpensesPage() {
                   <th className="text-left px-4 py-3">支出種類</th>
                   <th className="text-left px-4 py-3">會計科目</th>
                   <th className="text-left px-4 py-3">廠商/對象</th>
-                  <th className="text-right px-4 py-3">金額（未稅）</th>
                   <th className="text-right px-4 py-3">實付金額</th>
                   <th className="text-left px-4 py-3">專案名稱</th>
                   <th className="text-left px-4 py-3">備註</th>
@@ -462,7 +461,7 @@ export default function AccountingExpensesPage() {
               </thead>
               <tbody>
                 {filtered.length === 0 ? (
-                  <tr><td colSpan={11}><EmptyState type="no-data" icon={TrendingDown} title="尚無支出記錄" description="新增第一筆支出記錄開始追蹤" /></td></tr>
+                  <tr><td colSpan={10}><EmptyState type="no-data" icon={TrendingDown} title="尚無支出記錄" description="新增第一筆支出記錄開始追蹤" /></td></tr>
                 ) : filtered.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE).map(r => {
                   const mgId = r.payment_requests?.merge_group_id
                   const mgColor = r.payment_requests?.merge_color
@@ -483,7 +482,6 @@ export default function AccountingExpensesPage() {
                       {r.payment_request_id && <span className="ml-1.5 text-[10px] text-destructive bg-destructive/10 px-1 py-0.5 rounded" title="由請款核准自動建立">自動</span>}
                       {mgId && mgLabel && <span className={`ml-1.5 inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium ${mgBadgeClass}`}>合併 {mgLabel}</span>}
                     </td>
-                    <td className="px-4 py-3 text-right text-destructive">NT$ {fmt(r.amount || 0)}</td>
                     <td className="px-4 py-3 text-right text-foreground">
                       NT$ {fmt(r.total_amount || 0)}
                       {(r.remittance_fee || 0) > 0 && (

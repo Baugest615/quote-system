@@ -360,6 +360,24 @@ export interface AccountingSale {
   updated_at: string
 }
 
+export interface AccountingReconciliation {
+  id: string
+  year: number
+  month: string
+  prev_bank_balance: number
+  bank_balance: number
+  income_total: number
+  expense_total: number
+  difference: number
+  status: 'draft' | 'reconciled'
+  note: string | null
+  reconciled_by: string | null
+  reconciled_at: string | null
+  created_by: string | null
+  created_at: string
+  updated_at: string
+}
+
 export interface AccountingExpense {
   id: string
   year: number

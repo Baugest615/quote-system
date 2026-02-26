@@ -12,7 +12,11 @@ import AccountingModal from '@/components/accounting/AccountingModal'
 import Pagination from '@/components/accounting/Pagination'
 import Link from 'next/link'
 import { useConfirm } from '@/components/ui/ConfirmDialog'
+import { useTableSort } from '@/hooks/useTableSort'
+import { SortableHeader } from '@/components/ui/SortableHeader'
 import type { Employee, EmploymentType, EmployeeStatus, Gender, InsuranceRateTable } from '@/types/custom.types'
+
+type EmployeeSortKey = 'employee_number' | 'name' | 'position' | 'department' | 'status' | 'base_salary' | 'insurance_grade' | 'hire_date'
 
 const PAGE_SIZE = 20
 
@@ -58,6 +62,7 @@ export default function EmployeesPage() {
   const queryClient = useQueryClient()
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<EmployeeStatus | 'all'>('在職')
+  const { sortState, toggleSort } = useTableSort<EmployeeSortKey>()
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editing, setEditing] = useState<Employee | null>(null)
   const [form, setForm] = useState<Partial<Employee>>(emptyForm())
@@ -136,6 +141,22 @@ export default function EmployeesPage() {
     }
     return result
   }, [search, statusFilter, employees])
+
+  // 排序
+  const sortedFiltered = useMemo(() => {
+    if (!sortState.key || !sortState.direction) return filtered
+    const key = sortState.key
+    const dir = sortState.direction === 'asc' ? 1 : -1
+    return [...filtered].sort((a, b) => {
+      const aVal = a[key as keyof Employee]
+      const bVal = b[key as keyof Employee]
+      if (aVal == null && bVal == null) return 0
+      if (aVal == null) return 1
+      if (bVal == null) return -1
+      if (typeof aVal === 'number' && typeof bVal === 'number') return (aVal - bVal) * dir
+      return String(aVal).localeCompare(String(bVal), 'zh-Hant') * dir
+    })
+  }, [filtered, sortState.key, sortState.direction])
 
   const updateForm = (updates: Partial<Employee>) => {
     setForm(f => ({ ...f, ...updates }))
@@ -229,8 +250,8 @@ export default function EmployeesPage() {
   if (permLoading || loading) return <AccountingLoadingGuard loading={true} isAdmin={true} />
   if (!hasRole('Admin')) return <AccountingLoadingGuard loading={false} isAdmin={false} />
 
-  const activeCount = filtered.filter(e => e.status === '在職').length
-  const totalBaseSalary = filtered.filter(e => e.status === '在職').reduce((s, e) => s + (e.base_salary || 0), 0)
+  const activeCount = sortedFiltered.filter(e => e.status === '在職').length
+  const totalBaseSalary = sortedFiltered.filter(e => e.status === '在職').reduce((s, e) => s + (e.base_salary || 0), 0)
 
   return (
     <div className="space-y-6">
@@ -279,7 +300,7 @@ export default function EmployeesPage() {
         </div>
         <div className="bg-muted rounded-xl p-4 text-center">
           <p className="text-xs text-muted-foreground mb-1">員工總數</p>
-          <p className="text-lg font-bold text-foreground">{filtered.length} 人</p>
+          <p className="text-lg font-bold text-foreground">{sortedFiltered.length} 人</p>
         </div>
       </div>
 
@@ -289,23 +310,39 @@ export default function EmployeesPage() {
           <table className="w-full text-sm">
             <thead>
               <tr className="bg-muted text-muted-foreground text-xs">
-                <th className="text-left px-4 py-3">員工編號</th>
-                <th className="text-left px-4 py-3">姓名</th>
-                <th className="text-left px-4 py-3">職位</th>
-                <th className="text-left px-4 py-3">部門</th>
-                <th className="text-left px-4 py-3">狀態</th>
-                <th className="text-right px-4 py-3">本薪</th>
-                <th className="text-center px-4 py-3">投保級距</th>
+                <th className="text-left px-4 py-3">
+                  <SortableHeader label="員工編號" sortKey="employee_number" sortState={sortState} onToggleSort={toggleSort} />
+                </th>
+                <th className="text-left px-4 py-3">
+                  <SortableHeader label="姓名" sortKey="name" sortState={sortState} onToggleSort={toggleSort} />
+                </th>
+                <th className="text-left px-4 py-3">
+                  <SortableHeader label="職位" sortKey="position" sortState={sortState} onToggleSort={toggleSort} />
+                </th>
+                <th className="text-left px-4 py-3">
+                  <SortableHeader label="部門" sortKey="department" sortState={sortState} onToggleSort={toggleSort} />
+                </th>
+                <th className="text-left px-4 py-3">
+                  <SortableHeader label="狀態" sortKey="status" sortState={sortState} onToggleSort={toggleSort} />
+                </th>
+                <th className="text-right px-4 py-3">
+                  <SortableHeader label="本薪" sortKey="base_salary" sortState={sortState} onToggleSort={toggleSort} className="justify-end" />
+                </th>
+                <th className="text-center px-4 py-3">
+                  <SortableHeader label="投保級距" sortKey="insurance_grade" sortState={sortState} onToggleSort={toggleSort} className="justify-center" />
+                </th>
                 <th className="text-center px-4 py-3">勞/健保</th>
                 <th className="text-left px-4 py-3">綁定帳號</th>
-                <th className="text-left px-4 py-3">到職日</th>
+                <th className="text-left px-4 py-3">
+                  <SortableHeader label="到職日" sortKey="hire_date" sortState={sortState} onToggleSort={toggleSort} />
+                </th>
                 <th className="text-center px-4 py-3">操作</th>
               </tr>
             </thead>
             <tbody>
-              {filtered.length === 0 ? (
+              {sortedFiltered.length === 0 ? (
                 <tr><td colSpan={11} className="text-center py-12 text-muted-foreground/60">尚無員工資料</td></tr>
-              ) : filtered.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE).map(e => (
+              ) : sortedFiltered.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE).map(e => (
                 <tr key={e.id} className="border-t border-border/50 hover:bg-accent">
                   <td className="px-4 py-3 text-muted-foreground">{e.employee_number || '-'}</td>
                   <td className="px-4 py-3 font-medium text-foreground">{e.name}</td>
@@ -361,8 +398,8 @@ export default function EmployeesPage() {
         </div>
         <Pagination
           currentPage={currentPage}
-          totalPages={Math.ceil(filtered.length / PAGE_SIZE)}
-          totalItems={filtered.length}
+          totalPages={Math.ceil(sortedFiltered.length / PAGE_SIZE)}
+          totalItems={sortedFiltered.length}
           pageSize={PAGE_SIZE}
           onPageChange={setCurrentPage}
         />

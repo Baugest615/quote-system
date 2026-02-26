@@ -17,6 +17,10 @@ import { useKolTypes, useServiceTypes } from '@/hooks/useReferenceData'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { queryKeys } from '@/lib/queryKeys'
 import Pagination from '@/components/ui/Pagination'
+import { useTableSort } from '@/hooks/useTableSort'
+import { SortableHeader } from '@/components/ui/SortableHeader'
+
+type KolSortKey = 'name' | 'type_name'
 
 const PAGE_SIZE = 20
 
@@ -38,6 +42,9 @@ export default function KolsPage() {
   // 搜尋改變時重置到第一頁
   useEffect(() => { setCurrentPage(1) }, [searchTerm])
 
+  // 排序
+  const { sortState, toggleSort } = useTableSort<KolSortKey>()
+
   // 展開的行 ID 集合
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set())
 
@@ -53,9 +60,31 @@ export default function KolsPage() {
     });
   }, [searchTerm, kols, kolTypes]);
 
+  // 排序後的 KOL 列表
+  const sortedKols = useMemo(() => {
+    if (!sortState.key || !sortState.direction) return filteredKols
+    const dir = sortState.direction === 'asc' ? 1 : -1
+    return [...filteredKols].sort((a, b) => {
+      let aVal: string | null = null
+      let bVal: string | null = null
+      switch (sortState.key) {
+        case 'name':
+          aVal = a.name; bVal = b.name; break
+        case 'type_name':
+          aVal = kolTypes.find(t => t.id === a.type_id)?.name ?? null
+          bVal = kolTypes.find(t => t.id === b.type_id)?.name ?? null
+          break
+      }
+      if (aVal == null && bVal == null) return 0
+      if (aVal == null) return 1
+      if (bVal == null) return -1
+      return aVal.localeCompare(bVal, 'zh-Hant') * dir
+    })
+  }, [filteredKols, sortState.key, sortState.direction, kolTypes])
+
   // 分頁
-  const totalPages = Math.max(1, Math.ceil(filteredKols.length / PAGE_SIZE))
-  const paginatedKols = filteredKols.slice(
+  const totalPages = Math.max(1, Math.ceil(sortedKols.length / PAGE_SIZE))
+  const paginatedKols = sortedKols.slice(
     (currentPage - 1) * PAGE_SIZE,
     currentPage * PAGE_SIZE
   )
@@ -258,8 +287,12 @@ export default function KolsPage() {
           <thead>
             <tr className="bg-secondary/50 border-b border-border">
               <th className="p-4 w-10"></th>
-              <th className="p-4 font-medium text-sm text-muted-foreground hidden sm:table-cell">類型</th>
-              <th className="p-4 font-medium text-sm text-muted-foreground">KOL/服務</th>
+              <th className="p-4 font-medium text-sm text-muted-foreground hidden sm:table-cell">
+                <SortableHeader label="類型" sortKey="type_name" sortState={sortState} onToggleSort={toggleSort} />
+              </th>
+              <th className="p-4 font-medium text-sm text-muted-foreground">
+                <SortableHeader label="KOL/服務" sortKey="name" sortState={sortState} onToggleSort={toggleSort} />
+              </th>
               <th className="p-4 font-medium text-sm text-muted-foreground hidden md:table-cell">社群平台</th>
               <th className="p-4 font-medium text-sm text-muted-foreground hidden sm:table-cell">執行內容概覽</th>
               <th className="p-4 font-medium text-sm text-muted-foreground text-center">操作</th>

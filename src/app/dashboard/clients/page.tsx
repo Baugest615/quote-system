@@ -18,6 +18,10 @@ import { queryKeys } from '@/lib/queryKeys'
 import Pagination from '@/components/ui/Pagination'
 import { useConfirm } from '@/components/ui/ConfirmDialog'
 import { parseJsonArray } from '@/lib/utils'
+import { useTableSort } from '@/hooks/useTableSort'
+import { SortableHeader } from '@/components/ui/SortableHeader'
+
+type ClientSortKey = 'name' | 'tin' | 'contact_person' | 'contact_count'
 
 const PAGE_SIZE = 20
 
@@ -44,6 +48,7 @@ export default function ClientsPage() {
   const { data: rawClients = [], isLoading: loading } = useClients()
   const [searchTerm, setSearchTerm] = useState('')
   const [currentPage, setCurrentPage] = useState(1)
+  const { sortState, toggleSort } = useTableSort<ClientSortKey>()
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [selectedClient, setSelectedClient] = useState<Client | null>(null)
 
@@ -91,9 +96,36 @@ export default function ClientsPage() {
     })
   }, [clients, searchTerm])
 
+  // 排序
+  const sortedClients = useMemo(() => {
+    if (!sortState.key || !sortState.direction) return filteredClients
+    const dir = sortState.direction === 'asc' ? 1 : -1
+    return [...filteredClients].sort((a, b) => {
+      let aVal: string | number | null = null
+      let bVal: string | number | null = null
+      switch (sortState.key) {
+        case 'name':
+          aVal = a.name; bVal = b.name; break
+        case 'tin':
+          aVal = a.tin; bVal = b.tin; break
+        case 'contact_person':
+          aVal = a.parsedContacts[0]?.name ?? null
+          bVal = b.parsedContacts[0]?.name ?? null
+          break
+        case 'contact_count':
+          aVal = a.parsedContacts.length; bVal = b.parsedContacts.length; break
+      }
+      if (aVal == null && bVal == null) return 0
+      if (aVal == null) return 1
+      if (bVal == null) return -1
+      if (typeof aVal === 'number' && typeof bVal === 'number') return (aVal - bVal) * dir
+      return String(aVal).localeCompare(String(bVal), 'zh-Hant') * dir
+    })
+  }, [filteredClients, sortState.key, sortState.direction])
+
   // 分頁
-  const totalPages = Math.max(1, Math.ceil(filteredClients.length / PAGE_SIZE))
-  const paginatedClients = filteredClients.slice(
+  const totalPages = Math.max(1, Math.ceil(sortedClients.length / PAGE_SIZE))
+  const paginatedClients = sortedClients.slice(
     (currentPage - 1) * PAGE_SIZE,
     currentPage * PAGE_SIZE
   )
@@ -231,11 +263,19 @@ export default function ClientsPage() {
         <table className="w-full text-left">
           <thead>
             <tr className="bg-secondary/50 border-b border-border">
-              <th className="p-4 font-medium text-sm text-muted-foreground">公司資訊</th>
-              <th className="p-4 font-medium text-sm text-muted-foreground hidden md:table-cell">統一編號</th>
-              <th className="p-4 font-medium text-sm text-muted-foreground hidden sm:table-cell">主要聯絡人</th>
+              <th className="p-4 font-medium text-sm text-muted-foreground">
+                <SortableHeader label="公司資訊" sortKey="name" sortState={sortState} onToggleSort={toggleSort} />
+              </th>
+              <th className="p-4 font-medium text-sm text-muted-foreground hidden md:table-cell">
+                <SortableHeader label="統一編號" sortKey="tin" sortState={sortState} onToggleSort={toggleSort} />
+              </th>
+              <th className="p-4 font-medium text-sm text-muted-foreground hidden sm:table-cell">
+                <SortableHeader label="主要聯絡人" sortKey="contact_person" sortState={sortState} onToggleSort={toggleSort} />
+              </th>
               <th className="p-4 font-medium text-sm text-muted-foreground hidden lg:table-cell">聯絡方式</th>
-              <th className="p-4 font-medium text-sm text-muted-foreground text-center hidden sm:table-cell">聯絡人數</th>
+              <th className="p-4 font-medium text-sm text-muted-foreground text-center hidden sm:table-cell">
+                <SortableHeader label="聯絡人數" sortKey="contact_count" sortState={sortState} onToggleSort={toggleSort} className="justify-center" />
+              </th>
               <th className="p-4 font-medium text-sm text-muted-foreground text-center">操作</th>
             </tr>
           </thead>

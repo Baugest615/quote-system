@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import supabase from '@/lib/supabase/client'
 import { Database } from '@/types/database.types'
@@ -16,12 +16,37 @@ import { useConfirm } from '@/components/ui/ConfirmDialog'
 import { handleQuotationAccountingSync } from '@/lib/accounting/sync-quote-accounting'
 import { handleKolPriceSync } from '@/lib/kol/sync-kol-prices'
 import { EmptyState } from '@/components/ui/EmptyState'
+import { SortableHeader } from '@/components/ui/SortableHeader'
+import { ColumnFilterPopover } from '@/components/ui/ColumnFilterPopover'
+import { useTableSort } from '@/hooks/useTableSort'
+import { useColumnFilters, type FilterValue } from '@/hooks/useColumnFilters'
 import type { QuotationWithClient } from '@/app/dashboard/quotes/page'
+
+// Sort key type for QuotesDataGrid (includes computed columns)
+type QuoteSortKey = 'created_at' | 'project_name' | 'client_name' | 'budget_total' | 'status'
 
 interface QuotesDataGridProps {
     data: QuotationWithClient[]
     clients: Database['public']['Tables']['clients']['Row'][]
     onRefresh: () => void
+}
+
+// Helper: compute budget total for a quote
+function getQuoteTotal(q: QuotationWithClient): number {
+    return q.has_discount && q.discounted_price
+        ? q.discounted_price + Math.round(q.discounted_price * 0.05)
+        : (q.grand_total_taxed || 0)
+}
+
+// Helper: get sortable value from quote by key
+function getSortValue(q: QuotationWithClient, key: QuoteSortKey): string | number | null {
+    switch (key) {
+        case 'created_at': return q.created_at ?? null
+        case 'project_name': return q.project_name ?? null
+        case 'client_name': return q.clients?.name ?? null
+        case 'budget_total': return getQuoteTotal(q)
+        case 'status': return q.status ?? null
+    }
 }
 
 export function QuotesDataGrid({ data, clients, onRefresh }: QuotesDataGridProps) {
@@ -34,7 +59,13 @@ export function QuotesDataGrid({ data, clients, onRefresh }: QuotesDataGridProps
     const [fileModalOpen, setFileModalOpen] = useState(false)
     const [selectedQuote, setSelectedQuote] = useState<QuotationWithClient | null>(null)
 
-    // 狀態選項
+    // ------ Sorting ------
+    const { sortState, toggleSort } = useTableSort<QuoteSortKey>()
+
+    // ------ Inline Filters ------
+    const { filters, setFilter, activeCount: filterActiveCount } = useColumnFilters<Record<QuoteSortKey, unknown>>()
+
+    // Status options
     const statusOptions = [
         { value: '草稿', label: '草稿', color: 'bg-secondary/50 text-foreground' },
         { value: '待簽約', label: '待簽約', color: 'bg-warning/15 text-warning' },
@@ -47,6 +78,76 @@ export function QuotesDataGrid({ data, clients, onRefresh }: QuotesDataGridProps
         label: c.name,
         value: c.id
     }))
+
+    // Unique client names for filter
+    const clientNames = useMemo(() =>
+        Array.from(new Set(data.map(q => q.clients?.name).filter((n): n is string => !!n))),
+        [data]
+    )
+
+    // ------ Apply filters + sort ------
+    const processedData = useMemo(() => {
+        let result = [...data]
+
+        // Apply inline filters
+        if (filters.size > 0) {
+            result = result.filter(q => {
+                let pass = true
+                filters.forEach((fv, key) => {
+                    if (!pass) return
+                    const sortKey = String(key) as QuoteSortKey
+                    const val = getSortValue(q, sortKey)
+
+                    switch (fv.type) {
+                        case 'text': {
+                            if (!fv.value) return
+                            const str = val == null ? '' : String(val)
+                            if (!str.toLowerCase().includes(fv.value.toLowerCase())) pass = false
+                            break
+                        }
+                        case 'select': {
+                            if (fv.selected.length === 0) return
+                            const str = val == null ? '' : String(val)
+                            if (!fv.selected.includes(str)) pass = false
+                            break
+                        }
+                        case 'number': {
+                            const num = typeof val === 'number' ? val : 0
+                            if (fv.min != null && num < fv.min) pass = false
+                            if (fv.max != null && num > fv.max) pass = false
+                            break
+                        }
+                        case 'date': {
+                            if (!fv.start && !fv.end) return
+                            const str = val == null ? '' : String(val)
+                            if (!str) { pass = false; return }
+                            if (fv.start && str < fv.start) pass = false
+                            if (fv.end && str > fv.end + 'T23:59:59') pass = false
+                            break
+                        }
+                    }
+                })
+                return pass
+            })
+        }
+
+        // Apply sort
+        if (sortState.key && sortState.direction) {
+            const sortKey = sortState.key
+            const dir = sortState.direction === 'asc' ? 1 : -1
+            result.sort((a, b) => {
+                const aVal = getSortValue(a, sortKey)
+                const bVal = getSortValue(b, sortKey)
+                if (aVal == null && bVal == null) return 0
+                if (aVal == null) return 1
+                if (bVal == null) return -1
+                if (typeof aVal === 'number' && typeof bVal === 'number') return (aVal - bVal) * dir
+                return String(aVal).localeCompare(String(bVal), 'zh-Hant') * dir
+            })
+        }
+
+        return result
+    }, [data, filters, sortState])
 
     // 切換展開/收合
     const toggleRow = (id: string) => {
@@ -140,27 +241,106 @@ export function QuotesDataGrid({ data, clients, onRefresh }: QuotesDataGridProps
         )
     }
 
+    // Helper: get filter value for a specific key
+    const getFilter = (key: QuoteSortKey): FilterValue | null => {
+        return filters.get(key as keyof Record<QuoteSortKey, unknown>) ?? null
+    }
+    const setFilterByKey = (key: QuoteSortKey, value: FilterValue | null) => {
+        setFilter(key as keyof Record<QuoteSortKey, unknown>, value)
+    }
+
     return (
         <div className="h-full flex flex-col overflow-auto bg-card border rounded-lg shadow">
-            {/* 表頭 (移動到 scroll container 內以支援水平捲動同步，並保持 sticky) */}
+            {/* 表頭 */}
             <div className="flex bg-secondary/50 border-b font-medium text-sm text-muted-foreground sticky top-0 z-10 min-w-max">
                 <div className="w-10 p-3 flex-shrink-0"></div>
                 <div className="w-28 p-3 flex-shrink-0">ID</div>
-                <div className="w-28 p-3 flex-shrink-0">日期</div>
-                <div className="w-[280px] flex-1 p-3">專案名稱</div>
-                <div className="w-56 p-3 flex-shrink-0">客戶</div>
-                <div className="w-36 p-3 flex-shrink-0 text-right">專案預算（含稅）</div>
-                <div className="w-24 p-3 flex-shrink-0">狀態</div>
+                <div className="w-28 p-3 flex-shrink-0">
+                    <SortableHeader<QuoteSortKey>
+                        label="日期"
+                        sortKey="created_at"
+                        sortState={sortState}
+                        onToggleSort={toggleSort}
+                        filterContent={
+                            <ColumnFilterPopover
+                                filterType="date"
+                                value={getFilter('created_at')}
+                                onChange={(v) => setFilterByKey('created_at', v)}
+                            />
+                        }
+                    />
+                </div>
+                <div className="w-[280px] flex-1 p-3">
+                    <SortableHeader<QuoteSortKey>
+                        label="專案名稱"
+                        sortKey="project_name"
+                        sortState={sortState}
+                        onToggleSort={toggleSort}
+                        filterContent={
+                            <ColumnFilterPopover
+                                filterType="text"
+                                value={getFilter('project_name')}
+                                onChange={(v) => setFilterByKey('project_name', v)}
+                            />
+                        }
+                    />
+                </div>
+                <div className="w-56 p-3 flex-shrink-0">
+                    <SortableHeader<QuoteSortKey>
+                        label="客戶"
+                        sortKey="client_name"
+                        sortState={sortState}
+                        onToggleSort={toggleSort}
+                        filterContent={
+                            <ColumnFilterPopover
+                                filterType="select"
+                                options={clientNames}
+                                value={getFilter('client_name')}
+                                onChange={(v) => setFilterByKey('client_name', v)}
+                            />
+                        }
+                    />
+                </div>
+                <div className="w-36 p-3 flex-shrink-0 text-right">
+                    <SortableHeader<QuoteSortKey>
+                        label="專案預算（含稅）"
+                        sortKey="budget_total"
+                        sortState={sortState}
+                        onToggleSort={toggleSort}
+                        filterContent={
+                            <ColumnFilterPopover
+                                filterType="number"
+                                value={getFilter('budget_total')}
+                                onChange={(v) => setFilterByKey('budget_total', v)}
+                            />
+                        }
+                        className="justify-end"
+                    />
+                </div>
+                <div className="w-24 p-3 flex-shrink-0">
+                    <SortableHeader<QuoteSortKey>
+                        label="狀態"
+                        sortKey="status"
+                        sortState={sortState}
+                        onToggleSort={toggleSort}
+                        filterContent={
+                            <ColumnFilterPopover
+                                filterType="select"
+                                options={statusOptions.map(s => s.value)}
+                                value={getFilter('status')}
+                                onChange={(v) => setFilterByKey('status', v)}
+                            />
+                        }
+                    />
+                </div>
                 <div className="w-28 p-3 flex-shrink-0 text-center">操作</div>
             </div>
 
             {/* 表格內容 */}
             <div className="min-w-max">
-                {data.map((quote) => {
+                {processedData.map((quote) => {
                     const isExpanded = expandedRows.has(quote.id)
-                    const total = quote.has_discount && quote.discounted_price ?
-                        quote.discounted_price + Math.round(quote.discounted_price * 0.05) :
-                        (quote.grand_total_taxed || 0)
+                    const total = getQuoteTotal(quote)
 
                     return (
                         <div key={quote.id} className="border-b last:border-b-0">
@@ -280,12 +460,12 @@ export function QuotesDataGrid({ data, clients, onRefresh }: QuotesDataGridProps
                     )
                 })}
 
-                {data.length === 0 && (
+                {processedData.length === 0 && (
                     <EmptyState
                         type="no-data"
                         icon={FileText}
                         title="沒有報價單"
-                        description="新增第一筆報價單開始使用"
+                        description={filterActiveCount > 0 ? "沒有符合篩選條件的報價單" : "新增第一筆報價單開始使用"}
                     />
                 )}
             </div>

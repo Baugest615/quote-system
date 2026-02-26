@@ -6,7 +6,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { Database } from '@/types/database.types'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Search, PlusCircle, Filter, ChevronLeft, ChevronRight, Calendar, DollarSign } from 'lucide-react'
+import { Search, PlusCircle, ChevronLeft, ChevronRight } from 'lucide-react'
 import { QuotesDataGrid } from '@/components/quotes/v2/QuotesDataGrid'
 import { SkeletonTable } from '@/components/ui/Skeleton'
 import { useQuotations } from '@/hooks/useQuotations'
@@ -19,46 +19,15 @@ type Quotation = Database['public']['Tables']['quotations']['Row']
 type Client = Database['public']['Tables']['clients']['Row']
 export type QuotationWithClient = Quotation & { clients: Client | null }
 
-// 篩選器類型
-interface FilterState {
-    status: string[]
-    clientIds: string[]
-    dateRange: {
-        start: string
-        end: string
-    }
-    amountRange: {
-        min: string
-        max: string
-    }
-}
-
 export default function QuotesV2Page() {
     const queryClient = useQueryClient()
     const [searchTerm, setSearchTerm] = useState('')
-    const [showFilters, setShowFilters] = useState(false)
-
-    // 篩選狀態
-    const [filters, setFilters] = useState<FilterState>({
-        status: [],
-        clientIds: [],
-        dateRange: { start: '', end: '' },
-        amountRange: { min: '', max: '' }
-    })
 
     // 分頁狀態
     const [currentPage, setCurrentPage] = useState(1)
     const itemsPerPage = 50
 
-    // 狀態選項
-    const statusOptions = [
-        { value: '草稿', label: '草稿', color: 'bg-secondary/50 text-foreground' },
-        { value: '待簽約', label: '待簽約', color: 'bg-warning/15 text-warning' },
-        { value: '已簽約', label: '已簽約', color: 'bg-success/15 text-success' },
-        { value: '已歸檔', label: '已歸檔', color: 'bg-info/15 text-info' }
-    ]
-
-    // React Query 資料獲取（全量載入，搜尋涵蓋所有資料）
+    // React Query 資料獲取（全量載入）
     const { data: quotations = [], isLoading: loading } = useQuotations()
     const { data: clients = [] } = useClients()
 
@@ -68,82 +37,19 @@ export default function QuotesV2Page() {
         queryClient.invalidateQueries({ queryKey: [...queryKeys.dashboardStats] })
     }, [queryClient])
 
-    // 檢查是否有啟用的篩選
-    const hasActiveFilters = useMemo(() => {
-        return (
-            filters.status.length > 0 ||
-            filters.clientIds.length > 0 ||
-            filters.dateRange.start ||
-            filters.dateRange.end ||
-            filters.amountRange.min ||
-            filters.amountRange.max
-        )
-    }, [filters])
-
-    // 篩選邏輯
+    // 全文搜尋（ID、專案名稱、客戶名稱）
     const filteredQuotations = useMemo(() => {
-        let result = [...quotations]
+        if (!searchTerm) return quotations
+        const term = searchTerm.toLowerCase()
+        return quotations.filter((quote) =>
+            quote.id.toLowerCase().includes(term) ||
+            quote.project_name.toLowerCase().includes(term) ||
+            (quote.clients?.name || '').toLowerCase().includes(term)
+        )
+    }, [quotations, searchTerm])
 
-        // 1. 基本搜尋
-        if (searchTerm) {
-            result = result.filter((quote) =>
-                quote.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                quote.project_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                (quote.clients?.name || '').toLowerCase().includes(searchTerm.toLowerCase())
-            )
-        }
-
-        // 2. 狀態篩選
-        if (filters.status.length > 0) {
-            result = result.filter((quote) =>
-                quote.status && filters.status.includes(quote.status)
-            )
-        }
-
-        // 3. 客戶篩選
-        if (filters.clientIds.length > 0) {
-            result = result.filter((quote) =>
-                quote.client_id && filters.clientIds.includes(quote.client_id)
-            )
-        }
-
-        // 4. 日期範圍篩選
-        if (filters.dateRange.start) {
-            result = result.filter((quote) =>
-                quote.created_at && quote.created_at >= filters.dateRange.start
-            )
-        }
-        if (filters.dateRange.end) {
-            result = result.filter((quote) =>
-                quote.created_at && quote.created_at <= filters.dateRange.end + 'T23:59:59'
-            )
-        }
-
-        // 5. 金額範圍篩選
-        if (filters.amountRange.min) {
-            const minAmount = parseFloat(filters.amountRange.min)
-            result = result.filter((quote) => {
-                const total = quote.has_discount && quote.discounted_price ?
-                    quote.discounted_price + Math.round(quote.discounted_price * 0.05) :
-                    (quote.grand_total_taxed || 0)
-                return total >= minAmount
-            })
-        }
-        if (filters.amountRange.max) {
-            const maxAmount = parseFloat(filters.amountRange.max)
-            result = result.filter((quote) => {
-                const total = quote.has_discount && quote.discounted_price ?
-                    quote.discounted_price + Math.round(quote.discounted_price * 0.05) :
-                    (quote.grand_total_taxed || 0)
-                return total <= maxAmount
-            })
-        }
-
-        return result
-    }, [quotations, searchTerm, filters])
-
-    // 搜尋或篩選改變時重置到第 1 頁
-    useEffect(() => { setCurrentPage(1) }, [searchTerm, filters])
+    // 搜尋改變時重置到第 1 頁
+    useEffect(() => { setCurrentPage(1) }, [searchTerm])
 
     // 客戶端分頁
     const totalCount = filteredQuotations.length
@@ -181,16 +87,6 @@ export default function QuotesV2Page() {
                         />
                     </div>
 
-                    {/* 篩選按鈕 */}
-                    <Button
-                        variant="outline"
-                        onClick={() => setShowFilters(!showFilters)}
-                        className={hasActiveFilters ? 'border-primary text-primary' : ''}
-                    >
-                        <Filter className="mr-2 h-4 w-4" />
-                        篩選 {hasActiveFilters && `(${Object.values(filters).flat().filter(Boolean).length})`}
-                    </Button>
-
                     <Link href="/dashboard/quotes/new">
                         <Button>
                             <PlusCircle className="mr-2 h-4 w-4" /> 新增報價單
@@ -199,124 +95,7 @@ export default function QuotesV2Page() {
                 </div>
             </div>
 
-            {/* 篩選面板 */}
-            {showFilters && (
-                <div className="bg-card p-4 rounded-lg shadow-sm border space-y-4">
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                        {/* 狀態篩選 */}
-                        <div>
-                            <label className="block text-sm font-medium text-foreground/70 mb-2">狀態</label>
-                            <div className="space-y-2">
-                                {statusOptions.map((option) => (
-                                    <label key={option.value} className="flex items-center">
-                                        <input
-                                            type="checkbox"
-                                            checked={filters.status.includes(option.value)}
-                                            onChange={(e) => {
-                                                if (e.target.checked) {
-                                                    setFilters(prev => ({ ...prev, status: [...prev.status, option.value] }))
-                                                } else {
-                                                    setFilters(prev => ({ ...prev, status: prev.status.filter(s => s !== option.value) }))
-                                                }
-                                            }}
-                                            className="mr-2 rounded border-border text-primary focus:ring-ring"
-                                        />
-                                        <span className="text-sm">{option.label}</span>
-                                    </label>
-                                ))}
-                            </div>
-                        </div>
-
-                        {/* 客戶篩選 */}
-                        <div>
-                            <label className="block text-sm font-medium text-foreground/70 mb-2">客戶</label>
-                            <select
-                                multiple
-                                className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-border bg-card focus:outline-none focus:ring-ring focus:border-primary sm:text-sm rounded-md h-32"
-                                value={filters.clientIds}
-                                onChange={(e) => {
-                                    const selectedOptions = Array.from(e.target.selectedOptions, option => option.value)
-                                    setFilters(prev => ({ ...prev, clientIds: selectedOptions }))
-                                }}
-                            >
-                                {clients.map((client) => (
-                                    <option key={client.id} value={client.id}>{client.name}</option>
-                                ))}
-                            </select>
-                            <p className="text-xs text-muted-foreground mt-1">按住 Ctrl/Cmd 可多選</p>
-                        </div>
-
-                        {/* 日期範圍 */}
-                        <div>
-                            <label className="block text-sm font-medium text-foreground/70 mb-2">建立日期</label>
-                            <div className="space-y-2">
-                                <div className="flex items-center">
-                                    <Calendar className="h-4 w-4 text-muted-foreground mr-2" />
-                                    <Input
-                                        type="date"
-                                        value={filters.dateRange.start}
-                                        onChange={(e) => setFilters(prev => ({ ...prev, dateRange: { ...prev.dateRange, start: e.target.value } }))}
-                                        className="text-sm"
-                                    />
-                                </div>
-                                <div className="flex items-center">
-                                    <span className="text-muted-foreground mr-2 text-sm">至</span>
-                                    <Input
-                                        type="date"
-                                        value={filters.dateRange.end}
-                                        onChange={(e) => setFilters(prev => ({ ...prev, dateRange: { ...prev.dateRange, end: e.target.value } }))}
-                                        className="text-sm"
-                                    />
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* 金額範圍 */}
-                        <div>
-                            <label className="block text-sm font-medium text-foreground/70 mb-2">專案預算（含稅）</label>
-                            <div className="space-y-2">
-                                <div className="flex items-center">
-                                    <DollarSign className="h-4 w-4 text-muted-foreground mr-2" />
-                                    <Input
-                                        type="number"
-                                        placeholder="最小值"
-                                        value={filters.amountRange.min}
-                                        onChange={(e) => setFilters(prev => ({ ...prev, amountRange: { ...prev.amountRange, min: e.target.value } }))}
-                                        className="text-sm"
-                                    />
-                                </div>
-                                <div className="flex items-center">
-                                    <span className="text-muted-foreground mr-2 text-sm">至</span>
-                                    <Input
-                                        type="number"
-                                        placeholder="最大值"
-                                        value={filters.amountRange.max}
-                                        onChange={(e) => setFilters(prev => ({ ...prev, amountRange: { ...prev.amountRange, max: e.target.value } }))}
-                                        className="text-sm"
-                                    />
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    <div className="flex justify-end">
-                        <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => setFilters({
-                                status: [],
-                                clientIds: [],
-                                dateRange: { start: '', end: '' },
-                                amountRange: { min: '', max: '' }
-                            })}
-                            className="text-muted-foreground"
-                        >
-                            清除篩選
-                        </Button>
-                    </div>
-                </div>
-            )}
-
-            {/* Data Grid 區域 */}
+            {/* Data Grid 區域（含排序 + 欄位篩選） */}
             <div className="flex-1 overflow-hidden bg-card rounded-lg shadow-sm border">
                 {loading ? (
                     <div className="p-4">

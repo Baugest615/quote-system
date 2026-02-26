@@ -112,6 +112,7 @@ describe('calculateKpi — KPI 計算', () => {
     expenses: [],
     payroll: [],
     withholdingClaims: [],
+    sales: [],
   }
 
   describe('空資料處理', () => {
@@ -203,7 +204,7 @@ describe('calculateKpi — KPI 計算', () => {
       ]
       const claims = [makeClaim({ id: 'c-1', total_amount: 1500 })]
 
-      const result = calculateKpi({ payroll, expenses, withholdingClaims: claims })
+      const result = calculateKpi({ payroll, expenses, withholdingClaims: claims, sales: [] })
 
       // 薪資=50000, 員工支出=3000+1500=4500, 外部=10000
       expect(result.kpiGrandTotal).toBe(64500)
@@ -225,7 +226,7 @@ describe('calculateKpi — KPI 計算', () => {
         makeClaim({ id: 'c-2', total_amount: 3000, payment_status: 'unpaid' }),
       ]
 
-      const result = calculateKpi({ payroll, expenses, withholdingClaims: claims })
+      const result = calculateKpi({ payroll, expenses, withholdingClaims: claims, sales: [] })
 
       // 未付：薪資 60000 + 支出 5000 + 代扣 3000 = 68000
       expect(result.kpiUnpaidTotal).toBe(68000)
@@ -236,7 +237,7 @@ describe('calculateKpi — KPI 計算', () => {
       const expenses = [makeExpense({ id: 'e-1', total_amount: 10000, payment_status: 'paid' })]
       const claims = [makeClaim({ id: 'c-1', total_amount: 2000, payment_status: 'paid' })]
 
-      const result = calculateKpi({ payroll, expenses, withholdingClaims: claims })
+      const result = calculateKpi({ payroll, expenses, withholdingClaims: claims, sales: [] })
       expect(result.kpiUnpaidTotal).toBe(0)
     })
 
@@ -248,7 +249,7 @@ describe('calculateKpi — KPI 計算', () => {
       ]
       const claims = [makeClaim({ id: 'c-1', total_amount: 2000, payment_status: 'unpaid' })]
 
-      const result = calculateKpi({ payroll, expenses, withholdingClaims: claims })
+      const result = calculateKpi({ payroll, expenses, withholdingClaims: claims, sales: [] })
       expect(result.kpiUnpaidTotal).toBe(result.kpiGrandTotal)
     })
   })
@@ -266,7 +267,7 @@ describe('calculateKpi — KPI 計算', () => {
       const expenses = [makeExpense({ id: 'e-1', total_amount: 0 })]
       const claims = [makeClaim({ id: 'c-1', total_amount: 0 })]
 
-      const result = calculateKpi({ payroll, expenses, withholdingClaims: claims })
+      const result = calculateKpi({ payroll, expenses, withholdingClaims: claims, sales: [] })
       expect(result.kpiGrandTotal).toBe(0)
       expect(result.kpiUnpaidTotal).toBe(0)
     })
