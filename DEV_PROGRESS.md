@@ -555,6 +555,23 @@ src/lib/pending-payments/grouping-utils.ts（同步更新）
 
 ---
 
+### 駁回原因殘留修復 + 備註欄位顯示（2026-02-26）
+
+修復駁回後重新核准時駁回原因仍殘留的 Bug，並讓備註欄位在三個頁面可見。
+
+**Migration**（`20260226200000_fix_rejection_reason_and_note_visibility.sql`）：
+- [x] `approve_expense_claim` RPC：核准時清除 `rejection_reason`/`rejected_by`/`rejected_at`
+- [x] `approve_payment_request` RPC：同上
+
+**前端備註顯示**：
+- [x] 個人請款申請列表：專案名稱下方顯示備註小字 + 駁回原因限 rejected 狀態才顯示
+- [x] 請款審核頁（個人報帳 Tab）：專案名稱下方顯示備註小字
+- [x] 確認請款清單（PaymentRecordRow）：個人報帳項目顯示備註小字
+
+驗證結果：TypeScript 零錯誤
+
+---
+
 ### 全專案權限修復 — RLS 政策 + 前端守衛（2026-02-26）
 
 修復 Member/Editor 角色在執行操作時遇到的多個權限錯誤（編輯報價單、新增項目、送出請款等），涵蓋 DB RLS 政策與前端權限控制。
@@ -621,6 +638,7 @@ src/app/dashboard/quotes/edit/[id]/page.tsx
 
 - `npm run build` 通過，零型別錯誤（31 頁面）
 - `npm test` 通過，90/90 測試（新增 5 個 groupEmployeeData 測試）
+- **✅ 駁回原因殘留已修復**：兩個 RPC 核准時清除駁回欄位 + 備註欄位三頁面顯示
 - **✅ 全專案權限修復已完成**：RLS 政策 5 大類修復 + 前端 4 處權限守衛
 - **✅ 待請款檢核文件上傳已修復**：draft record 自動建立 + 孤立檔案清理
 - **✅ 待請款篩選/排序/成案日期已完成**：KOL/專案/月份篩選 + 成案日期排序 + 批次設定 DB 持久化
