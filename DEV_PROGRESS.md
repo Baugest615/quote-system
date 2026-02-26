@@ -490,6 +490,117 @@ Migration 安全修復（`20260221100000_fix_expense_claims_security.sql`）：
 
 ---
 
+### 待請款專案管理 — 篩選功能 + 成案日期 + 排序增強 + Bug 修復（2026-02-26）
+
+為待請款專案管理頁面增加多維度篩選、排序增強、DB 持久化，並修復多個潛在 Bug。
+
+#### 篩選功能
+
+- [x] **KOL 篩選**（item-level）：下拉選單選取特定 KOL，僅顯示該 KOL 的項目（非整個專案）
+- [x] **專案篩選**：下拉選單選取特定專案
+- [x] **成案月份篩選**：從 `quotations.created_at` 提取不重複月份，支援按月份篩選
+- [x] **清除篩選按鈕**：有啟用篩選時顯示，一鍵重置
+- [x] **搜尋精確度優化**：文字搜尋僅比對 KOL 名稱、服務內容、客戶名稱（移除專案名稱避免過度匹配）
+- [x] **兩層篩選架構**：`filteredItems`（item-level，分組前）→ `displayGroups`（group-level，分組後）
+
+#### 排序增強
+
+- [x] **成案日期排序**：新增「成案日期（新→舊）」「成案日期（舊→新）」選項
+- [x] `ProjectGroup` 型別新增 `quotationCreatedAt: string | null`
+- [x] `groupItemsByProject()` 提取 `quotationCreatedAt`
+
+#### 成案日期顯示
+
+- [x] 專案標題列顯示成案日期（CalendarDays icon + `YYYY/MM/DD` 格式）
+
+#### 批次設定 UX 改進
+
+- [x] **批次套用不再依賴付款勾選**：`applyToSelected` → `applyToFiltered`，套用至所有可見項目
+- [x] **按鈕文字動態顯示**：有篩選時「套用至篩選結果 N 筆」；無篩選時「套用至全部 N 筆」
+- [x] **DB 持久化**：套用批次/個別修改帳務設定後自動儲存至 `payment_requests`（draft record）
+
+#### ExpandedItemPanel 精簡
+
+- [x] 從多行佈局壓縮為單行 inline flex（3 下拉 + 重置/銀行/合併按鈕）
+- [x] 移除與 CompactItemRow 重複的成本/匯款名稱輸入框
+
+#### CompactItemRow 標籤優化
+
+- [x] 帳務標籤（支出種類/會計科目/月份）與 KOL 名稱並排同一行
+- [x] 預計付款月份標籤永遠顯示：與批次相同時淡色、不同時藍色高亮
+
+#### Bug 修復（主動偵測 + 修復）
+
+- [x] **upsert 失效**：`payment_requests.quotation_item_id` 無 UNIQUE 約束（故意允許多筆記錄），改用 INSERT + payment_request_id 判斷
+- [x] **快速連續操作重複 INSERT**：新增 `pendingInserts` ref 防護同一 item 並發 INSERT
+- [x] **React 反模式**：將 `saveAccountingSettings` 移出 `setItems()` updater 函數（避免 Strict Mode 雙重執行副作用）
+- [x] **批次套用效能**：sequential `for-await` → `Promise.all` 並行呼叫
+- [x] **清理未使用的 import**：ExpandedItemPanel 移除 `useState`、`useRef`、`Button`、`Input`、`Save`
+
+**修改檔案**：
+```
+src/app/dashboard/pending-payments/page.tsx（篩選/排序/DB持久化/bug修復）
+src/components/pending-payments/BatchSettingsBar.tsx（applyToFiltered + 動態按鈕）
+src/components/pending-payments/CompactItemRow.tsx（標籤並排 + 月份永遠顯示）
+src/components/pending-payments/ExpandedItemPanel.tsx（單行佈局）
+src/components/pending-payments/ProjectGroupView.tsx（成案日期 + 清理 props）
+src/hooks/pending-payments/useBatchSettings.ts（applyToFiltered）
+src/hooks/payments/usePaymentGrouping.ts（泛型約束更新）
+src/lib/payments/types.ts（quotationCreatedAt）
+src/lib/payments/grouping.ts（提取 quotationCreatedAt）
+src/lib/pending-payments/grouping-utils.ts（同步更新）
+```
+
+驗證結果：TypeScript 零錯誤、Production build 成功
+
+---
+
+### 全專案權限修復 — RLS 政策 + 前端守衛（2026-02-26）
+
+修復 Member/Editor 角色在執行操作時遇到的多個權限錯誤（編輯報價單、新增項目、送出請款等），涵蓋 DB RLS 政策與前端權限控制。
+
+**Migration**（`20260226100000_fix_permission_gaps.sql`）：
+
+DB 層面修復 5 大類問題：
+- [x] **payment_requests 擴展**：新增 `created_by` 欄位 + trigger；INSERT 開放全員；UPDATE 改為 Admin/Editor + 擁有者
+- [x] **歷史記錄 NULL 處理**：`quotations`、`quotation_items`、`kols`、`clients` 的 UPDATE/DELETE 政策加入 `OR created_by IS NULL`
+- [x] **approve_expense_claim 安全修復**：補回 `SET search_path = ''`、`public.` 前綴、`FOR UPDATE` 鎖定、`v_actual_approver_id`
+- [x] **accounting 三表改制**：`accounting_sales`/`expenses`/`payroll` 從 owner-only 改為 Admin 角色 CRUD
+- [x] **is_admin() 修復**：從查不存在的 `user_roles` 表改為查 `profiles` 表
+
+前端層面修復 4 處權限缺口：
+- [x] **QuotesDataGrid inline 編輯**：3 個 EditableCell（專案名稱/客戶/狀態）加入 `canEditQuote` 判斷，無權限時渲染唯讀文字
+- [x] **報價單 View 頁面**：編輯按鈕加入 `hasRole('Editor') || created_by === userId` 條件
+- [x] **報價單 Edit 頁面**：新增 `usePermission` 路由守衛，無權限顯示「權限不足」提示
+- [x] **QuotationItemsList**：新增 `readOnly` prop，隱藏新增/刪除/貼上操作
+
+**修改檔案**：
+```
+supabase/migrations/20260226100000_fix_permission_gaps.sql（新增）
+src/components/quotes/v2/QuotesDataGrid.tsx
+src/components/quotes/v2/QuotationItemsList.tsx
+src/app/dashboard/quotes/view/[id]/page.tsx
+src/app/dashboard/quotes/edit/[id]/page.tsx
+```
+
+驗證結果：TypeScript 零錯誤
+
+---
+
+### 待請款檢核文件上傳 Bug 修復（2026-02-26）
+
+修復檢核文件上傳後顯示成功但 F5 重整後消失的問題。
+
+**根因**：`handleFileUpdate` 只更新前端狀態，未對無 `payment_request_id` 的新項目寫入 DB。
+
+- [x] 新項目上傳時自動 INSERT draft `payment_request` 記錄（含 `attachment_file_path`）
+- [x] `pendingInserts` ref 防護並發 INSERT
+- [x] 清理 27 筆 Supabase Storage 孤立檔案（無 DB 參照）
+
+修改檔案：`src/app/dashboard/pending-payments/page.tsx`
+
+---
+
 ### 成本明細表格排序功能（2026-02-23）
 
 報價單管理的成本明細（報價項目）表格新增 Excel 風格欄位排序功能，方便檢視與校對。
@@ -510,6 +621,9 @@ Migration 安全修復（`20260221100000_fix_expense_claims_security.sql`）：
 
 - `npm run build` 通過，零型別錯誤（31 頁面）
 - `npm test` 通過，90/90 測試（新增 5 個 groupEmployeeData 測試）
+- **✅ 全專案權限修復已完成**：RLS 政策 5 大類修復 + 前端 4 處權限守衛
+- **✅ 待請款檢核文件上傳已修復**：draft record 自動建立 + 孤立檔案清理
+- **✅ 待請款篩選/排序/成案日期已完成**：KOL/專案/月份篩選 + 成案日期排序 + 批次設定 DB 持久化
 - **✅ 月結總覽已優化**：分組 Bug 修復（name fallback）+ 摘要表格 UI
 - **✅ 多項 Bug 已修復**：快取同步、稅額計算、Modal 效能、審核狀態、空白清單刪除
 - **✅ 成本明細排序功能已完成**：Excel 風格欄位標題排序（類別/KOL/執行內容/數量/單價/成本/小計）
@@ -531,7 +645,7 @@ Migration 安全修復（`20260221100000_fix_expense_claims_security.sql`）：
 ## 待辦 / 下一步
 
 ### 🔴 優先執行
-- [ ] **推送 migration 至遠端 DB**：`20260222970000_fix_remittance_fee_distribution.sql`
+- [ ] **推送 migration 至遠端 DB**：`20260226100000_fix_permission_gaps.sql`
 - [ ] **全面功能回歸測試**：各頁面 CRUD + 權限分級（Admin/Editor/Member）
 - [ ] **快取行為驗證**：跨頁失效（核准 → 已確認清單、儲存報價 → 列表頁）
 
