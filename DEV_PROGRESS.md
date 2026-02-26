@@ -555,6 +555,23 @@ src/lib/pending-payments/grouping-utils.ts（同步更新）
 
 ---
 
+### 多項 Bug 修復 — PDF 格線 + 合併邏輯 + Editor 帳務權限（2026-02-26）
+
+- [x] **PDF 匯出格線修復**：`onclone` 修復 `.section-title` 負邊距導致右側格線截斷；加入 `table-layout: fixed` + overflow 防護
+- [x] **合併請款邏輯**：`canMergeWith` 修復為同名 KOL **或** 相同銀行帳戶皆可合併（原只比對 `kol_id`）
+- [x] **Editor 帳務管理權限**：`PAGE_PERMISSIONS.accounting.allowedRoles` 加入 Editor（原僅 Admin）
+- [x] **待請款搜尋**：加回專案名稱比對
+
+修改檔案：
+```
+src/lib/pdf/enhanced-pdf-generator.ts
+src/app/print/quote/[id]/page.tsx
+src/app/dashboard/pending-payments/page.tsx
+src/types/custom.types.ts
+```
+
+---
+
 ### 駁回原因殘留修復 + 備註欄位顯示（2026-02-26）
 
 修復駁回後重新核准時駁回原因仍殘留的 Bug，並讓備註欄位在三個頁面可見。
@@ -638,6 +655,7 @@ src/app/dashboard/quotes/edit/[id]/page.tsx
 
 - `npm run build` 通過，零型別錯誤（31 頁面）
 - `npm test` 通過，90/90 測試（新增 5 個 groupEmployeeData 測試）
+- **✅ 多項 Bug 修復**：PDF 格線 + 合併邏輯（同帳戶）+ Editor 帳務權限 + 搜尋加回專案名
 - **✅ 駁回原因殘留已修復**：兩個 RPC 核准時清除駁回欄位 + 備註欄位三頁面顯示
 - **✅ 全專案權限修復已完成**：RLS 政策 5 大類修復 + 前端 4 處權限守衛
 - **✅ 待請款檢核文件上傳已修復**：draft record 自動建立 + 孤立檔案清理
