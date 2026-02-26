@@ -187,23 +187,35 @@ export function QuotesDataGrid({ data, clients, onRefresh }: QuotesDataGridProps
                                     {new Date(quote.created_at || '').toLocaleDateString('zh-TW')}
                                 </div>
 
-                                {/* 專案名稱 (可編輯) */}
+                                {/* 專案名稱 */}
                                 <div className="w-[280px] flex-1 p-2">
-                                    <EditableCell
-                                        value={quote.project_name}
-                                        onChange={(val) => handleUpdateQuotation(quote.id, 'project_name', val)}
-                                        className="font-medium text-foreground"
-                                    />
+                                    {(hasRole('Editor') || quote.created_by == null || quote.created_by === userId) ? (
+                                        <EditableCell
+                                            value={quote.project_name}
+                                            onChange={(val) => handleUpdateQuotation(quote.id, 'project_name', val)}
+                                            className="font-medium text-foreground"
+                                        />
+                                    ) : (
+                                        <div className="font-medium text-foreground px-2 min-h-[2rem] flex items-center text-sm truncate">
+                                            {quote.project_name}
+                                        </div>
+                                    )}
                                 </div>
 
-                                {/* 客戶 (可編輯 - 下拉) */}
+                                {/* 客戶 */}
                                 <div className="w-56 p-2 flex-shrink-0">
-                                    <EditableCell
-                                        value={quote.client_id}
-                                        type="select"
-                                        options={clientOptions}
-                                        onChange={(val) => handleUpdateQuotation(quote.id, 'client_id', val)}
-                                    />
+                                    {(hasRole('Editor') || quote.created_by == null || quote.created_by === userId) ? (
+                                        <EditableCell
+                                            value={quote.client_id}
+                                            type="select"
+                                            options={clientOptions}
+                                            onChange={(val) => handleUpdateQuotation(quote.id, 'client_id', val)}
+                                        />
+                                    ) : (
+                                        <div className="text-sm text-foreground px-2 min-h-[2rem] flex items-center truncate">
+                                            {clients.find(c => c.id === quote.client_id)?.name || '-'}
+                                        </div>
+                                    )}
                                 </div>
 
                                 {/* 專案預算（含稅）(唯讀 - 自動計算) */}
@@ -211,15 +223,21 @@ export function QuotesDataGrid({ data, clients, onRefresh }: QuotesDataGridProps
                                     {total.toLocaleString()}
                                 </div>
 
-                                {/* 狀態 (可編輯 - 下拉) */}
+                                {/* 狀態 */}
                                 <div className="w-24 p-2 flex-shrink-0">
-                                    <EditableCell
-                                        value={quote.status}
-                                        type="select"
-                                        options={statusOptions}
-                                        onChange={(val) => handleUpdateQuotation(quote.id, 'status', val)}
-                                        className="text-xs"
-                                    />
+                                    {(hasRole('Editor') || quote.created_by == null || quote.created_by === userId) ? (
+                                        <EditableCell
+                                            value={quote.status}
+                                            type="select"
+                                            options={statusOptions}
+                                            onChange={(val) => handleUpdateQuotation(quote.id, 'status', val)}
+                                            className="text-xs"
+                                        />
+                                    ) : (
+                                        <div className="text-xs text-foreground px-2 min-h-[2rem] flex items-center">
+                                            {quote.status}
+                                        </div>
+                                    )}
                                 </div>
 
                                 {/* 操作 */}
@@ -254,6 +272,7 @@ export function QuotesDataGrid({ data, clients, onRefresh }: QuotesDataGridProps
                                     <QuotationItemsList
                                         quotationId={quote.id}
                                         onUpdate={onRefresh}
+                                        readOnly={!(hasRole('Editor') || quote.created_by == null || quote.created_by === userId)}
                                     />
                                 </div>
                             )}

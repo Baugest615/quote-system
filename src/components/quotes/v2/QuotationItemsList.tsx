@@ -24,9 +24,10 @@ type KolWithServices = Kol & { kol_services: (KolService & { service_types: Serv
 interface QuotationItemsListProps {
     quotationId: string
     onUpdate?: () => void
+    readOnly?: boolean
 }
 
-export function QuotationItemsList({ quotationId, onUpdate }: QuotationItemsListProps) {
+export function QuotationItemsList({ quotationId, onUpdate, readOnly = false }: QuotationItemsListProps) {
     const confirm = useConfirm()
     // 原始資料 (用於取消還原)
     const [originalItems, setOriginalItems] = useState<QuotationItemWithPayments[]>([])
@@ -482,7 +483,7 @@ export function QuotationItemsList({ quotationId, onUpdate }: QuotationItemsList
     return (
         <div
             className="bg-secondary p-4 rounded-lg border border-border shadow-inner outline-none"
-            onPaste={handlePaste} // 監聽貼上事件
+            onPaste={readOnly ? undefined : handlePaste}
             tabIndex={0} // 讓 div 可以接收焦點
         >
             <div className="flex justify-between items-center mb-3">
@@ -492,56 +493,57 @@ export function QuotationItemsList({ quotationId, onUpdate }: QuotationItemsList
                         (支援 Excel 貼上: 類別 | KOL/服務 | 執行內容 | 數量 | 單價 | 成本)
                     </span>
                 </h4>
-                <div className="flex space-x-2">
-                    {isDirty && (
-                        <>
-                            <Button size="sm" variant="ghost" onClick={handleCancel} disabled={isSaving} className="h-7 text-xs text-muted-foreground hover:text-foreground/70">
-                                <XCircle className="h-3 w-3 mr-1" /> 取消
-                            </Button>
-                            <Button size="sm" onClick={handleSave} disabled={isSaving} className="h-7 text-xs bg-primary hover:bg-primary/90 text-primary-foreground">
-                                {isSaving ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Save className="h-3 w-3 mr-1" />}
-                                儲存變更
-                            </Button>
-                        </>
-                    )}
+                {!readOnly && (
+                    <div className="flex space-x-2">
+                        {isDirty && (
+                            <>
+                                <Button size="sm" variant="ghost" onClick={handleCancel} disabled={isSaving} className="h-7 text-xs text-muted-foreground hover:text-foreground/70">
+                                    <XCircle className="h-3 w-3 mr-1" /> 取消
+                                </Button>
+                                <Button size="sm" onClick={handleSave} disabled={isSaving} className="h-7 text-xs bg-primary hover:bg-primary/90 text-primary-foreground">
+                                    {isSaving ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Save className="h-3 w-3 mr-1" />}
+                                    儲存變更
+                                </Button>
+                            </>
+                        )}
 
-                    {/* 🆕 貼上 Excel 按鈕 (Modal) */}
-                    <Button
-                        size="sm"
-                        variant="outline"
-                        className="h-7 text-xs"
-                        onClick={() => setIsPasteModalOpen(true)}
-                    >
-                        <ClipboardPaste className="h-3 w-3 mr-1" /> 貼上 Excel
-                    </Button>
+                        <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-7 text-xs"
+                            onClick={() => setIsPasteModalOpen(true)}
+                        >
+                            <ClipboardPaste className="h-3 w-3 mr-1" /> 貼上 Excel
+                        </Button>
 
-                    <Modal
-                        isOpen={isPasteModalOpen}
-                        onClose={() => setIsPasteModalOpen(false)}
-                        title="貼上 Excel 資料"
-                    >
-                        <div className="space-y-4">
-                            <p className="text-sm text-muted-foreground">
-                                請將 Excel 資料複製並貼上到下方區域。<br />
-                                格式順序：類別 | KOL/服務 | 執行內容 | 數量 | 單價 | 成本
-                            </p>
-                            <Textarea
-                                placeholder="在此貼上資料..."
-                                className="min-h-[200px]"
-                                value={pasteContent}
-                                onChange={(e) => setPasteContent(e.target.value)}
-                            />
-                            <div className="flex justify-end space-x-2">
-                                <Button variant="outline" onClick={() => setIsPasteModalOpen(false)}>取消</Button>
-                                <Button onClick={() => processPasteData(pasteContent)}>確認匯入</Button>
+                        <Modal
+                            isOpen={isPasteModalOpen}
+                            onClose={() => setIsPasteModalOpen(false)}
+                            title="貼上 Excel 資料"
+                        >
+                            <div className="space-y-4">
+                                <p className="text-sm text-muted-foreground">
+                                    請將 Excel 資料複製並貼上到下方區域。<br />
+                                    格式順序：類別 | KOL/服務 | 執行內容 | 數量 | 單價 | 成本
+                                </p>
+                                <Textarea
+                                    placeholder="在此貼上資料..."
+                                    className="min-h-[200px]"
+                                    value={pasteContent}
+                                    onChange={(e) => setPasteContent(e.target.value)}
+                                />
+                                <div className="flex justify-end space-x-2">
+                                    <Button variant="outline" onClick={() => setIsPasteModalOpen(false)}>取消</Button>
+                                    <Button onClick={() => processPasteData(pasteContent)}>確認匯入</Button>
+                                </div>
                             </div>
-                        </div>
-                    </Modal>
+                        </Modal>
 
-                    <Button size="sm" variant="outline" onClick={handleAddItem} className="h-7 text-xs">
-                        <Plus className="h-3 w-3 mr-1" /> 新增項目
-                    </Button>
-                </div>
+                        <Button size="sm" variant="outline" onClick={handleAddItem} className="h-7 text-xs">
+                            <Plus className="h-3 w-3 mr-1" /> 新增項目
+                        </Button>
+                    </div>
+                )}
             </div>
 
             <div className="overflow-x-auto">
@@ -569,7 +571,7 @@ export function QuotationItemsList({ quotationId, onUpdate }: QuotationItemsList
                             <th className="px-3 py-2 text-right w-24 group/th cursor-pointer select-none hover:text-foreground transition-colors" onClick={() => handleSort('subtotal')}>
                                 <span className="inline-flex items-center justify-end">小計<SortIcon columnKey="subtotal" /></span>
                             </th>
-                            <th className="px-3 py-2 text-center w-10"></th>
+                            {!readOnly && <th className="px-3 py-2 text-center w-10"></th>}
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-border/50">
@@ -640,28 +642,30 @@ export function QuotationItemsList({ quotationId, onUpdate }: QuotationItemsList
                                     <td className="px-3 py-2 text-right font-medium text-foreground/70">
                                         {((item.quantity ?? 0) * item.price).toLocaleString()}
                                     </td>
-                                    <td className="px-1 py-1 text-center">
-                                        <Button
-                                            variant="ghost"
-                                            size="sm"
-                                            className={`h-6 w-6 p-0 ${
-                                                item.payment_requests?.some(pr => pr.verification_status !== 'rejected')
-                                                    ? 'text-muted-foreground cursor-not-allowed'
-                                                    : 'opacity-0 group-hover:opacity-100 text-destructive/70 hover:text-destructive'
-                                                }`}
-                                            onClick={() => handleDeleteItem(item.id)}
-                                            disabled={
-                                                item.payment_requests?.some(pr => pr.verification_status !== 'rejected')
-                                            }
-                                            title={
-                                                item.payment_requests?.some(pr => pr.verification_status !== 'rejected')
-                                                    ? '此項目已有付款申請，無法刪除'
-                                                    : '刪除項目'
-                                            }
-                                        >
-                                            <Trash2 className="h-3 w-3" />
-                                        </Button>
-                                    </td>
+                                    {!readOnly && (
+                                        <td className="px-1 py-1 text-center">
+                                            <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                className={`h-6 w-6 p-0 ${
+                                                    item.payment_requests?.some(pr => pr.verification_status !== 'rejected')
+                                                        ? 'text-muted-foreground cursor-not-allowed'
+                                                        : 'opacity-0 group-hover:opacity-100 text-destructive/70 hover:text-destructive'
+                                                    }`}
+                                                onClick={() => handleDeleteItem(item.id)}
+                                                disabled={
+                                                    item.payment_requests?.some(pr => pr.verification_status !== 'rejected')
+                                                }
+                                                title={
+                                                    item.payment_requests?.some(pr => pr.verification_status !== 'rejected')
+                                                        ? '此項目已有付款申請，無法刪除'
+                                                        : '刪除項目'
+                                                }
+                                            >
+                                                <Trash2 className="h-3 w-3" />
+                                            </Button>
+                                        </td>
+                                    )}
                                 </tr>
                             )
                         })}

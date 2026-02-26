@@ -350,9 +350,11 @@ export default function ViewQuotePage() {
               </Button>
             </>
           )}
-          <Link href={`/dashboard/quotes/edit/${id}`}>
-            <Button variant="outline" disabled={isProcessing}><Edit className="mr-2 h-4 w-4" /> 編輯</Button>
-          </Link>
+          {(hasRole('Editor') || quote?.created_by == null || quote?.created_by === userId) && (
+            <Link href={`/dashboard/quotes/edit/${id}`}>
+              <Button variant="outline" disabled={isProcessing}><Edit className="mr-2 h-4 w-4" /> 編輯</Button>
+            </Link>
+          )}
           <Button onClick={handleExportPDF} disabled={isProcessing}>
             <Printer className="mr-2 h-4 w-4" /> {isProcessing ? '處理中...' : '匯出 PDF'}
           </Button>
