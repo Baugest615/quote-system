@@ -19,7 +19,11 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "analyze": "cross-env ANALYZE=true next build",
-    "clean": "rimraf .next out dist"
+    "clean": "rimraf .next out dist",
+    "agents": "tsx scripts/agents/orchestrate.ts",
+    "agents:quality": "tsx scripts/agents/orchestrate.ts quality",
+    "agents:develop": "tsx scripts/agents/orchestrate.ts develop",
+    "agents:review": "tsx scripts/agents/orchestrate.ts review"
   },
   "dependencies": {
     "@headlessui/react": "^2.2.7",
@@ -86,7 +90,9 @@
     "prettier-plugin-tailwindcss": "^0.5.9",
     "rimraf": "^5.0.5",
     "supabase": "^2.72.8",
-    "tailwindcss": "^3.4.17"
+    "tailwindcss": "^3.4.17",
+    "tsx": "^4.21.0",
+    "@anthropic-ai/claude-agent-sdk": "^0.1.77"
   },
   "engines": {
     "node": ">=18.x",
