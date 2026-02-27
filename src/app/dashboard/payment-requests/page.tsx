@@ -23,6 +23,7 @@ import { LoadingState } from '@/components/payments/shared'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { RequestItemRow, ApprovalControls } from '@/components/payments/requests'
 import type { PaymentRequestItem } from '@/lib/payments/types'
+import { getMergeLabel } from '@/lib/mergeLabel'
 import type { ExpenseClaim } from '@/types/custom.types'
 import { CLAIM_STATUS_LABELS, CLAIM_STATUS_COLORS } from '@/types/custom.types'
 import { ModuleErrorBoundary } from '@/components/ModuleErrorBoundary'
@@ -224,7 +225,7 @@ export default function PaymentRequestsPage() {
     let labelIndex = 0
     for (const item of filteredItems) {
       if (item.merge_group_id && !labelMap.has(item.merge_group_id)) {
-        labelMap.set(item.merge_group_id, String.fromCharCode(65 + labelIndex))
+        labelMap.set(item.merge_group_id, getMergeLabel(labelIndex))
         labelIndex++
       }
     }

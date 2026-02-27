@@ -7,6 +7,7 @@ import { PaymentRecordRow } from './PaymentRecordRow'
 import { RemittanceSettings } from '@/lib/payments/types'
 import type { WithholdingSettings } from '@/types/custom.types'
 import { DEFAULT_WITHHOLDING } from '@/hooks/useWithholdingSettings'
+import { getMergeLabel } from '@/lib/mergeLabel'
 
 interface ConfirmationDetailsProps {
     confirmation: PaymentConfirmation
@@ -26,7 +27,7 @@ export function ConfirmationDetails({ confirmation, settings, updateSettings, ge
         confirmation.payment_confirmation_items.forEach(item => {
             const mgId = item.payment_requests?.merge_group_id
             if (mgId && !map.has(mgId)) {
-                map.set(mgId, String.fromCharCode(65 + index))
+                map.set(mgId, getMergeLabel(index))
                 index++
             }
         })

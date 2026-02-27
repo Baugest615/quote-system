@@ -22,6 +22,7 @@ import type { SpreadsheetColumn, BatchSaveResult, RowError } from '@/lib/spreads
 import { useProjectNames } from '@/hooks/useProjectNames'
 import { SearchableSelect } from '@/components/ui/SearchableSelect'
 import { useConfirm } from '@/components/ui/ConfirmDialog'
+import { getMergeLabel } from '@/lib/mergeLabel'
 
 const PAGE_SIZE = 20
 
@@ -118,12 +119,13 @@ export default function AccountingExpensesPage() {
 
   const currentQueryKey = queryKeys.accountingExpenses(year)
 
-  /** 失效進項快取 + 月結總覽快取 */
+  /** 失效進項快取 + 月結總覽快取（所有年度） */
   const invalidateExpenseCaches = useCallback(() => {
-    queryClient.invalidateQueries({ queryKey: [...currentQueryKey] })
+    // 失效所有年度的進項快取（編輯時可能跨年搬移記錄）
+    queryClient.invalidateQueries({ queryKey: ['accounting-expenses'] })
     // 月結總覽也查 accounting_expenses，需同步失效
     queryClient.invalidateQueries({ queryKey: ['monthly-settlement'] })
-  }, [queryClient, currentQueryKey])
+  }, [queryClient])
 
   const { data: records = [], isLoading: loading } = useQuery({
     queryKey: [...currentQueryKey],
@@ -194,19 +196,31 @@ export default function AccountingExpensesPage() {
     })
   }, [search, typeFilter, targetFilter, paymentStatusFilter, records])
 
-  // 合併群組標籤映射（A, B, C...）
+  // 合併群組排序：同群組排在一起，方便檢視
+  const sorted = useMemo(() => {
+    return [...filtered].sort((a, b) => {
+      const aGroup = a.payment_requests?.merge_group_id
+      const bGroup = b.payment_requests?.merge_group_id
+      if (aGroup && bGroup && aGroup === bGroup) return 0
+      if (aGroup && !bGroup) return -1
+      if (!aGroup && bGroup) return 1
+      return 0
+    })
+  }, [filtered])
+
+  // 合併群組標籤映射（A, B, ..., Z, AA, AB...）
   const mergeGroupLabelMap = useMemo(() => {
     const map = new Map<string, string>()
     let index = 0
-    filtered.forEach(r => {
+    sorted.forEach(r => {
       const mgId = r.payment_requests?.merge_group_id
       if (mgId && !map.has(mgId)) {
-        map.set(mgId, String.fromCharCode(65 + index))
+        map.set(mgId, getMergeLabel(index))
         index++
       }
     })
     return map
-  }, [filtered])
+  }, [sorted])
 
   const handleAmountChange = (value: number) => {
     const hasInvoice = !!(form.invoice_number?.trim())
@@ -218,12 +232,31 @@ export default function AccountingExpensesPage() {
   const saveMutation = useMutation({
     mutationFn: async () => {
       const { data: { user } } = await supabase.auth.getUser()
-      const payload = { ...form, created_by: user?.id }
+      // 白名單：只送可編輯的資料庫欄位
+      const payload: Record<string, unknown> = {
+        year: form.year,
+        expense_month: form.expense_month,
+        expense_type: form.expense_type,
+        accounting_subject: form.accounting_subject,
+        amount: form.amount,
+        tax_amount: form.tax_amount,
+        total_amount: form.total_amount,
+        remittance_fee: form.remittance_fee,
+        vendor_name: form.vendor_name,
+        payment_target_type: form.payment_target_type,
+        payment_date: form.payment_date || null,
+        invoice_date: form.invoice_date || null,
+        invoice_number: form.invoice_number,
+        project_name: form.project_name,
+        note: form.note,
+        payment_status: form.payment_status,
+        paid_at: form.paid_at || null,
+      }
       if (editing) {
         const { error } = await supabase.from('accounting_expenses').update(payload).eq('id', editing.id)
         if (error) throw error
       } else {
-        const { error } = await supabase.from('accounting_expenses').insert(payload)
+        const { error } = await supabase.from('accounting_expenses').insert({ ...payload, created_by: user?.id })
         if (error) throw error
       }
     },
@@ -460,9 +493,9 @@ export default function AccountingExpensesPage() {
                 </tr>
               </thead>
               <tbody>
-                {filtered.length === 0 ? (
+                {sorted.length === 0 ? (
                   <tr><td colSpan={10}><EmptyState type="no-data" icon={TrendingDown} title="尚無支出記錄" description="新增第一筆支出記錄開始追蹤" /></td></tr>
-                ) : filtered.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE).map(r => {
+                ) : sorted.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE).map(r => {
                   const mgId = r.payment_requests?.merge_group_id
                   const mgColor = r.payment_requests?.merge_color
                   const mgBorderColor = mgId && mgColor ? MERGE_BORDER_COLORS[mgColor] || 'hsl(var(--info))' : undefined
@@ -515,8 +548,8 @@ export default function AccountingExpensesPage() {
         )}
         <Pagination
           currentPage={currentPage}
-          totalPages={Math.ceil(filtered.length / PAGE_SIZE)}
-          totalItems={filtered.length}
+          totalPages={Math.ceil(sorted.length / PAGE_SIZE)}
+          totalItems={sorted.length}
           pageSize={PAGE_SIZE}
           onPageChange={setCurrentPage}
         />
