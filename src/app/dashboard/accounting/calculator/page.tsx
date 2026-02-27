@@ -52,8 +52,8 @@ export default function AccountingCalculatorPage() {
 
   const fmt = (n: number) => new Intl.NumberFormat('zh-TW', { maximumFractionDigits: 0 }).format(n)
 
-  if (permLoading) return <AccountingLoadingGuard loading={true} isAdmin={true} />
-  if (!hasRole('Admin')) return <AccountingLoadingGuard loading={false} isAdmin={false} />
+  if (permLoading) return <AccountingLoadingGuard loading={true} hasAccess={true} />
+  if (!hasRole('Editor')) return <AccountingLoadingGuard loading={false} hasAccess={false} />
 
   const totalInvoice = rows.reduce((s, r) => { const c = calc(r); return s + (c?.invoiceTotal || 0) }, 0)
   const totalProfit = rows.reduce((s, r) => { const c = calc(r); return s + (c?.profit || 0) }, 0)

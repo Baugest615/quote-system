@@ -4,7 +4,7 @@ import { Shield } from 'lucide-react'
 
 interface Props {
   loading: boolean
-  isAdmin: boolean
+  hasAccess: boolean
   children?: React.ReactNode
   skeletonRows?: number
 }
@@ -14,7 +14,7 @@ interface Props {
  * - 整合 permLoading + dataLoading 為單一狀態，避免雙重閃爍
  * - 使用全高 skeleton，防止背景透出
  */
-export default function AccountingLoadingGuard({ loading, isAdmin, children, skeletonRows = 6 }: Props) {
+export default function AccountingLoadingGuard({ loading, hasAccess, children, skeletonRows = 6 }: Props) {
   if (loading) {
     return (
       <div className="space-y-6 animate-pulse">
@@ -48,11 +48,11 @@ export default function AccountingLoadingGuard({ loading, isAdmin, children, ske
     )
   }
 
-  if (!isAdmin) {
+  if (!hasAccess) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] text-muted-foreground">
         <Shield className="w-16 h-16 mb-4 text-muted-foreground/50" />
-        <p className="text-lg font-medium">此頁面僅限管理員存取</p>
+        <p className="text-lg font-medium">此頁面需要編輯者以上權限</p>
       </div>
     )
   }

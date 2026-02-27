@@ -39,8 +39,8 @@ const emptyForm = (): Partial<InsuranceRateTable> => ({
 
 export default function InsuranceRatesPage() {
   const confirm = useConfirm()
-  const { userRole, loading: permLoading, hasRole } = usePermission()
-  const isAdmin = userRole === 'Admin'
+  const { loading: permLoading, hasRole } = usePermission()
+  const hasAccess = hasRole('Editor')
   const queryClient = useQueryClient()
   const [search, setSearch] = useState('')
   const [isModalOpen, setIsModalOpen] = useState(false)
@@ -58,7 +58,7 @@ export default function InsuranceRatesPage() {
       if (error) throw error
       return data || []
     },
-    enabled: !permLoading && isAdmin,
+    enabled: !permLoading && hasAccess,
   })
 
   const filtered = useMemo(() => {
@@ -130,8 +130,8 @@ export default function InsuranceRatesPage() {
   const fmt = (n: number) => new Intl.NumberFormat('zh-TW').format(n)
   const fmtRate = (n: number) => `${(n * 100).toFixed(2)}%`
 
-  if (permLoading || loading) return <AccountingLoadingGuard loading={true} isAdmin={true} />
-  if (!hasRole('Admin')) return <AccountingLoadingGuard loading={false} isAdmin={false} />
+  if (permLoading || loading) return <AccountingLoadingGuard loading={true} hasAccess={true} />
+  if (!hasRole('Editor')) return <AccountingLoadingGuard loading={false} hasAccess={false} />
 
   const activeRates = filtered.filter(r => !r.expiry_date || new Date(r.expiry_date) >= new Date())
 

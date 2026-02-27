@@ -78,8 +78,8 @@ const emptyForm = (): Partial<AccountingExpense> => ({
 
 export default function AccountingExpensesPage() {
   const confirm = useConfirm()
-  const { userRole, loading: permLoading, hasRole } = usePermission()
-  const isAdmin = userRole === 'Admin'
+  const { loading: permLoading, hasRole } = usePermission()
+  const hasAccess = hasRole('Editor')
   const queryClient = useQueryClient()
   const { expenseTypeNames, accountingSubjectNames, defaultSubjectsMap } = useExpenseDefaults()
   const [year, setYear] = useState(CURRENT_YEAR)
@@ -136,7 +136,7 @@ export default function AccountingExpensesPage() {
       if (error) throw error
       return (data || []) as ExpenseWithMerge[]
     },
-    enabled: !permLoading && isAdmin,
+    enabled: !permLoading && hasAccess,
   })
 
   const handleAutoCalcExpenses = (row: Partial<AccountingExpense>) => {
@@ -314,8 +314,8 @@ export default function AccountingExpensesPage() {
 
   const fmt = (n: number) => new Intl.NumberFormat('zh-TW').format(n)
 
-  if (permLoading || loading) return <AccountingLoadingGuard loading={true} isAdmin={true} />
-  if (!hasRole('Admin')) return <AccountingLoadingGuard loading={false} isAdmin={false} />
+  if (permLoading || loading) return <AccountingLoadingGuard loading={true} hasAccess={true} />
+  if (!hasRole('Editor')) return <AccountingLoadingGuard loading={false} hasAccess={false} />
 
   const totalAmount = filtered.reduce((s, r) => s + (r.amount || 0), 0)
   const totalWithTax = filtered.reduce((s, r) => s + (r.total_amount || 0), 0)

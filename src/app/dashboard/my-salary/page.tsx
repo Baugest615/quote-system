@@ -38,7 +38,7 @@ export default function MySalaryPage() {
   }
 
   if (loading) {
-    return <AccountingLoadingGuard loading={true} isAdmin={true} />
+    return <AccountingLoadingGuard loading={true} hasAccess={true} />
   }
 
   if (!employee) {

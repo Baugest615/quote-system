@@ -23,8 +23,8 @@ interface ProjectSummary {
 }
 
 export default function AccountingProjectsPage() {
-  const { userRole, loading: permLoading, hasRole } = usePermission()
-  const isAdmin = userRole === 'Admin'
+  const { loading: permLoading, hasRole } = usePermission()
+  const hasAccess = hasRole('Editor')
   const [year, setYear] = useState(CURRENT_YEAR)
   const [search, setSearch] = useState('')
   const [sortBy, setSortBy] = useState<keyof Pick<ProjectSummary, 'total_sales' | 'profit' | 'margin'>>('total_sales')
@@ -52,7 +52,7 @@ export default function AccountingProjectsPage() {
         return { project_name: name, total_sales: totalSales, total_expenses: totalExpenses, profit, margin, sales_count: projectSales.length, expense_count: projectExpenses.length } as ProjectSummary
       })
     },
-    enabled: !permLoading && isAdmin,
+    enabled: !permLoading && hasAccess,
   })
 
   const filtered = useMemo(() => {
@@ -65,8 +65,8 @@ export default function AccountingProjectsPage() {
   const fmt = (n: number) => new Intl.NumberFormat('zh-TW').format(Math.round(n))
   const pct = (n: number) => `${(n * 100).toFixed(1)}%`
 
-  if (permLoading || loading) return <AccountingLoadingGuard loading={true} isAdmin={true} />
-  if (!hasRole('Admin')) return <AccountingLoadingGuard loading={false} isAdmin={false} />
+  if (permLoading || loading) return <AccountingLoadingGuard loading={true} hasAccess={true} />
+  if (!hasRole('Editor')) return <AccountingLoadingGuard loading={false} hasAccess={false} />
 
   const totalSales = filtered.reduce((s, p) => s + p.total_sales, 0)
   const totalExpenses = filtered.reduce((s, p) => s + p.total_expenses, 0)

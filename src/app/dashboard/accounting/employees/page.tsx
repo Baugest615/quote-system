@@ -57,8 +57,8 @@ const emptyForm = (): Partial<Employee> => ({
 
 export default function EmployeesPage() {
   const confirm = useConfirm()
-  const { userRole, loading: permLoading, hasRole } = usePermission()
-  const isAdmin = userRole === 'Admin'
+  const { loading: permLoading, hasRole } = usePermission()
+  const hasAccess = hasRole('Editor')
   const queryClient = useQueryClient()
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<EmployeeStatus | 'all'>('在職')
@@ -78,7 +78,7 @@ export default function EmployeesPage() {
       if (error) throw error
       return data || []
     },
-    enabled: !permLoading && isAdmin,
+    enabled: !permLoading && hasAccess,
   })
 
   // 載入 profiles（用於顯示綁定帳號）
@@ -91,7 +91,7 @@ export default function EmployeesPage() {
       if (error) throw error
       return (data || []) as { id: string; email: string }[]
     },
-    enabled: !permLoading && isAdmin,
+    enabled: !permLoading && hasAccess,
   })
 
   // user_id → email 對應表
@@ -111,7 +111,7 @@ export default function EmployeesPage() {
       if (error) throw error
       return data || []
     },
-    enabled: !permLoading && isAdmin,
+    enabled: !permLoading && hasAccess,
   })
 
   // 根據本薪自動推薦投保級距
@@ -247,8 +247,8 @@ export default function EmployeesPage() {
 
   const fmt = (n: number) => new Intl.NumberFormat('zh-TW').format(n)
 
-  if (permLoading || loading) return <AccountingLoadingGuard loading={true} isAdmin={true} />
-  if (!hasRole('Admin')) return <AccountingLoadingGuard loading={false} isAdmin={false} />
+  if (permLoading || loading) return <AccountingLoadingGuard loading={true} hasAccess={true} />
+  if (!hasRole('Editor')) return <AccountingLoadingGuard loading={false} hasAccess={false} />
 
   const activeCount = sortedFiltered.filter(e => e.status === '在職').length
   const totalBaseSalary = sortedFiltered.filter(e => e.status === '在職').reduce((s, e) => s + (e.base_salary || 0), 0)

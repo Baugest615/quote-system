@@ -33,8 +33,8 @@ interface AnnualTotals {
 }
 
 export default function AccountingPage() {
-  const { userRole, loading: permLoading, hasRole } = usePermission()
-  const isAdmin = userRole === 'Admin'
+  const { loading: permLoading, hasRole } = usePermission()
+  const hasAccess = hasRole('Editor')
   const [year, setYear] = useState(CURRENT_YEAR)
 
   const { data: rawData, isLoading: queryLoading } = useQuery({
@@ -51,7 +51,7 @@ export default function AccountingPage() {
         payroll: payrollRes.data || [],
       }
     },
-    enabled: !permLoading && isAdmin,
+    enabled: !permLoading && hasAccess,
   })
 
   const totals = useMemo<AnnualTotals>(() => {
@@ -93,7 +93,7 @@ export default function AccountingPage() {
 
   return (
     <ModuleErrorBoundary module="帳務管理">
-    <AccountingLoadingGuard loading={isLoading} isAdmin={hasRole('Admin')}>
+    <AccountingLoadingGuard loading={isLoading} hasAccess={hasAccess}>
     <div className="space-y-6">
       {/* 頁首 */}
       <div className="flex items-center justify-between">
@@ -101,7 +101,7 @@ export default function AccountingPage() {
           <BookOpen className="w-8 h-8 text-primary" />
           <div>
             <h1 className="text-2xl font-bold text-foreground">帳務管理</h1>
-            <p className="text-sm text-muted-foreground">年度收支總覽 · 僅限管理員</p>
+            <p className="text-sm text-muted-foreground">年度收支總覽</p>
           </div>
         </div>
         <select

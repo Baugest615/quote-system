@@ -27,8 +27,8 @@ interface ExpenseBreakdown {
 }
 
 export default function AccountingReportsPage() {
-  const { userRole, loading: permLoading, hasRole } = usePermission()
-  const isAdmin = userRole === 'Admin'
+  const { loading: permLoading, hasRole } = usePermission()
+  const hasAccess = hasRole('Editor')
   const { data: rawResults, isLoading: loading } = useQuery({
     queryKey: [...queryKeys.accountingReports],
     queryFn: async () => {
@@ -57,7 +57,7 @@ export default function AccountingReportsPage() {
       )
       return results
     },
-    enabled: !permLoading && isAdmin,
+    enabled: !permLoading && hasAccess,
   })
 
   const summaries = useMemo(() =>
@@ -74,8 +74,8 @@ export default function AccountingReportsPage() {
 
   const maxSales = Math.max(...summaries.map(s => s.totalSales), 1)
 
-  if (permLoading || loading) return <AccountingLoadingGuard loading={true} isAdmin={true} />
-  if (!hasRole('Admin')) return <AccountingLoadingGuard loading={false} isAdmin={false} />
+  if (permLoading || loading) return <AccountingLoadingGuard loading={true} hasAccess={true} />
+  if (!hasRole('Editor')) return <AccountingLoadingGuard loading={false} hasAccess={false} />
 
   const EXPENSE_COLORS: Record<string, string> = {
     '勞務報酬': 'bg-purple-400',

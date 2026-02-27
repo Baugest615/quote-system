@@ -50,8 +50,8 @@ const emptyForm = (): Partial<AccountingPayroll> => ({
 
 export default function AccountingPayrollPage() {
   const confirm = useConfirm()
-  const { userRole, loading: permLoading, hasRole } = usePermission()
-  const isAdmin = userRole === 'Admin'
+  const { loading: permLoading, hasRole } = usePermission()
+  const hasAccess = hasRole('Editor')
   const queryClient = useQueryClient()
   const [year, setYear] = useState(CURRENT_YEAR)
   const [search, setSearch] = useState('')
@@ -106,7 +106,7 @@ export default function AccountingPayrollPage() {
       if (error) throw error
       return (data || []) as AccountingPayroll[]
     },
-    enabled: !permLoading && isAdmin,
+    enabled: !permLoading && hasAccess,
   })
 
   const { data: employees = [] } = useQuery({
@@ -120,7 +120,7 @@ export default function AccountingPayrollPage() {
       if (error) throw error
       return (data || []) as Employee[]
     },
-    enabled: !permLoading && isAdmin,
+    enabled: !permLoading && hasAccess,
   })
 
   const handleAutoCalcPayroll = (row: Partial<AccountingPayroll>) => {
@@ -302,8 +302,8 @@ export default function AccountingPayrollPage() {
   const fmt = (n: number) => new Intl.NumberFormat('zh-TW').format(n)
   const fmtRate = (n: number) => `${(n * 100).toFixed(2)}%`
 
-  if (permLoading || loading) return <AccountingLoadingGuard loading={true} isAdmin={true} />
-  if (!hasRole('Admin')) return <AccountingLoadingGuard loading={false} isAdmin={false} />
+  if (permLoading || loading) return <AccountingLoadingGuard loading={true} hasAccess={true} />
+  if (!hasRole('Editor')) return <AccountingLoadingGuard loading={false} hasAccess={false} />
 
   const totalNetSalary = filtered.reduce((s, r) => s + (r.net_salary || 0), 0)
   const totalCompany = filtered.reduce((s, r) => s + (r.company_total || 0), 0)

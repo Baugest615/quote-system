@@ -30,7 +30,7 @@ function extractNote(note: string | null | undefined): string {
 
 export default function MonthlySettlementPage() {
   const { hasRole, loading: permLoading } = usePermission()
-  const isAdmin = hasRole('Admin')
+  const hasAccess = hasRole('Editor')
   const [year, setYear] = useState(CURRENT_YEAR)
   const [month, setMonth] = useState(`${CURRENT_MONTH}月`)
   const [activeTab, setActiveTab] = useState<'employee' | 'external' | 'income'>('employee')
@@ -101,7 +101,7 @@ export default function MonthlySettlementPage() {
   }
 
   return (
-    <AccountingLoadingGuard loading={permLoading} isAdmin={isAdmin}>
+    <AccountingLoadingGuard loading={permLoading} hasAccess={hasAccess}>
       <div className="space-y-6">
         {/* 頁首 */}
         <div className="flex items-center justify-between">

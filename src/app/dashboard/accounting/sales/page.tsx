@@ -38,8 +38,8 @@ const emptyForm = (): Partial<AccountingSale> => ({
 
 export default function AccountingSalesPage() {
   const confirm = useConfirm()
-  const { userRole, loading: permLoading, hasRole } = usePermission()
-  const isAdmin = userRole === 'Admin'
+  const { loading: permLoading, hasRole } = usePermission()
+  const hasAccess = hasRole('Editor')
   const queryClient = useQueryClient()
   const [year, setYear] = useState(CURRENT_YEAR)
   const [search, setSearch] = useState('')
@@ -82,7 +82,7 @@ export default function AccountingSalesPage() {
       if (error) throw error
       return (data || []) as AccountingSale[]
     },
-    enabled: !permLoading && isAdmin,
+    enabled: !permLoading && hasAccess,
   })
 
   const handleAutoCalcSales = (row: Partial<AccountingSale>) => {
@@ -204,8 +204,8 @@ export default function AccountingSalesPage() {
 
   const fmt = (n: number) => new Intl.NumberFormat('zh-TW').format(n)
 
-  if (permLoading || loading) return <AccountingLoadingGuard loading={true} isAdmin={true} />
-  if (!hasRole('Admin')) return <AccountingLoadingGuard loading={false} isAdmin={false} />
+  if (permLoading || loading) return <AccountingLoadingGuard loading={true} hasAccess={true} />
+  if (!hasRole('Editor')) return <AccountingLoadingGuard loading={false} hasAccess={false} />
 
   const totalSales = filtered.reduce((s, r) => s + (r.sales_amount || 0), 0)
   const totalTax = filtered.reduce((s, r) => s + (r.tax_amount || 0), 0)
