@@ -2,14 +2,19 @@
  * 功能開發工作流 — 在 git worktree 中隔離開發
  *
  * 流程：
- *   1. 詢問使用者要開發什麼功能
+ *   1. 讀取規格檔案或詢問使用者要開發什麼功能
  *   2. 建立 git worktree（隔離環境）
  *   3. 啟動 frontend-dev Agent 在 worktree 中開發
  *   4. 完成後提示使用者 review 變更
  *   5. 使用者確認後可 merge 回主分支
+ *
+ * 使用方式：
+ *   npm run agents:develop                          — 互動式輸入
+ *   npm run agents:develop -- --spec path/to/spec.md — 從規格檔案讀取
  */
 import { execSync } from 'child_process';
 import readline from 'readline';
+import fs from 'fs';
 import path from 'path';
 import { runAgent, logger } from '../utils';
 import { PROJECT_ROOT } from '../config';
@@ -29,11 +34,35 @@ function exec(cmd: string, cwd?: string): string {
   return execSync(cmd, { cwd: cwd ?? PROJECT_ROOT, encoding: 'utf-8' }).trim();
 }
 
+/** 從 --spec 參數讀取規格檔案 */
+function readSpecFromArgs(): string | null {
+  const args = process.argv.slice(2);
+  const specIndex = args.indexOf('--spec');
+  if (specIndex === -1 || specIndex + 1 >= args.length) return null;
+
+  const specPath = path.resolve(PROJECT_ROOT, args[specIndex + 1]!);
+  if (!fs.existsSync(specPath)) {
+    logger.error(`規格檔案不存在: ${specPath}`);
+    return null;
+  }
+
+  const content = fs.readFileSync(specPath, 'utf-8').trim();
+  if (!content) {
+    logger.error('規格檔案是空的');
+    return null;
+  }
+
+  logger.success(`已讀取規格檔案: ${path.relative(PROJECT_ROOT, specPath)}`);
+  return content;
+}
+
 export async function runDevelopWorkflow(): Promise<void> {
   logger.header('🛠️  功能開發工作流');
 
-  // 1. 詢問功能描述
-  const featureDesc = await ask('\n📝 請描述要開發的功能:\n> ');
+  // 1. 取得功能描述（從檔案或互動輸入）
+  const specFromFile = readSpecFromArgs();
+  const featureDesc = specFromFile ?? await ask('\n📝 請描述要開發的功能:\n> ');
+
   if (!featureDesc) {
     logger.warn('未輸入功能描述，已取消。');
     rl.close();

@@ -3,10 +3,11 @@
  * Quote System — 多 Agent 協作框架 主入口
  *
  * 使用方式：
- *   npm run agents            — 互動式選單
- *   npm run agents:quality    — 品質驗證
- *   npm run agents:develop    — 功能開發
- *   npm run agents:review     — Code Review + 測試
+ *   npm run agents                                       — 互動式選單
+ *   npm run agents:quality                               — 品質驗證
+ *   npm run agents:develop                               — 功能開發（互動輸入）
+ *   npm run agents:develop -- --spec .claude/specs/xx.md — 功能開發（讀取規格檔）
+ *   npm run agents:review                                — Code Review + 測試
  */
 import readline from 'readline';
 import { logger } from './utils';
