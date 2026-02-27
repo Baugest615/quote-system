@@ -15,6 +15,11 @@
   - 銀行核對：上月存款餘額 + 收入 - 支出 = 預期餘額 vs 本月實際餘額，差異 = 0 即帳款正確
   - 核對區塊位於 KPI 下方、Tab 上方（不被長表格擠到底部）
 - **✅ 進項管理表格檢視隱藏「金額（未稅）」欄位**
+- **✅ 帳務管理權限修復**：Editor 可存取所有帳務頁面（DB page_permissions + 前端 10 頁面）
+  - insurance_rate_tables RLS 修復（棄用 user_roles → is_admin()）
+  - audit_log SELECT 政策修復（小寫 admin → is_admin()）
+  - 帳務表 DELETE 增加 Admin/Editor 全權
+  - Playwright E2E 驗證 10/10 頁面通過
 - 合併請款群組進群出已完成：leader 代表審核 + 下游視覺標記 + RPC 修復
 - 全專案權限修復已完成（RLS 5 大類 + 前端 4 處守衛）
 - v2.5 帳務進階完成（代扣代繳 + 月結總覽 + 三分頁重構）
