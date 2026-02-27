@@ -16,7 +16,7 @@ import { useWithholdingSettings } from '@/hooks/useWithholdingSettings'
 import { queryKeys } from '@/lib/queryKeys'
 
 // Types
-import { PaymentConfirmation } from '@/lib/payments/types'
+import { PaymentConfirmation, RemittanceSettings } from '@/lib/payments/types'
 
 // Components
 import { LoadingState } from '@/components/payments/shared'
@@ -146,6 +146,15 @@ export default function ConfirmedPaymentsPage() {
     paymentDataOptions
   )
 
+  // 匯款設定跨 Tab 即時同步：確認紀錄 Tab 修改後同步到 parent state
+  const handleSettingsChange = useCallback((confirmationId: string, newSettings: RemittanceSettings) => {
+    setConfirmations(prev => prev.map(c =>
+      c.id === confirmationId
+        ? { ...c, remittance_settings: newSettings }
+        : c
+    ))
+  }, [setConfirmations])
+
   // 操作函數
   const toggleExpansion = (id: string) => {
     setConfirmations(prev => prev.map(item =>
@@ -209,6 +218,13 @@ export default function ConfirmedPaymentsPage() {
       if (projectItems.length > 0) {
         const requestIds = projectItems.map(item => item.payment_request_id).filter(Boolean) as string[]
         if (requestIds.length > 0) {
+          // 清理專案請款對應的 accounting_expenses 記錄
+          const { error: projExpenseError } = await supabase
+            .from('accounting_expenses')
+            .delete()
+            .in('payment_request_id', requestIds)
+          if (projExpenseError) console.warn('清理專案進項記錄失敗:', projExpenseError.message)
+
           const { error: updateError } = await supabase
             .from('payment_requests')
             .update({ verification_status: 'pending' })
@@ -331,6 +347,7 @@ export default function ConfirmedPaymentsPage() {
           confirmations={confirmations}
           onToggleExpansion={toggleExpansion}
           onRevert={handleRevert}
+          onSettingsChange={handleSettingsChange}
           withholdingRates={withholdingRates}
         />
       )}

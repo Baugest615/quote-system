@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react'
 import { ChevronDown, ChevronRight, FileText, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { PaymentConfirmation } from '@/lib/payments/types'
+import { PaymentConfirmation, RemittanceSettings } from '@/lib/payments/types'
 import { ConfirmationDetails } from './ConfirmationDetails'
 import { ExportControls } from './ExportControls'
 import { useRemittanceSettings } from '@/hooks/payments/useRemittanceSettings'
@@ -11,13 +11,15 @@ interface ConfirmationRowProps {
     confirmation: PaymentConfirmation
     onToggleExpansion: (id: string) => void
     onRevert: (confirmation: PaymentConfirmation) => void
+    onSettingsChange?: (confirmationId: string, newSettings: RemittanceSettings) => void
     withholdingRates?: WithholdingSettings | null
 }
 
-export function ConfirmationRow({ confirmation, onToggleExpansion, onRevert, withholdingRates }: ConfirmationRowProps) {
+export function ConfirmationRow({ confirmation, onToggleExpansion, onRevert, onSettingsChange, withholdingRates }: ConfirmationRowProps) {
     const { settings, updateSettings, getSettings } = useRemittanceSettings(
         confirmation.id,
-        confirmation.remittance_settings
+        confirmation.remittance_settings,
+        onSettingsChange ? (newSettings) => onSettingsChange(confirmation.id, newSettings) : undefined
     )
 
     // 計算匯費合計

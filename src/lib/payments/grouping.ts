@@ -166,18 +166,22 @@ export function groupItemsByRemittance(items: PaymentConfirmationItem[]): import
     const remittanceMap = new Map<string, import('./types').RemittanceGroup>()
 
     items.forEach(item => {
-        // 個人報帳項目：以提交人分組
+        // 個人報帳項目：依付款對象分組
         if (item.source_type === 'personal' || item.expense_claim_id) {
             const claim = item.expense_claims
             const submitterName = claim?.submitter?.full_name || null
             const vendorName = claim?.vendor_name || null
-            // 優先用提交人姓名，其次用廠商名稱
-            const displayName = submitterName || vendorName || '個人報帳'
-            const groupKey = `personal_${claim?.submitted_by || displayName}`
+
+            // 判斷匯款對象：廠商名稱與提交人不同時，錢匯給廠商（如外包服務）
+            const isExternalVendor = vendorName && submitterName && vendorName !== submitterName
+            const displayName = isExternalVendor ? vendorName : (submitterName || vendorName || '個人報帳')
+            const groupKey = isExternalVendor
+                ? `vendor_${vendorName}`
+                : `personal_${claim?.submitted_by || displayName}`
 
             if (!remittanceMap.has(groupKey)) {
                 remittanceMap.set(groupKey, {
-                    remittanceName: `${displayName}（個人報帳）`,
+                    remittanceName: isExternalVendor ? vendorName : `${displayName}（個人報帳）`,
                     bankName: '',
                     branchName: '',
                     accountNumber: '',

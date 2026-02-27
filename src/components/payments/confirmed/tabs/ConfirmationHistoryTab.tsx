@@ -4,7 +4,7 @@ import { useState, useMemo } from 'react'
 import { Search, FileText, DollarSign, Calendar, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import type { PaymentConfirmation } from '@/lib/payments/types'
+import type { PaymentConfirmation, RemittanceSettings } from '@/lib/payments/types'
 import type { WithholdingSettings } from '@/types/custom.types'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { ConfirmationRow } from '../ConfirmationRow'
@@ -13,6 +13,7 @@ interface ConfirmationHistoryTabProps {
     confirmations: PaymentConfirmation[]
     onToggleExpansion: (id: string) => void
     onRevert: (confirmation: PaymentConfirmation) => void
+    onSettingsChange?: (confirmationId: string, newSettings: RemittanceSettings) => void
     withholdingRates?: WithholdingSettings | null
 }
 
@@ -20,6 +21,7 @@ export function ConfirmationHistoryTab({
     confirmations,
     onToggleExpansion,
     onRevert,
+    onSettingsChange,
     withholdingRates,
 }: ConfirmationHistoryTabProps) {
     const [searchTerm, setSearchTerm] = useState('')
@@ -162,6 +164,7 @@ export function ConfirmationHistoryTab({
                             confirmation={confirmation}
                             onToggleExpansion={onToggleExpansion}
                             onRevert={onRevert}
+                            onSettingsChange={onSettingsChange}
                             withholdingRates={withholdingRates}
                         />
                     ))}

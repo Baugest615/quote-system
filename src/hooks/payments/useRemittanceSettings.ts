@@ -2,14 +2,19 @@ import { useState, useCallback, useRef, useEffect } from 'react'
 import supabase from '@/lib/supabase/client'
 import { RemittanceSettings } from '@/lib/payments/types'
 
-export const useRemittanceSettings = (confirmationId: string, initialSettings: RemittanceSettings | null) => {
+export const useRemittanceSettings = (
+    confirmationId: string,
+    initialSettings: RemittanceSettings | null,
+    onSettingsChange?: (newSettings: RemittanceSettings) => void
+) => {
     const [settings, setSettings] = useState<RemittanceSettings>(initialSettings || {})
     const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+    const onSettingsChangeRef = useRef(onSettingsChange)
+    onSettingsChangeRef.current = onSettingsChange
 
     // Sync state with props when data is loaded/refreshed
     useEffect(() => {
         if (initialSettings) {
-            console.log('Syncing settings from props:', initialSettings)
             setSettings(initialSettings)
         }
     }, [initialSettings])
@@ -20,24 +25,21 @@ export const useRemittanceSettings = (confirmationId: string, initialSettings: R
         }
 
         saveTimeoutRef.current = setTimeout(async () => {
-            console.log('Attempting to save settings to DB (via RPC):', newSettings)
             try {
-                const { data, error } = await supabase
+                const { error } = await supabase
                     .rpc('update_remittance_settings', {
                         p_confirmation_id: confirmationId,
                         p_settings: newSettings
                     })
 
                 if (error) {
-                    console.error('Error saving remittance settings:', JSON.stringify(error, null, 2))
-                } else {
-                    console.log('Settings saved successfully via RPC. Response:', data)
+                    console.error('Error saving remittance settings:', error.message)
                 }
             } catch (err) {
                 console.error('Failed to save settings:', err instanceof Error ? err.message : err)
             }
         }, 1000)
-    }, [confirmationId, supabase])
+    }, [confirmationId])
 
     const updateSettings = useCallback((remittanceName: string, updates: Partial<RemittanceSettings[string]>) => {
         setSettings(prev => {
@@ -52,6 +54,8 @@ export const useRemittanceSettings = (confirmationId: string, initialSettings: R
             const newSettings = { ...prev, [remittanceName]: newGroupSettings }
 
             saveSettings(newSettings)
+            // Defer parent notification to avoid setState-during-render warning
+            queueMicrotask(() => onSettingsChangeRef.current?.(newSettings))
             return newSettings
         })
     }, [saveSettings])
