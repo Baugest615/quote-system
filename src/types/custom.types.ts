@@ -405,6 +405,8 @@ export interface AccountingExpense {
   tax_amount: number
   total_amount: number
   remittance_fee: number
+  withholding_tax: number
+  withholding_nhi: number
   vendor_name: string | null
   payment_date: string | null
   invoice_date: string | null

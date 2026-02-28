@@ -540,6 +540,16 @@ export default function AccountingExpensesPage() {
                           匯費 -{fmt(r.remittance_fee)}
                         </span>
                       )}
+                      {(r.withholding_tax || 0) > 0 && (
+                        <span className="block text-[10px] text-warning" title={`代扣所得稅 NT$${fmt(r.withholding_tax)}`}>
+                          所得稅 -{fmt(r.withholding_tax)}
+                        </span>
+                      )}
+                      {(r.withholding_nhi || 0) > 0 && (
+                        <span className="block text-[10px] text-warning" title={`代扣二代健保 NT$${fmt(r.withholding_nhi)}`}>
+                          健保 -{fmt(r.withholding_nhi)}
+                        </span>
+                      )}
                     </td>
                     <td className="px-4 py-3 text-muted-foreground max-w-32 truncate">{r.project_name || '-'}</td>
                     <td className="px-4 py-3 text-muted-foreground max-w-40 truncate" title={r.note || ''}>{r.note || '-'}</td>
