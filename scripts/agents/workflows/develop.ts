@@ -17,7 +17,7 @@ import readline from 'readline';
 import fs from 'fs';
 import path from 'path';
 import { runAgent, logger } from '../utils';
-import { PROJECT_ROOT } from '../config';
+import { PROJECT_ROOT, DEVELOP_CONFIG } from '../config';
 
 const rl = readline.createInterface({
   input: process.stdin,
@@ -31,7 +31,34 @@ function ask(question: string): Promise<string> {
 }
 
 function exec(cmd: string, cwd?: string): string {
-  return execSync(cmd, { cwd: cwd ?? PROJECT_ROOT, encoding: 'utf-8' }).trim();
+  try {
+    return execSync(cmd, { cwd: cwd ?? PROJECT_ROOT, encoding: 'utf-8' }).trim();
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    throw new Error(`指令執行失敗: ${cmd}\n${message}`);
+  }
+}
+
+/** 清理 worktree 和分支（用於異常退出時） */
+function cleanupWorktree(worktreeDir: string, branchName: string): void {
+  try {
+    if (fs.existsSync(worktreeDir)) {
+      execSync(`git worktree remove --force "${worktreeDir}"`, {
+        cwd: PROJECT_ROOT,
+        encoding: 'utf-8',
+        stdio: 'pipe',
+      });
+    }
+    execSync(`git branch -D "${branchName}"`, {
+      cwd: PROJECT_ROOT,
+      encoding: 'utf-8',
+      stdio: 'pipe',
+    });
+    logger.warn('已自動清理孤立的 worktree 和分支');
+  } catch {
+    // 清理失敗不阻擋流程，只記錄
+    logger.warn(`清理失敗，請手動移除:\n  git worktree remove --force "${worktreeDir}"\n  git branch -D "${branchName}"`);
+  }
 }
 
 /** 從 --spec 參數讀取規格檔案 */
@@ -72,9 +99,9 @@ export async function runDevelopWorkflow(): Promise<void> {
   // 2. 產生 branch 名稱
   const branchSlug = featureDesc
     .toLowerCase()
-    .replace(/[^a-z0-9\u4e00-\u9fff]+/g, '-')
+    .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-|-$/g, '')
-    .slice(0, 40);
+    .slice(0, DEVELOP_CONFIG.branchSlugMaxLength);
   const branchName = `agent/feature-${branchSlug}-${Date.now().toString(36)}`;
   const worktreeDir = path.join(PROJECT_ROOT, '.claude', 'worktrees', branchSlug);
 
@@ -90,6 +117,14 @@ export async function runDevelopWorkflow(): Promise<void> {
     rl.close();
     return;
   }
+
+  // 註冊 signal handler，確保異常退出時清理 worktree
+  const onExit = () => {
+    cleanupWorktree(worktreeDir, branchName);
+    process.exit(1);
+  };
+  process.on('SIGINT', onExit);
+  process.on('SIGTERM', onExit);
 
   // 4. 啟動 frontend-dev Agent
   logger.info('啟動 frontend-dev Agent...\n');
@@ -166,6 +201,12 @@ export async function runDevelopWorkflow(): Promise<void> {
     }
   } catch (err) {
     logger.error(`Agent 執行失敗: ${err instanceof Error ? err.message : err}`);
+    logger.warn('Agent 異常中斷，正在清理 worktree...');
+    cleanupWorktree(worktreeDir, branchName);
+  } finally {
+    // 移除 signal handler
+    process.removeListener('SIGINT', onExit);
+    process.removeListener('SIGTERM', onExit);
   }
 
   rl.close();

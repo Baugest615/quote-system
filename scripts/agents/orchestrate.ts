@@ -86,12 +86,37 @@ async function interactiveMenu(): Promise<void> {
   }
 }
 
+/** 檢查 Claude Agent SDK 是否可用 */
+async function checkSDKAvailability(): Promise<boolean> {
+  try {
+    await import('@anthropic-ai/claude-agent-sdk');
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 /** 主程式 */
 async function main(): Promise<void> {
-  // 檢查環境
+  // 檢查 SDK 是否已安裝
+  const sdkAvailable = await checkSDKAvailability();
+  if (!sdkAvailable) {
+    logger.error('Claude Agent SDK 未安裝，請執行: npm install @anthropic-ai/claude-agent-sdk');
+    process.exit(1);
+  }
+
+  // 檢查環境授權
   if (!process.env.ANTHROPIC_API_KEY && !process.env.CLAUDE_CODE_USE_BEDROCK) {
     logger.warn('未設定 ANTHROPIC_API_KEY 環境變數');
-    logger.info('SDK 將嘗試使用 Claude Code CLI 的現有授權');
+    logger.info('SDK 將嘗試使用 Claude Code CLI 的現有授權...');
+    // 嘗試驗證 CLI 授權是否可用
+    try {
+      const { execSync } = await import('child_process');
+      execSync('claude --version', { stdio: 'pipe' });
+    } catch {
+      logger.error('Claude Code CLI 也無法使用，請設定 ANTHROPIC_API_KEY 或安裝 Claude Code CLI');
+      process.exit(1);
+    }
   }
 
   // 命令列直接指定工作流

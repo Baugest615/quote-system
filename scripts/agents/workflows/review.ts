@@ -10,10 +10,28 @@
  */
 import { execSync } from 'child_process';
 import { runAgent, logger, saveReport, formatTimestamp, formatSummaryReport } from '../utils';
-import { PROJECT_ROOT } from '../config';
+import { PROJECT_ROOT, REVIEW_CONFIG } from '../config';
 
 function exec(cmd: string): string {
-  return execSync(cmd, { cwd: PROJECT_ROOT, encoding: 'utf-8' }).trim();
+  try {
+    return execSync(cmd, { cwd: PROJECT_ROOT, encoding: 'utf-8' }).trim();
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    throw new Error(`指令執行失敗: ${cmd}\n${message}`);
+  }
+}
+
+/** 嘗試取得 git diff，優先用 HEAD，fallback 到 cached */
+function getGitDiff(flag: string): string {
+  try {
+    return exec(`git diff HEAD ${flag}`);
+  } catch {
+    try {
+      return exec(`git diff --cached ${flag}`);
+    } catch {
+      return '';
+    }
+  }
 }
 
 export async function runReviewWorkflow(): Promise<void> {
@@ -22,18 +40,9 @@ export async function runReviewWorkflow(): Promise<void> {
   // 1. 取得 git diff
   logger.info('分析目前的變更...\n');
 
-  let diffStat: string;
-  let diffContent: string;
-
-  try {
-    // 包含 staged + unstaged 的變更
-    diffStat = exec('git diff HEAD --stat');
-    diffContent = exec('git diff HEAD');
-  } catch {
-    // 如果 HEAD 不存在（空 repo），使用 staged changes
-    diffStat = exec('git diff --cached --stat');
-    diffContent = exec('git diff --cached');
-  }
+  const diffStat = getGitDiff('--stat');
+  const diffContent = getGitDiff('');
+  const changedFiles = getGitDiff('--name-only');
 
   if (!diffContent) {
     logger.warn('沒有偵測到任何變更（staged 或 unstaged）。');
@@ -44,14 +53,6 @@ export async function runReviewWorkflow(): Promise<void> {
   logger.info('變更摘要:');
   console.log(diffStat);
   logger.divider();
-
-  // 取得變更的檔案清單
-  let changedFiles: string;
-  try {
-    changedFiles = exec('git diff HEAD --name-only');
-  } catch {
-    changedFiles = exec('git diff --cached --name-only');
-  }
 
   // 2. 啟動 reviewer Agent — Code Review
   logger.info('Step 1/3: 啟動 Code Review...\n');
@@ -65,7 +66,7 @@ ${changedFiles}
 
 ## 完整 Diff
 \`\`\`diff
-${diffContent.slice(0, 30000)}
+${diffContent.slice(0, REVIEW_CONFIG.maxDiffChars)}
 \`\`\`
 
 請專注在：邏輯正確性、型別安全、效能、安全性、可維護性。
@@ -87,7 +88,7 @@ ${diffContent.slice(0, 30000)}
 ${changedFiles}
 
 ## Review 結果
-${reviewResult.output.slice(0, 10000)}
+${reviewResult.output.slice(0, REVIEW_CONFIG.maxReviewOutputChars)}
 
 請：
 1. 為每個變更的元件/函式撰寫測試
