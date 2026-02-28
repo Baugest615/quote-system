@@ -14,7 +14,7 @@ import Link from 'next/link'
 import { useConfirm } from '@/components/ui/ConfirmDialog'
 import { useTableSort } from '@/hooks/useTableSort'
 import { SortableHeader } from '@/components/ui/SortableHeader'
-import type { Employee, EmploymentType, EmployeeStatus, Gender, InsuranceRateTable } from '@/types/custom.types'
+import type { Employee, EmploymentType, EmployeeStatus, Gender } from '@/types/custom.types'
 
 type EmployeeSortKey = 'employee_number' | 'name' | 'position' | 'department' | 'status' | 'base_salary' | 'insurance_grade' | 'hire_date'
 
@@ -23,9 +23,6 @@ const PAGE_SIZE = 20
 const EMPLOYMENT_TYPES: EmploymentType[] = ['全職', '兼職', '約聘', '實習']
 const EMPLOYEE_STATUS_OPTIONS: EmployeeStatus[] = ['在職', '留停', '離職']
 const GENDER_OPTIONS: Gender[] = ['男', '女', '其他']
-
-// 投保級距選項（1-60 級，動態從資料庫載入）
-const INSURANCE_GRADES = Array.from({ length: 60 }, (_, i) => i + 1)
 
 const emptyForm = (): Partial<Employee> => ({
   name: '',

@@ -1,6 +1,6 @@
 import React from 'react'
 import { Button } from '@/components/ui/button'
-import { CheckCircle, XCircle, Filter, RotateCcw } from 'lucide-react'
+import { CheckCircle, XCircle, RotateCcw } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 interface ApprovalControlsProps {

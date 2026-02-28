@@ -314,7 +314,7 @@ export function PendingPaymentFileModal({
 
           {attachments.length > 0 ? (
             <div className="space-y-2 max-h-64 overflow-y-auto">
-              {attachments.map((attachment, index) => {
+              {attachments.map((attachment, _index) => {
                 const fileType = getFileType(attachment.name);
                 return (
                   <div key={attachment.path} className="bg-secondary p-3 rounded-lg border">

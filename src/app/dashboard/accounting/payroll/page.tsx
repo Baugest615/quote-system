@@ -15,7 +15,7 @@ import { EmptyState } from '@/components/ui/EmptyState'
 import Link from 'next/link'
 import type { AccountingPayroll, Employee } from '@/types/custom.types'
 import type { SpreadsheetColumn, BatchSaveResult, RowError } from '@/lib/spreadsheet-utils'
-import { calculateInsurance, calculateNetSalary, calculateCompanyTotal, type InsuranceCalculation } from '@/lib/accounting/insurance-calculator'
+import { calculateInsurance, type InsuranceCalculation } from '@/lib/accounting/insurance-calculator'
 import { CURRENT_YEAR, MONTH_OPTIONS } from '@/lib/constants'
 import { useConfirm } from '@/components/ui/ConfirmDialog'
 
@@ -62,7 +62,7 @@ export default function AccountingPayrollPage() {
   const [isSpreadsheetMode, setIsSpreadsheetMode] = useState(false)
 
   // 員工資料
-  const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null)
+  const [_selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null)
   const [insuranceCalc, setInsuranceCalc] = useState<InsuranceCalculation | null>(null)
   const [calculating, setCalculating] = useState(false)
 

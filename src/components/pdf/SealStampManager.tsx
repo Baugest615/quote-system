@@ -43,7 +43,7 @@ const defaultConfig: SealStampConfig = {
 export function SealStampManager({
   config = defaultConfig,
   onChange,
-  onPreview
+  onPreview: _onPreview
 }: SealStampManagerProps) {
 
   // 移除強制圖檔邏輯，允許外部傳入的設定生效

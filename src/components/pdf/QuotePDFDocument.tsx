@@ -1,6 +1,6 @@
 // src/components/pdf/QuotePDFDocument.tsx
 // 使用 @react-pdf/renderer 生成報價單 PDF
-import { Document, Page, Text, View, StyleSheet, Font, Image } from '@react-pdf/renderer';
+import { Document, Page, Text, View, StyleSheet, Font } from '@react-pdf/renderer';
 import { Database } from '@/types/database.types';
 
 // 註冊中文字型（使用 Noto Sans TC）
@@ -258,8 +258,8 @@ const processTableData = (items: (QuotationItem & { kols: Pick<Kol, 'name'> | nu
 // PDF 文件元件
 export const QuotePDFDocument: React.FC<QuotePDFDocumentProps> = ({
     quote,
-    electronicSealEnabled = false,
-    sealStampEnabled = false
+    electronicSealEnabled: _electronicSealEnabled = false,
+    sealStampEnabled: _sealStampEnabled = false
 }) => {
     const termsParts = quote.terms ? quote.terms.split('保密協議：') : [''];
     const contractAgreement = termsParts[0].replace('合約約定：', '').trim();

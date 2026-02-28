@@ -306,7 +306,7 @@ export function useSpreadsheetOperations<T extends { id: string }>({
       const toInsert = rows
         .filter(r => r.status === 'new')
         .map(r => {
-          const { id, created_at, updated_at, ...rest } = r.data as Record<string, unknown>
+          const { id: _id, created_at: _created_at, updated_at: _updated_at, ...rest } = r.data as Record<string, unknown>
           return rest as Partial<T>
         })
 

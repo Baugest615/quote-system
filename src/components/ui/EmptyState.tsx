@@ -1,5 +1,5 @@
 import React from 'react'
-import { FileText, Search, Filter, Inbox, AlertTriangle } from 'lucide-react'
+import { Search, Filter, Inbox, AlertTriangle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import type { LucideIcon } from 'lucide-react'

@@ -103,7 +103,7 @@ export function ProjectFormModal({
         <AutocompleteWithCreate
           selectedId={clientId}
           inputText={clientName}
-          onSelect={(id, data) => {
+          onSelect={(id, _data) => {
             setClientId(id)
             const client = clients.find((c) => c.id === id)
             if (client) setClientName(client.name)

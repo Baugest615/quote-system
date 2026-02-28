@@ -15,7 +15,6 @@ export function QuoteFormBasicInfo({ form, formData, initialData }: QuoteFormBas
   const {
     clientOptions,
     contactOptions,
-    clientContacts,
     selectedContact,
     clientInfo,
     setClientContacts,

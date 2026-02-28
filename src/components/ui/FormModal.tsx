@@ -1,6 +1,6 @@
 'use client'
 
-import { type ReactNode, useEffect } from 'react'
+import { type ReactNode } from 'react'
 import { Modal } from './modal'
 import { Button } from './button'
 import { Loader2 } from 'lucide-react'

@@ -124,7 +124,7 @@ export function useUpdateProject() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: async ({ id, data }: { id: string; data: Partial<CreateProjectInput> }) => {
-      let updateData = { ...data }
+      const updateData = { ...data }
       let isNewClient = false
       let syncedClientName: string | null = null
 

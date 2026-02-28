@@ -5,7 +5,7 @@ import supabase from '@/lib/supabase/client';
 import { Modal } from '@/components/ui/modal';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Trash2, Link as LinkIcon, Eye, Download, ExternalLink, Plus, AlertCircle } from 'lucide-react';
+import { Trash2, Link as LinkIcon, Eye, Download, AlertCircle } from 'lucide-react';
 import { useConfirm } from '@/components/ui/ConfirmDialog';
 
 interface PendingPaymentAttachment { 
@@ -318,7 +318,7 @@ export function PendingPaymentFileModal({
           
           {attachments.length > 0 ? (
             <div className="space-y-2 max-h-64 overflow-y-auto">
-              {attachments.map((attachment, index) => {
+              {attachments.map((attachment, _index) => {
                 const fileType = getFileType(attachment.name);
                 return (
                   <div key={attachment.path} className="bg-secondary p-3 rounded-lg border">

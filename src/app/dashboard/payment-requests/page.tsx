@@ -25,7 +25,6 @@ import { RequestItemRow, ApprovalControls } from '@/components/payments/requests
 import type { PaymentRequestItem } from '@/lib/payments/types'
 import { getMergeLabel } from '@/lib/mergeLabel'
 import type { ExpenseClaim } from '@/types/custom.types'
-import { CLAIM_STATUS_LABELS, CLAIM_STATUS_COLORS } from '@/types/custom.types'
 import { ModuleErrorBoundary } from '@/components/ModuleErrorBoundary'
 import { useConfirm } from '@/components/ui/ConfirmDialog'
 
@@ -213,9 +212,9 @@ export default function PaymentRequestsPage() {
     selectedItems,
     isProcessing,
     toggleSelection,
-    selectAll,
+    selectAll: _selectAll,
     deselectAll,
-    handleBatchAction
+    handleBatchAction: _handleBatchAction
   } = usePaymentActions(items, setData)
 
   // 合併群組排序 + 映射

@@ -36,11 +36,6 @@ interface Contact {
   is_primary?: boolean
 }
 
-// 擴展客戶類型，包含解析後的聯絡人陣列
-type ClientWithContacts = Client & {
-  parsedContacts: Contact[]
-}
-
 export default function ClientsPage() {
   const confirm = useConfirm()
   const queryClient = useQueryClient()

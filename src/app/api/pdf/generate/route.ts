@@ -93,12 +93,10 @@ export async function POST(request: NextRequest) {
     try {
         const body = await request.json();
         const {
-            quoteId,
             html,
             filename = 'quote.pdf',
             sealStampEnabled = false,
             sealStampImage = '',
-            electronicSealEnabled = false,
         } = body;
 
         if (!html) {

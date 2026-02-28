@@ -6,7 +6,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import AccountingModal from '@/components/accounting/AccountingModal'
 import { SearchableSelect } from '@/components/ui/SearchableSelect'
-import { type ExpenseClaim, type ExpenseType } from '@/types/custom.types'
+import { type ExpenseClaim } from '@/types/custom.types'
 import { useExpenseDefaults } from '@/hooks/useExpenseDefaults'
 import { MONTH_OPTIONS } from '@/lib/constants'
 

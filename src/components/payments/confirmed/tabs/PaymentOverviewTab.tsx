@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useMemo } from 'react'
-import { DollarSign, Download, Users, Building2, ShieldCheck, ChevronDown, ChevronRight } from 'lucide-react'
+import { DollarSign, Download, Users, Building2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import type { PaymentConfirmation } from '@/lib/payments/types'
 import type { WithholdingSettings, AccountingPayroll } from '@/types/custom.types'
@@ -11,7 +11,6 @@ import {
     splitRemittanceGroups,
     exportBankTransferCsv,
 } from '@/lib/payments/aggregation'
-import { DEFAULT_WITHHOLDING } from '@/hooks/useWithholdingSettings'
 import { RemittanceGroupCard } from '../RemittanceGroupCard'
 import { PayrollSection } from '../PayrollSection'
 

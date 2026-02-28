@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import supabase from '@/lib/supabase/client'
 import { Database } from '@/types/database.types'
 import { QuotationItemWithPayments } from '@/types/custom.types'
@@ -245,7 +245,7 @@ export function QuotationItemsList({ quotationId, onUpdate, readOnly = false }: 
 
             // 1. 準備要保存的項目資料
             const itemsToSave = items.map(item => {
-                const { created_at, payment_requests, ...rest } = item
+                const { created_at: _created_at, payment_requests: _payment_requests, ...rest } = item
                 return {
                     ...rest,
                     quotation_id: quotationId,
@@ -338,7 +338,7 @@ export function QuotationItemsList({ quotationId, onUpdate, readOnly = false }: 
 
         const newItems: QuotationItem[] = []
 
-        rows.forEach((row, index) => {
+        rows.forEach((row, _index) => {
             // 簡單處理 tab 分隔，若有更複雜的 CSV 格式可能需要專門的 parser
             const cols = row.split('\t')
 
@@ -392,8 +392,6 @@ export function QuotationItemsList({ quotationId, onUpdate, readOnly = false }: 
 
         // 如果是多行資料或包含 Tab 的資料，即使在 Input 中也攔截
         // 這樣可以防止 Excel 資料被塞進單一儲存格
-        const isInput = (e.target as HTMLElement).tagName === 'INPUT' || (e.target as HTMLElement).tagName === 'TEXTAREA'
-
         if (hasNewlines || hasTabs) {
             e.preventDefault() // 阻止預設貼上 (這很重要，否則資料會進到 Input)
             processPasteData(clipboardData)

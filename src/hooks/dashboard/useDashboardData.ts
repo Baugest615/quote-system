@@ -71,7 +71,7 @@ async function fetchDashboardData(): Promise<DashboardData> {
   const sixMonthsAgo = buckets[0].start.toISOString()
 
   // 平行查詢（限制近 6 個月，避免全表掃描）
-  const [quotationsRes, paymentRes, clientCountRes, kolCountRes] =
+  const [quotationsRes, paymentRes, , ] =
     await Promise.all([
       supabase
         .from('quotations')

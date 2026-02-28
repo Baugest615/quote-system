@@ -24,4 +24,9 @@ Thumbs.db
 
 # DB 資料備份（含敏感資料，不上傳）
 supabase/backups/data_*.sql
-.vercel
+
+# Vercel
+.vercel/
+
+# TypeScript 增量編譯快取
+*.tsbuildinfo

@@ -5,11 +5,10 @@ import { useQuery } from '@tanstack/react-query'
 import { usePermission } from '@/lib/permissions'
 import supabase from '@/lib/supabase/client'
 import { queryKeys } from '@/lib/queryKeys'
-import { toast } from 'sonner'
 import { FileText, ChevronLeft } from 'lucide-react'
 import AccountingLoadingGuard from '@/components/accounting/AccountingLoadingGuard'
 import Link from 'next/link'
-import { CURRENT_YEAR, YEARS } from '@/lib/constants'
+import { YEARS } from '@/lib/constants'
 
 interface YearSummary {
   year: number

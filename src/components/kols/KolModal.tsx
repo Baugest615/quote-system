@@ -92,7 +92,6 @@ export function KolModal({ isOpen, onClose, onSave, kol, kolTypes, serviceTypes 
 
   const watchBankType = watch('bank_info.bankType')
   const watchTypeId = watch('type_id')
-  const watchIsNewType = watch('is_new_type')
   const watchServices = watch('services')
   const watchWithholdingExempt = watch('withholding_exempt')
 

@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { toast } from 'sonner'
 import type { PaymentConfirmation } from '@/lib/payments/types'
-import type { WithholdingSettings, WithholdingSettlement } from '@/types/custom.types'
+import type { WithholdingSettings } from '@/types/custom.types'
 import { useWithholdingSettlements, useCreateSettlement } from '@/hooks/useWithholdingSettlements'
 import {
     computeMonthlyWithholding,

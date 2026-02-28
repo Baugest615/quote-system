@@ -4,7 +4,6 @@ import { useState, useMemo } from 'react'
 import { ChevronDown, ChevronRight, User, ShieldCheck, Building2 } from 'lucide-react'
 import type { MergedRemittanceGroup } from '@/lib/payments/types'
 import type { WithholdingSettings } from '@/types/custom.types'
-import { checkWithholdingApplicability } from '@/lib/payments/aggregation'
 import { PaymentRecordRow } from './PaymentRecordRow'
 import { getMergeLabel } from '@/lib/mergeLabel'
 
@@ -13,10 +12,8 @@ interface RemittanceGroupCardProps {
     withholdingRates?: WithholdingSettings | null
 }
 
-export function RemittanceGroupCard({ group, withholdingRates }: RemittanceGroupCardProps) {
+export function RemittanceGroupCard({ group, withholdingRates: _withholdingRates }: RemittanceGroupCardProps) {
     const [isExpanded, setIsExpanded] = useState(false)
-    const applicability = checkWithholdingApplicability(group, withholdingRates)
-
     // 合併群組標籤映射
     const mergeGroupLabelMap = useMemo(() => {
         const map = new Map<string, string>()

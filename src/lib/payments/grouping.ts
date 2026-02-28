@@ -5,7 +5,6 @@ import type {
     ProjectGroup,
     AccountGroup,
     PaymentAttachment,
-    PendingPaymentItem,
     PaymentConfirmationItem
 } from './types'
 import { isItemReady } from './validation'

@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useMemo } from 'react'
 import { ChevronDown, ChevronRight, FileText, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { PaymentConfirmation, RemittanceSettings } from '@/lib/payments/types'

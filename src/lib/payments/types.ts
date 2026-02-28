@@ -1,7 +1,7 @@
 // 統一的請款系統類型定義
 // 所有請款相關頁面共用的類型
 
-import { Database, Json } from '@/types/database.types'
+import { Json } from '@/types/database.types'
 
 // ==================== 基礎類型 ====================
 

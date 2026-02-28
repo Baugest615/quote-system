@@ -17,17 +17,8 @@ import { Skeleton, SkeletonCard } from '@/components/ui/Skeleton';
 import { useQuotation, useDeleteQuotation } from '@/hooks/useQuotations';
 import { useConfirm } from '@/components/ui/ConfirmDialog';
 
-type Quotation = Database['public']['Tables']['quotations']['Row'];
 type QuotationItem = Database['public']['Tables']['quotation_items']['Row'];
-type Client = Database['public']['Tables']['clients']['Row'];
 type Kol = Database['public']['Tables']['kols']['Row'];
-
-type FullQuotation = Quotation & {
-  clients: Client | null;
-  quotation_items: (QuotationItem & {
-    kols: Pick<Kol, 'name'> | null;
-  })[];
-};
 
 const companyBankInfo = {
   bankName: '國泰世華銀行(013)',

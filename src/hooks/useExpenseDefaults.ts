@@ -4,7 +4,6 @@ import { useMemo, useCallback } from 'react'
 import { useExpenseTypes, useAccountingSubjects } from './useReferenceData'
 import {
   EXPENSE_TYPES, ACCOUNTING_SUBJECTS, EXPENSE_TYPE_DEFAULT_SUBJECTS,
-  type ExpenseType,
 } from '@/types/custom.types'
 
 /**

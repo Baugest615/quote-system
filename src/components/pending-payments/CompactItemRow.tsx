@@ -4,7 +4,7 @@ import { Input } from '@/components/ui/input'
 import { StatusDot, getItemStatus } from './StatusDot'
 import type { PendingPaymentItem } from '@/lib/payments/types'
 import { parseKolBankInfo, isKolBankInfoComplete } from '@/types/schemas'
-import { Trash2, Unlink } from 'lucide-react'
+import { Trash2 } from 'lucide-react'
 import { useState } from 'react'
 
 interface CompactItemRowProps {
@@ -43,8 +43,8 @@ export function CompactItemRow({
     displayItem,
     isExpanded,
     onToggleExpand,
-    batchExpenseType,
-    batchAccountingSubject,
+    batchExpenseType: _batchExpenseType,
+    batchAccountingSubject: _batchAccountingSubject,
     batchPaymentMonth,
     isMergeMode,
     selectedForMerge,

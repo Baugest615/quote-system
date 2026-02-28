@@ -62,7 +62,6 @@ export default function Sidebar() {
     loading,
     getAllowedPages,
     getRoleDisplayName,
-    checkPageAccess
   } = usePermission()
 
   // 行動裝置 overlay 狀態

@@ -33,7 +33,7 @@ export function ConfirmationHistoryTab({
 
     // 篩選邏輯
     const filteredConfirmations = useMemo(() => {
-        let result = confirmations.filter((confirmation) => {
+        const result = confirmations.filter((confirmation) => {
             const searchLower = searchTerm.toLowerCase()
             const confirmationDate = confirmation.confirmation_date
 

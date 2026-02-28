@@ -4,9 +4,8 @@
 import { useState, useCallback, useEffect } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import supabase from '@/lib/supabase/client'
-import { toast } from 'sonner'
 import { Database } from '@/types/database.types'
-import type { PendingPaymentItem, PendingPaymentAttachment } from '@/lib/payments/types'
+import type { PendingPaymentItem } from '@/lib/payments/types'
 import { queryKeys } from '@/lib/queryKeys'
 import { staleTimes } from '@/lib/queryClient'
 import { getDefaultExpenseByBankType } from '@/types/custom.types'
@@ -40,7 +39,7 @@ async function fetchPendingItemsData(): Promise<PendingPaymentItem[]> {
 
     // Fetch costs for available items separately since RPC might be missing it
     const availableItemIds = availableItems.map(item => item.id);
-    let costsMap = new Map<string, number | null>();
+    const costsMap = new Map<string, number | null>();
 
     if (availableItemIds.length > 0) {
         const { data: costsData, error: costsError } = await supabase
@@ -143,7 +142,7 @@ async function fetchPendingItemsData(): Promise<PendingPaymentItem[]> {
             };
         }
         return item;
-    }).sort((a, b) => (a.rejection_reason ? -1 : 1));
+    }).sort((a, _b) => (a.rejection_reason ? -1 : 1));
 }
 
 export function usePendingItems() {

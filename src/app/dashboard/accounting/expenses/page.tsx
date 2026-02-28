@@ -13,7 +13,7 @@ import Pagination from '@/components/accounting/Pagination'
 import SpreadsheetEditor from '@/components/accounting/SpreadsheetEditor'
 import { EmptyState } from '@/components/ui/EmptyState'
 import Link from 'next/link'
-import type { AccountingExpense, PaymentTargetType, ExpenseType, PaymentStatus } from '@/types/custom.types'
+import type { AccountingExpense, PaymentTargetType, ExpenseType } from '@/types/custom.types'
 import { PAYMENT_TARGET_LABELS, PAYMENT_TARGET_TYPES, PAYMENT_STATUS, PAYMENT_STATUS_LABELS } from '@/types/custom.types'
 import { useExpenseDefaults } from '@/hooks/useExpenseDefaults'
 import { CURRENT_YEAR, MONTH_OPTIONS } from '@/lib/constants'
@@ -351,7 +351,6 @@ export default function AccountingExpensesPage() {
   if (!hasRole('Editor')) return <AccountingLoadingGuard loading={false} hasAccess={false} />
 
   const totalAmount = filtered.reduce((s, r) => s + (r.amount || 0), 0)
-  const totalWithTax = filtered.reduce((s, r) => s + (r.total_amount || 0), 0)
 
   return (
     <div className="space-y-6">

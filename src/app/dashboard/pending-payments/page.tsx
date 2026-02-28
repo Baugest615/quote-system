@@ -13,13 +13,13 @@ import { usePaymentGrouping } from '@/hooks/payments/usePaymentGrouping'
 import { useBatchSettings } from '@/hooks/pending-payments/useBatchSettings'
 import { isItemReady } from '@/lib/pending-payments/grouping-utils'
 import {
-  Search, Paperclip, Receipt, Trash2, AlertCircle,
-  FileText, Users, Unlink, X, CheckCircle, LayoutList, FolderKanban, Save,
-  ChevronsUpDown, FolderOpen, FolderClosed, Filter
+  Search,
+  Unlink, X, CheckCircle,
+  FolderOpen, FolderClosed, Filter
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
-import { Database, Json } from '@/types/database.types'
+import { Json } from '@/types/database.types'
 import { PendingPaymentItem, PendingPaymentAttachment } from '@/lib/payments/types'
 import type { KolBankInfo } from '@/types/schemas'
 import { getDefaultExpenseByBankType } from '@/types/custom.types'
@@ -99,7 +99,7 @@ export default function PendingPaymentsPage() {
       );
 
       const availableItemIds = availableItems.map(item => item.id);
-      let costsMap = new Map<string, number | null>();
+      const costsMap = new Map<string, number | null>();
 
       // 4. Fetch costs for available items
       if (availableItemIds.length > 0) {
@@ -233,7 +233,7 @@ export default function PendingPaymentsPage() {
           return { ...item, is_merge_leader: !!isLeader, merge_color: item.merge_color || mergeGroupColors.get(item.merge_group_id) || '' };
         }
         return item;
-      }).sort((a, b) => (a.rejection_reason ? -1 : 1));
+      }).sort((a, _b) => (a.rejection_reason ? -1 : 1));
 
       setItems(finalProcessedItems);
     } catch (error: unknown) {
@@ -833,7 +833,7 @@ export default function PendingPaymentsPage() {
         }
       }
 
-      for (const [groupId, groupItems] of Array.from(groups.entries())) {
+      for (const [_groupId, groupItems] of Array.from(groups.entries())) {
         const leader = groupItems.find((i: PendingPaymentItem) => i.is_merge_leader);
         if (!leader) continue;
 
@@ -1120,7 +1120,7 @@ export default function PendingPaymentsPage() {
           onAccountingSubjectChange={handleAccountingSubjectChange}
           onExpectedPaymentMonthChange={handleExpectedPaymentMonthChange}
           onResetToBatch={handleResetToBatch}
-          shouldShowControls={(item: PendingPaymentItem) => true}
+          shouldShowControls={(_item: PendingPaymentItem) => true}
           isValidInvoiceFormat={isValidInvoiceFormat}
         />
       )}

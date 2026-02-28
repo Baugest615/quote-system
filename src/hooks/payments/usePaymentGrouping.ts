@@ -2,7 +2,7 @@
 // 統一的分組邏輯，支援專案分組、展開/收合等
 
 import { useState, useMemo, useCallback } from 'react'
-import { groupItemsByProject, toggleGroupExpansion, expandAllGroups, collapseAllGroups } from '@/lib/payments/grouping'
+import { groupItemsByProject } from '@/lib/payments/grouping'
 import type { ProjectGroup, PaymentAttachment } from '@/lib/payments/types'
 
 export interface UsePaymentGroupingReturn<T> {
