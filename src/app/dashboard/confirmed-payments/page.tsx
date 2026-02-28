@@ -18,7 +18,7 @@ import { CURRENT_YEAR } from '@/lib/constants'
 
 // Types
 import { PaymentConfirmation, RemittanceSettings } from '@/lib/payments/types'
-import type { AccountingPayroll } from '@/types/custom.types'
+import type { AccountingPayroll, AccountingExpense } from '@/types/custom.types'
 
 // Components
 import { LoadingState } from '@/components/payments/shared'
@@ -57,6 +57,19 @@ export default function ConfirmedPaymentsPage() {
         .order('payment_date', { ascending: false })
       if (error) throw error
       return (data || []) as AccountingPayroll[]
+    },
+  })
+
+  // 進項管理資料查詢（手動新增的支出，併入匯款分組）
+  const { data: expensesData } = useQuery({
+    queryKey: ['accounting-expenses', 'confirmed-view'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('accounting_expenses')
+        .select('*')
+        .order('created_at', { ascending: false })
+      if (error) throw error
+      return (data || []) as AccountingExpense[]
     },
   })
 
@@ -599,6 +612,7 @@ export default function ConfirmedPaymentsPage() {
           confirmations={confirmations}
           withholdingRates={withholdingRates}
           payrollData={payrollData}
+          expensesData={expensesData}
         />
       )}
 

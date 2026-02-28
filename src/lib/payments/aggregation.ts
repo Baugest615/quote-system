@@ -3,19 +3,37 @@ import type {
   MergedRemittanceGroup,
   WithholdingApplicability,
 } from './types'
-import type { WithholdingSettings } from '@/types/custom.types'
+import type { WithholdingSettings, AccountingExpense } from '@/types/custom.types'
 import { DEFAULT_WITHHOLDING } from '@/hooks/useWithholdingSettings'
 import { groupItemsByRemittance } from './grouping'
 import { downloadCsv } from './withholding-export'
 import { getBillingMonthKey } from './billingPeriod'
 
+/** 將 expense_month（"2026年02月"）轉換為 YYYY-MM 格式 */
+function expenseMonthToYYYYMM(expenseMonth: string): string | null {
+  const match = expenseMonth?.match(/(\d{4})年(\d{2})月/)
+  if (!match) return null
+  return `${match[1]}-${match[2]}`
+}
+
 /**
  * 從確認清單提取所有可用帳務期間（YYYY-MM 降序）
  * 使用 10 日切點規則：10 日（含）前 → 當月，10 日後 → 次月
  */
-export function getAvailableMonths(confirmations: PaymentConfirmation[]): string[] {
+export function getAvailableMonths(
+  confirmations: PaymentConfirmation[],
+  expenses?: AccountingExpense[],
+  payrollData?: { payment_date: string | null }[]
+): string[] {
   const months = new Set<string>()
   confirmations.forEach(c => months.add(getBillingMonthKey(c.confirmation_date)))
+  expenses?.forEach(e => {
+    const m = expenseMonthToYYYYMM(e.expense_month || '')
+    if (m) months.add(m)
+  })
+  payrollData?.forEach(p => {
+    if (p.payment_date) months.add(getBillingMonthKey(p.payment_date))
+  })
   return Array.from(months).sort().reverse()
 }
 
@@ -26,13 +44,15 @@ export function getAvailableMonths(confirmations: PaymentConfirmation[]): string
 export function aggregateMonthlyRemittanceGroups(
   confirmations: PaymentConfirmation[],
   month: string,
-  rates: WithholdingSettings | null | undefined
+  rates: WithholdingSettings | null | undefined,
+  expenses?: AccountingExpense[]
 ): MergedRemittanceGroup[] {
   const taxRate = rates?.income_tax_rate ?? DEFAULT_WITHHOLDING.income_tax_rate
   const nhiRate = rates?.nhi_supplement_rate ?? DEFAULT_WITHHOLDING.nhi_supplement_rate
 
   const mergedMap = new Map<string, MergedRemittanceGroup>()
 
+  // --- 1. 處理 payment_confirmation_items ---
   const monthConfirmations = confirmations.filter(c =>
     getBillingMonthKey(c.confirmation_date) === month
   )
@@ -68,6 +88,7 @@ export function aggregateMonthlyRemittanceGroups(
           isWithholdingExempt: group.isWithholdingExempt,
           isPersonalClaim,
           items: [],
+          expenseItems: [],
           confirmationBreakdowns: [],
           totalAmount: 0,
           totalTax: 0,
@@ -91,6 +112,46 @@ export function aggregateMonthlyRemittanceGroups(
       merged.totalTax += tax
       merged.totalInsurance += insurance
       merged.totalFee += fee
+    }
+  }
+
+  // --- 2. 處理 accounting_expenses（進項管理手動新增的） ---
+  if (expenses) {
+    // 過濾：只取該月份、且非由確認清單自動產生的紀錄（避免重複計算）
+    const monthExpenses = expenses.filter(e => {
+      if (e.payment_confirmation_id || e.quotation_item_id) return false
+      const m = expenseMonthToYYYYMM(e.expense_month || '')
+      return m === month
+    })
+
+    for (const expense of monthExpenses) {
+      const vendorName = expense.vendor_name || '未命名支出'
+      const isCompany = expense.payment_target_type === 'vendor'
+
+      if (!mergedMap.has(vendorName)) {
+        mergedMap.set(vendorName, {
+          remittanceName: vendorName,
+          bankName: '',
+          branchName: '',
+          accountNumber: '',
+          isCompanyAccount: isCompany,
+          isWithholdingExempt: false,
+          isPersonalClaim: false,
+          items: [],
+          expenseItems: [],
+          confirmationBreakdowns: [],
+          totalAmount: 0,
+          totalTax: 0,
+          totalInsurance: 0,
+          totalFee: 0,
+          netTotal: 0,
+        })
+      }
+
+      const group = mergedMap.get(vendorName)!
+      group.expenseItems.push(expense)
+      group.totalAmount += expense.total_amount || expense.amount || 0
+      group.totalFee += expense.remittance_fee || 0
     }
   }
 

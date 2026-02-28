@@ -249,6 +249,7 @@ export interface MergedRemittanceGroup {
     isWithholdingExempt: boolean
     isPersonalClaim: boolean
     items: PaymentConfirmationItem[]
+    expenseItems: import('@/types/custom.types').AccountingExpense[]
     confirmationBreakdowns: ConfirmationBreakdown[]
     totalAmount: number
     totalTax: number

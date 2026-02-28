@@ -135,6 +135,23 @@ export function RemittanceGroupCard({ group, withholdingRates: _withholdingRates
                                         groupLabel={item.payment_requests?.merge_group_id ? mergeGroupLabelMap.get(item.payment_requests.merge_group_id) : undefined}
                                     />
                                 ))}
+                                {group.expenseItems.map((expense) => (
+                                    <tr key={expense.id} className="text-sm hover:bg-secondary">
+                                        <td className="px-4 py-3 text-foreground">
+                                            {expense.project_name || '—'}
+                                            <span className="ml-2 inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-warning/20 text-warning">
+                                                進項
+                                            </span>
+                                        </td>
+                                        <td className="px-4 py-3 text-foreground/70">{expense.vendor_name || '—'}</td>
+                                        <td className="px-4 py-3 text-foreground/70">{expense.expense_type || '—'}</td>
+                                        <td className="px-4 py-3 text-foreground/70">{group.remittanceName}</td>
+                                        <td className="px-4 py-3 text-foreground/70 max-w-40 truncate" title={expense.note || ''}>{expense.note || '—'}</td>
+                                        <td className="px-4 py-3 text-right font-medium text-foreground">
+                                            NT$ {(expense.total_amount || expense.amount || 0).toLocaleString()}
+                                        </td>
+                                    </tr>
+                                ))}
                             </tbody>
                             <tfoot className="bg-muted/20 font-medium text-sm">
                                 <tr>

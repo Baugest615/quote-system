@@ -93,6 +93,17 @@ export function QuotationItemsList({ quotationId, onUpdate, readOnly = false }: 
         fetchItems()
     }, [fetchItems])
 
+    // 頁面切換回來時自動重新載入（處理從其他頁面退回後狀態同步）
+    useEffect(() => {
+        const handleVisibility = () => {
+            if (document.visibilityState === 'visible') {
+                fetchItems()
+            }
+        }
+        document.addEventListener('visibilitychange', handleVisibility)
+        return () => document.removeEventListener('visibilitychange', handleVisibility)
+    }, [fetchItems])
+
     // 檢查是否有未儲存的變更
     const isDirty = useMemo(() => {
         if (deletedItemIds.size > 0) return true

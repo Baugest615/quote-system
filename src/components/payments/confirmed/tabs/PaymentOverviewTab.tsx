@@ -4,7 +4,7 @@ import { useState, useMemo } from 'react'
 import { DollarSign, Download, Users, Building2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import type { PaymentConfirmation } from '@/lib/payments/types'
-import type { WithholdingSettings, AccountingPayroll } from '@/types/custom.types'
+import type { WithholdingSettings, AccountingPayroll, AccountingExpense } from '@/types/custom.types'
 import {
     getAvailableMonths,
     aggregateMonthlyRemittanceGroups,
@@ -18,10 +18,14 @@ interface PaymentOverviewTabProps {
     confirmations: PaymentConfirmation[]
     withholdingRates?: WithholdingSettings | null
     payrollData?: AccountingPayroll[]
+    expensesData?: AccountingExpense[]
 }
 
-export function PaymentOverviewTab({ confirmations, withholdingRates, payrollData }: PaymentOverviewTabProps) {
-    const availableMonths = useMemo(() => getAvailableMonths(confirmations), [confirmations])
+export function PaymentOverviewTab({ confirmations, withholdingRates, payrollData, expensesData }: PaymentOverviewTabProps) {
+    const availableMonths = useMemo(
+        () => getAvailableMonths(confirmations, expensesData, payrollData),
+        [confirmations, expensesData, payrollData]
+    )
 
     const [selectedMonth, setSelectedMonth] = useState(() => {
         const currentMonth = new Date().toISOString().slice(0, 7)
@@ -29,8 +33,8 @@ export function PaymentOverviewTab({ confirmations, withholdingRates, payrollDat
     })
 
     const groups = useMemo(
-        () => aggregateMonthlyRemittanceGroups(confirmations, selectedMonth, withholdingRates),
-        [confirmations, selectedMonth, withholdingRates]
+        () => aggregateMonthlyRemittanceGroups(confirmations, selectedMonth, withholdingRates, expensesData),
+        [confirmations, selectedMonth, withholdingRates, expensesData]
     )
 
     const { personalGroups, companyGroups } = useMemo(
@@ -57,7 +61,11 @@ export function PaymentOverviewTab({ confirmations, withholdingRates, payrollDat
         return { totalAmount, totalTax, totalInsurance, totalFee, netTotal }
     }, [groups])
 
-    if (confirmations.length === 0) {
+    const hasAnyData = confirmations.length > 0
+        || (expensesData && expensesData.length > 0)
+        || (payrollData && payrollData.length > 0)
+
+    if (!hasAnyData) {
         return (
             <div className="text-center py-12 text-muted-foreground">
                 目前沒有已確認的請款記錄
