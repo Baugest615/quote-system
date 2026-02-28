@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback, useMemo } from 'react'
+import { useState, useCallback, useMemo, useRef } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Button } from '@/components/ui/button'
 import { RefreshCw, Shield, Banknote, FileSpreadsheet, ClipboardList } from 'lucide-react'
@@ -258,32 +258,20 @@ export default function ConfirmedPaymentsPage() {
     ))
   }, [setConfirmations])
 
+  // 用 ref 追蹤最新 confirmations，避免 useCallback 閉包讀到舊值
+  const confirmationsRef = useRef(confirmations)
+  confirmationsRef.current = confirmations
+
   // 匯款總覽：設定變更（跨 confirmation 批次更新）
   const handleOverviewSettingsChange = useCallback(async (
     confirmationId: string,
     remittanceName: string,
     updates: Partial<RemittanceSettings[string]>
   ) => {
-    // Optimistic update: 同步 parent state
-    setConfirmations(prev => prev.map(c => {
-      if (c.id !== confirmationId) return c
-      const currentSettings = c.remittance_settings || {}
-      const currentGroup = currentSettings[remittanceName] || {
-        hasRemittanceFee: false,
-        remittanceFeeAmount: 30,
-        hasTax: false,
-        hasInsurance: false,
-      }
-      const newSettings = {
-        ...currentSettings,
-        [remittanceName]: { ...currentGroup, ...updates },
-      }
-      return { ...c, remittance_settings: newSettings }
-    }))
-
-    // 儲存到 DB（debounce 由子元件處理，這裡直接存）
-    const conf = confirmations.find(c => c.id === confirmationId)
+    // 從 ref 讀取最新 state（避免 stale closure）
+    const conf = confirmationsRef.current.find(c => c.id === confirmationId)
     if (!conf) return
+
     const currentSettings = conf.remittance_settings || {}
     const currentGroup = currentSettings[remittanceName] || {
       hasRemittanceFee: false,
@@ -295,11 +283,29 @@ export default function ConfirmedPaymentsPage() {
       ...currentSettings,
       [remittanceName]: { ...currentGroup, ...updates },
     }
-    await supabase.rpc('update_remittance_settings', {
+
+    // Optimistic update: 同步 parent state
+    setConfirmations(prev => prev.map(c =>
+      c.id === confirmationId
+        ? { ...c, remittance_settings: newSettings }
+        : c
+    ))
+    // 同步更新 ref（讓同一 tick 內的後續呼叫讀到最新值）
+    confirmationsRef.current = confirmationsRef.current.map(c =>
+      c.id === confirmationId
+        ? { ...c, remittance_settings: newSettings }
+        : c
+    )
+
+    // 儲存到 DB
+    const { error } = await supabase.rpc('update_remittance_settings', {
       p_confirmation_id: confirmationId,
       p_settings: newSettings,
     })
-  }, [setConfirmations, confirmations])
+    if (error) {
+      toast.error('儲存匯費設定失敗: ' + error.message)
+    }
+  }, [setConfirmations])
 
   // 操作函數
   const toggleExpansion = (id: string) => {
