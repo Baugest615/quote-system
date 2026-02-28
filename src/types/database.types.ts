@@ -1232,6 +1232,7 @@ export type Database = {
           created_at: string | null
           created_by: string | null
           id: string
+          is_supplement: boolean
           kol_id: string | null
           price: number
           quantity: number | null
@@ -1246,6 +1247,7 @@ export type Database = {
           created_at?: string | null
           created_by?: string | null
           id?: string
+          is_supplement?: boolean
           kol_id?: string | null
           price?: number
           quantity?: number | null
@@ -1260,6 +1262,7 @@ export type Database = {
           created_at?: string | null
           created_by?: string | null
           id?: string
+          is_supplement?: boolean
           kol_id?: string | null
           price?: number
           quantity?: number | null

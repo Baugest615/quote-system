@@ -5,7 +5,7 @@ import supabase from '@/lib/supabase/client'
 import { Database } from '@/types/database.types'
 import { QuotationItemWithPayments } from '@/types/custom.types'
 import { Button } from '@/components/ui/button'
-import { Plus, Trash2, Loader2, Save, XCircle, ClipboardPaste, ArrowUp, ArrowDown, ArrowUpDown, CheckCircle2, AlertTriangle, Paperclip } from 'lucide-react'
+import { Plus, Trash2, Loader2, Save, XCircle, ClipboardPaste, ArrowUp, ArrowDown, ArrowUpDown, CheckCircle2, AlertTriangle, Paperclip, Lock, Info } from 'lucide-react'
 import { EditableCell } from './EditableCell'
 import { SearchableSelectCell } from './SearchableSelectCell'
 import { toast } from 'sonner'
@@ -30,12 +30,16 @@ interface QuotationItemsListProps {
     quotationId: string
     onUpdate?: () => void
     readOnly?: boolean
+    quotationStatus?: string
 }
 
-export function QuotationItemsList({ quotationId, onUpdate, readOnly = false }: QuotationItemsListProps) {
+export function QuotationItemsList({ quotationId, onUpdate, readOnly = false, quotationStatus }: QuotationItemsListProps) {
     const confirm = useConfirm()
     const { hasRole, userId } = usePermission()
     const isEditor = hasRole('Editor')
+
+    // 追加模式：已簽約報價單鎖定原始項目，只允許新增追加項目
+    const isSupplementMode = quotationStatus === '已簽約'
 
     // 原始資料 (用於取消還原)
     const [originalItems, setOriginalItems] = useState<QuotationItemWithPayments[]>([])
@@ -171,6 +175,7 @@ export function QuotationItemsList({ quotationId, onUpdate, readOnly = false }: 
             created_by: null,
             remark: null,
             remittance_name: null,
+            is_supplement: isSupplementMode,
         }
         setItems(prev => [...prev, newItem])
     }
@@ -179,6 +184,11 @@ export function QuotationItemsList({ quotationId, onUpdate, readOnly = false }: 
     const handleDeleteItem = (id: string) => {
         const item = items.find(i => i.id === id);
         if (item) {
+            // 追加模式下，原始項目不可刪除
+            if (isSupplementMode && !item.is_supplement) {
+                toast.error('追加模式下不可刪除原始項目。');
+                return;
+            }
             // 新流程：已進入請款流程的項目不可刪除
             if (item.requested_at || item.approved_at) {
                 toast.error('此項目已進入請款流程，無法刪除。');
@@ -294,26 +304,38 @@ export function QuotationItemsList({ quotationId, onUpdate, readOnly = false }: 
                 }
             })
 
-            // 2. 刪除 DB 中不該存在的項目（伺服器端篩選，徹底清理髒資料）
+            // 2. 刪除 DB 中不該存在的項目
             const keepIds = items
                 .filter(item => originalItems.some(o => o.id === item.id))
                 .map(item => item.id)
 
-            if (keepIds.length > 0) {
-                // 刪除此報價單中不在保留清單裡的所有項目
-                const { error: deleteError } = await supabase
-                    .from('quotation_items')
-                    .delete()
-                    .eq('quotation_id', quotationId)
-                    .not('id', 'in', `(${keepIds.join(',')})`)
-                if (deleteError) throw new Error(`刪除項目失敗: ${deleteError.message}`)
+            if (isSupplementMode) {
+                // 追加模式：僅刪除被移除的追加項目，原始項目絕不動
+                if (keepIds.length > 0) {
+                    const { error: deleteError } = await supabase
+                        .from('quotation_items')
+                        .delete()
+                        .eq('quotation_id', quotationId)
+                        .eq('is_supplement', true)
+                        .not('id', 'in', `(${keepIds.join(',')})`)
+                    if (deleteError) throw new Error(`刪除項目失敗: ${deleteError.message}`)
+                }
             } else {
-                // 沒有要保留的既有項目，全部刪除
-                const { error: deleteError } = await supabase
-                    .from('quotation_items')
-                    .delete()
-                    .eq('quotation_id', quotationId)
-                if (deleteError) throw new Error(`刪除項目失敗: ${deleteError.message}`)
+                // 一般模式：清理所有不在保留清單裡的項目
+                if (keepIds.length > 0) {
+                    const { error: deleteError } = await supabase
+                        .from('quotation_items')
+                        .delete()
+                        .eq('quotation_id', quotationId)
+                        .not('id', 'in', `(${keepIds.join(',')})`)
+                    if (deleteError) throw new Error(`刪除項目失敗: ${deleteError.message}`)
+                } else {
+                    const { error: deleteError } = await supabase
+                        .from('quotation_items')
+                        .delete()
+                        .eq('quotation_id', quotationId)
+                    if (deleteError) throw new Error(`刪除項目失敗: ${deleteError.message}`)
+                }
             }
 
             // 3. 寫入項目（明確指定 onConflict 避免 PostgREST 衝突偵測問題）
@@ -340,7 +362,26 @@ export function QuotationItemsList({ quotationId, onUpdate, readOnly = false }: 
 
             if (updateError) throw updateError
 
-            toast.success('儲存成功')
+            // 追加模式：同步更新銷項管理金額
+            if (isSupplementMode) {
+                const { error: salesError } = await supabase
+                    .from('accounting_sales')
+                    .update({
+                        sales_amount: subtotalUntaxed,
+                        tax_amount: tax,
+                        total_amount: grandTotalTaxed,
+                    })
+                    .eq('quotation_id', quotationId)
+                if (salesError) {
+                    console.error('銷項同步失敗:', salesError)
+                    toast.warning('項目已儲存，但銷項帳務同步失敗')
+                } else {
+                    toast.success('儲存成功，銷項帳務已同步更新')
+                }
+            } else {
+                toast.success('儲存成功')
+            }
+
             // 重新載入項目和 KOL 資料（反映新建立的服務）
             const [, kolsRes] = await Promise.all([
                 fetchItems(),
@@ -408,6 +449,7 @@ export function QuotationItemsList({ quotationId, onUpdate, readOnly = false }: 
                 created_by: null,
                 remark: null,
                 remittance_name: null,
+                is_supplement: isSupplementMode,
             })
         })
 
@@ -686,12 +728,22 @@ export function QuotationItemsList({ quotationId, onUpdate, readOnly = false }: 
             onPaste={readOnly ? undefined : handlePaste}
             tabIndex={0} // 讓 div 可以接收焦點
         >
+            {/* 追加模式提示 */}
+            {isSupplementMode && !readOnly && (
+                <div className="flex items-center gap-2 mb-3 px-3 py-2 rounded-md bg-info/10 border border-info/25 text-sm text-info">
+                    <Info className="h-4 w-4 shrink-0" />
+                    <span>追加模式 — 原始項目已鎖定，僅可新增追加項目</span>
+                </div>
+            )}
+
             <div className="flex justify-between items-center mb-3">
                 <h4 className="text-sm font-semibold text-foreground/70">
                     成本明細 (報價項目)
-                    <span className="ml-2 text-xs font-normal text-muted-foreground hidden sm:inline">
-                        (支援 Excel 貼上: 類別 | KOL/服務 | 執行內容 | 數量 | 單價 | 成本)
-                    </span>
+                    {!isSupplementMode && (
+                        <span className="ml-2 text-xs font-normal text-muted-foreground hidden sm:inline">
+                            (支援 Excel 貼上: 類別 | KOL/服務 | 執行內容 | 數量 | 單價 | 成本)
+                        </span>
+                    )}
                 </h4>
                 {!readOnly && (
                     <div className="flex space-x-2">
@@ -707,40 +759,44 @@ export function QuotationItemsList({ quotationId, onUpdate, readOnly = false }: 
                             </>
                         )}
 
-                        <Button
-                            size="sm"
-                            variant="outline"
-                            className="h-7 text-xs"
-                            onClick={() => setIsPasteModalOpen(true)}
-                        >
-                            <ClipboardPaste className="h-3 w-3 mr-1" /> 貼上 Excel
-                        </Button>
+                        {!isSupplementMode && (
+                            <>
+                                <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="h-7 text-xs"
+                                    onClick={() => setIsPasteModalOpen(true)}
+                                >
+                                    <ClipboardPaste className="h-3 w-3 mr-1" /> 貼上 Excel
+                                </Button>
 
-                        <Modal
-                            isOpen={isPasteModalOpen}
-                            onClose={() => setIsPasteModalOpen(false)}
-                            title="貼上 Excel 資料"
-                        >
-                            <div className="space-y-4">
-                                <p className="text-sm text-muted-foreground">
-                                    請將 Excel 資料複製並貼上到下方區域。<br />
-                                    格式順序：類別 | KOL/服務 | 執行內容 | 數量 | 單價 | 成本
-                                </p>
-                                <Textarea
-                                    placeholder="在此貼上資料..."
-                                    className="min-h-[200px]"
-                                    value={pasteContent}
-                                    onChange={(e) => setPasteContent(e.target.value)}
-                                />
-                                <div className="flex justify-end space-x-2">
-                                    <Button variant="outline" onClick={() => setIsPasteModalOpen(false)}>取消</Button>
-                                    <Button onClick={() => processPasteData(pasteContent)}>確認匯入</Button>
-                                </div>
-                            </div>
-                        </Modal>
+                                <Modal
+                                    isOpen={isPasteModalOpen}
+                                    onClose={() => setIsPasteModalOpen(false)}
+                                    title="貼上 Excel 資料"
+                                >
+                                    <div className="space-y-4">
+                                        <p className="text-sm text-muted-foreground">
+                                            請將 Excel 資料複製並貼上到下方區域。<br />
+                                            格式順序：類別 | KOL/服務 | 執行內容 | 數量 | 單價 | 成本
+                                        </p>
+                                        <Textarea
+                                            placeholder="在此貼上資料..."
+                                            className="min-h-[200px]"
+                                            value={pasteContent}
+                                            onChange={(e) => setPasteContent(e.target.value)}
+                                        />
+                                        <div className="flex justify-end space-x-2">
+                                            <Button variant="outline" onClick={() => setIsPasteModalOpen(false)}>取消</Button>
+                                            <Button onClick={() => processPasteData(pasteContent)}>確認匯入</Button>
+                                        </div>
+                                    </div>
+                                </Modal>
+                            </>
+                        )}
 
                         <Button size="sm" variant="outline" onClick={handleAddItem} className="h-7 text-xs">
-                            <Plus className="h-3 w-3 mr-1" /> 新增項目
+                            <Plus className="h-3 w-3 mr-1" /> {isSupplementMode ? '追加項目' : '新增項目'}
                         </Button>
                     </div>
                 )}
@@ -793,24 +849,42 @@ export function QuotationItemsList({ quotationId, onUpdate, readOnly = false }: 
                             const statusConfig = PAYMENT_STATUS_CONFIG[status]
                             const verified = isVerificationPassed(item)
                             const isItemLoading = actionLoading.has(item.id)
-                            const isLocked = !!item.approved_at // 已請款項目鎖定左半部編輯
-                            const canDelete = !item.requested_at && !item.approved_at
+                            // 追加模式下：原始項目也鎖定編輯
+                            const isOriginalInSupplement = isSupplementMode && !item.is_supplement
+                            const isLocked = !!item.approved_at || isOriginalInSupplement
+                            const canDelete = !isOriginalInSupplement
+                                && !item.requested_at && !item.approved_at
                                 && !item.payment_requests?.some(pr => pr.verification_status !== 'rejected')
 
                             return (
-                                <tr key={item.id} className={`hover:bg-accent/30 group ${isLocked ? 'opacity-80' : ''}`}>
+                                <tr key={item.id} className={`hover:bg-accent/30 group ${
+                                    isOriginalInSupplement ? 'bg-muted/30 opacity-70' :
+                                    item.is_supplement ? 'border-l-4 border-l-success' :
+                                    isLocked ? 'opacity-80' : ''
+                                }`}>
                                     <td className="border-r border-border/50 p-0">
                                         {isLocked ? (
-                                            <div className="px-3 py-2 text-muted-foreground">{item.category || '—'}</div>
+                                            <div className="px-3 py-2 text-muted-foreground flex items-center gap-1.5">
+                                                {isOriginalInSupplement && <Lock className="h-3 w-3 text-muted-foreground/50" />}
+                                                {item.category || '—'}
+                                                {item.is_supplement && (
+                                                    <span className="text-[10px] text-success bg-success/10 px-1.5 py-0.5 rounded">追加</span>
+                                                )}
+                                            </div>
                                         ) : (
-                                            <SearchableSelectCell
-                                                value={item.category}
-                                                onChange={(val) => handleUpdateItem(item.id, { category: val })}
-                                                options={categoryOptions}
-                                                placeholder="選擇類別"
-                                                className="px-3 py-2"
-                                                allowCustomValue={true}
-                                            />
+                                            <div className="flex items-center gap-1.5">
+                                                <SearchableSelectCell
+                                                    value={item.category}
+                                                    onChange={(val) => handleUpdateItem(item.id, { category: val })}
+                                                    options={categoryOptions}
+                                                    placeholder="選擇類別"
+                                                    className="px-3 py-2 flex-1"
+                                                    allowCustomValue={true}
+                                                />
+                                                {item.is_supplement && (
+                                                    <span className="text-[10px] text-success bg-success/10 px-1.5 py-0.5 rounded mr-1 shrink-0">追加</span>
+                                                )}
+                                            </div>
                                         )}
                                     </td>
                                     <td className="border-r border-border/50 p-0">
@@ -959,20 +1033,26 @@ export function QuotationItemsList({ quotationId, onUpdate, readOnly = false }: 
 
                                     {!readOnly && (
                                         <td className="px-1 py-1 text-center">
-                                            <Button
-                                                variant="ghost"
-                                                size="sm"
-                                                className={`h-6 w-6 p-0 ${
-                                                    !canDelete
-                                                        ? 'text-muted-foreground cursor-not-allowed'
-                                                        : 'opacity-0 group-hover:opacity-100 text-destructive/70 hover:text-destructive'
-                                                    }`}
-                                                onClick={() => handleDeleteItem(item.id)}
-                                                disabled={!canDelete}
-                                                title={!canDelete ? '此項目已進入請款流程，無法刪除' : '刪除項目'}
-                                            >
-                                                <Trash2 className="h-3 w-3" />
-                                            </Button>
+                                            {isOriginalInSupplement ? (
+                                                <span className="h-6 w-6 inline-flex items-center justify-center text-muted-foreground/30" title="原始項目已鎖定">
+                                                    <Lock className="h-3 w-3" />
+                                                </span>
+                                            ) : (
+                                                <Button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    className={`h-6 w-6 p-0 ${
+                                                        !canDelete
+                                                            ? 'text-muted-foreground cursor-not-allowed'
+                                                            : 'opacity-0 group-hover:opacity-100 text-destructive/70 hover:text-destructive'
+                                                        }`}
+                                                    onClick={() => handleDeleteItem(item.id)}
+                                                    disabled={!canDelete}
+                                                    title={!canDelete ? '此項目已進入請款流程，無法刪除' : '刪除項目'}
+                                                >
+                                                    <Trash2 className="h-3 w-3" />
+                                                </Button>
+                                            )}
                                         </td>
                                     )}
                                 </tr>
