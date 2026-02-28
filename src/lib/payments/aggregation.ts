@@ -264,7 +264,7 @@ export function exportBankTransferCsv(
   month: string
 ) {
   const rows: string[][] = [
-    ['匯款戶名', '銀行', '分行', '帳號', '帳戶類型', '給付金額', '代扣所得稅', '代扣健保', '匯費', '實付金額']
+    ['匯款戶名', '銀行', '分行', '帳號', '帳戶類型', '給付金額', '匯費', '實付金額']
   ]
 
   for (const group of groups) {
@@ -275,8 +275,6 @@ export function exportBankTransferCsv(
       group.accountNumber,
       group.isCompanyAccount ? '公司戶' : '個人戶',
       group.totalAmount.toString(),
-      group.totalTax.toString(),
-      group.totalInsurance.toString(),
       group.totalFee.toString(),
       group.netTotal.toString(),
     ])

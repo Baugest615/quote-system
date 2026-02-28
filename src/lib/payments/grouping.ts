@@ -200,12 +200,13 @@ export function groupItemsByRemittance(items: PaymentConfirmationItem[]): import
         // 報價單直接請款項目（新流程）
         if (item.source_type === 'quotation' || item.quotation_item_id) {
             const qi = item.quotation_items
-            if (!qi) return
 
-            const kol = qi.kols
+            // qi 可能為 null（fullSelect 查詢 fallback 到 baseSelect 時）
+            // 使用 _at_confirmation 快照欄位作為 fallback
+            const kol = qi?.kols
             const bankInfo = (kol?.bank_info || {}) as KolBankInfo
 
-            let remittanceName = qi.remittance_name?.trim()
+            let remittanceName = qi?.remittance_name?.trim()
             if (!remittanceName || remittanceName === '未知匯款戶名' || remittanceName === 'Unknown Remittance Name') {
                 remittanceName = undefined
             }
@@ -216,7 +217,8 @@ export function groupItemsByRemittance(items: PaymentConfirmationItem[]): import
                     remittanceName = bankInfo.personalAccountName || kol.real_name || kol.name
                 }
             }
-            remittanceName = remittanceName || '未知匯款戶名'
+            // 最終 fallback：使用 KOL 名稱快照
+            remittanceName = remittanceName || item.kol_name_at_confirmation || '未知匯款戶名'
             const groupKey = remittanceName
 
             if (!remittanceMap.has(groupKey)) {
@@ -234,7 +236,7 @@ export function groupItemsByRemittance(items: PaymentConfirmationItem[]): import
 
             const group = remittanceMap.get(groupKey)!
             group.items.push(item)
-            group.totalAmount += item.amount || qi.cost_amount || qi.cost || 0
+            group.totalAmount += item.amount_at_confirmation || qi?.cost_amount || qi?.cost || 0
             return
         }
 

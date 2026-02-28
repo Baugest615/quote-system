@@ -103,7 +103,7 @@ export function PaymentOverviewTab({
                 inits[group.remittanceName] = {
                     hasTax: false,
                     hasInsurance: false,
-                    hasRemittanceFee: !group.isPersonalClaim,
+                    hasRemittanceFee: group.items.length > 0 && !group.isPersonalClaim,
                     remittanceFeeAmount: feeDefault,
                 }
             } else {
@@ -150,26 +150,19 @@ export function PaymentOverviewTab({
         return localSettings[remittanceName] || undefined
     }, [localSettings])
 
-    // 彙總數字（使用 localSettings 即時計算）
-    const taxRate = withholdingRates?.income_tax_rate ?? DEFAULT_WITHHOLDING.income_tax_rate
-    const nhiRate = withholdingRates?.nhi_supplement_rate ?? DEFAULT_WITHHOLDING.nhi_supplement_rate
-
+    // 彙總數字（使用 localSettings 即時計算，只計算匯費）
     const summary = useMemo(() => {
         let totalAmount = 0
-        let totalTax = 0
-        let totalInsurance = 0
         let totalFee = 0
 
         groups.forEach(g => {
             const s = localSettings[g.remittanceName]
             totalAmount += g.totalAmount
-            totalTax += s?.hasTax ? Math.floor(g.totalAmount * taxRate) : g.totalTax
-            totalInsurance += s?.hasInsurance ? Math.floor(g.totalAmount * nhiRate) : g.totalInsurance
             totalFee += s?.hasRemittanceFee ? (s.remittanceFeeAmount || 0) : g.totalFee
         })
 
-        return { totalAmount, totalTax, totalInsurance, totalFee, netTotal: totalAmount - totalTax - totalInsurance - totalFee }
-    }, [groups, localSettings, taxRate, nhiRate])
+        return { totalAmount, totalFee, netTotal: totalAmount - totalFee }
+    }, [groups, localSettings])
 
     const hasAnyData = confirmations.length > 0
         || (expensesData && expensesData.length > 0)
@@ -217,10 +210,8 @@ export function PaymentOverviewTab({
             </div>
 
             {/* 彙總卡片 */}
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+            <div className="grid grid-cols-3 gap-3">
                 <SummaryCard label="匯款總額" value={summary.totalAmount} color="text-foreground" />
-                <SummaryCard label="代扣所得稅" value={summary.totalTax} color="text-destructive" />
-                <SummaryCard label="代扣健保" value={summary.totalInsurance} color="text-destructive" />
                 <SummaryCard label="匯費合計" value={summary.totalFee} color="text-warning" />
                 <SummaryCard label="實付總額" value={summary.netTotal} color="text-info" highlight />
             </div>
@@ -237,7 +228,6 @@ export function PaymentOverviewTab({
                             <RemittanceGroupCard
                                 key={group.remittanceName}
                                 group={group}
-                                withholdingRates={withholdingRates}
                                 settings={getSettings(group.remittanceName)}
                                 onUpdateSettings={onUpdateSettings ? handleUpdateSettings : undefined}
                                 onRevertItem={onRevertItem}
@@ -260,7 +250,6 @@ export function PaymentOverviewTab({
                             <RemittanceGroupCard
                                 key={group.remittanceName}
                                 group={group}
-                                withholdingRates={withholdingRates}
                                 settings={getSettings(group.remittanceName)}
                                 onUpdateSettings={onUpdateSettings ? handleUpdateSettings : undefined}
                                 onRevertItem={onRevertItem}

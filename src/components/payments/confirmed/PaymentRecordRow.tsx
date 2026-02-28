@@ -95,9 +95,10 @@ export function PaymentRecordRow({ item, groupLabel, onRevertItem }: PaymentReco
             }
         }
 
-        remittanceName = remittanceName || '未知匯款戶名'
+        // 最終 fallback：使用 KOL 名稱快照
+        remittanceName = remittanceName || item.kol_name_at_confirmation || '未知匯款戶名'
 
-        const amount = item.amount || item.amount_at_confirmation || qi?.cost_amount || qi?.cost || 0
+        const amount = item.amount_at_confirmation || qi?.cost_amount || qi?.cost || 0
         const remark = qi?.remark || null
 
         const mergeGroupId = qi?.merge_group_id

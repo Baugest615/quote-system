@@ -52,7 +52,7 @@ export function ConfirmationRow({ confirmation, onToggleExpansion, withholdingRa
                     </div>
                 </div>
                 <div className="flex items-center space-x-2" onClick={(e) => e.stopPropagation()}>
-                    <ExportControls confirmation={confirmation} settingsMap={settings} withholdingRates={withholdingRates} />
+                    <ExportControls confirmation={confirmation} settingsMap={settings} />
                 </div>
             </div>
 
