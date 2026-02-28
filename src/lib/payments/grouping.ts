@@ -180,7 +180,7 @@ export function groupItemsByRemittance(items: PaymentConfirmationItem[]): import
 
             if (!remittanceMap.has(groupKey)) {
                 remittanceMap.set(groupKey, {
-                    remittanceName: isExternalVendor ? vendorName : `${displayName}（個人報帳）`,
+                    remittanceName: isExternalVendor ? vendorName : displayName,
                     bankName: '',
                     branchName: '',
                     accountNumber: '',

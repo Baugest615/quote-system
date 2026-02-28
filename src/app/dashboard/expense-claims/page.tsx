@@ -7,49 +7,39 @@ import supabase from '@/lib/supabase/client'
 import { queryKeys } from '@/lib/queryKeys'
 import { toast } from 'sonner'
 import {
-  Receipt, Search, Plus, Pencil, Trash2,
-  Send, AlertCircle, CheckCircle, XCircle, FileEdit, Shield, Table2,
+  Receipt, Search, Plus,
+  Send, AlertCircle, CheckCircle, XCircle, FileEdit, Shield,
 } from 'lucide-react'
-import Pagination from '@/components/accounting/Pagination'
-import { EmptyState } from '@/components/ui/EmptyState'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { useProjectNames } from '@/hooks/useProjectNames'
-import { useExpenseDefaults } from '@/hooks/useExpenseDefaults'
-import SpreadsheetEditor from '@/components/accounting/SpreadsheetEditor'
-import type { SpreadsheetColumn, BatchSaveResult, RowError } from '@/lib/spreadsheet-utils'
 import ExpenseClaimModal from '@/components/expense-claims/ExpenseClaimModal'
 import type { ExpenseClaimFormData } from '@/components/expense-claims/ExpenseClaimModal'
+import { ExpenseClaimGroups } from '@/components/expense-claims/ExpenseClaimGroups'
 import type { ExpenseClaim } from '@/types/custom.types'
 import {
-  CLAIM_STATUS_LABELS, CLAIM_STATUS_COLORS,
-  PAYMENT_STATUS_LABELS, PAYMENT_STATUS_COLORS,
+  CLAIM_STATUS_COLORS,
   type ClaimStatus,
 } from '@/types/custom.types'
-import { CURRENT_YEAR, MONTH_OPTIONS } from '@/lib/constants'
+import { CURRENT_YEAR } from '@/lib/constants'
 import { useConfirm } from '@/components/ui/ConfirmDialog'
-
-const PAGE_SIZE = 20
 
 export default function ExpenseClaimsPage() {
   const confirm = useConfirm()
-  const { userRole, loading: permLoading, checkPageAccess } = usePermission()
+  const { userRole, loading: permLoading, checkPageAccess, hasRole } = usePermission()
   const hasAccess = checkPageAccess('expense_claims')
+  const isEditor = hasRole('Editor')
   const queryClient = useQueryClient()
 
   const [year, setYear] = useState(CURRENT_YEAR)
   const [statusFilter, setStatusFilter] = useState<string>('all')
   const [search, setSearch] = useState('')
-  const [currentPage, setCurrentPage] = useState(1)
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
 
   // Modal 狀態
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingClaim, setEditingClaim] = useState<ExpenseClaim | null>(null)
-  const [isSpreadsheetMode, setIsSpreadsheetMode] = useState(false)
 
-  // 專案名稱建議 + 支出種類/會計科目
+  // 專案名稱建議
   const { data: projectNames = [] } = useProjectNames()
-  const { expenseTypeNames, accountingSubjectNames } = useExpenseDefaults()
 
   // 取得目前登入者的員工姓名（用於 vendor_name 預設值）
   const { data: myEmployeeName } = useQuery({
@@ -66,51 +56,7 @@ export default function ExpenseClaimsPage() {
 
   const currentQueryKey = queryKeys.expenseClaims(year)
 
-  // 試算表欄位定義
-  const spreadsheetColumns = useMemo<SpreadsheetColumn<ExpenseClaim>[]>(() => [
-    { key: 'claim_month', label: '報帳月份', type: 'select',
-      options: MONTH_OPTIONS.map(m => `${year}年${m}`), width: 'w-28' },
-    { key: 'expense_type', label: '支出種類', type: 'select',
-      options: [...expenseTypeNames], required: true, width: 'w-28' },
-    { key: 'accounting_subject', label: '會計科目', type: 'select',
-      options: ['', ...accountingSubjectNames], width: 'w-28' },
-    { key: 'vendor_name', label: '廠商/對象', type: 'text', width: 'w-32' },
-    { key: 'amount', label: '金額（未稅）', type: 'number', autoCalcSource: true, width: 'w-28' },
-    { key: 'tax_amount', label: '稅額', type: 'number', readOnly: true, width: 'w-24' },
-    { key: 'total_amount', label: '總額（含稅）', type: 'number', readOnly: true, width: 'w-28' },
-    { key: 'project_name', label: '專案名稱', type: 'autocomplete', suggestions: projectNames, width: 'w-36' },
-    { key: 'invoice_number', label: '發票號碼', type: 'text', autoCalcTrigger: true, width: 'w-28' },
-    { key: 'invoice_date', label: '發票日期', type: 'date', width: 'w-28' },
-    { key: 'note', label: '備註', type: 'text', width: 'w-40' },
-  ], [year, projectNames, expenseTypeNames, accountingSubjectNames])
-
-  const emptyClaimRow = useCallback((): Partial<ExpenseClaim> => ({
-    claim_month: '',
-    expense_type: '員工代墊' as ExpenseClaim['expense_type'],
-    accounting_subject: '',
-    vendor_name: employeeName || '',
-    amount: 0,
-    tax_amount: 0,
-    total_amount: 0,
-    project_name: '',
-    invoice_number: '',
-    invoice_date: null,
-    note: '',
-    status: 'draft' as const,
-  }), [employeeName])
-
-  const handleAutoCalcClaims = useCallback(
-    (row: Partial<ExpenseClaim>): Partial<ExpenseClaim> => {
-      const amount = row.amount || 0
-      const hasInvoice = !!(row.invoice_number?.trim())
-      const tax = hasInvoice ? Math.round(amount * 0.05 * 100) / 100 : 0
-      const total = Math.round((amount + tax) * 100) / 100
-      return { tax_amount: tax, total_amount: total }
-    },
-    []
-  )
-
-  // 載入資料
+  // 載入報帳資料
   const { data: records = [], isLoading: loading } = useQuery({
     queryKey: [...currentQueryKey],
     queryFn: async () => {
@@ -121,7 +67,6 @@ export default function ExpenseClaimsPage() {
         .eq('year', year)
         .order('created_at', { ascending: false })
 
-      // 非 Admin/Editor 只看自己的
       if (userRole !== 'Admin' && userRole !== 'Editor') {
         query = query.eq('created_by', user?.id)
       }
@@ -132,6 +77,34 @@ export default function ExpenseClaimsPage() {
     },
     enabled: !permLoading && hasAccess,
   })
+
+  // 員工姓名映射（Admin/Editor 用，顯示群組標題中的申請人）
+  const { data: nameMap = new Map<string, string>() } = useQuery({
+    queryKey: ['employee-names-for-claims', year, records.length],
+    queryFn: async () => {
+      const creatorIds = new Set<string>()
+      records.forEach(r => { if (r.created_by) creatorIds.add(r.created_by) })
+      if (creatorIds.size === 0) return new Map<string, string>()
+
+      const { data: employees } = await supabase
+        .from('employees')
+        .select('user_id, name')
+        .in('user_id', Array.from(creatorIds))
+
+      return new Map((employees || []).map(e => [e.user_id!, e.name]))
+    },
+    enabled: isEditor && records.length > 0,
+  })
+
+  // 快取失效（共用）
+  const invalidateCaches = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: [...currentQueryKey] })
+    queryClient.invalidateQueries({ queryKey: [...queryKeys.expenseClaimsPending] })
+    queryClient.invalidateQueries({ queryKey: ['my-employee'] })
+    queryClient.invalidateQueries({ queryKey: ['monthly-settlement'] })
+  }, [queryClient, currentQueryKey])
+
+  // ==================== Mutations ====================
 
   // 儲存（新增/編輯）
   const saveMutation = useMutation({
@@ -161,10 +134,7 @@ export default function ExpenseClaimsPage() {
       }
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [...currentQueryKey] })
-      queryClient.invalidateQueries({ queryKey: [...queryKeys.expenseClaimsPending] })
-      queryClient.invalidateQueries({ queryKey: ['my-employee'] })
-      queryClient.invalidateQueries({ queryKey: ['monthly-settlement'] })
+      invalidateCaches()
       toast.success(editingClaim ? '已更新報帳項目' : '已新增報帳項目')
       setIsModalOpen(false)
       setEditingClaim(null)
@@ -182,10 +152,7 @@ export default function ExpenseClaimsPage() {
       if (error) throw error
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [...currentQueryKey] })
-      queryClient.invalidateQueries({ queryKey: [...queryKeys.expenseClaimsPending] })
-      queryClient.invalidateQueries({ queryKey: ['my-employee'] })
-      queryClient.invalidateQueries({ queryKey: ['monthly-settlement'] })
+      invalidateCaches()
       toast.success('已刪除報帳項目')
     },
     onError: (err: Error) => toast.error(`刪除失敗：${err.message}`),
@@ -202,96 +169,72 @@ export default function ExpenseClaimsPage() {
           status: 'submitted',
           submitted_by: user?.id,
           submitted_at: new Date().toISOString(),
+          rejected_by: null,
+          rejected_at: null,
+          rejection_reason: null,
         })
         .in('id', ids)
         .in('status', ['draft', 'rejected'])
       if (error) throw error
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [...currentQueryKey] })
+      invalidateCaches()
       queryClient.invalidateQueries({ queryKey: [...queryKeys.paymentRequests] })
-      queryClient.invalidateQueries({ queryKey: [...queryKeys.expenseClaimsPending] })
-      queryClient.invalidateQueries({ queryKey: ['my-employee'] })
-      queryClient.invalidateQueries({ queryKey: ['monthly-settlement'] })
-      setSelectedIds(new Set())
       toast.success('已送出審核')
     },
     onError: () => toast.error('送出失敗，請重試'),
   })
 
-  // 試算表批次儲存
-  const handleBatchSave = useCallback(async (
-    toInsert: Partial<ExpenseClaim>[],
-    toUpdate: { id: string; data: Partial<ExpenseClaim> }[],
-    toDelete: string[]
-  ): Promise<BatchSaveResult> => {
-    const { data: { user } } = await supabase.auth.getUser()
-    const errors: RowError[] = []
-    let successCount = 0
+  // 核准
+  const approveMutation = useMutation({
+    mutationFn: async (claimId: string) => {
+      const { error } = await supabase.rpc('approve_expense_claim', {
+        claim_id: claimId,
+      })
+      if (error) throw error
+    },
+    onSuccess: () => {
+      invalidateCaches()
+      queryClient.invalidateQueries({ queryKey: [...queryKeys.confirmedPayments] })
+      queryClient.invalidateQueries({ queryKey: ['accounting-expenses'] })
+      queryClient.invalidateQueries({ queryKey: [...queryKeys.dashboardStats] })
+      toast.success('已核准，進項記錄已自動建立')
+    },
+    onError: (err: Error) => toast.error(`核准失敗：${err.message}`),
+  })
 
-    if (toInsert.length > 0) {
-      const payload = toInsert.map(r => ({
-        ...r,
-        vendor_name: (r.vendor_name as string)?.trim() || employeeName || undefined,
-        year,
-        status: 'draft' as const,
-        created_by: user?.id,
-        submitted_by: user?.id,
-      }))
-      const { error } = await supabase.from('expense_claims').insert(payload)
-      if (error) toInsert.forEach((_, i) => errors.push({ tempId: `insert-${i}`, message: error.message }))
-      else successCount += toInsert.length
+  // 駁回
+  const rejectMutation = useMutation({
+    mutationFn: async ({ claimId, reason }: { claimId: string; reason: string }) => {
+      const { error } = await supabase.rpc('reject_expense_claim', {
+        claim_id: claimId,
+        reason,
+      })
+      if (error) throw error
+    },
+    onSuccess: () => {
+      invalidateCaches()
+      toast.success('已駁回')
+    },
+    onError: (err: Error) => toast.error(`駁回失敗：${err.message}`),
+  })
+
+  // 追蹤 loading 狀態
+  const actionLoading = useMemo(() => {
+    const set = new Set<string>()
+    if (submitMutation.isPending && submitMutation.variables) {
+      submitMutation.variables.forEach((id: string) => set.add(id))
     }
-
-    for (const { id, data } of toUpdate) {
-      const { error } = await supabase
-        .from('expense_claims')
-        .update({
-          ...data,
-          vendor_name: (data.vendor_name as string)?.trim() || employeeName || undefined,
-        })
-        .eq('id', id)
-        .eq('status', 'draft')
-      if (error) errors.push({ tempId: id, message: error.message })
-      else successCount++
+    if (approveMutation.isPending && approveMutation.variables) {
+      set.add(approveMutation.variables)
     }
-
-    if (toDelete.length > 0) {
-      const { error } = await supabase
-        .from('expense_claims')
-        .delete()
-        .in('id', toDelete)
-        .eq('status', 'draft')
-      if (error) errors.push({ tempId: 'batch-delete', message: error.message })
-      else successCount += toDelete.length
+    if (rejectMutation.isPending && rejectMutation.variables) {
+      set.add(rejectMutation.variables.claimId)
     }
+    return set
+  }, [submitMutation.isPending, submitMutation.variables, approveMutation.isPending, approveMutation.variables, rejectMutation.isPending, rejectMutation.variables])
 
-    queryClient.invalidateQueries({ queryKey: [...currentQueryKey] })
-    queryClient.invalidateQueries({ queryKey: [...queryKeys.expenseClaimsPending] })
-    queryClient.invalidateQueries({ queryKey: ['my-employee'] })
-    queryClient.invalidateQueries({ queryKey: ['monthly-settlement'] })
-    return { successCount, errors }
-  }, [year, employeeName, queryClient, currentQueryKey])
-
-  // 篩選
-  const filtered = useMemo(() => {
-    const q = search.toLowerCase()
-    return records.filter(r => {
-      const matchesStatus = statusFilter === 'all' || r.status === statusFilter
-      const matchesSearch = !q ||
-        (r.project_name || '').toLowerCase().includes(q) ||
-        (r.vendor_name || '').toLowerCase().includes(q) ||
-        (r.invoice_number || '').toLowerCase().includes(q) ||
-        (r.accounting_subject || '').toLowerCase().includes(q)
-      return matchesStatus && matchesSearch
-    })
-  }, [search, statusFilter, records])
-
-  // 可送出的項目（draft 或 rejected）
-  const submittableItems = useMemo(() =>
-    filtered.filter(r => r.status === 'draft' || r.status === 'rejected'),
-    [filtered]
-  )
+  // ==================== Handlers ====================
 
   const handleOpenModal = useCallback((claim?: ExpenseClaim) => {
     setEditingClaim(claim || null)
@@ -313,12 +256,8 @@ export default function ExpenseClaimsPage() {
     deleteMutation.mutate(id)
   }, [deleteMutation, confirm])
 
-  const handleSubmitSelected = async () => {
-    const ids = Array.from(selectedIds).filter(id => submittableItems.some(item => item.id === id))
-    if (ids.length === 0) {
-      toast.error('請選擇要送出的項目')
-      return
-    }
+  const handleSubmit = useCallback(async (ids: string[]) => {
+    if (ids.length === 0) return
     const ok = await confirm({
       title: '確認送出',
       description: `確定要送出 ${ids.length} 筆報帳申請進行審核嗎？`,
@@ -326,31 +265,38 @@ export default function ExpenseClaimsPage() {
     })
     if (!ok) return
     submitMutation.mutate(ids)
-  }
+  }, [submitMutation, confirm])
 
-  const handleSubmitAll = async () => {
-    const ids = submittableItems.map(item => item.id)
-    if (ids.length === 0) {
-      toast.error('沒有可送出的項目')
-      return
-    }
+  const handleApprove = useCallback(async (claimId: string) => {
+    const claim = records.find(r => r.id === claimId)
     const ok = await confirm({
-      title: '確認送出',
-      description: `確定要送出全部 ${ids.length} 筆報帳申請進行審核嗎？`,
-      confirmLabel: '全部送出',
+      title: '核准報帳',
+      description: `確定要核准「${claim?.vendor_name || '未命名'}」的報帳（${claim?.expense_type}，NT$ ${new Intl.NumberFormat('zh-TW').format(claim?.total_amount || 0)}）？核准後將自動建立進項記錄和確認記錄。`,
     })
     if (!ok) return
-    submitMutation.mutate(ids)
-  }
+    approveMutation.mutate(claimId)
+  }, [approveMutation, confirm, records])
 
-  const toggleSelection = (id: string) => {
-    setSelectedIds(prev => {
-      const next = new Set(prev)
-      if (next.has(id)) next.delete(id)
-      else next.add(id)
-      return next
+  const handleReject = useCallback((claimId: string, reason: string) => {
+    rejectMutation.mutate({ claimId, reason })
+  }, [rejectMutation])
+
+  // ==================== Filtering ====================
+
+  const filtered = useMemo(() => {
+    const q = search.toLowerCase()
+    return records.filter(r => {
+      const matchesStatus = statusFilter === 'all' || r.status === statusFilter
+      const matchesSearch = !q ||
+        (r.project_name || '').toLowerCase().includes(q) ||
+        (r.vendor_name || '').toLowerCase().includes(q) ||
+        (r.invoice_number || '').toLowerCase().includes(q) ||
+        (r.accounting_subject || '').toLowerCase().includes(q)
+      return matchesStatus && matchesSearch
     })
-  }
+  }, [search, statusFilter, records])
+
+  // ==================== Render ====================
 
   const fmt = (n: number) => new Intl.NumberFormat('zh-TW').format(n)
 
@@ -359,7 +305,7 @@ export default function ExpenseClaimsPage() {
       <div className="space-y-6">
         <Skeleton className="h-8 w-48" />
         <div className="grid grid-cols-4 gap-3">
-          {[1,2,3,4].map(i => <Skeleton key={i} className="h-20" />)}
+          {[1, 2, 3, 4].map(i => <Skeleton key={i} className="h-20" />)}
         </div>
         <Skeleton className="h-96" />
       </div>
@@ -389,7 +335,9 @@ export default function ExpenseClaimsPage() {
         <Receipt className="w-7 h-7 text-info" />
         <div>
           <h1 className="text-2xl font-bold text-foreground">個人請款申請</h1>
-          <p className="text-sm text-muted-foreground">員工報帳申請，送出後進入請款審核</p>
+          <p className="text-sm text-muted-foreground">
+            {isEditor ? '所有員工報帳申請管理' : '員工報帳申請，送出後進入請款審核'}
+          </p>
         </div>
       </div>
 
@@ -453,206 +401,55 @@ export default function ExpenseClaimsPage() {
             className="w-full pl-9 pr-4 py-2 border border-border rounded-lg text-sm bg-card focus:outline-none focus:ring-2 focus:ring-ring"
           />
         </div>
-        {!isSpreadsheetMode && (
-          <button
-            onClick={() => handleOpenModal()}
-            className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors"
-          >
-            <Plus className="w-4 h-4" />
-            新增報帳
-          </button>
-        )}
         <button
-          onClick={() => setIsSpreadsheetMode(!isSpreadsheetMode)}
-          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-            isSpreadsheetMode
-              ? 'bg-info/10 text-info border border-info/30'
-              : 'bg-muted text-foreground hover:bg-accent'
-          }`}
+          onClick={() => handleOpenModal()}
+          className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors"
         >
-          <Table2 className="w-4 h-4" />
-          {isSpreadsheetMode ? '表格模式' : '試算表模式'}
+          <Plus className="w-4 h-4" />
+          新增報帳
         </button>
       </div>
 
-      {isSpreadsheetMode ? (
-        <SpreadsheetEditor<ExpenseClaim>
-          columns={spreadsheetColumns}
-          initialRows={records.filter(r => r.status === 'draft')}
-          year={year}
-          emptyRow={emptyClaimRow}
-          onAutoCalc={handleAutoCalcClaims}
-          onBatchSave={handleBatchSave}
-          accentColor="blue"
-          onClose={() => setIsSpreadsheetMode(false)}
-        />
-      ) : (
-      <>
-      {/* 批量送出操作列 */}
-      {selectedIds.size > 0 && (
-        <div className="flex items-center gap-3 bg-info/10 border border-info/30 rounded-xl px-4 py-3">
-          <span className="text-sm font-medium text-info">
-            已選擇 {selectedIds.size} 筆
-          </span>
-          <div className="flex-1" />
-          <button
-            onClick={handleSubmitSelected}
-            disabled={submitMutation.isPending}
-            className="flex items-center gap-2 px-4 py-2 bg-info text-white rounded-lg text-sm font-medium hover:bg-info/90 transition-colors disabled:opacity-50"
-          >
-            <Send className="w-4 h-4" />
-            送出審核
-          </button>
-        </div>
-      )}
-
       {/* 全部送出提示 */}
-      {submittableItems.length > 0 && selectedIds.size === 0 && (
-        <div className="flex items-center gap-3 bg-card border border-border rounded-xl px-4 py-3">
-          <AlertCircle className="w-4 h-4 text-info" />
-          <span className="text-sm text-muted-foreground">
-            有 {submittableItems.length} 筆可送出的報帳項目
-          </span>
-          <div className="flex-1" />
-          <button
-            onClick={handleSubmitAll}
-            disabled={submitMutation.isPending}
-            className="flex items-center gap-2 px-4 py-2 bg-info text-white rounded-lg text-sm font-medium hover:bg-info/90 transition-colors disabled:opacity-50"
-          >
-            <Send className="w-4 h-4" />
-            {submitMutation.isPending ? '送出中...' : `全部送出審核 (${submittableItems.length})`}
-          </button>
-        </div>
-      )}
+      {(() => {
+        const submittableCount = filtered.filter(r => r.status === 'draft' || r.status === 'rejected').length
+        if (submittableCount === 0) return null
+        return (
+          <div className="flex items-center gap-3 bg-card border border-border rounded-xl px-4 py-3">
+            <AlertCircle className="w-4 h-4 text-info" />
+            <span className="text-sm text-muted-foreground">
+              有 {submittableCount} 筆可送出的報帳項目
+            </span>
+            <div className="flex-1" />
+            <button
+              onClick={() => {
+                const ids = filtered
+                  .filter(r => r.status === 'draft' || r.status === 'rejected')
+                  .map(r => r.id)
+                handleSubmit(ids)
+              }}
+              disabled={submitMutation.isPending}
+              className="flex items-center gap-2 px-4 py-2 bg-info text-white rounded-lg text-sm font-medium hover:bg-info/90 transition-colors disabled:opacity-50"
+            >
+              <Send className="w-4 h-4" />
+              {submitMutation.isPending ? '送出中...' : `全部送出審核 (${submittableCount})`}
+            </button>
+          </div>
+        )
+      })()}
 
-      {/* 表格 */}
-      <div className="bg-card rounded-xl border border-border overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="bg-muted text-muted-foreground text-xs">
-                <th className="text-center px-3 py-3 w-10">
-                  <input
-                    type="checkbox"
-                    checked={selectedIds.size > 0 && selectedIds.size === submittableItems.length}
-                    onChange={(e) => {
-                      if (e.target.checked) {
-                        setSelectedIds(new Set(submittableItems.map(i => i.id)))
-                      } else {
-                        setSelectedIds(new Set())
-                      }
-                    }}
-                    className="h-4 w-4 rounded border-border"
-                  />
-                </th>
-                <th className="text-left px-4 py-3">狀態</th>
-                <th className="text-left px-4 py-3">報帳月份</th>
-                <th className="text-left px-4 py-3">支出種類</th>
-                <th className="text-left px-4 py-3">廠商/對象</th>
-                <th className="text-right px-4 py-3">金額</th>
-                <th className="text-right px-4 py-3">稅額</th>
-                <th className="text-right px-4 py-3">總額</th>
-                <th className="text-left px-4 py-3">專案名稱</th>
-                <th className="text-left px-4 py-3">發票號碼</th>
-                <th className="text-center px-3 py-3 w-20">操作</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.length === 0 ? (
-                <tr><td colSpan={11}>
-                  <EmptyState
-                    type="no-data"
-                    icon={Receipt}
-                    title="尚無報帳記錄"
-                    description="點擊「新增報帳」開始新增報帳項目"
-                  />
-                </td></tr>
-              ) : filtered.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE).map(r => {
-                const canSelect = r.status === 'draft' || r.status === 'rejected'
-                const canEdit = r.status === 'draft' || r.status === 'rejected'
-                const canDelete = r.status === 'draft' || r.status === 'rejected'
-                return (
-                  <tr key={r.id} className="border-t border-border/50 hover:bg-accent">
-                    <td className="text-center px-3 py-3">
-                      {canSelect && (
-                        <input
-                          type="checkbox"
-                          checked={selectedIds.has(r.id)}
-                          onChange={() => toggleSelection(r.id)}
-                          className="h-4 w-4 rounded border-border"
-                        />
-                      )}
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-1.5 flex-wrap">
-                        <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${CLAIM_STATUS_COLORS[r.status]}`}>
-                          {CLAIM_STATUS_LABELS[r.status]}
-                        </span>
-                        {r.status === 'approved' && r.payment_status && (
-                          <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${PAYMENT_STATUS_COLORS[r.payment_status]}`}>
-                            {PAYMENT_STATUS_LABELS[r.payment_status]}
-                          </span>
-                        )}
-                      </div>
-                      {r.rejection_reason && (
-                        <p className="text-[10px] text-destructive mt-0.5 max-w-24 truncate" title={r.rejection_reason}>
-                          {r.rejection_reason}
-                        </p>
-                      )}
-                    </td>
-                    <td className="px-4 py-3 text-muted-foreground">{r.claim_month || '-'}</td>
-                    <td className="px-4 py-3">{r.expense_type}</td>
-                    <td className="px-4 py-3 font-medium">{r.vendor_name || '-'}</td>
-                    <td className="px-4 py-3 text-right">NT$ {fmt(r.amount || 0)}</td>
-                    <td className="px-4 py-3 text-right text-muted-foreground">{fmt(r.tax_amount || 0)}</td>
-                    <td className="px-4 py-3 text-right font-medium">NT$ {fmt(r.total_amount || 0)}</td>
-                    <td className="px-4 py-3 text-muted-foreground max-w-32">
-                      <div className="truncate">{r.project_name || '-'}</div>
-                      {r.note && (
-                        <p className="text-[10px] text-muted-foreground/60 mt-0.5 truncate" title={r.note}>
-                          {r.note}
-                        </p>
-                      )}
-                    </td>
-                    <td className="px-4 py-3 text-muted-foreground font-mono text-xs">{r.invoice_number || '-'}</td>
-                    <td className="px-3 py-3">
-                      {(canEdit || canDelete) && (
-                        <div className="flex items-center justify-center gap-1">
-                          {canEdit && (
-                            <button
-                              onClick={() => handleOpenModal(r)}
-                              className="p-1.5 text-muted-foreground hover:text-info hover:bg-info/10 rounded-md transition-colors"
-                              title="編輯"
-                            >
-                              <Pencil className="w-3.5 h-3.5" />
-                            </button>
-                          )}
-                          {canDelete && (
-                            <button
-                              onClick={() => handleDelete(r.id)}
-                              className="p-1.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-md transition-colors"
-                              title="刪除"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
-                          )}
-                        </div>
-                      )}
-                    </td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
-        </div>
-        <Pagination
-          currentPage={currentPage}
-          totalPages={Math.ceil(filtered.length / PAGE_SIZE)}
-          totalItems={filtered.length}
-          pageSize={PAGE_SIZE}
-          onPageChange={setCurrentPage}
-        />
-      </div>
+      {/* 手風琴群組 */}
+      <ExpenseClaimGroups
+        claims={filtered}
+        isEditor={isEditor}
+        nameMap={nameMap}
+        onEdit={handleOpenModal}
+        onDelete={handleDelete}
+        onSubmit={handleSubmit}
+        onApprove={handleApprove}
+        onReject={handleReject}
+        actionLoading={actionLoading}
+      />
 
       {/* Modal */}
       <ExpenseClaimModal
@@ -663,8 +460,6 @@ export default function ExpenseClaimsPage() {
         year={year}
         projectNames={projectNames}
       />
-      </>
-      )}
     </div>
   )
 }

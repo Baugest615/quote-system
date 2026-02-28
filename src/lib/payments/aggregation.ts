@@ -119,9 +119,12 @@ export function aggregateMonthlyRemittanceGroups(
 
   // --- 2. 處理 accounting_expenses（進項管理手動新增的） ---
   if (expenses) {
-    // 過濾：只取該月份、且非由確認清單自動產生的紀錄（避免重複計算）
+    // 過濾：只取該月份、且非自動產生的紀錄（避免重複計算）
+    // - payment_confirmation_id: 確認清單自動產生
+    // - quotation_item_id: 報價單核准自動產生
+    // - expense_claim_id: 個人報帳核准自動產生（已有對應 confirmation_item）
     const monthExpenses = expenses.filter(e => {
-      if (e.payment_confirmation_id || e.quotation_item_id) return false
+      if (e.payment_confirmation_id || e.quotation_item_id || e.expense_claim_id) return false
       const m = expenseMonthToYYYYMM(e.expense_month || '')
       return m === month
     })
