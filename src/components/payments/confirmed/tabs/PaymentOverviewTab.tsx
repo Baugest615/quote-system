@@ -150,18 +150,23 @@ export function PaymentOverviewTab({
         return localSettings[remittanceName] || undefined
     }, [localSettings])
 
-    // 彙總數字（使用 localSettings 即時計算，只計算匯費）
+    // 彙總數字（匯費使用 localSettings 即時計算，代扣從 group 取得）
     const summary = useMemo(() => {
         let totalAmount = 0
         let totalFee = 0
+        let totalTax = 0
+        let totalInsurance = 0
 
         groups.forEach(g => {
             const s = localSettings[g.remittanceName]
             totalAmount += g.totalAmount
             totalFee += s?.hasRemittanceFee ? (s.remittanceFeeAmount || 0) : g.totalFee
+            totalTax += g.totalTax
+            totalInsurance += g.totalInsurance
         })
 
-        return { totalAmount, totalFee, netTotal: totalAmount - totalFee }
+        const totalDeductions = totalFee + totalTax + totalInsurance
+        return { totalAmount, totalFee, totalTax, totalInsurance, totalDeductions, netTotal: totalAmount - totalDeductions }
     }, [groups, localSettings])
 
     const hasAnyData = confirmations.length > 0
@@ -212,7 +217,19 @@ export function PaymentOverviewTab({
             {/* 彙總卡片 */}
             <div className="grid grid-cols-3 gap-3">
                 <SummaryCard label="匯款總額" value={summary.totalAmount} color="text-foreground" />
-                <SummaryCard label="匯費合計" value={summary.totalFee} color="text-warning" />
+                <div className="rounded-lg p-3 border bg-secondary/50 border-border">
+                    <div className="text-xs text-muted-foreground mb-1">扣除合計</div>
+                    <div className="text-lg font-bold text-warning">
+                        NT$ {summary.totalDeductions.toLocaleString()}
+                    </div>
+                    {summary.totalDeductions > 0 && (
+                        <div className="text-[10px] text-muted-foreground mt-1 space-y-0.5">
+                            {summary.totalFee > 0 && <div>匯費 {summary.totalFee.toLocaleString()}</div>}
+                            {summary.totalTax > 0 && <div>所得稅 {summary.totalTax.toLocaleString()}</div>}
+                            {summary.totalInsurance > 0 && <div>健保 {summary.totalInsurance.toLocaleString()}</div>}
+                        </div>
+                    )}
+                </div>
                 <SummaryCard label="實付總額" value={summary.netTotal} color="text-info" highlight />
             </div>
 

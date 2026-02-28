@@ -50,6 +50,8 @@ export function aggregateMonthlyRemittanceGroups(
 ): MergedRemittanceGroup[] {
   const taxRate = rates?.income_tax_rate ?? DEFAULT_WITHHOLDING.income_tax_rate
   const nhiRate = rates?.nhi_supplement_rate ?? DEFAULT_WITHHOLDING.nhi_supplement_rate
+  const taxThreshold = rates?.income_tax_threshold ?? DEFAULT_WITHHOLDING.income_tax_threshold
+  const nhiThreshold = rates?.nhi_threshold ?? DEFAULT_WITHHOLDING.nhi_threshold
 
   const mergedMap = new Map<string, MergedRemittanceGroup>()
 
@@ -71,8 +73,6 @@ export function aggregateMonthlyRemittanceGroups(
       }
 
       const subtotal = group.totalAmount
-      const tax = settings.hasTax ? Math.floor(subtotal * taxRate) : 0
-      const insurance = settings.hasInsurance ? Math.floor(subtotal * nhiRate) : 0
       const fee = settings.hasRemittanceFee ? settings.remittanceFeeAmount : 0
 
       const isPersonalClaim = group.items.some(
@@ -106,13 +106,11 @@ export function aggregateMonthlyRemittanceGroups(
         confirmationId: confirmation.id,
         confirmationDate: confirmation.confirmation_date,
         subtotal,
-        tax,
-        insurance,
+        tax: 0,
+        insurance: 0,
         fee,
       })
       merged.totalAmount += subtotal
-      merged.totalTax += tax
-      merged.totalInsurance += insurance
       merged.totalFee += fee
     }
   }
@@ -198,9 +196,26 @@ export function aggregateMonthlyRemittanceGroups(
     }
   }
 
-  // 計算 netTotal
+  // 計算代扣代繳（基於合併後的總額判斷，與 computeMonthlyWithholding 一致）
   const result = Array.from(mergedMap.values())
   result.forEach(group => {
+    // 從 DB 設定中讀取（任一 confirmation 有設定即可）
+    const savedSetting = monthConfirmations
+      .map(c => c.remittance_settings?.[group.remittanceName])
+      .find(s => s !== undefined)
+
+    // 代扣只適用於有 KOL 確認項目的勞報帳戶（排除薪資、進項、公司戶、免扣）
+    const hasKolItems = group.items.length > 0
+    const isExempt = !hasKolItems || group.isCompanyAccount || group.isWithholdingExempt || group.isPersonalClaim
+    const hasTax = savedSetting
+      ? savedSetting.hasTax
+      : (!isExempt && group.totalAmount >= taxThreshold)
+    const hasInsurance = savedSetting
+      ? savedSetting.hasInsurance
+      : (!isExempt && group.totalAmount >= nhiThreshold)
+
+    group.totalTax = hasTax ? Math.floor(group.totalAmount * taxRate) : 0
+    group.totalInsurance = hasInsurance ? Math.floor(group.totalAmount * nhiRate) : 0
     group.netTotal = group.totalAmount - group.totalTax - group.totalInsurance - group.totalFee
   })
 
@@ -264,7 +279,7 @@ export function exportBankTransferCsv(
   month: string
 ) {
   const rows: string[][] = [
-    ['匯款戶名', '銀行', '分行', '帳號', '帳戶類型', '給付金額', '匯費', '實付金額']
+    ['匯款戶名', '銀行', '分行', '帳號', '帳戶類型', '給付金額', '匯費', '代扣所得稅', '代扣健保', '實付金額']
   ]
 
   for (const group of groups) {
@@ -276,6 +291,8 @@ export function exportBankTransferCsv(
       group.isCompanyAccount ? '公司戶' : '個人戶',
       group.totalAmount.toString(),
       group.totalFee.toString(),
+      group.totalTax.toString(),
+      group.totalInsurance.toString(),
       group.netTotal.toString(),
     ])
   }

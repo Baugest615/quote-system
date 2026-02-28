@@ -98,10 +98,14 @@ export function ConfirmationDetails({ confirmation, settings, updateSettings, ge
                     item => item.source_type === 'personal' || item.expense_claim_id
                 )
 
-                // 即時計算（只計算匯費，代扣由 WithholdingTab 獨立處理）
+                // 即時計算（匯費可編輯，代扣唯讀顯示）
                 const subtotal = group.totalAmount
                 const fee = settings.hasRemittanceFee ? settings.remittanceFeeAmount : 0
-                const netTotal = subtotal - fee
+                const taxRate = withholdingRates?.income_tax_rate ?? DEFAULT_WITHHOLDING.income_tax_rate
+                const nhiRate = withholdingRates?.nhi_supplement_rate ?? DEFAULT_WITHHOLDING.nhi_supplement_rate
+                const tax = settings.hasTax ? Math.floor(subtotal * taxRate) : 0
+                const insurance = settings.hasInsurance ? Math.floor(subtotal * nhiRate) : 0
+                const netTotal = subtotal - fee - tax - insurance
                 const colSpan = onRevertItem ? 6 : 5
 
                 return (
@@ -119,6 +123,11 @@ export function ConfirmationDetails({ confirmation, settings, updateSettings, ge
                                                 <span className="text-xs bg-success/20 text-success px-2 py-0.5 rounded font-normal inline-flex items-center gap-1">
                                                     <ShieldCheck className="h-3 w-3" />
                                                     公司戶
+                                                </span>
+                                            )}
+                                            {!group.isCompanyAccount && !group.isWithholdingExempt && !isPersonalClaim && (
+                                                <span className="text-xs bg-chart-4/20 text-chart-4 px-2 py-0.5 rounded font-normal">
+                                                    勞報
                                                 </span>
                                             )}
                                             {!group.isCompanyAccount && group.isWithholdingExempt && (
@@ -212,6 +221,18 @@ export function ConfirmationDetails({ confirmation, settings, updateSettings, ge
                                         <tr className="text-warning">
                                             <td colSpan={colSpan} className="px-4 py-1 text-right">扣除：匯費</td>
                                             <td className="px-4 py-1 text-right">- NT$ {fee.toLocaleString()}</td>
+                                        </tr>
+                                    )}
+                                    {tax > 0 && (
+                                        <tr className="text-warning">
+                                            <td colSpan={colSpan} className="px-4 py-1 text-right">扣除：代扣所得稅</td>
+                                            <td className="px-4 py-1 text-right">- NT$ {tax.toLocaleString()}</td>
+                                        </tr>
+                                    )}
+                                    {insurance > 0 && (
+                                        <tr className="text-warning">
+                                            <td colSpan={colSpan} className="px-4 py-1 text-right">扣除：代扣二代健保</td>
+                                            <td className="px-4 py-1 text-right">- NT$ {insurance.toLocaleString()}</td>
                                         </tr>
                                     )}
                                     <tr className="bg-info/10 border-t border-info/25">

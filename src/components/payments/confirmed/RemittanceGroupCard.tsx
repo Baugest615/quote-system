@@ -39,10 +39,12 @@ export function RemittanceGroupCard({
         return map
     }, [group.items])
 
-    // 即時計算（只計算匯費，代扣由 WithholdingTab 獨立處理）
+    // 即時計算（匯費可編輯，代扣唯讀顯示）
     const subtotal = group.totalAmount
     const fee = settings?.hasRemittanceFee ? (settings.remittanceFeeAmount || 0) : group.totalFee
-    const netTotal = subtotal - fee
+    const tax = group.totalTax
+    const insurance = group.totalInsurance
+    const netTotal = subtotal - fee - tax - insurance
 
     // 是否顯示退回按鈕（僅 Admin + 有 handler + confirmation items）
     const showRevert = isAdmin && onRevertItem
@@ -71,6 +73,11 @@ export function RemittanceGroupCard({
                                 <span className="text-xs bg-success/20 text-success px-2 py-0.5 rounded inline-flex items-center gap-1">
                                     <ShieldCheck className="h-3 w-3" />
                                     公司戶
+                                </span>
+                            )}
+                            {!group.isCompanyAccount && !group.isWithholdingExempt && !group.isPersonalClaim && group.items.length > 0 && (
+                                <span className="text-xs bg-chart-4/20 text-chart-4 px-2 py-0.5 rounded">
+                                    勞報
                                 </span>
                             )}
                             {!group.isCompanyAccount && group.isWithholdingExempt && (
@@ -103,9 +110,12 @@ export function RemittanceGroupCard({
                     <div className="font-bold text-info">
                         NT$ {netTotal.toLocaleString()}
                     </div>
-                    {fee > 0 && (
+                    {(fee > 0 || tax > 0 || insurance > 0) && (
                         <div className="text-xs text-muted-foreground">
-                            總額 {subtotal.toLocaleString()} · 匯費 -{fee.toLocaleString()}
+                            總額 {subtotal.toLocaleString()}
+                            {fee > 0 && ` · 匯費 -${fee.toLocaleString()}`}
+                            {tax > 0 && ` · 稅 -${tax.toLocaleString()}`}
+                            {insurance > 0 && ` · 健保 -${insurance.toLocaleString()}`}
                         </div>
                     )}
                 </div>
@@ -230,6 +240,18 @@ export function RemittanceGroupCard({
                                     <tr className="text-warning">
                                         <td colSpan={colSpan} className="px-4 py-1 text-right">扣除：匯費</td>
                                         <td className="px-4 py-1 text-right">- NT$ {fee.toLocaleString()}</td>
+                                    </tr>
+                                )}
+                                {tax > 0 && (
+                                    <tr className="text-warning">
+                                        <td colSpan={colSpan} className="px-4 py-1 text-right">扣除：代扣所得稅</td>
+                                        <td className="px-4 py-1 text-right">- NT$ {tax.toLocaleString()}</td>
+                                    </tr>
+                                )}
+                                {insurance > 0 && (
+                                    <tr className="text-warning">
+                                        <td colSpan={colSpan} className="px-4 py-1 text-right">扣除：代扣二代健保</td>
+                                        <td className="px-4 py-1 text-right">- NT$ {insurance.toLocaleString()}</td>
                                     </tr>
                                 )}
                                 <tr className="bg-info/10 border-t border-info/25">
