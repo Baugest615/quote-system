@@ -104,27 +104,40 @@ export function useMonthlySettlement(year: number, month: string) {
   const queryClient = useQueryClient()
   const monthLabel = `${year}年${month}`
 
-  // 並行查詢四張表
+  // 計算日期範圍（用於 payment_date / actual_receipt_date 查詢）
+  const monthNum = parseInt(month) // "2月" → 2
+  const startDate = `${year}-${String(monthNum).padStart(2, '0')}-01`
+  const nextMonth = monthNum === 12 ? 1 : monthNum + 1
+  const nextYear = monthNum === 12 ? year + 1 : year
+  const endDate = `${nextYear}-${String(nextMonth).padStart(2, '0')}-01`
+
+  // 並行查詢五張表（expenses/payroll/sales 改用實際付款日篩選）
   const query = useQuery({
     queryKey: [...queryKeys.monthlySettlement(year, month)],
     queryFn: async (): Promise<MonthlySettlementData> => {
       const [expensesRes, payrollRes, employeesRes, withholdingClaimsRes, salesRes] = await Promise.all([
+        // 進項：以實際匯款日（payment_date）篩選
         supabase
           .from('accounting_expenses')
           .select('*')
-          .eq('expense_month', monthLabel)
+          .not('payment_date', 'is', null)
+          .gte('payment_date', startDate)
+          .lt('payment_date', endDate)
           .order('created_at', { ascending: false }),
+        // 薪資：以實際發薪日（payment_date）篩選
         supabase
           .from('accounting_payroll')
           .select('*')
-          .eq('salary_month', monthLabel)
+          .not('payment_date', 'is', null)
+          .gte('payment_date', startDate)
+          .lt('payment_date', endDate)
           .order('employee_name'),
         supabase
           .from('employees')
           .select('*')
           .eq('status', '在職')
           .order('name'),
-        // 代扣代繳報帳：已核准、歸屬此月份付款批次
+        // 代扣代繳報帳：維持 claim_month 篩選（無 payment_date 欄位）
         supabase
           .from('expense_claims')
           .select('*')
@@ -132,11 +145,13 @@ export function useMonthlySettlement(year: number, month: string) {
           .eq('status', 'approved')
           .eq('claim_month', monthLabel)
           .order('created_at', { ascending: false }),
-        // 銷項（收入）
+        // 銷項（收入）：以實際入帳日（actual_receipt_date）篩選
         supabase
           .from('accounting_sales')
           .select('*')
-          .eq('invoice_month', monthLabel)
+          .not('actual_receipt_date', 'is', null)
+          .gte('actual_receipt_date', startDate)
+          .lt('actual_receipt_date', endDate)
           .order('created_at', { ascending: false }),
       ])
 

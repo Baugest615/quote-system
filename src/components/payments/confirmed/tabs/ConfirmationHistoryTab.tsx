@@ -13,6 +13,7 @@ interface ConfirmationHistoryTabProps {
     confirmations: PaymentConfirmation[]
     onToggleExpansion: (id: string) => void
     onRevert: (confirmation: PaymentConfirmation) => void
+    onRevertItem?: (itemId: string) => void
     onSettingsChange?: (confirmationId: string, newSettings: RemittanceSettings) => void
     withholdingRates?: WithholdingSettings | null
 }
@@ -21,6 +22,7 @@ export function ConfirmationHistoryTab({
     confirmations,
     onToggleExpansion,
     onRevert,
+    onRevertItem,
     onSettingsChange,
     withholdingRates,
 }: ConfirmationHistoryTabProps) {
@@ -164,6 +166,7 @@ export function ConfirmationHistoryTab({
                             confirmation={confirmation}
                             onToggleExpansion={onToggleExpansion}
                             onRevert={onRevert}
+                            onRevertItem={onRevertItem}
                             onSettingsChange={onSettingsChange}
                             withholdingRates={withholdingRates}
                         />

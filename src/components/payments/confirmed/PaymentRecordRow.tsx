@@ -1,3 +1,4 @@
+import { Undo2 } from 'lucide-react'
 import { PaymentConfirmationItem } from '@/lib/payments/types'
 import { type KolBankInfo } from '@/types/schemas'
 
@@ -23,9 +24,22 @@ const MERGE_BADGE_COLORS: Record<string, string> = {
 interface PaymentRecordRowProps {
     item: PaymentConfirmationItem
     groupLabel?: string
+    onRevertItem?: (itemId: string) => void
 }
 
-export function PaymentRecordRow({ item, groupLabel }: PaymentRecordRowProps) {
+export function PaymentRecordRow({ item, groupLabel, onRevertItem }: PaymentRecordRowProps) {
+    const revertCell = onRevertItem ? (
+        <td className="px-4 py-3 text-center">
+            <button
+                onClick={() => onRevertItem(item.id)}
+                className="p-1 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
+                title="退回此項目"
+            >
+                <Undo2 className="h-3.5 w-3.5" />
+            </button>
+        </td>
+    ) : null
+
     // 個人報帳項目
     if (item.source_type === 'personal' || item.expense_claim_id) {
         const claim = item.expense_claims
@@ -52,6 +66,7 @@ export function PaymentRecordRow({ item, groupLabel }: PaymentRecordRowProps) {
                 <td className="px-4 py-3 text-right font-medium text-foreground">
                     NT$ {(item.amount || claim?.total_amount || 0).toLocaleString()}
                 </td>
+                {revertCell}
             </tr>
         )
     }
@@ -116,6 +131,7 @@ export function PaymentRecordRow({ item, groupLabel }: PaymentRecordRowProps) {
             <td className="px-4 py-3 text-right font-medium text-foreground">
                 NT$ {amount.toLocaleString()}
             </td>
+            {revertCell}
         </tr>
     )
 }

@@ -15,9 +15,10 @@ interface ConfirmationDetailsProps {
     updateSettings: (remittanceName: string, updates: Partial<RemittanceSettings[string]>) => void
     getSettings: (remittanceName: string) => RemittanceSettings[string]
     withholdingRates?: WithholdingSettings | null
+    onRevertItem?: (itemId: string) => void
 }
 
-export function ConfirmationDetails({ confirmation, settings, updateSettings, getSettings, withholdingRates }: ConfirmationDetailsProps) {
+export function ConfirmationDetails({ confirmation, settings, updateSettings, getSettings, withholdingRates, onRevertItem }: ConfirmationDetailsProps) {
     const remittanceGroups = groupItemsByRemittance(confirmation.payment_confirmation_items)
 
     // 合併群組標籤映射（A, B, C...）
@@ -252,6 +253,9 @@ export function ConfirmationDetails({ confirmation, settings, updateSettings, ge
                                         <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">匯款戶名</th>
                                         <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">備註</th>
                                         <th className="px-4 py-3 text-right text-xs font-medium text-muted-foreground uppercase tracking-wider">匯款金額</th>
+                                        {onRevertItem && (
+                                            <th className="px-4 py-3 text-center text-xs font-medium text-muted-foreground uppercase tracking-wider w-16">操作</th>
+                                        )}
                                     </tr>
                                 </thead>
                                 <tbody className="bg-card divide-y divide-border">
@@ -260,6 +264,7 @@ export function ConfirmationDetails({ confirmation, settings, updateSettings, ge
                                             key={item.id}
                                             item={item}
                                             groupLabel={item.payment_requests?.merge_group_id ? mergeGroupLabelMap.get(item.payment_requests.merge_group_id) : undefined}
+                                            onRevertItem={onRevertItem}
                                         />
                                     ))}
                                 </tbody>
@@ -267,7 +272,7 @@ export function ConfirmationDetails({ confirmation, settings, updateSettings, ge
                                 <tfoot className="bg-muted/20 font-medium text-sm">
                                     {/* 小計 */}
                                     <tr>
-                                        <td colSpan={5} className="px-4 py-2 text-right text-muted-foreground">小計 (Subtotal)</td>
+                                        <td colSpan={onRevertItem ? 6 : 5} className="px-4 py-2 text-right text-muted-foreground">小計 (Subtotal)</td>
                                         <td className="px-4 py-2 text-right text-foreground">
                                             NT$ {subtotal.toLocaleString()}
                                         </td>
@@ -276,26 +281,26 @@ export function ConfirmationDetails({ confirmation, settings, updateSettings, ge
                                     {/* 扣除項 */}
                                     {settings.hasRemittanceFee && (
                                         <tr className="text-destructive">
-                                            <td colSpan={5} className="px-4 py-1 text-right">扣除：匯費</td>
+                                            <td colSpan={onRevertItem ? 6 : 5} className="px-4 py-1 text-right">扣除：匯費</td>
                                             <td className="px-4 py-1 text-right">- NT$ {fee.toLocaleString()}</td>
                                         </tr>
                                     )}
                                     {settings.hasTax && (
                                         <tr className="text-destructive">
-                                            <td colSpan={5} className="px-4 py-1 text-right">扣除：所得稅 ({(taxRate * 100).toFixed(0)}%)</td>
+                                            <td colSpan={onRevertItem ? 6 : 5} className="px-4 py-1 text-right">扣除：所得稅 ({(taxRate * 100).toFixed(0)}%)</td>
                                             <td className="px-4 py-1 text-right">- NT$ {tax.toLocaleString()}</td>
                                         </tr>
                                     )}
                                     {settings.hasInsurance && (
                                         <tr className="text-destructive">
-                                            <td colSpan={5} className="px-4 py-1 text-right">扣除：二代健保 ({(nhiRate * 100).toFixed(2)}%)</td>
+                                            <td colSpan={onRevertItem ? 6 : 5} className="px-4 py-1 text-right">扣除：二代健保 ({(nhiRate * 100).toFixed(2)}%)</td>
                                             <td className="px-4 py-1 text-right">- NT$ {insurance.toLocaleString()}</td>
                                         </tr>
                                     )}
 
                                     {/* 實付金額 */}
                                     <tr className="bg-info/10 border-t border-info/25">
-                                        <td colSpan={5} className="px-4 py-3 text-right text-info font-bold">實付金額 (Net Payment)</td>
+                                        <td colSpan={onRevertItem ? 6 : 5} className="px-4 py-3 text-right text-info font-bold">實付金額 (Net Payment)</td>
                                         <td className="px-4 py-3 text-right text-info font-bold text-lg">
                                             NT$ {netTotal.toLocaleString()}
                                         </td>

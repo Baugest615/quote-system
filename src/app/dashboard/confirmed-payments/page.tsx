@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useCallback, useMemo } from 'react'
-import { useQueryClient } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Button } from '@/components/ui/button'
 import { RefreshCw, Shield, Banknote, FileSpreadsheet, ClipboardList } from 'lucide-react'
 import { toast } from 'sonner'
@@ -14,9 +14,11 @@ import { usePermission } from '@/lib/permissions'
 import { usePaymentData } from '@/hooks/payments/usePaymentData'
 import { useWithholdingSettings } from '@/hooks/useWithholdingSettings'
 import { queryKeys } from '@/lib/queryKeys'
+import { CURRENT_YEAR } from '@/lib/constants'
 
 // Types
 import { PaymentConfirmation, RemittanceSettings } from '@/lib/payments/types'
+import type { AccountingPayroll } from '@/types/custom.types'
 
 // Components
 import { LoadingState } from '@/components/payments/shared'
@@ -43,6 +45,20 @@ export default function ConfirmedPaymentsPage() {
   const queryClient = useQueryClient()
   const { data: withholdingRates } = useWithholdingSettings()
   const [activeTab, setActiveTab] = useState<TabKey>('overview')
+
+  // 薪資資料查詢（已付款的薪資，僅在匯款總覽中檢視）
+  const { data: payrollData } = useQuery({
+    queryKey: [...queryKeys.accountingPayroll(CURRENT_YEAR), 'confirmed-view'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('accounting_payroll')
+        .select('*')
+        .not('payment_date', 'is', null)
+        .order('payment_date', { ascending: false })
+      if (error) throw error
+      return (data || []) as AccountingPayroll[]
+    },
+  })
 
   // 1. 資料管理 Hook
   const fetchConfirmedPayments = useCallback(async () => {
@@ -277,6 +293,123 @@ export default function ConfirmedPaymentsPage() {
     }
   }
 
+  // ====== 單筆退回 ======
+  const handleRevertItem = async (itemId: string) => {
+    const ok = await confirm({
+      title: '確認退回此項目',
+      description: '此項目將退回到「請款申請」頁面，是否繼續？',
+      confirmLabel: '退回',
+    })
+    if (!ok) return
+
+    try {
+      // 1. 查詢 item 詳情
+      const { data: item, error: fetchErr } = await supabase
+        .from('payment_confirmation_items')
+        .select('id, payment_confirmation_id, payment_request_id, expense_claim_id, source_type, amount_at_confirmation')
+        .eq('id', itemId)
+        .single()
+      if (fetchErr || !item) throw new Error('找不到該確認項目')
+
+      const confirmationId = item.payment_confirmation_id
+      const amount = item.amount_at_confirmation || 0
+
+      // 2. 刪除 confirmation item
+      const { error: delErr } = await supabase
+        .from('payment_confirmation_items')
+        .delete()
+        .eq('id', itemId)
+      if (delErr) throw new Error('刪除確認項目失敗: ' + delErr.message)
+
+      // 3. 更新父 confirmation 的 totals，若為空則刪除
+      const { data: remaining } = await supabase
+        .from('payment_confirmation_items')
+        .select('id')
+        .eq('payment_confirmation_id', confirmationId)
+
+      if (!remaining || remaining.length === 0) {
+        // 清理匯費
+        await supabase.from('accounting_expenses').delete().eq('payment_confirmation_id', confirmationId)
+        await supabase.from('payment_confirmations').delete().eq('id', confirmationId)
+      } else {
+        await supabase
+          .from('payment_confirmations')
+          .update({
+            total_amount: remaining.length > 0 ? undefined : 0, // 讓 DB 自己計算
+            total_items: remaining.length,
+          })
+          .eq('id', confirmationId)
+
+        // 手動扣減金額
+        const { data: conf } = await supabase
+          .from('payment_confirmations')
+          .select('total_amount')
+          .eq('id', confirmationId)
+          .single()
+        if (conf) {
+          await supabase
+            .from('payment_confirmations')
+            .update({ total_amount: (conf.total_amount || 0) - amount })
+            .eq('id', confirmationId)
+        }
+      }
+
+      // 4. 根據來源類型清理
+      if (item.payment_request_id && item.source_type !== 'personal') {
+        await supabase
+          .from('accounting_expenses')
+          .delete()
+          .eq('payment_request_id', item.payment_request_id)
+
+        await supabase
+          .from('payment_requests')
+          .update({
+            verification_status: 'pending',
+            approved_by: null,
+            approved_at: null,
+            rejection_reason: null,
+            rejected_by: null,
+            rejected_at: null,
+          })
+          .eq('id', item.payment_request_id)
+      }
+
+      if (item.expense_claim_id || item.source_type === 'personal') {
+        const claimId = item.expense_claim_id
+        if (claimId) {
+          await supabase
+            .from('expense_claims')
+            .update({ status: 'submitted', approved_by: null, approved_at: null })
+            .eq('id', claimId)
+
+          await supabase
+            .from('accounting_expenses')
+            .delete()
+            .eq('expense_claim_id', claimId)
+
+          await supabase
+            .from('withholding_settlements')
+            .delete()
+            .eq('expense_claim_id', claimId)
+        }
+      }
+
+      // 5. 快取失效
+      toast.success('已退回此項目')
+      refresh()
+      queryClient.invalidateQueries({ queryKey: [...queryKeys.paymentRequests] })
+      queryClient.invalidateQueries({ queryKey: [...queryKeys.pendingPayments] })
+      queryClient.invalidateQueries({ queryKey: [...queryKeys.dashboardStats] })
+      queryClient.invalidateQueries({ queryKey: ['monthly-settlement'] })
+      queryClient.invalidateQueries({ queryKey: ['accounting-expenses'] })
+      queryClient.invalidateQueries({ queryKey: ['expense-claims'] })
+      queryClient.invalidateQueries({ queryKey: [...queryKeys.expenseClaimsPending] })
+    } catch (error: unknown) {
+      console.error('單筆退回失敗:', error)
+      toast.error('操作失敗: ' + (error instanceof Error ? error.message : String(error)))
+    }
+  }
+
   if (permLoading || loading) return <LoadingState message="載入已確認請款記錄..." />
 
   if (!hasAccess) {
@@ -332,6 +465,7 @@ export default function ConfirmedPaymentsPage() {
         <PaymentOverviewTab
           confirmations={confirmations}
           withholdingRates={withholdingRates}
+          payrollData={payrollData}
         />
       )}
 
@@ -347,6 +481,7 @@ export default function ConfirmedPaymentsPage() {
           confirmations={confirmations}
           onToggleExpansion={toggleExpansion}
           onRevert={handleRevert}
+          onRevertItem={handleRevertItem}
           onSettingsChange={handleSettingsChange}
           withholdingRates={withholdingRates}
         />

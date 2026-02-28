@@ -4,7 +4,7 @@ import { useState, useMemo } from 'react'
 import { DollarSign, Download, Users, Building2, ShieldCheck, ChevronDown, ChevronRight } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import type { PaymentConfirmation } from '@/lib/payments/types'
-import type { WithholdingSettings } from '@/types/custom.types'
+import type { WithholdingSettings, AccountingPayroll } from '@/types/custom.types'
 import {
     getAvailableMonths,
     aggregateMonthlyRemittanceGroups,
@@ -13,13 +13,15 @@ import {
 } from '@/lib/payments/aggregation'
 import { DEFAULT_WITHHOLDING } from '@/hooks/useWithholdingSettings'
 import { RemittanceGroupCard } from '../RemittanceGroupCard'
+import { PayrollSection } from '../PayrollSection'
 
 interface PaymentOverviewTabProps {
     confirmations: PaymentConfirmation[]
     withholdingRates?: WithholdingSettings | null
+    payrollData?: AccountingPayroll[]
 }
 
-export function PaymentOverviewTab({ confirmations, withholdingRates }: PaymentOverviewTabProps) {
+export function PaymentOverviewTab({ confirmations, withholdingRates, payrollData }: PaymentOverviewTabProps) {
     const availableMonths = useMemo(() => getAvailableMonths(confirmations), [confirmations])
 
     const [selectedMonth, setSelectedMonth] = useState(() => {
@@ -144,7 +146,12 @@ export function PaymentOverviewTab({ confirmations, withholdingRates }: PaymentO
                 </div>
             )}
 
-            {groups.length === 0 && (
+            {/* 人事薪資區塊 */}
+            {payrollData && payrollData.length > 0 && (
+                <PayrollSection payrollData={payrollData} selectedMonth={selectedMonth} />
+            )}
+
+            {groups.length === 0 && (!payrollData || payrollData.length === 0) && (
                 <div className="text-center py-8 text-muted-foreground">
                     {selectedMonth} 沒有匯款資料
                 </div>

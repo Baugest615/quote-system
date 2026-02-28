@@ -7,13 +7,15 @@ import type { WithholdingSettings } from '@/types/custom.types'
 import { DEFAULT_WITHHOLDING } from '@/hooks/useWithholdingSettings'
 import { groupItemsByRemittance } from './grouping'
 import { downloadCsv } from './withholding-export'
+import { getBillingMonthKey } from './billingPeriod'
 
 /**
- * 從確認清單提取所有可用月份（YYYY-MM 降序）
+ * 從確認清單提取所有可用帳務期間（YYYY-MM 降序）
+ * 使用 10 日切點規則：10 日（含）前 → 當月，10 日後 → 次月
  */
 export function getAvailableMonths(confirmations: PaymentConfirmation[]): string[] {
   const months = new Set<string>()
-  confirmations.forEach(c => months.add(c.confirmation_date.slice(0, 7)))
+  confirmations.forEach(c => months.add(getBillingMonthKey(c.confirmation_date)))
   return Array.from(months).sort().reverse()
 }
 
@@ -32,7 +34,7 @@ export function aggregateMonthlyRemittanceGroups(
   const mergedMap = new Map<string, MergedRemittanceGroup>()
 
   const monthConfirmations = confirmations.filter(c =>
-    c.confirmation_date.startsWith(month)
+    getBillingMonthKey(c.confirmation_date) === month
   )
 
   for (const confirmation of monthConfirmations) {
