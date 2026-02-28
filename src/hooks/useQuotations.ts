@@ -79,17 +79,21 @@ export function useUpdateQuotationStatus() {
   })
 }
 
-// 刪除報價單
+// 刪除報價單（含清理關聯銷項記錄）
 export function useDeleteQuotation() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: async (id: string) => {
+      // 先清理關聯的銷項記錄（避免 ON DELETE SET NULL 留下孤立資料）
+      await supabase.rpc('delete_accounting_sale_by_quotation', { p_quotation_id: id })
+      // 再刪除報價單本身
       const { error } = await supabase.from('quotations').delete().eq('id', id)
       if (error) throw error
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: QUERY_KEY })
       queryClient.invalidateQueries({ queryKey: queryKeys.dashboardStats })
+      queryClient.invalidateQueries({ queryKey: queryKeys.accountingSales(new Date().getFullYear()) })
       toast.success('報價單已刪除')
     },
     onError: (error: Error) => {
