@@ -250,6 +250,7 @@ export interface MergedRemittanceGroup {
     isPersonalClaim: boolean
     items: PaymentConfirmationItem[]
     expenseItems: import('@/types/custom.types').AccountingExpense[]
+    payrollItems: import('@/types/custom.types').AccountingPayroll[]
     confirmationBreakdowns: ConfirmationBreakdown[]
     totalAmount: number
     totalTax: number

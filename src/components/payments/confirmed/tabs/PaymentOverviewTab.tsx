@@ -11,8 +11,8 @@ import {
     splitRemittanceGroups,
     exportBankTransferCsv,
 } from '@/lib/payments/aggregation'
+import { getBillingMonthKey } from '@/lib/payments/billingPeriod'
 import { RemittanceGroupCard } from '../RemittanceGroupCard'
-import { PayrollSection } from '../PayrollSection'
 
 interface PaymentOverviewTabProps {
     confirmations: PaymentConfirmation[]
@@ -28,13 +28,14 @@ export function PaymentOverviewTab({ confirmations, withholdingRates, payrollDat
     )
 
     const [selectedMonth, setSelectedMonth] = useState(() => {
-        const currentMonth = new Date().toISOString().slice(0, 7)
-        return availableMonths.includes(currentMonth) ? currentMonth : (availableMonths[0] || currentMonth)
+        // 使用 10 日切點規則計算當前帳務月份（與 aggregation 一致）
+        const currentBillingMonth = getBillingMonthKey(new Date())
+        return availableMonths.includes(currentBillingMonth) ? currentBillingMonth : (availableMonths[0] || currentBillingMonth)
     })
 
     const groups = useMemo(
-        () => aggregateMonthlyRemittanceGroups(confirmations, selectedMonth, withholdingRates, expensesData),
-        [confirmations, selectedMonth, withholdingRates, expensesData]
+        () => aggregateMonthlyRemittanceGroups(confirmations, selectedMonth, withholdingRates, expensesData, payrollData),
+        [confirmations, selectedMonth, withholdingRates, expensesData, payrollData]
     )
 
     const { personalGroups, companyGroups } = useMemo(
@@ -153,12 +154,7 @@ export function PaymentOverviewTab({ confirmations, withholdingRates, payrollDat
                 </div>
             )}
 
-            {/* 人事薪資區塊 */}
-            {payrollData && payrollData.length > 0 && (
-                <PayrollSection payrollData={payrollData} selectedMonth={selectedMonth} />
-            )}
-
-            {groups.length === 0 && (!payrollData || payrollData.length === 0) && (
+            {groups.length === 0 && (
                 <div className="text-center py-8 text-muted-foreground">
                     {selectedMonth} 沒有匯款資料
                 </div>

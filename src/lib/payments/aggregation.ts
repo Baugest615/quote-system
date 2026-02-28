@@ -3,7 +3,7 @@ import type {
   MergedRemittanceGroup,
   WithholdingApplicability,
 } from './types'
-import type { WithholdingSettings, AccountingExpense } from '@/types/custom.types'
+import type { WithholdingSettings, AccountingExpense, AccountingPayroll } from '@/types/custom.types'
 import { DEFAULT_WITHHOLDING } from '@/hooks/useWithholdingSettings'
 import { groupItemsByRemittance } from './grouping'
 import { downloadCsv } from './withholding-export'
@@ -45,7 +45,8 @@ export function aggregateMonthlyRemittanceGroups(
   confirmations: PaymentConfirmation[],
   month: string,
   rates: WithholdingSettings | null | undefined,
-  expenses?: AccountingExpense[]
+  expenses?: AccountingExpense[],
+  payroll?: AccountingPayroll[]
 ): MergedRemittanceGroup[] {
   const taxRate = rates?.income_tax_rate ?? DEFAULT_WITHHOLDING.income_tax_rate
   const nhiRate = rates?.nhi_supplement_rate ?? DEFAULT_WITHHOLDING.nhi_supplement_rate
@@ -89,6 +90,7 @@ export function aggregateMonthlyRemittanceGroups(
           isPersonalClaim,
           items: [],
           expenseItems: [],
+          payrollItems: [],
           confirmationBreakdowns: [],
           totalAmount: 0,
           totalTax: 0,
@@ -139,6 +141,7 @@ export function aggregateMonthlyRemittanceGroups(
           isPersonalClaim: false,
           items: [],
           expenseItems: [],
+          payrollItems: [],
           confirmationBreakdowns: [],
           totalAmount: 0,
           totalTax: 0,
@@ -152,6 +155,43 @@ export function aggregateMonthlyRemittanceGroups(
       group.expenseItems.push(expense)
       group.totalAmount += expense.total_amount || expense.amount || 0
       group.totalFee += expense.remittance_fee || 0
+    }
+  }
+
+  // --- 3. 處理 accounting_payroll（人事薪資）---
+  if (payroll) {
+    const monthPayroll = payroll.filter(p => {
+      if (!p.payment_date) return false
+      return getBillingMonthKey(p.payment_date) === month
+    })
+
+    for (const p of monthPayroll) {
+      const employeeName = p.employee_name || '未命名員工'
+
+      if (!mergedMap.has(employeeName)) {
+        mergedMap.set(employeeName, {
+          remittanceName: employeeName,
+          bankName: '',
+          branchName: '',
+          accountNumber: '',
+          isCompanyAccount: false,
+          isWithholdingExempt: false,
+          isPersonalClaim: false,
+          items: [],
+          expenseItems: [],
+          payrollItems: [],
+          confirmationBreakdowns: [],
+          totalAmount: 0,
+          totalTax: 0,
+          totalInsurance: 0,
+          totalFee: 0,
+          netTotal: 0,
+        })
+      }
+
+      const group = mergedMap.get(employeeName)!
+      group.payrollItems.push(p)
+      group.totalAmount += p.net_salary || 0
     }
   }
 

@@ -64,6 +64,11 @@ export function RemittanceGroupCard({ group, withholdingRates: _withholdingRates
                                     個人報帳
                                 </span>
                             )}
+                            {group.payrollItems.length > 0 && group.items.length === 0 && group.expenseItems.length === 0 && (
+                                <span className="text-xs bg-info/20 text-info px-2 py-0.5 rounded">
+                                    薪資
+                                </span>
+                            )}
                         </div>
                         <div className="text-xs text-muted-foreground mt-0.5 flex gap-3">
                             {group.bankName && <span>{group.bankName}</span>}
@@ -149,6 +154,23 @@ export function RemittanceGroupCard({ group, withholdingRates: _withholdingRates
                                         <td className="px-4 py-3 text-foreground/70 max-w-40 truncate" title={expense.note || ''}>{expense.note || '—'}</td>
                                         <td className="px-4 py-3 text-right font-medium text-foreground">
                                             NT$ {(expense.total_amount || expense.amount || 0).toLocaleString()}
+                                        </td>
+                                    </tr>
+                                ))}
+                                {group.payrollItems.map((p) => (
+                                    <tr key={p.id} className="text-sm hover:bg-secondary">
+                                        <td className="px-4 py-3 text-foreground">
+                                            {p.salary_month || '—'}
+                                            <span className="ml-2 inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-info/20 text-info">
+                                                薪資
+                                            </span>
+                                        </td>
+                                        <td className="px-4 py-3 text-foreground/70">{p.employee_name || '—'}</td>
+                                        <td className="px-4 py-3 text-foreground/70">人事薪資</td>
+                                        <td className="px-4 py-3 text-foreground/70">{group.remittanceName}</td>
+                                        <td className="px-4 py-3 text-foreground/70 max-w-40 truncate" title={p.note || ''}>{p.note || '—'}</td>
+                                        <td className="px-4 py-3 text-right font-medium text-foreground">
+                                            NT$ {(p.net_salary || 0).toLocaleString()}
                                         </td>
                                     </tr>
                                 ))}
