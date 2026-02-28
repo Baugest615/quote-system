@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useRef, useMemo } from 'react'
-import { Plus, Save, X, Undo2, Trash2, Table2, ClipboardList, FilterX } from 'lucide-react'
+import { Plus, Save, X, Undo2, Trash2, Table2, ClipboardList, FilterX, Lock } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useConfirm } from '@/components/ui/ConfirmDialog'
 import { EmptyState } from '@/components/ui/EmptyState'
@@ -28,6 +28,7 @@ interface SpreadsheetEditorProps<T extends { id: string }> {
     toUpdate: { id: string; data: Partial<T> }[],
     toDelete: string[]
   ) => Promise<BatchSaveResult>
+  canDelete?: (row: T) => boolean
   accentColor?: 'blue' | 'red' | 'purple'
   onClose: () => void
 }
@@ -69,6 +70,7 @@ export default function SpreadsheetEditor<T extends { id: string }>({
   emptyRow,
   onAutoCalc,
   onBatchSave,
+  canDelete,
   accentColor = 'blue',
   onClose,
 }: SpreadsheetEditorProps<T>) {
@@ -482,13 +484,19 @@ export default function SpreadsheetEditor<T extends { id: string }>({
 
                     {/* Delete action */}
                     <td className="px-1 py-1 text-center">
-                      <button
-                        onClick={() => toggleDelete(origIdx)}
-                        className="p-1 text-muted-foreground hover:text-destructive rounded hover:bg-destructive/10 transition-colors"
-                        title="刪除此列"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
+                      {(!canDelete || canDelete(row.data as T)) ? (
+                        <button
+                          onClick={() => toggleDelete(origIdx)}
+                          className="p-1 text-muted-foreground hover:text-destructive rounded hover:bg-destructive/10 transition-colors"
+                          title="刪除此列"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      ) : (
+                        <span className="p-1 text-muted-foreground/30 cursor-not-allowed" title="系統自動建立，不可刪除">
+                          <Lock className="w-3.5 h-3.5" />
+                        </span>
+                      )}
                     </td>
                   </tr>
                 ))
