@@ -114,9 +114,9 @@ function handleMessage(agentName: string, message: SDKMessage, result: AgentResu
     case 'assistant': {
       // 萃取文字內容
       const textBlocks = message.message.content.filter(
-        (block): block is { type: 'text'; text: string } => block.type === 'text',
+        (block: { type: string; text?: string }): block is { type: 'text'; text: string } => block.type === 'text',
       );
-      const text = textBlocks.map((b) => b.text).join('\n');
+      const text = textBlocks.map((b: { type: 'text'; text: string }) => b.text).join('\n');
       if (text) {
         result.output += text + '\n';
       }
