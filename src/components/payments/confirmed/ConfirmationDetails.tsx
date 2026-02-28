@@ -12,7 +12,7 @@ import { getMergeLabel } from '@/lib/mergeLabel'
 interface ConfirmationDetailsProps {
     confirmation: PaymentConfirmation
     settings: RemittanceSettings
-    updateSettings: (remittanceName: string, updates: Partial<RemittanceSettings[string]>) => void
+    updateSettings?: (remittanceName: string, updates: Partial<RemittanceSettings[string]>) => void
     getSettings: (remittanceName: string) => RemittanceSettings[string]
     withholdingRates?: WithholdingSettings | null
     onRevertItem?: (itemId: string) => void
@@ -40,8 +40,10 @@ export function ConfirmationDetails({ confirmation, settings, updateSettings, ge
     const nhiRate = withholdingRates?.nhi_supplement_rate ?? DEFAULT_WITHHOLDING.nhi_supplement_rate
 
     // 門檻自動判斷：首次展開時，對沒有已儲存設定的群組自動預設代扣勾選
+    // 僅在可編輯模式（有 updateSettings）時才執行
     const autoInitDone = useRef(false)
     useEffect(() => {
+        if (!updateSettings) return
         if (autoInitDone.current) return
         if (remittanceGroups.length === 0) return
         autoInitDone.current = true
@@ -167,7 +169,8 @@ export function ConfirmationDetails({ confirmation, settings, updateSettings, ge
                                                     type="checkbox"
                                                     className="rounded border-border text-info focus:ring-info"
                                                     checked={settings.hasRemittanceFee}
-                                                    onChange={(e) => updateSettings(group.remittanceName, { hasRemittanceFee: e.target.checked })}
+                                                    disabled={!updateSettings}
+                                                    onChange={(e) => updateSettings?.(group.remittanceName, { hasRemittanceFee: e.target.checked })}
                                                 />
                                                 <span>匯費自付 (扣除)</span>
                                             </label>
@@ -178,7 +181,8 @@ export function ConfirmationDetails({ confirmation, settings, updateSettings, ge
                                                         type="number"
                                                         className="w-16 h-7 text-sm border-border rounded focus:ring-info focus:border-info px-2 py-0"
                                                         value={settings.remittanceFeeAmount}
-                                                        onChange={(e) => updateSettings(group.remittanceName, { remittanceFeeAmount: Number(e.target.value) })}
+                                                        disabled={!updateSettings}
+                                                        onChange={(e) => updateSettings?.(group.remittanceName, { remittanceFeeAmount: Number(e.target.value) })}
                                                     />
                                                 </div>
                                             )}
@@ -188,7 +192,8 @@ export function ConfirmationDetails({ confirmation, settings, updateSettings, ge
                                                     type="checkbox"
                                                     className="rounded border-border text-info focus:ring-info"
                                                     checked={settings.hasTax}
-                                                    onChange={(e) => updateSettings(group.remittanceName, { hasTax: e.target.checked })}
+                                                    disabled={!updateSettings}
+                                                    onChange={(e) => updateSettings?.(group.remittanceName, { hasTax: e.target.checked })}
                                                 />
                                                 <span>代扣所得稅 ({(taxRate * 100).toFixed(0)}%)</span>
                                             </label>
@@ -197,7 +202,8 @@ export function ConfirmationDetails({ confirmation, settings, updateSettings, ge
                                                     type="checkbox"
                                                     className="rounded border-border text-info focus:ring-info"
                                                     checked={settings.hasInsurance}
-                                                    onChange={(e) => updateSettings(group.remittanceName, { hasInsurance: e.target.checked })}
+                                                    disabled={!updateSettings}
+                                                    onChange={(e) => updateSettings?.(group.remittanceName, { hasInsurance: e.target.checked })}
                                                 />
                                                 <span>代扣二代健保 ({(nhiRate * 100).toFixed(2)}%)</span>
                                             </label>
@@ -220,7 +226,8 @@ export function ConfirmationDetails({ confirmation, settings, updateSettings, ge
                                                         type="checkbox"
                                                         className="rounded border-border"
                                                         checked={settings.hasRemittanceFee}
-                                                        onChange={(e) => updateSettings(group.remittanceName, { hasRemittanceFee: e.target.checked })}
+                                                        disabled={!updateSettings}
+                                                    onChange={(e) => updateSettings?.(group.remittanceName, { hasRemittanceFee: e.target.checked })}
                                                     />
                                                     <span>匯費自付 (扣除)</span>
                                                 </label>
@@ -231,7 +238,8 @@ export function ConfirmationDetails({ confirmation, settings, updateSettings, ge
                                                             type="number"
                                                             className="w-16 h-7 text-sm border-border rounded px-2 py-0"
                                                             value={settings.remittanceFeeAmount}
-                                                            onChange={(e) => updateSettings(group.remittanceName, { remittanceFeeAmount: Number(e.target.value) })}
+                                                            disabled={!updateSettings}
+                                                        onChange={(e) => updateSettings?.(group.remittanceName, { remittanceFeeAmount: Number(e.target.value) })}
                                                         />
                                                     </div>
                                                 )}

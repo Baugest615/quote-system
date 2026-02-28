@@ -119,12 +119,11 @@ export default function AccountingExpensesPage() {
 
   const currentQueryKey = queryKeys.accountingExpenses(year)
 
-  /** 失效進項快取 + 月結總覽快取（所有年度） */
+  /** 失效進項快取 + 月結總覽 + 已確認請款清單快取 */
   const invalidateExpenseCaches = useCallback(() => {
-    // 失效所有年度的進項快取（編輯時可能跨年搬移記錄）
     queryClient.invalidateQueries({ queryKey: ['accounting-expenses'] })
-    // 月結總覽也查 accounting_expenses，需同步失效
     queryClient.invalidateQueries({ queryKey: ['monthly-settlement'] })
+    queryClient.invalidateQueries({ queryKey: [...queryKeys.confirmedPayments] })
   }, [queryClient])
 
   const { data: records = [], isLoading: loading } = useQuery({
@@ -169,6 +168,26 @@ export default function AccountingExpensesPage() {
       const { error } = await supabase.from('accounting_expenses').update({ ...data, created_by: user?.id }).eq('id', id)
       if (error) errors.push({ tempId: id, message: error.message })
       else successCount++
+    }
+
+    // 同步金額變更到 payment_confirmation_items（即時連動）
+    for (const { id, data } of toUpdate) {
+      if (data.total_amount === undefined) continue
+      const original = records.find(r => r.id === id)
+      if (!original) continue
+
+      const fkColumn = original.quotation_item_id ? 'quotation_item_id'
+        : original.expense_claim_id ? 'expense_claim_id'
+        : original.payment_request_id ? 'payment_request_id'
+        : null
+      const fkValue = original.quotation_item_id || original.expense_claim_id || original.payment_request_id
+
+      if (fkColumn && fkValue) {
+        await supabase
+          .from('payment_confirmation_items')
+          .update({ amount_at_confirmation: data.total_amount })
+          .eq(fkColumn, fkValue)
+      }
     }
 
     if (toDelete.length > 0) {

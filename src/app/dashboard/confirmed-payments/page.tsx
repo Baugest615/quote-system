@@ -39,7 +39,7 @@ const TABS: { key: TabKey; label: string; icon: React.ReactNode }[] = [
 
 export default function ConfirmedPaymentsPage() {
   const confirm = useConfirm()
-  const { loading: permLoading, checkPageAccess } = usePermission()
+  const { loading: permLoading, checkPageAccess, hasRole } = usePermission()
   const hasAccess = checkPageAccess('confirmed_payments')
 
   const queryClient = useQueryClient()
@@ -257,6 +257,49 @@ export default function ConfirmedPaymentsPage() {
         : c
     ))
   }, [setConfirmations])
+
+  // 匯款總覽：設定變更（跨 confirmation 批次更新）
+  const handleOverviewSettingsChange = useCallback(async (
+    confirmationId: string,
+    remittanceName: string,
+    updates: Partial<RemittanceSettings[string]>
+  ) => {
+    // Optimistic update: 同步 parent state
+    setConfirmations(prev => prev.map(c => {
+      if (c.id !== confirmationId) return c
+      const currentSettings = c.remittance_settings || {}
+      const currentGroup = currentSettings[remittanceName] || {
+        hasRemittanceFee: false,
+        remittanceFeeAmount: 30,
+        hasTax: false,
+        hasInsurance: false,
+      }
+      const newSettings = {
+        ...currentSettings,
+        [remittanceName]: { ...currentGroup, ...updates },
+      }
+      return { ...c, remittance_settings: newSettings }
+    }))
+
+    // 儲存到 DB（debounce 由子元件處理，這裡直接存）
+    const conf = confirmations.find(c => c.id === confirmationId)
+    if (!conf) return
+    const currentSettings = conf.remittance_settings || {}
+    const currentGroup = currentSettings[remittanceName] || {
+      hasRemittanceFee: false,
+      remittanceFeeAmount: 30,
+      hasTax: false,
+      hasInsurance: false,
+    }
+    const newSettings = {
+      ...currentSettings,
+      [remittanceName]: { ...currentGroup, ...updates },
+    }
+    await supabase.rpc('update_remittance_settings', {
+      p_confirmation_id: confirmationId,
+      p_settings: newSettings,
+    })
+  }, [setConfirmations, confirmations])
 
   // 操作函數
   const toggleExpansion = (id: string) => {
@@ -613,6 +656,9 @@ export default function ConfirmedPaymentsPage() {
           withholdingRates={withholdingRates}
           payrollData={payrollData}
           expensesData={expensesData}
+          onUpdateSettings={handleOverviewSettingsChange}
+          onRevertItem={handleRevertItem}
+          isAdmin={hasRole('Admin')}
         />
       )}
 
@@ -627,9 +673,6 @@ export default function ConfirmedPaymentsPage() {
         <ConfirmationHistoryTab
           confirmations={confirmations}
           onToggleExpansion={toggleExpansion}
-          onRevert={handleRevert}
-          onRevertItem={handleRevertItem}
-          onSettingsChange={handleSettingsChange}
           withholdingRates={withholdingRates}
         />
       )}
