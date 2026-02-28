@@ -82,6 +82,8 @@ export function PaymentOverviewTab({
     }, [selectedMonth])
 
     // 自動初始化（首次展開時，對沒有已儲存設定的群組自動預設）
+    // hasTax/hasInsurance 永遠依門檻重新計算（總覽 tab 為唯讀，不應從 DB 讀取過期值）
+    // hasRemittanceFee/remittanceFeeAmount 才從 DB 讀取（使用者可控設定）
     useEffect(() => {
         if (autoInitDone.current) return
         if (groups.length === 0) return
@@ -93,24 +95,27 @@ export function PaymentOverviewTab({
 
         const inits: Record<string, RemittanceSettings[string]> = {}
         for (const group of groups) {
-            // 已有 DB 設定的跳過
-            if (mergedSettingsFromDb[group.remittanceName]) {
-                inits[group.remittanceName] = mergedSettingsFromDb[group.remittanceName]
-                continue
-            }
+            const dbSettings = mergedSettingsFromDb[group.remittanceName]
             const applicability = checkWithholdingApplicability(group, withholdingRates)
-            if (!applicability.showWithholding) {
+
+            // hasTax/hasInsurance：永遠依據門檻自動判斷（忽略 DB 可能的過期值）
+            const hasTax = applicability.showWithholding && group.totalAmount >= taxThreshold
+            const hasInsurance = applicability.showWithholding && group.totalAmount >= nhiThreshold
+
+            if (dbSettings) {
+                // 已有 DB 設定：匯費用 DB 值，代扣重新計算
                 inits[group.remittanceName] = {
-                    hasTax: false,
-                    hasInsurance: false,
-                    hasRemittanceFee: group.items.length > 0 && !group.isPersonalClaim,
-                    remittanceFeeAmount: feeDefault,
+                    hasTax,
+                    hasInsurance,
+                    hasRemittanceFee: dbSettings.hasRemittanceFee,
+                    remittanceFeeAmount: dbSettings.remittanceFeeAmount,
                 }
             } else {
+                // 新群組：根據類型預設
                 inits[group.remittanceName] = {
-                    hasTax: group.totalAmount >= taxThreshold,
-                    hasInsurance: group.totalAmount >= nhiThreshold,
-                    hasRemittanceFee: false,
+                    hasTax,
+                    hasInsurance,
+                    hasRemittanceFee: !applicability.showWithholding && group.items.length > 0 && !group.isPersonalClaim,
                     remittanceFeeAmount: feeDefault,
                 }
             }
@@ -127,6 +132,8 @@ export function PaymentOverviewTab({
     }, [groups])
 
     const handleUpdateSettings = useCallback((remittanceName: string, updates: Partial<RemittanceSettings[string]>) => {
+        let mergedSettings: RemittanceSettings[string] | undefined
+
         setLocalSettings(prev => {
             const current = prev[remittanceName] || {
                 hasRemittanceFee: false,
@@ -134,14 +141,15 @@ export function PaymentOverviewTab({
                 hasTax: false,
                 hasInsurance: false,
             }
-            return { ...prev, [remittanceName]: { ...current, ...updates } }
+            mergedSettings = { ...current, ...updates }
+            return { ...prev, [remittanceName]: mergedSettings }
         })
 
-        // 通知 parent 儲存到 DB（遍歷所有相關 confirmation）
-        if (onUpdateSettings) {
+        // 傳完整 merged settings（含 auto-init 的 hasTax/hasInsurance），避免 DB 覆蓋
+        if (onUpdateSettings && mergedSettings) {
             const ids = getConfirmationIdsForName(remittanceName)
             for (const cid of ids) {
-                onUpdateSettings(cid, remittanceName, updates)
+                onUpdateSettings(cid, remittanceName, mergedSettings)
             }
         }
     }, [onUpdateSettings, getConfirmationIdsForName])

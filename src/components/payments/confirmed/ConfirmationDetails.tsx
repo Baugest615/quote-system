@@ -98,13 +98,21 @@ export function ConfirmationDetails({ confirmation, settings, updateSettings, ge
                     item => item.source_type === 'personal' || item.expense_claim_id
                 )
 
-                // 即時計算（匯費可編輯，代扣唯讀顯示）
+                // 即時計算（匯費從 settings，代扣依門檻自動判斷——不依賴 DB 可能過期的值）
                 const subtotal = group.totalAmount
                 const fee = settings.hasRemittanceFee ? settings.remittanceFeeAmount : 0
                 const taxRate = withholdingRates?.income_tax_rate ?? DEFAULT_WITHHOLDING.income_tax_rate
                 const nhiRate = withholdingRates?.nhi_supplement_rate ?? DEFAULT_WITHHOLDING.nhi_supplement_rate
-                const tax = settings.hasTax ? Math.floor(subtotal * taxRate) : 0
-                const insurance = settings.hasInsurance ? Math.floor(subtotal * nhiRate) : 0
+                const taxThreshold = withholdingRates?.income_tax_threshold ?? DEFAULT_WITHHOLDING.income_tax_threshold
+                const nhiThreshold = withholdingRates?.nhi_threshold ?? DEFAULT_WITHHOLDING.nhi_threshold
+                const applicability = checkWithholdingApplicability(
+                    { ...group, isPersonalClaim },
+                    withholdingRates
+                )
+                const tax = applicability.showWithholding && subtotal >= taxThreshold
+                    ? Math.floor(subtotal * taxRate) : 0
+                const insurance = applicability.showWithholding && subtotal >= nhiThreshold
+                    ? Math.floor(subtotal * nhiRate) : 0
                 const netTotal = subtotal - fee - tax - insurance
                 const colSpan = onRevertItem ? 6 : 5
 
