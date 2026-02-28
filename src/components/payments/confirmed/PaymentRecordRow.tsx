@@ -71,7 +71,86 @@ export function PaymentRecordRow({ item, groupLabel, onRevertItem }: PaymentReco
         )
     }
 
-    // 專案請款項目（原有邏輯）
+    // 報價單直接請款項目（新流程）
+    if (item.source_type === 'quotation' || item.quotation_item_id) {
+        const qi = item.quotation_items
+        const quotation = qi?.quotations
+        const kol = qi?.kols
+
+        const projectName = quotation?.project_name || item.project_name_at_confirmation || '未命名專案'
+        const kolName = kol?.name || item.kol_name_at_confirmation || '未知 KOL'
+        const service = qi?.service || item.service_at_confirmation || '未知服務'
+        let remittanceName = qi?.remittance_name?.trim()
+
+        if (!remittanceName || remittanceName === '未知匯款戶名' || remittanceName === 'Unknown Remittance Name') {
+            remittanceName = undefined
+        }
+
+        if (!remittanceName && kol) {
+            const bankInfo = (kol.bank_info || {}) as KolBankInfo
+            if (bankInfo.bankType === 'company') {
+                remittanceName = bankInfo.companyAccountName || kol.name
+            } else {
+                remittanceName = bankInfo.personalAccountName || kol.real_name || kol.name
+            }
+        }
+
+        remittanceName = remittanceName || '未知匯款戶名'
+
+        const amount = item.amount || item.amount_at_confirmation || qi?.cost_amount || qi?.cost || 0
+        const remark = qi?.remark || null
+
+        const mergeGroupId = qi?.merge_group_id
+        const mergeColor = qi?.merge_color
+        const borderColor = mergeGroupId && mergeColor
+            ? MERGE_BORDER_COLORS[mergeColor] || 'hsl(var(--info))'
+            : undefined
+        const badgeClass = mergeGroupId && mergeColor
+            ? MERGE_BADGE_COLORS[mergeColor] || 'bg-info/15 text-info'
+            : 'bg-info/15 text-info'
+
+        // 報價單來源的項目顯示駁回按鈕
+        const quotationRevertCell = onRevertItem ? (
+            <td className="px-4 py-3 text-center">
+                <button
+                    onClick={() => onRevertItem(item.id)}
+                    className="p-1 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
+                    title="駁回此項目"
+                >
+                    <Undo2 className="h-3.5 w-3.5" />
+                </button>
+            </td>
+        ) : null
+
+        return (
+            <tr
+                className="text-sm hover:bg-secondary"
+                style={borderColor ? { borderLeft: `4px solid ${borderColor}` } : undefined}
+            >
+                <td className="px-4 py-3 text-foreground">
+                    {projectName}
+                    <span className="ml-2 inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-chart-4/20 text-chart-4">
+                        報價單
+                    </span>
+                    {mergeGroupId && groupLabel && (
+                        <span className={`ml-1 inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium ${badgeClass}`}>
+                            合併 {groupLabel}
+                        </span>
+                    )}
+                </td>
+                <td className="px-4 py-3 text-foreground/70">{kolName}</td>
+                <td className="px-4 py-3 text-foreground/70">{service}</td>
+                <td className="px-4 py-3 text-foreground/70">{remittanceName}</td>
+                <td className="px-4 py-3 text-foreground/70 max-w-40 truncate" title={remark || ''}>{remark || '—'}</td>
+                <td className="px-4 py-3 text-right font-medium text-foreground">
+                    NT$ {amount.toLocaleString()}
+                </td>
+                {quotationRevertCell}
+            </tr>
+        )
+    }
+
+    // 專案請款項目（舊流程）
     const request = item.payment_requests
     const quotationItem = request?.quotation_items
     const quotation = quotationItem?.quotations

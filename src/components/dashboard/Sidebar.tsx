@@ -38,8 +38,8 @@ const PROFILE_SUB_MENU = [
   { key: 'settings', href: '/dashboard/settings', label: '系統設定', icon: Settings },
 ]
 
-// 從主導覽隱藏的頁面 key（已移至子選單）
-const HIDDEN_NAV_KEYS = new Set(PROFILE_SUB_MENU.map(s => s.key).concat('reports'))
+// 從主導覽隱藏的頁面 key（已移至子選單 or 功能已整合）
+const HIDDEN_NAV_KEYS = new Set(PROFILE_SUB_MENU.map(s => s.key).concat('reports', 'pending_payments', 'payment_requests'))
 
 // 帳務管理子選單定義
 const ACCOUNTING_SUB_MENU = [

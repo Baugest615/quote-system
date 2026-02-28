@@ -4,17 +4,22 @@ import { useMemo, useState } from 'react'
 import { Users, ChevronDown, ChevronRight } from 'lucide-react'
 import type { AccountingPayroll } from '@/types/custom.types'
 import { getBillingMonthKey } from '@/lib/payments/billingPeriod'
-import { PaymentStatusBadge } from '@/components/accounting/monthly-settlement/PaymentStatusBadge'
 
 interface PayrollSectionProps {
   payrollData: AccountingPayroll[]
   selectedMonth: string // YYYY-MM
 }
 
+interface EmployeeSummary {
+  name: string
+  totalNet: number
+  count: number
+}
+
 export function PayrollSection({ payrollData, selectedMonth }: PayrollSectionProps) {
   const [isExpanded, setIsExpanded] = useState(true)
 
-  // 篩選該帳務期間的薪資項目（使用 payment_date 的帳務期間）
+  // 篩選該帳務期間的薪資項目
   const monthPayroll = useMemo(() => {
     return payrollData.filter(p => {
       if (!p.payment_date) return false
@@ -22,9 +27,25 @@ export function PayrollSection({ payrollData, selectedMonth }: PayrollSectionPro
     })
   }, [payrollData, selectedMonth])
 
+  // 按員工名稱整合總計
+  const employeeSummaries = useMemo(() => {
+    const map = new Map<string, EmployeeSummary>()
+    for (const p of monthPayroll) {
+      const name = p.employee_name || '未知'
+      const existing = map.get(name)
+      if (existing) {
+        existing.totalNet += p.net_salary || 0
+        existing.count += 1
+      } else {
+        map.set(name, { name, totalNet: p.net_salary || 0, count: 1 })
+      }
+    }
+    return Array.from(map.values()).sort((a, b) => b.totalNet - a.totalNet)
+  }, [monthPayroll])
+
   const total = useMemo(() =>
-    monthPayroll.reduce((sum, p) => sum + (p.net_salary || 0), 0),
-    [monthPayroll]
+    employeeSummaries.reduce((sum, e) => sum + e.totalNet, 0),
+    [employeeSummaries]
   )
 
   if (monthPayroll.length === 0) return null
@@ -37,7 +58,7 @@ export function PayrollSection({ payrollData, selectedMonth }: PayrollSectionPro
       >
         {isExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
         <Users className="h-5 w-5 text-chart-5" />
-        人事薪資（{monthPayroll.length} 筆 / NT$ {total.toLocaleString()}）
+        人事薪資（{employeeSummaries.length} 人 / NT$ {total.toLocaleString()}）
         <span className="text-xs text-muted-foreground font-normal ml-1">僅檢視</span>
       </button>
 
@@ -48,38 +69,27 @@ export function PayrollSection({ payrollData, selectedMonth }: PayrollSectionPro
               <thead>
                 <tr className="bg-muted text-muted-foreground text-xs">
                   <th className="text-left px-4 py-3 font-medium">員工姓名</th>
-                  <th className="text-left px-4 py-3 font-medium">薪資月份</th>
-                  <th className="text-right px-4 py-3 font-medium">底薪</th>
-                  <th className="text-right px-4 py-3 font-medium">餐費</th>
                   <th className="text-right px-4 py-3 font-medium">實領薪資</th>
-                  <th className="text-left px-4 py-3 font-medium">匯款日</th>
-                  <th className="text-center px-4 py-3 font-medium">狀態</th>
                 </tr>
               </thead>
               <tbody>
-                {monthPayroll.map(p => (
-                  <tr key={p.id} className="border-t border-border/50 hover:bg-accent">
-                    <td className="px-4 py-3 font-medium text-foreground">{p.employee_name}</td>
-                    <td className="px-4 py-3 text-muted-foreground">{p.salary_month || '-'}</td>
-                    <td className="px-4 py-3 text-right tabular-nums">NT$ {(p.base_salary || 0).toLocaleString()}</td>
-                    <td className="px-4 py-3 text-right tabular-nums text-muted-foreground">NT$ {(p.meal_allowance || 0).toLocaleString()}</td>
-                    <td className="px-4 py-3 text-right tabular-nums font-medium text-chart-5">NT$ {(p.net_salary || 0).toLocaleString()}</td>
-                    <td className="px-4 py-3 text-muted-foreground">{p.payment_date || '-'}</td>
-                    <td className="px-4 py-3 text-center">
-                      <PaymentStatusBadge status={p.payment_status || 'unpaid'} />
+                {employeeSummaries.map(emp => (
+                  <tr key={emp.name} className="border-t border-border/50 hover:bg-accent">
+                    <td className="px-4 py-3 font-medium text-foreground">{emp.name}</td>
+                    <td className="px-4 py-3 text-right tabular-nums font-medium text-chart-5">
+                      NT$ {emp.totalNet.toLocaleString()}
                     </td>
                   </tr>
                 ))}
               </tbody>
               <tfoot>
                 <tr className="border-t-2 border-border bg-muted/50">
-                  <td className="px-4 py-3 font-bold text-foreground" colSpan={4}>
-                    合計（{monthPayroll.length} 人）
+                  <td className="px-4 py-3 font-bold text-foreground">
+                    合計（{employeeSummaries.length} 人）
                   </td>
                   <td className="px-4 py-3 text-right font-bold tabular-nums text-chart-5">
                     NT$ {total.toLocaleString()}
                   </td>
-                  <td colSpan={2}></td>
                 </tr>
               </tfoot>
             </table>

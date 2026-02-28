@@ -224,6 +224,23 @@ export type QuotationWithItems = Database['public']['Tables']['quotations']['Row
 // 帶有請款關聯的報價項目（用於 QuotationItemsList join 查詢結果）
 export type QuotationItemWithPayments = Database['public']['Tables']['quotation_items']['Row'] & {
   payment_requests?: Database['public']['Tables']['payment_requests']['Row'][]
+  // 新流程請款欄位（從 quotation_items 直接管理）
+  cost_amount?: number | null
+  invoice_number?: string | null
+  attachments?: unknown  // JSONB → PaymentAttachment[]
+  expense_type?: string | null
+  accounting_subject?: string | null
+  expected_payment_month?: string | null
+  requested_at?: string | null
+  requested_by?: string | null
+  approved_at?: string | null
+  approved_by?: string | null
+  rejection_reason?: string | null
+  rejected_at?: string | null
+  rejected_by?: string | null
+  merge_group_id?: string | null
+  is_merge_leader?: boolean
+  merge_color?: string | null
 }
 
 // 表單相關類型
@@ -397,6 +414,7 @@ export interface AccountingExpense {
   payment_request_id: string | null
   expense_claim_id: string | null
   payment_confirmation_id: string | null
+  quotation_item_id: string | null
   payment_target_type: PaymentTargetType | null
   payment_status: PaymentStatus
   paid_at: string | null
@@ -567,6 +585,19 @@ export interface WithholdingSettlement {
   settled_by: string | null
   settled_at: string | null
   created_at: string | null
+}
+
+// ===== 勞健保設定相關類型 =====
+
+export interface InsuranceSettings {
+  id: string
+  default_dependents: number
+  effective_date: string
+  expiry_date: string | null
+  note: string | null
+  created_by: string | null
+  created_at: string
+  updated_at: string
 }
 
 // ===== 勞健保費率相關類型 =====

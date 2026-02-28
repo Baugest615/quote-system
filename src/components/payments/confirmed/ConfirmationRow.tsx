@@ -1,6 +1,5 @@
 import { useMemo } from 'react'
-import { ChevronDown, ChevronRight, FileText, Trash2 } from 'lucide-react'
-import { Button } from '@/components/ui/button'
+import { ChevronDown, ChevronRight, FileText } from 'lucide-react'
 import { PaymentConfirmation, RemittanceSettings } from '@/lib/payments/types'
 import { ConfirmationDetails } from './ConfirmationDetails'
 import { ExportControls } from './ExportControls'
@@ -10,13 +9,13 @@ import type { WithholdingSettings } from '@/types/custom.types'
 interface ConfirmationRowProps {
     confirmation: PaymentConfirmation
     onToggleExpansion: (id: string) => void
-    onRevert: (confirmation: PaymentConfirmation) => void
+    onRevert?: (confirmation: PaymentConfirmation) => void
     onRevertItem?: (itemId: string) => void
     onSettingsChange?: (confirmationId: string, newSettings: RemittanceSettings) => void
     withholdingRates?: WithholdingSettings | null
 }
 
-export function ConfirmationRow({ confirmation, onToggleExpansion, onRevert, onRevertItem, onSettingsChange, withholdingRates }: ConfirmationRowProps) {
+export function ConfirmationRow({ confirmation, onToggleExpansion, onRevertItem, onSettingsChange, withholdingRates }: ConfirmationRowProps) {
     const { settings, updateSettings, getSettings } = useRemittanceSettings(
         confirmation.id,
         confirmation.remittance_settings,
@@ -56,18 +55,8 @@ export function ConfirmationRow({ confirmation, onToggleExpansion, onRevert, onR
                         </div>
                     </div>
                 </div>
-                <div className="flex items-center space-x-2">
+                <div className="flex items-center space-x-2" onClick={(e) => e.stopPropagation()}>
                     <ExportControls confirmation={confirmation} settingsMap={settings} withholdingRates={withholdingRates} />
-                    <Button
-                        variant="destructive"
-                        size="sm"
-                        onClick={(e) => {
-                            e.stopPropagation()
-                            onRevert(confirmation)
-                        }}
-                    >
-                        <Trash2 className="h-4 w-4 mr-1" /> 退回申請
-                    </Button>
                 </div>
             </div>
 

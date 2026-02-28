@@ -197,7 +197,48 @@ export function groupItemsByRemittance(items: PaymentConfirmationItem[]): import
             return
         }
 
-        // 專案請款項目：以匯款戶名分組（原有邏輯）
+        // 報價單直接請款項目（新流程）
+        if (item.source_type === 'quotation' || item.quotation_item_id) {
+            const qi = item.quotation_items
+            if (!qi) return
+
+            const kol = qi.kols
+            const bankInfo = (kol?.bank_info || {}) as KolBankInfo
+
+            let remittanceName = qi.remittance_name?.trim()
+            if (!remittanceName || remittanceName === '未知匯款戶名' || remittanceName === 'Unknown Remittance Name') {
+                remittanceName = undefined
+            }
+            if (!remittanceName && kol) {
+                if (bankInfo.bankType === 'company') {
+                    remittanceName = bankInfo.companyAccountName || kol.name
+                } else {
+                    remittanceName = bankInfo.personalAccountName || kol.real_name || kol.name
+                }
+            }
+            remittanceName = remittanceName || '未知匯款戶名'
+            const groupKey = remittanceName
+
+            if (!remittanceMap.has(groupKey)) {
+                remittanceMap.set(groupKey, {
+                    remittanceName,
+                    bankName: bankInfo.bankName || '',
+                    branchName: bankInfo.branchName || '',
+                    accountNumber: bankInfo.accountNumber || '',
+                    items: [],
+                    totalAmount: 0,
+                    isCompanyAccount: bankInfo.bankType === 'company',
+                    isWithholdingExempt: (kol as Record<string, unknown>)?.withholding_exempt === true,
+                })
+            }
+
+            const group = remittanceMap.get(groupKey)!
+            group.items.push(item)
+            group.totalAmount += item.amount || qi.cost_amount || qi.cost || 0
+            return
+        }
+
+        // 專案請款項目：以匯款戶名分組（舊流程）
         const paymentRequest = item.payment_requests
         if (!paymentRequest) return
 
