@@ -25,61 +25,61 @@ export function PaymentStats({ confirmations }: PaymentStatsProps) {
 
     return (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-            <div className="bg-white p-4 rounded-lg shadow border border-gray-100">
+            <div className="bg-card p-4 rounded-lg shadow border border-border">
                 <div className="flex items-center justify-between">
                     <div>
-                        <p className="text-sm font-medium text-gray-500">總確認金額</p>
-                        <p className="text-2xl font-bold text-blue-600 mt-1">
+                        <p className="text-sm font-medium text-muted-foreground">總確認金額</p>
+                        <p className="text-2xl font-bold text-info mt-1">
                             NT$ {stats.totalAmount.toLocaleString()}
                         </p>
                     </div>
-                    <div className="bg-blue-50 p-2 rounded-full">
-                        <DollarSign className="h-6 w-6 text-blue-500" />
+                    <div className="bg-info/15 p-2 rounded-full">
+                        <DollarSign className="h-6 w-6 text-info" />
                     </div>
                 </div>
             </div>
 
-            <div className="bg-white p-4 rounded-lg shadow border border-gray-100">
+            <div className="bg-card p-4 rounded-lg shadow border border-border">
                 <div className="flex items-center justify-between">
                     <div>
-                        <p className="text-sm font-medium text-gray-500">本月確認金額</p>
-                        <p className="text-2xl font-bold text-green-600 mt-1">
+                        <p className="text-sm font-medium text-muted-foreground">本月確認金額</p>
+                        <p className="text-2xl font-bold text-success mt-1">
                             NT$ {stats.thisMonthAmount.toLocaleString()}
                         </p>
                     </div>
-                    <div className="bg-green-50 p-2 rounded-full">
-                        <Calendar className="h-6 w-6 text-green-500" />
+                    <div className="bg-success/15 p-2 rounded-full">
+                        <Calendar className="h-6 w-6 text-success" />
                     </div>
                 </div>
             </div>
 
-            <div className="bg-white p-4 rounded-lg shadow border border-gray-100">
+            <div className="bg-card p-4 rounded-lg shadow border border-border">
                 <div className="flex items-center justify-between">
                     <div>
-                        <p className="text-sm font-medium text-gray-500">總確認筆數</p>
-                        <p className="text-2xl font-bold text-gray-900 mt-1">
+                        <p className="text-sm font-medium text-muted-foreground">總確認筆數</p>
+                        <p className="text-2xl font-bold text-foreground mt-1">
                             {stats.count} 筆清單
                         </p>
-                        <p className="text-xs text-gray-500 mt-1">
+                        <p className="text-xs text-muted-foreground mt-1">
                             共 {stats.totalItems} 個項目
                         </p>
                     </div>
-                    <div className="bg-purple-50 p-2 rounded-full">
-                        <FileText className="h-6 w-6 text-purple-500" />
+                    <div className="bg-chart-4/15 p-2 rounded-full">
+                        <FileText className="h-6 w-6 text-chart-4" />
                     </div>
                 </div>
             </div>
 
-            <div className="bg-white p-4 rounded-lg shadow border border-gray-100">
+            <div className="bg-card p-4 rounded-lg shadow border border-border">
                 <div className="flex items-center justify-between">
                     <div>
-                        <p className="text-sm font-medium text-gray-500">平均單筆金額</p>
-                        <p className="text-2xl font-bold text-orange-600 mt-1">
+                        <p className="text-sm font-medium text-muted-foreground">平均單筆金額</p>
+                        <p className="text-2xl font-bold text-warning mt-1">
                             NT$ {averageAmount.toLocaleString()}
                         </p>
                     </div>
-                    <div className="bg-orange-50 p-2 rounded-full">
-                        <TrendingUp className="h-6 w-6 text-orange-500" />
+                    <div className="bg-warning/15 p-2 rounded-full">
+                        <TrendingUp className="h-6 w-6 text-warning" />
                     </div>
                 </div>
             </div>

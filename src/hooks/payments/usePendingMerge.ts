@@ -4,6 +4,7 @@
 import { useState, useCallback } from 'react'
 import supabase from '@/lib/supabase/client'
 import { toast } from 'sonner'
+import { useConfirm } from '@/components/ui/ConfirmDialog'
 import {
     generateMergeGroupId,
     getMergeGroupItems
@@ -13,6 +14,7 @@ import {
     validateMergeOperation
 } from '@/lib/payments/validation'
 import { PAYMENT_COLORS, CONFIRM_MESSAGES, SUCCESS_MESSAGES } from '@/lib/payments/constants'
+import type { PaymentAttachment } from '@/lib/payments/types'
 
 export interface UsePendingMergeReturn<T> {
     // 狀態
@@ -36,12 +38,12 @@ export interface UsePendingMergeReturn<T> {
  */
 export function usePendingMerge<T extends {
     id: string
-    kols?: { bank_info: any } | null
+    kols?: { bank_info: unknown } | null
     merge_group_id?: string | null
     is_merge_leader?: boolean
     merge_color?: string
     payment_request_id?: string | null
-    attachments?: any[]
+    attachments?: PaymentAttachment[]
     invoice_number_input?: string | null
 }>(
     items: T[],
@@ -49,6 +51,7 @@ export function usePendingMerge<T extends {
 ): UsePendingMergeReturn<T> {
     const [selectedForMerge, setSelectedForMerge] = useState<string[]>([])
     const [selectedMergeType, setSelectedMergeType] = useState<'account' | null>(null)
+    const confirm = useConfirm()
 
     // 切換合併模式
     const handleMergeTypeChange = useCallback(() => {
@@ -76,7 +79,7 @@ export function usePendingMerge<T extends {
     }, [items, selectedForMerge, selectedMergeType])
 
     // 執行合併
-    const handleMerge = useCallback(() => {
+    const handleMerge = useCallback(async () => {
         const selectedItems = items.filter(item => selectedForMerge.includes(item.id))
 
         // 驗證
@@ -86,7 +89,8 @@ export function usePendingMerge<T extends {
             return
         }
 
-        if (!window.confirm(CONFIRM_MESSAGES.merge)) return
+        const ok = await confirm({ title: '確認合併', description: CONFIRM_MESSAGES.merge })
+        if (!ok) return
 
         // 生成群組ID和顏色
         const groupId = generateMergeGroupId()
@@ -114,12 +118,13 @@ export function usePendingMerge<T extends {
         setSelectedForMerge([])
         setSelectedMergeType(null)
         toast.success(`${SUCCESS_MESSAGES.merge}（${selectedForMerge.length} 筆資料）`)
-    }, [items, selectedForMerge, setItems])
+    }, [items, selectedForMerge, setItems, confirm])
 
     const handleUnmerge = useCallback(async (groupId: string) => {
         const groupItems = getMergeGroupItems(items as any[], groupId)
 
-        if (!window.confirm(CONFIRM_MESSAGES.unmerge(groupItems.length))) return
+        const ok = await confirm({ title: '確認解除合併', description: CONFIRM_MESSAGES.unmerge(groupItems.length) })
+        if (!ok) return
 
         const leaderItem = groupItems.find(item => item.is_merge_leader)
         if (!leaderItem) {
@@ -184,10 +189,10 @@ export function usePendingMerge<T extends {
             }))
 
             toast.success(SUCCESS_MESSAGES.unmerge)
-        } catch (error: any) {
-            toast.error("解除合併失敗: " + error.message)
+        } catch (error: unknown) {
+            toast.error("解除合併失敗: " + (error instanceof Error ? error.message : String(error)))
         }
-    }, [items, setItems])
+    }, [items, setItems, confirm])
 
     // 清除選擇
     const clearSelection = useCallback(() => {

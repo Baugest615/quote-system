@@ -37,7 +37,7 @@ export function ProjectHeader<T>({
     return (
         <div
             className={cn(
-                'border-b px-6 py-4 bg-gray-50 hover:bg-gray-100 transition-colors',
+                'border-b px-6 py-4 bg-secondary hover:bg-secondary/50 transition-colors',
                 className
             )}
         >
@@ -48,7 +48,7 @@ export function ProjectHeader<T>({
                     {onToggle && (
                         <button
                             onClick={onToggle}
-                            className="text-gray-500 hover:text-gray-700 transition-colors"
+                            className="text-muted-foreground hover:text-foreground/70 transition-colors"
                             aria-label={group.isExpanded ? '收合' : '展開'}
                         >
                             {group.isExpanded ? (
@@ -60,15 +60,15 @@ export function ProjectHeader<T>({
                     )}
 
                     {/* Project icon */}
-                    <FolderOpen className="h-5 w-5 text-indigo-500 flex-shrink-0" />
+                    <FolderOpen className="h-5 w-5 text-primary flex-shrink-0" />
 
                     {/* Project info */}
                     <div className="flex-1 min-w-0">
-                        <h3 className="font-semibold text-gray-900 truncate">
+                        <h3 className="font-semibold text-foreground truncate">
                             {group.projectName}
                         </h3>
                         {group.clientName && (
-                            <p className="text-sm text-gray-500 truncate">
+                            <p className="text-sm text-muted-foreground truncate">
                                 客戶：{group.clientName}
                             </p>
                         )}
@@ -79,11 +79,11 @@ export function ProjectHeader<T>({
                 <div className="flex items-center space-x-4 ml-4">
                     {/* Stats */}
                     <div className="flex items-center space-x-3 text-sm">
-                        <span className="text-gray-600">
-                            <span className="font-medium text-gray-900">{group.totalItems}</span> 個項目
+                        <span className="text-muted-foreground">
+                            <span className="font-medium text-foreground">{group.totalItems}</span> 個項目
                         </span>
-                        <span className="text-gray-400">|</span>
-                        <span className="font-semibold text-gray-900">
+                        <span className="text-muted-foreground">|</span>
+                        <span className="font-semibold text-foreground">
                             {formatCurrency(group.totalCost)}
                         </span>
                     </div>
@@ -99,13 +99,13 @@ export function ProjectHeader<T>({
             {/* Progress bar */}
             {showProgress && group.status === 'partial' && (
                 <div className="mt-3">
-                    <div className="flex items-center justify-between text-xs text-gray-600 mb-1">
+                    <div className="flex items-center justify-between text-xs text-muted-foreground mb-1">
                         <span>完成進度</span>
                         <span>{group.readyItems}/{group.totalItems} ({completionPercentage}%)</span>
                     </div>
-                    <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
+                    <div className="w-full bg-muted rounded-full h-2 overflow-hidden">
                         <div
-                            className="bg-green-500 h-full transition-all duration-300 ease-out"
+                            className="bg-success h-full transition-all duration-300 ease-out"
                             style={{ width: `${completionPercentage}%` }}
                         />
                     </div>

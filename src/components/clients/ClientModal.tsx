@@ -11,6 +11,7 @@ import { Database } from '@/types/database.types'
 import { useEffect, useState } from 'react'
 import { PlusCircle, Trash2, User, Building2, Star, StarOff } from 'lucide-react'
 import { toast } from 'sonner'
+import { parseJsonArray } from '@/lib/utils'
 
 type Client = Database['public']['Tables']['clients']['Row']
 
@@ -44,28 +45,28 @@ const clientSchema = z.object({
   name: z.string().min(1, '公司名稱為必填'),
   phone: z.string().optional(),
   address: z.string().min(1, '公司地址為必填'),
-  
+
   // 發票資訊
   tin: z.string().optional(),
   invoice_title: z.string().optional(),
-  
+
   // 銀行資訊
   bank_info: z.object({
     bankName: z.string().optional(),
     branchName: z.string().optional(),
     accountNumber: z.string().optional(),
   }).optional(),
-  
+
   // 聯絡人資訊 (JSONB陣列)
   contacts: z.array(contactSchema).min(1, '至少需要一位聯絡人'),
 })
 
-type ClientFormData = z.infer<typeof clientSchema>
+export type ClientFormData = z.infer<typeof clientSchema>
 
 interface ClientModalProps {
   isOpen: boolean
   onClose: () => void
-  onSave: (clientData: any, id?: string) => Promise<void>
+  onSave: (clientData: ClientFormData, id?: string) => Promise<void>
   client?: Client | null
 }
 
@@ -149,16 +150,7 @@ export function ClientModal({ isOpen, onClose, onSave, client }: ClientModalProp
     if (!client) return
 
     try {
-      // 安全解析 JSONB contacts 資料
-      let contacts: Contact[] = []
-      
-      if (client.contacts) {
-        if (typeof client.contacts === 'string') {
-          contacts = JSON.parse(client.contacts)
-        } else if (Array.isArray(client.contacts)) {
-          contacts = client.contacts as Contact[]
-        }
-      }
+      let contacts = parseJsonArray<Contact>(client.contacts)
 
       // 如果沒有聯絡人，使用舊的單一聯絡人欄位建立預設聯絡人
       if (contacts.length === 0 && client.contact_person) {
@@ -191,7 +183,7 @@ export function ClientModal({ isOpen, onClose, onSave, client }: ClientModalProp
       // 安全解析銀行資訊
       let bankInfo: BankInfo = {}
       if (client.bank_info && typeof client.bank_info === 'object' && !Array.isArray(client.bank_info)) {
-        const bank = client.bank_info as any
+        const bank = client.bank_info as Record<string, string>
         bankInfo = {
           bankName: bank.bankName || '',
           branchName: bank.branchName || '',
@@ -239,8 +231,8 @@ export function ClientModal({ isOpen, onClose, onSave, client }: ClientModalProp
         address: data.address,
         tin: data.tin || undefined,
         invoice_title: data.invoice_title || undefined,
-        bank_info: data.bank_info && (data.bank_info.bankName || data.bank_info.branchName || data.bank_info.accountNumber) 
-          ? data.bank_info 
+        bank_info: data.bank_info && (data.bank_info.bankName || data.bank_info.branchName || data.bank_info.accountNumber)
+          ? data.bank_info
           : undefined,
         contacts: cleanedContacts, // 直接傳JSONB陣列
         // 同時更新舊的單一聯絡人欄位以保持相容性
@@ -278,43 +270,43 @@ export function ClientModal({ isOpen, onClose, onSave, client }: ClientModalProp
     return (
       <Modal isOpen={isOpen} onClose={onClose} title="載入中...">
         <div className="flex justify-center items-center h-32">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
         </div>
       </Modal>
     )
   }
 
   return (
-    <Modal 
-      isOpen={isOpen} 
-      onClose={onClose} 
+    <Modal
+      isOpen={isOpen}
+      onClose={onClose}
       title={client ? '編輯客戶資料' : '新增客戶'}
     >
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-6 max-h-[80vh] overflow-y-auto p-1">
-        
+
         {/* 公司資訊區塊 */}
         <div className="space-y-4">
           <div className="flex items-center space-x-2">
-            <Building2 className="h-5 w-5 text-indigo-600" />
-            <h4 className="text-md font-semibold text-gray-700 border-b pb-2 flex-1">公司資訊</h4>
+            <Building2 className="h-5 w-5 text-primary" />
+            <h4 className="text-md font-semibold text-foreground/80 border-b pb-2 flex-1">公司資訊</h4>
           </div>
-          
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
             <div>
               <label className="block text-sm font-medium">公司名稱 (必填)</label>
               <Input {...register('name')} className="mt-1" />
-              {errors.name && <p className="text-red-500 text-xs mt-1">{errors.name.message}</p>}
+              {errors.name && <p className="text-destructive text-xs mt-1">{errors.name.message}</p>}
             </div>
-            
+
             <div>
               <label className="block text-sm font-medium">公司電話</label>
               <Input {...register('phone')} className="mt-1" />
             </div>
-            
+
             <div className="md:col-span-2">
               <label className="block text-sm font-medium">公司地址 (必填)</label>
               <Input {...register('address')} className="mt-1" />
-              {errors.address && <p className="text-red-500 text-xs mt-1">{errors.address.message}</p>}
+              {errors.address && <p className="text-destructive text-xs mt-1">{errors.address.message}</p>}
             </div>
           </div>
         </div>
@@ -323,8 +315,8 @@ export function ClientModal({ isOpen, onClose, onSave, client }: ClientModalProp
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-2">
-              <User className="h-5 w-5 text-indigo-600" />
-              <h4 className="text-md font-semibold text-gray-700">聯絡人資訊</h4>
+              <User className="h-5 w-5 text-primary" />
+              <h4 className="text-md font-semibold text-foreground/80">聯絡人資訊</h4>
             </div>
             <Button
               type="button"
@@ -344,23 +336,22 @@ export function ClientModal({ isOpen, onClose, onSave, client }: ClientModalProp
               return (
                 <div
                   key={field.id}
-                  className={`p-4 border rounded-lg transition-colors ${
-                    isPrimary ? 'border-indigo-300 bg-indigo-50' : 'border-gray-200 bg-white'
-                  }`}
+                  className={`p-4 border rounded-lg transition-colors ${isPrimary ? 'border-primary/30 bg-primary/5' : 'border-border bg-card'
+                    }`}
                 >
                   <div className="flex items-center justify-between mb-3">
                     <div className="flex items-center space-x-2">
-                      <span className="text-sm font-medium text-gray-700">
+                      <span className="text-sm font-medium text-foreground/80">
                         聯絡人 #{index + 1}
                       </span>
                       {isPrimary && (
-                        <div className="flex items-center space-x-1 px-2 py-1 text-xs bg-indigo-100 text-indigo-800 rounded-full">
+                        <div className="flex items-center space-x-1 px-2 py-1 text-xs bg-primary/10 text-primary rounded-full">
                           <Star className="h-3 w-3 fill-current" />
                           <span>主要聯絡人</span>
                         </div>
                       )}
                     </div>
-                    
+
                     <div className="flex items-center space-x-2">
                       {!isPrimary && (
                         <Button
@@ -374,14 +365,14 @@ export function ClientModal({ isOpen, onClose, onSave, client }: ClientModalProp
                           <span>設為主要</span>
                         </Button>
                       )}
-                      
+
                       {fields.length > 1 && (
                         <Button
                           type="button"
                           variant="outline"
                           size="sm"
                           onClick={() => remove(index)}
-                          className="text-red-600 hover:text-red-700"
+                          className="text-destructive hover:text-destructive/80"
                         >
                           <Trash2 className="h-3 w-3" />
                         </Button>
@@ -392,27 +383,27 @@ export function ClientModal({ isOpen, onClose, onSave, client }: ClientModalProp
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                     <div>
                       <label className="block text-sm font-medium">窗口姓名 (必填)</label>
-                      <Input 
-                        {...register(`contacts.${index}.name`)} 
-                        className="mt-1" 
+                      <Input
+                        {...register(`contacts.${index}.name`)}
+                        className="mt-1"
                         placeholder="請輸入聯絡人姓名"
                       />
                       {errors.contacts?.[index]?.name && (
-                        <p className="text-red-500 text-xs mt-1">
+                        <p className="text-destructive text-xs mt-1">
                           {errors.contacts[index]?.name?.message}
                         </p>
                       )}
                     </div>
-                    
+
                     <div>
                       <label className="block text-sm font-medium">職稱</label>
-                      <Input 
-                        {...register(`contacts.${index}.position`)} 
-                        className="mt-1" 
+                      <Input
+                        {...register(`contacts.${index}.position`)}
+                        className="mt-1"
                         placeholder="例：行銷經理"
                       />
                     </div>
-                    
+
                     <div>
                       <label className="block text-sm font-medium">電子郵件</label>
                       <Input
@@ -422,17 +413,17 @@ export function ClientModal({ isOpen, onClose, onSave, client }: ClientModalProp
                         placeholder="example@company.com"
                       />
                       {errors.contacts?.[index]?.email && (
-                        <p className="text-red-500 text-xs mt-1">
+                        <p className="text-destructive text-xs mt-1">
                           {errors.contacts[index]?.email?.message}
                         </p>
                       )}
                     </div>
-                    
+
                     <div>
                       <label className="block text-sm font-medium">聯絡電話</label>
-                      <Input 
-                        {...register(`contacts.${index}.phone`)} 
-                        className="mt-1" 
+                      <Input
+                        {...register(`contacts.${index}.phone`)}
+                        className="mt-1"
                         placeholder="例：02-1234-5678"
                       />
                     </div>
@@ -441,9 +432,9 @@ export function ClientModal({ isOpen, onClose, onSave, client }: ClientModalProp
               )
             })}
           </div>
-          
+
           {errors.contacts && (
-            <p className="text-red-500 text-xs">
+            <p className="text-destructive text-xs">
               {errors.contacts.message}
             </p>
           )}
@@ -451,7 +442,7 @@ export function ClientModal({ isOpen, onClose, onSave, client }: ClientModalProp
 
         {/* 發票資訊區塊 */}
         <div className="space-y-4">
-          <h4 className="text-md font-semibold text-gray-700 border-b pb-2">發票資訊</h4>
+          <h4 className="text-md font-semibold text-foreground/80 border-b pb-2">發票資訊</h4>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
             <div>
               <label className="block text-sm font-medium">統一編號</label>
@@ -466,7 +457,7 @@ export function ClientModal({ isOpen, onClose, onSave, client }: ClientModalProp
 
         {/* 銀行資訊區塊 */}
         <div className="space-y-4">
-          <h4 className="text-md font-semibold text-gray-700 border-b pb-2">銀行資訊</h4>
+          <h4 className="text-md font-semibold text-foreground/80 border-b pb-2">銀行資訊</h4>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2">
             <div>
               <label className="block text-sm font-medium">銀行名稱</label>

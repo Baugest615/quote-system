@@ -1,45 +1,63 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { ChevronDown, ChevronRight, FileText, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { PaymentConfirmation } from '@/lib/payments/types'
+import { PaymentConfirmation, RemittanceSettings } from '@/lib/payments/types'
 import { ConfirmationDetails } from './ConfirmationDetails'
 import { ExportControls } from './ExportControls'
 import { useRemittanceSettings } from '@/hooks/payments/useRemittanceSettings'
+import type { WithholdingSettings } from '@/types/custom.types'
 
 interface ConfirmationRowProps {
     confirmation: PaymentConfirmation
     onToggleExpansion: (id: string) => void
     onRevert: (confirmation: PaymentConfirmation) => void
+    onRevertItem?: (itemId: string) => void
+    onSettingsChange?: (confirmationId: string, newSettings: RemittanceSettings) => void
+    withholdingRates?: WithholdingSettings | null
 }
 
-export function ConfirmationRow({ confirmation, onToggleExpansion, onRevert }: ConfirmationRowProps) {
+export function ConfirmationRow({ confirmation, onToggleExpansion, onRevert, onRevertItem, onSettingsChange, withholdingRates }: ConfirmationRowProps) {
     const { settings, updateSettings, getSettings } = useRemittanceSettings(
         confirmation.id,
-        confirmation.remittance_settings
+        confirmation.remittance_settings,
+        onSettingsChange ? (newSettings) => onSettingsChange(confirmation.id, newSettings) : undefined
     )
 
+    // 計算匯費合計
+    const totalFee = useMemo(() => {
+        if (!settings) return 0
+        return Object.values(settings).reduce(
+            (sum, s) => sum + (s.hasRemittanceFee ? (s.remittanceFeeAmount || 0) : 0), 0
+        )
+    }, [settings])
+
     return (
-        <div className="bg-white shadow-md rounded-lg overflow-hidden">
+        <div className="bg-card shadow-none border border-border rounded-lg overflow-hidden">
             {/* 清單標題列 */}
             <div
-                className="flex items-center justify-between cursor-pointer hover:bg-gray-50 p-4 border-b bg-gray-50"
+                className="flex items-center justify-between cursor-pointer hover:bg-secondary p-4 border-b bg-secondary"
                 onClick={() => onToggleExpansion(confirmation.id)}
             >
                 <div className="flex items-center space-x-3">
                     {confirmation.isExpanded ?
-                        <ChevronDown className="h-5 w-5 text-gray-400" /> :
-                        <ChevronRight className="h-5 w-5 text-gray-400" />
+                        <ChevronDown className="h-5 w-5 text-muted-foreground" /> :
+                        <ChevronRight className="h-5 w-5 text-muted-foreground" />
                     }
-                    <FileText className="h-5 w-5 text-blue-500" />
+                    <FileText className="h-5 w-5 text-info" />
                     <div>
-                        <div className="font-medium text-gray-900">請款清單 - {confirmation.confirmation_date}</div>
-                        <div className="text-sm text-gray-500">
+                        <div className="font-medium text-foreground">請款清單 - {confirmation.confirmation_date}</div>
+                        <div className="text-sm text-muted-foreground">
                             {confirmation.total_items} 筆項目 | 總成本 NT$ {(confirmation.total_amount || 0).toLocaleString()}
+                            {totalFee > 0 && (
+                                <span className="text-warning ml-1">
+                                    （匯費 -{totalFee.toLocaleString()} → 實付 NT$ {((confirmation.total_amount || 0) - totalFee).toLocaleString()}）
+                                </span>
+                            )}
                         </div>
                     </div>
                 </div>
                 <div className="flex items-center space-x-2">
-                    <ExportControls confirmation={confirmation} settingsMap={settings} />
+                    <ExportControls confirmation={confirmation} settingsMap={settings} withholdingRates={withholdingRates} />
                     <Button
                         variant="destructive"
                         size="sm"
@@ -60,6 +78,8 @@ export function ConfirmationRow({ confirmation, onToggleExpansion, onRevert }: C
                     settings={settings}
                     updateSettings={updateSettings}
                     getSettings={getSettings}
+                    withholdingRates={withholdingRates}
+                    onRevertItem={onRevertItem}
                 />
             )}
         </div>

@@ -4,10 +4,12 @@
 import type {
     ProjectGroup,
     AccountGroup,
+    PaymentAttachment,
     PendingPaymentItem,
     PaymentConfirmationItem
 } from './types'
 import { isItemReady } from './validation'
+import { type KolBankInfo } from '@/types/schemas'
 
 // ==================== 專案分組 ====================
 
@@ -21,12 +23,13 @@ export function groupItemsByProject<T extends {
     quotations: {
         project_name: string
         clients: { name: string } | null
+        created_at?: string | null
     } | null
     cost_amount_input?: number
     price?: number
     quantity?: number
     rejection_reason?: string | null
-    attachments?: any[]
+    attachments?: PaymentAttachment[]
     invoice_number_input?: string | null
 }>(items: T[]): ProjectGroup<T>[] {
     const projectMap = new Map<string, ProjectGroup<T>>()
@@ -41,6 +44,7 @@ export function groupItemsByProject<T extends {
                 projectId,
                 projectName,
                 clientName,
+                quotationCreatedAt: (item.quotations as any)?.created_at || null,
                 items: [],
                 totalCost: 0,
                 totalItems: 0,
@@ -54,10 +58,8 @@ export function groupItemsByProject<T extends {
         const group = projectMap.get(projectId)!
         group.items.push(item)
 
-        // 計算總成本
-        const itemCost = item.cost_amount_input ||
-            (item.price && item.quantity ? item.price * item.quantity : 0)
-        group.totalCost += itemCost
+        // 計算總成本（使用 ?? 避免 0 被當作 falsy 回退到報價金額）
+        group.totalCost += item.cost_amount_input ?? 0
         group.totalItems += 1
 
         // 檢查是否備妥
@@ -128,16 +130,16 @@ export function groupItemsByAccount(items: PaymentConfirmationItem[]): AccountGr
         const kol = quotationItem.kols
         if (!kol || !kol.bank_info) return
 
-        const bankInfo = kol.bank_info
-        const accountKey = `${bankInfo.bank_name}_${bankInfo.account_number}`
+        const bankInfo = (kol.bank_info || {}) as KolBankInfo
+        const accountKey = `${bankInfo.bankName}_${bankInfo.accountNumber}`
 
         if (!accountMap.has(accountKey)) {
             accountMap.set(accountKey, {
                 accountKey,
                 accountName: kol.name || '未知',
-                bankName: bankInfo.bank_name || '未知銀行',
-                branchName: bankInfo.branch_name || '',
-                accountNumber: bankInfo.account_number || '',
+                bankName: bankInfo.bankName || '未知銀行',
+                branchName: bankInfo.branchName || '',
+                accountNumber: bankInfo.accountNumber || '',
                 items: [],
                 totalAmount: 0
             })
@@ -164,6 +166,39 @@ export function groupItemsByRemittance(items: PaymentConfirmationItem[]): import
     const remittanceMap = new Map<string, import('./types').RemittanceGroup>()
 
     items.forEach(item => {
+        // 個人報帳項目：依付款對象分組
+        if (item.source_type === 'personal' || item.expense_claim_id) {
+            const claim = item.expense_claims
+            const submitterName = claim?.submitter?.full_name || null
+            const vendorName = claim?.vendor_name || null
+
+            // 判斷匯款對象：廠商名稱與提交人不同時，錢匯給廠商（如外包服務）
+            const isExternalVendor = vendorName && submitterName && vendorName !== submitterName
+            const displayName = isExternalVendor ? vendorName : (submitterName || vendorName || '個人報帳')
+            const groupKey = isExternalVendor
+                ? `vendor_${vendorName}`
+                : `personal_${claim?.submitted_by || displayName}`
+
+            if (!remittanceMap.has(groupKey)) {
+                remittanceMap.set(groupKey, {
+                    remittanceName: isExternalVendor ? vendorName : `${displayName}（個人報帳）`,
+                    bankName: '',
+                    branchName: '',
+                    accountNumber: '',
+                    items: [],
+                    totalAmount: 0,
+                    isCompanyAccount: false,
+                    isWithholdingExempt: false,
+                })
+            }
+
+            const group = remittanceMap.get(groupKey)!
+            group.items.push(item)
+            group.totalAmount += item.amount || claim?.total_amount || 0
+            return
+        }
+
+        // 專案請款項目：以匯款戶名分組（原有邏輯）
         const paymentRequest = item.payment_requests
         if (!paymentRequest) return
 
@@ -171,7 +206,7 @@ export function groupItemsByRemittance(items: PaymentConfirmationItem[]): import
         if (!quotationItem) return
 
         const kol = quotationItem.kols
-        const bankInfo = kol?.bank_info || {}
+        const bankInfo = (kol?.bank_info || {}) as KolBankInfo
 
         let remittanceName = quotationItem.remittance_name?.trim()
 
@@ -200,7 +235,9 @@ export function groupItemsByRemittance(items: PaymentConfirmationItem[]): import
                 branchName: bankInfo.branchName || '',
                 accountNumber: bankInfo.accountNumber || '',
                 items: [],
-                totalAmount: 0
+                totalAmount: 0,
+                isCompanyAccount: bankInfo.bankType === 'company',
+                isWithholdingExempt: (kol as Record<string, unknown>)?.withholding_exempt === true,
             })
         }
 
@@ -257,9 +294,7 @@ export function calculateMergeGroupTotal<T extends {
     quantity?: number
 }>(items: T[]): number {
     return items.reduce((sum, item) => {
-        const amount = item.cost_amount_input ||
-            (item.price && item.quantity ? item.price * item.quantity : 0)
-        return sum + amount
+        return sum + (item.cost_amount_input ?? 0)
     }, 0)
 }
 
@@ -323,7 +358,7 @@ export function groupItemsByStatus<T extends {
  * @param dateField 日期欄位名稱
  * @returns 日期分組 Map
  */
-export function groupItemsByDate<T extends Record<string, any>>(
+export function groupItemsByDate<T extends Record<string, unknown>>(
     items: T[],
     dateField: keyof T
 ): Map<string, T[]> {

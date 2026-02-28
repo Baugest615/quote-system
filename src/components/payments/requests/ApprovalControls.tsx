@@ -21,22 +21,22 @@ export function ApprovalControls({
     className
 }: ApprovalControlsProps) {
     return (
-        <div className={cn("flex items-center justify-between bg-white p-4 rounded-lg border shadow-sm", className)}>
+        <div className={cn("flex items-center justify-between bg-card p-4 rounded-lg border shadow-sm", className)}>
             <div className="flex items-center space-x-4">
                 <div className="flex items-center space-x-2">
-                    <span className="text-sm font-medium text-gray-700">
-                        已選擇: <span className="text-indigo-600">{selectedCount}</span> 筆
+                    <span className="text-sm font-medium text-foreground/70">
+                        已選擇: <span className="text-primary">{selectedCount}</span> 筆
                     </span>
                 </div>
 
-                <div className="h-6 w-px bg-gray-200" />
+                <div className="h-6 w-px bg-muted" />
 
                 <div className="flex items-center space-x-2">
                     <Button
                         size="sm"
                         onClick={onBatchApprove}
                         disabled={selectedCount === 0 || isProcessing}
-                        className="bg-green-600 hover:bg-green-700 text-white"
+                        className="bg-success hover:bg-success/90 text-white"
                     >
                         <CheckCircle className="h-4 w-4 mr-1.5" />
                         批量核准

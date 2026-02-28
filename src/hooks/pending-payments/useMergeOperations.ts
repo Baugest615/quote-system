@@ -1,16 +1,21 @@
 // Custom hook for merge operations
 
 import { useState, useCallback } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import supabase from '@/lib/supabase/client'
+import { queryKeys } from '@/lib/queryKeys'
 import { toast } from 'sonner'
+import { useConfirm } from '@/components/ui/ConfirmDialog'
 import type { PendingPaymentItem } from '@/lib/payments/types'
 
-const MERGE_COLORS = ['bg-red-100', 'bg-blue-100', 'bg-green-100', 'bg-yellow-100', 'bg-purple-100', 'bg-pink-100']
+const MERGE_COLORS = ['bg-chart-3/15', 'bg-chart-4/15', 'bg-chart-1/15', 'bg-chart-2/15', 'bg-chart-5/15', 'bg-destructive/15']
 
 export function useMergeOperations(
     items: PendingPaymentItem[],
     setItems: React.Dispatch<React.SetStateAction<PendingPaymentItem[]>>
 ) {
+    const queryClient = useQueryClient()
+    const confirm = useConfirm()
     const [selectedForMerge, setSelectedForMerge] = useState<string[]>([])
     const [selectedMergeType, setSelectedMergeType] = useState<'account' | null>(null)
 
@@ -41,13 +46,14 @@ export function useMergeOperations(
         return JSON.stringify(firstBankInfo) === JSON.stringify(currentBankInfo)
     }, [items, selectedForMerge, selectedMergeType])
 
-    const handleMerge = useCallback(() => {
+    const handleMerge = useCallback(async () => {
         if (selectedForMerge.length < 2) {
             toast.error('請選擇至少兩筆資料進行合併')
             return
         }
 
-        if (!window.confirm('你是否確認合併申請？')) return
+        const ok = await confirm({ title: '確認合併', description: '你是否確認合併申請？' })
+        if (!ok) return
 
         const groupId = `merge-${Date.now()}`
         const colorIndex = items
@@ -72,12 +78,13 @@ export function useMergeOperations(
         setSelectedForMerge([])
         setSelectedMergeType(null)
         toast.success(`已合併 ${selectedForMerge.length} 筆資料`)
-    }, [items, selectedForMerge, setItems])
+    }, [items, selectedForMerge, setItems, confirm])
 
     const handleUnmerge = useCallback(async (groupId: string) => {
         const groupItems = items.filter(i => i.merge_group_id === groupId)
 
-        if (!window.confirm(`確定要解除合併嗎？這將影響 ${groupItems.length} 個項目。`)) return
+        const ok = await confirm({ title: '確認解除合併', description: `確定要解除合併嗎？這將影響 ${groupItems.length} 個項目。` })
+        if (!ok) return
 
         const leaderItem = groupItems.find(item => item.is_merge_leader)
         if (!leaderItem) {
@@ -141,10 +148,12 @@ export function useMergeOperations(
             }))
 
             toast.success(`已解除合併`)
-        } catch (error: any) {
-            toast.error("解除合併失敗: " + error.message)
+            // 跨頁快取失效：解除合併影響待請款資料
+            queryClient.invalidateQueries({ queryKey: [...queryKeys.pendingPayments] })
+        } catch (error: unknown) {
+            toast.error("解除合併失敗: " + (error instanceof Error ? error.message : String(error)))
         }
-    }, [items, setItems])
+    }, [items, setItems, confirm, queryClient])
 
     return {
         selectedForMerge,

@@ -1,14 +1,20 @@
-import { ChevronDown, ChevronRight, Building2, FileText } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { CheckCircle, Paperclip, Trash2, AlertCircle, Unlink, X } from 'lucide-react'
+import React from 'react'
+import { ChevronDown, ChevronRight, Building2, FileText, CalendarDays } from 'lucide-react'
 import { PendingPaymentItem } from '@/lib/payments/types'
 import { ProjectGroup } from '@/lib/payments/types'
-import { ItemRow } from './ItemRow'
+import { CompactItemRow } from './CompactItemRow'
+import { ExpandedItemPanel } from './ExpandedItemPanel'
 
 interface ProjectGroupViewProps {
     groups: ProjectGroup<PendingPaymentItem>[]
     onToggleProject: (projectId: string) => void
+    // 展開列管理
+    expandedRows: Set<string>
+    onToggleExpand: (itemId: string) => void
+    // 批次設定
+    batchExpenseType: string
+    batchAccountingSubject: string
+    batchPaymentMonth: string
     // 傳遞給列表項目的所有必要 props
     onSelect: (itemId: string, checked: boolean) => void
     onCostChange: (itemId: string, value: string) => void
@@ -16,13 +22,16 @@ interface ProjectGroupViewProps {
     onSaveCost: (itemId: string, cost: number, remittanceName: string | null) => void
     onInvoiceChange: (itemId: string, value: string) => void
     onFileModalOpen: (item: PendingPaymentItem) => void
+    onOpenBankInfoModal: (item: PendingPaymentItem) => void
     onMergeSelection: (itemId: string, checked: boolean) => void
     onUnmerge: (groupId: string) => void
     onClearRejection: (requestId: string) => void
-    selectedItems: string[]
+    onExpenseTypeChange: (itemId: string, value: string) => void
+    onAccountingSubjectChange: (itemId: string, value: string) => void
+    onExpectedPaymentMonthChange: (itemId: string, value: string) => void
+    onResetToBatch: (itemId: string) => void
     selectedForMerge: string[]
-    selectedMergeType: 'account' | null
-    isMergeMode: boolean // NEW PROP
+    isMergeMode: boolean
     canSelectForPayment: (item: PendingPaymentItem) => boolean
     canMergeWith: (item: PendingPaymentItem) => boolean
     shouldShowControls: (item: PendingPaymentItem) => boolean
@@ -32,31 +41,41 @@ interface ProjectGroupViewProps {
 export function ProjectGroupView({
     groups,
     onToggleProject,
+    expandedRows,
+    onToggleExpand,
+    batchExpenseType,
+    batchAccountingSubject,
+    batchPaymentMonth,
     onSelect,
     onCostChange,
     onRemittanceNameChange,
     onSaveCost,
     onInvoiceChange,
     onFileModalOpen,
+    onOpenBankInfoModal,
     onMergeSelection,
     onUnmerge,
     onClearRejection,
-    selectedItems,
+    onExpenseTypeChange,
+    onAccountingSubjectChange,
+    onExpectedPaymentMonthChange,
+    onResetToBatch,
     selectedForMerge,
-    selectedMergeType,
-    isMergeMode, // NEW PROP
+    isMergeMode,
     canSelectForPayment,
     canMergeWith,
     shouldShowControls,
     isValidInvoiceFormat
 }: ProjectGroupViewProps) {
 
+    const colSpan = isMergeMode ? 7 : 6
+
     if (groups.length === 0) {
         return (
             <div className="text-center py-12">
-                <FileText className="mx-auto h-12 w-12 text-gray-400" />
-                <h3 className="mt-2 text-sm font-medium text-gray-900">沒有待請款項目</h3>
-                <p className="mt-1 text-sm text-gray-500">目前沒有需要處理的項目</p>
+                <FileText className="mx-auto h-12 w-12 text-muted-foreground" />
+                <h3 className="mt-2 text-sm font-medium text-foreground">沒有待請款專案項目</h3>
+                <p className="mt-1 text-sm text-muted-foreground">目前沒有需要處理的項目</p>
             </div>
         )
     }
@@ -64,40 +83,52 @@ export function ProjectGroupView({
     return (
         <div className="space-y-4">
             {groups.map((group) => (
-                <div key={group.projectId} className="bg-white shadow-md rounded-lg overflow-hidden border border-gray-200">
+                <div key={group.projectId} className="bg-card shadow-none border border-border rounded-lg overflow-hidden">
                     {/* 專案標題列 */}
                     <div
-                        className="flex items-center justify-between p-3 bg-gray-50 cursor-pointer hover:bg-gray-100 transition-colors"
+                        className="flex items-center justify-between p-3 bg-secondary cursor-pointer hover:bg-secondary/50 transition-colors"
                         onClick={() => onToggleProject(group.projectId)}
                     >
                         <div className="flex items-center space-x-3">
                             {group.isExpanded ? (
-                                <ChevronDown className="h-5 w-5 text-gray-500" />
+                                <ChevronDown className="h-5 w-5 text-muted-foreground" />
                             ) : (
-                                <ChevronRight className="h-5 w-5 text-gray-500" />
+                                <ChevronRight className="h-5 w-5 text-muted-foreground" />
                             )}
-                            <Building2 className="h-5 w-5 text-blue-600" />
+                            <Building2 className="h-5 w-5 text-info" />
                             <div>
-                                <div className="font-medium text-gray-900">{group.projectName}</div>
-                                <div className="text-xs text-gray-500">
-                                    {group.clientName || '未知客戶'} • {group.items.length} 筆項目
+                                <div className="font-medium text-foreground">{group.projectName}</div>
+                                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                    <span>{group.clientName || '未知客戶'} · {group.items.length} 筆項目</span>
+                                    {group.quotationCreatedAt && (
+                                        <span className="flex items-center gap-1">
+                                            <CalendarDays className="h-3 w-3" />
+                                            成案：{new Date(group.quotationCreatedAt).toLocaleDateString('zh-TW', { year: 'numeric', month: '2-digit', day: '2-digit' })}
+                                        </span>
+                                    )}
                                 </div>
                             </div>
                         </div>
                         <div className="flex items-center space-x-4">
                             <div className="text-right">
-                                <div className="text-sm font-medium text-gray-900">
-                                    總成本: NT$ {group.totalCost.toLocaleString()}
+                                <div className="text-sm font-medium text-foreground">
+                                    NT$ {group.totalCost.toLocaleString()}
                                 </div>
-                                <div className="text-xs text-gray-500">
-                                    已備妥: {group.readyItems}/{group.totalItems}
+                                <div className="text-xs">
+                                    {group.totalItems - group.readyItems > 0 ? (
+                                        <span className="text-warning">
+                                            待請款: {group.totalItems - group.readyItems} 筆
+                                        </span>
+                                    ) : (
+                                        <span className="text-success">已就緒</span>
+                                    )}
                                 </div>
                             </div>
                             {/* 進度條 */}
-                            <div className="w-24 h-2 bg-gray-200 rounded-full overflow-hidden">
+                            <div className="w-24 h-2 bg-muted rounded-full overflow-hidden">
                                 <div
-                                    className={`h-full ${group.hasRejected ? 'bg-red-500' :
-                                        group.readyItems === group.totalItems ? 'bg-green-500' : 'bg-blue-500'
+                                    className={`h-full transition-all ${group.hasRejected ? 'bg-destructive' :
+                                        group.readyItems === group.totalItems ? 'bg-success' : 'bg-info'
                                         }`}
                                     style={{ width: `${(group.readyItems / group.totalItems) * 100}%` }}
                                 />
@@ -107,47 +138,80 @@ export function ProjectGroupView({
 
                     {/* 展開的項目列表 */}
                     {group.isExpanded && (
-                        <div className="border-t border-gray-200">
-                            <table className="min-w-full divide-y divide-gray-200">
-                                <thead className="bg-gray-50">
+                        <div className="border-t border-border overflow-x-auto">
+                            <table className="min-w-full divide-y divide-border">
+                                <thead className="bg-secondary">
                                     <tr>
-                                        <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-24">KOL</th>
-                                        <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">合作項目</th>
-                                        <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-32">匯款戶名/公司名稱</th>
-                                        <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-32">成本金額</th>
-                                        <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-24">合併</th>
-                                        <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-48">檢核文件</th>
-                                        <th className="px-2 py-2 text-center text-xs font-medium text-gray-500 uppercase tracking-wider w-16">申請付款</th>
+                                        <th className="px-2 py-2 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider w-8"></th>
+                                        <th className="px-2 py-2 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider w-52">KOL/服務</th>
+                                        <th className="px-2 py-2 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider w-40">合作項目</th>
+                                        <th className="px-2 py-2 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider w-56">匯款/成本</th>
+                                        {isMergeMode && (
+                                            <th className="px-2 py-2 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider w-20">合併</th>
+                                        )}
+                                        <th className="px-2 py-2 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider w-48">檢核文件</th>
+                                        <th className="px-2 py-2 text-center text-xs font-medium text-muted-foreground uppercase tracking-wider w-12">付款</th>
                                     </tr>
                                 </thead>
-                                <tbody className="bg-white divide-y divide-gray-200">
+                                <tbody className="bg-card divide-y divide-border">
                                     {group.items.map((item) => {
                                         const displayItem = item.merge_group_id
                                             ? group.items.find(i => i.merge_group_id === item.merge_group_id && i.is_merge_leader) || item
                                             : item;
+                                        const isExpanded = expandedRows.has(item.id)
+                                        const mergeGroupItems = item.merge_group_id
+                                            ? group.items.filter(i => i.merge_group_id === item.merge_group_id)
+                                            : []
 
                                         return (
-                                            <ItemRow
-                                                key={item.id}
-                                                item={item}
-                                                displayItem={displayItem}
-                                                selectedMergeType={selectedMergeType}
-                                                selectedForMerge={selectedForMerge}
-                                                isMergeMode={isMergeMode} // Pass to ItemRow
-                                                canMergeWith={canMergeWith}
-                                                canSelectForPayment={canSelectForPayment}
-                                                shouldShowControls={shouldShowControls}
-                                                isValidInvoiceFormat={isValidInvoiceFormat}
-                                                onCostAmountChange={onCostChange}
-                                                onRemittanceNameChange={onRemittanceNameChange}
-                                                onSaveCost={onSaveCost}
-                                                onMergeSelection={onMergeSelection}
-                                                onUnmerge={onUnmerge}
-                                                onClearRejection={onClearRejection}
-                                                onOpenFileModal={onFileModalOpen}
-                                                onInvoiceNumberChange={onInvoiceChange}
-                                                onPaymentSelection={onSelect}
-                                            />
+                                            <React.Fragment key={item.id}>
+                                                <CompactItemRow
+                                                    item={item}
+                                                    displayItem={displayItem}
+                                                    isExpanded={isExpanded}
+                                                    onToggleExpand={onToggleExpand}
+                                                    batchExpenseType={batchExpenseType}
+                                                    batchAccountingSubject={batchAccountingSubject}
+                                                    batchPaymentMonth={batchPaymentMonth}
+                                                    isMergeMode={isMergeMode}
+                                                    selectedForMerge={selectedForMerge}
+                                                    canMergeWith={canMergeWith}
+                                                    onMergeSelection={onMergeSelection}
+                                                    onUnmerge={onUnmerge}
+                                                    canSelectForPayment={canSelectForPayment}
+                                                    shouldShowControls={shouldShowControls}
+                                                    onPaymentSelection={onSelect}
+                                                    onCostAmountChange={onCostChange}
+                                                    onRemittanceNameChange={onRemittanceNameChange}
+                                                    onSaveCost={onSaveCost}
+                                                    onOpenFileModal={onFileModalOpen}
+                                                    onOpenBankInfoModal={onOpenBankInfoModal}
+                                                    onInvoiceNumberChange={onInvoiceChange}
+                                                    isValidInvoiceFormat={isValidInvoiceFormat}
+                                                    mergeGroupItems={mergeGroupItems}
+                                                />
+                                                {isExpanded && (
+                                                    <tr>
+                                                        <td colSpan={colSpan} className="p-0">
+                                                            <ExpandedItemPanel
+                                                                item={item}
+                                                                mergeGroupItems={mergeGroupItems}
+                                                                batchExpenseType={batchExpenseType}
+                                                                batchAccountingSubject={batchAccountingSubject}
+                                                                batchPaymentMonth={batchPaymentMonth}
+                                                                onExpenseTypeChange={onExpenseTypeChange}
+                                                                onAccountingSubjectChange={onAccountingSubjectChange}
+                                                                onExpectedPaymentMonthChange={onExpectedPaymentMonthChange}
+                                                                onClearRejection={onClearRejection}
+                                                                onUnmerge={onUnmerge}
+                                                                onOpenBankInfoModal={onOpenBankInfoModal}
+                                                                onResetToBatch={onResetToBatch}
+                                                                onClose={() => onToggleExpand(item.id)}
+                                                            />
+                                                        </td>
+                                                    </tr>
+                                                )}
+                                            </React.Fragment>
                                         )
                                     })}
                                 </tbody>

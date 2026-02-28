@@ -36,8 +36,8 @@ export function QuotePrintableTable({ items }: QuotePrintableTableProps) {
             <thead>
                 <tr className="bg-gray-50">
                     <th className="border p-2 text-center" style={{ width: '12%' }}>分類</th>
-                    <th className="border p-2 text-center" style={{ width: '14%' }}>KOL</th>
-                    <th className="border p-2 text-center" style={{ width: '30%' }}>服務內容</th>
+                    <th className="border p-2 text-center" style={{ width: '14%' }}>KOL/服務</th>
+                    <th className="border p-2 text-center" style={{ width: '30%' }}>執行內容</th>
                     <th className="border p-2 text-center" style={{ width: '14%' }}>單價</th>
                     <th className="border p-2 text-center" style={{ width: '10%' }}>數量</th>
                     <th className="border p-2 text-center" style={{ width: '14%' }}>合計</th>
@@ -80,7 +80,7 @@ export function QuotePrintableTable({ items }: QuotePrintableTableProps) {
                                 {isFirstInKol ? kol : ''}
                             </td>
 
-                            {/* 服務內容 */}
+                            {/* 執行內容 */}
                             <td
                                 className="border p-2 text-center"
                                 style={{ borderTop: isFirstInCategory ? '2px solid #6b7280' : undefined }}

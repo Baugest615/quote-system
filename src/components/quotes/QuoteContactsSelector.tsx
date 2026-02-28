@@ -6,7 +6,8 @@ import { Controller } from 'react-hook-form'
 import { Input } from '@/components/ui/input'
 import { Database } from '@/types/database.types'
 import { Building2, User, Star, Mail, Phone } from 'lucide-react'
-import supabase from '@/lib/supabase/client' // 新增缺少的 import
+import supabase from '@/lib/supabase/client'
+import { parseJsonArray } from '@/lib/utils'
 
 type Client = Database['public']['Tables']['clients']['Row']
 
@@ -76,8 +77,8 @@ export function QuoteContactsSelector({
       {/* 客戶與聯絡人選擇區塊 */}
       <div className="space-y-4">
         <div className="flex items-center space-x-2">
-          <Building2 className="h-5 w-5 text-indigo-600" />
-          <h3 className="text-lg font-semibold text-gray-900 border-b pb-2 flex-1">
+          <Building2 className="h-5 w-5 text-emerald-400" />
+          <h3 className="text-lg font-semibold text-foreground border-b pb-2 flex-1">
             客戶與聯絡人資訊
           </h3>
         </div>
@@ -85,7 +86,7 @@ export function QuoteContactsSelector({
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {/* 選擇客戶 */}
           <div>
-            <label htmlFor="client-select" className="block text-sm font-medium text-gray-700 mb-1">
+            <label htmlFor="client-select" className="block text-sm font-medium text-foreground/70 mb-1">
               選擇客戶 (必填)
             </label>
             <Controller
@@ -116,13 +117,13 @@ export function QuoteContactsSelector({
               )}
             />
             {errors.client_id && (
-              <p className="text-red-500 text-xs mt-1">{errors.client_id.message}</p>
+              <p className="text-destructive text-xs mt-1">{errors.client_id.message}</p>
             )}
           </div>
 
           {/* 選擇聯絡人 */}
           <div>
-            <label htmlFor="contact-select" className="block text-sm font-medium text-gray-700 mb-1">
+            <label htmlFor="contact-select" className="block text-sm font-medium text-foreground/70 mb-1">
               選擇聯絡窗口 {clientContacts.length > 0 && '(必填)'}
             </label>
             <Controller
@@ -169,7 +170,7 @@ export function QuoteContactsSelector({
             )}
             
             {errors.selected_contact && (
-              <p className="text-red-500 text-xs mt-1">{errors.selected_contact.message}</p>
+              <p className="text-destructive text-xs mt-1">{errors.selected_contact.message}</p>
             )}
           </div>
         </div>
@@ -177,10 +178,10 @@ export function QuoteContactsSelector({
 
       {/* 顯示選中的聯絡人詳細資訊 */}
       {selectedContact && (
-        <div className="bg-gray-50 rounded-lg p-4">
+        <div className="bg-secondary rounded-lg p-4">
           <div className="flex items-center space-x-2 mb-3">
-            <User className="h-5 w-5 text-indigo-600" />
-            <h4 className="font-medium text-gray-700">選中的聯絡人資訊</h4>
+            <User className="h-5 w-5 text-emerald-400" />
+            <h4 className="font-medium text-foreground/70">選中的聯絡人資訊</h4>
             {selectedContact.is_primary && (
               <div className="flex items-center space-x-1 px-2 py-1 text-xs bg-yellow-100 text-yellow-800 rounded-full">
                 <Star className="h-3 w-3 fill-current" />
@@ -191,35 +192,35 @@ export function QuoteContactsSelector({
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">聯絡人姓名</label>
+              <label className="block text-sm font-medium text-foreground/70 mb-1">聯絡人姓名</label>
               <Input 
                 value={selectedContact.name} 
                 readOnly 
-                className="bg-white border-gray-200" 
+                className="bg-card border-border" 
               />
             </div>
             
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">職稱</label>
+              <label className="block text-sm font-medium text-foreground/70 mb-1">職稱</label>
               <Input 
                 value={selectedContact.position || '未設定'} 
                 readOnly 
-                className="bg-white border-gray-200" 
+                className="bg-card border-border" 
               />
             </div>
             
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">電子郵件</label>
+              <label className="block text-sm font-medium text-foreground/70 mb-1">電子郵件</label>
               <div className="flex items-center">
                 <Input 
                   value={selectedContact.email || '未設定'} 
                   readOnly 
-                  className="bg-white border-gray-200 flex-1" 
+                  className="bg-card border-border flex-1" 
                 />
                 {selectedContact.email && (
                   <a 
                     href={`mailto:${selectedContact.email}`}
-                    className="ml-2 p-2 text-indigo-600 hover:text-indigo-700"
+                    className="ml-2 p-2 text-emerald-400 hover:text-emerald-400"
                     title="發送郵件"
                   >
                     <Mail className="h-4 w-4" />
@@ -229,17 +230,17 @@ export function QuoteContactsSelector({
             </div>
             
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">聯絡電話</label>
+              <label className="block text-sm font-medium text-foreground/70 mb-1">聯絡電話</label>
               <div className="flex items-center">
                 <Input 
                   value={selectedContact.phone || '未設定'} 
                   readOnly 
-                  className="bg-white border-gray-200 flex-1" 
+                  className="bg-card border-border flex-1" 
                 />
                 {selectedContact.phone && (
                   <a 
                     href={`tel:${selectedContact.phone}`}
-                    className="ml-2 p-2 text-indigo-600 hover:text-indigo-700"
+                    className="ml-2 p-2 text-emerald-400 hover:text-emerald-400"
                     title="撥打電話"
                   >
                     <Phone className="h-4 w-4" />
@@ -254,33 +255,33 @@ export function QuoteContactsSelector({
       {/* 顯示客戶公司資訊 */}
       {selectedClient && (
         <div className="bg-blue-50 rounded-lg p-4">
-          <h4 className="font-medium text-gray-700 mb-3">客戶公司資訊</h4>
+          <h4 className="font-medium text-foreground/70 mb-3">客戶公司資訊</h4>
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">統一編號</label>
+              <label className="block text-sm font-medium text-foreground/70 mb-1">統一編號</label>
               <Input 
                 value={selectedClient.tin || '未設定'} 
                 readOnly 
-                className="bg-white border-gray-200" 
+                className="bg-card border-border" 
               />
             </div>
             
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">發票抬頭</label>
+              <label className="block text-sm font-medium text-foreground/70 mb-1">發票抬頭</label>
               <Input 
                 value={selectedClient.invoice_title || '未設定'} 
                 readOnly 
-                className="bg-white border-gray-200" 
+                className="bg-card border-border" 
               />
             </div>
             
             <div className="md:col-span-2">
-              <label className="block text-sm font-medium text-gray-700 mb-1">公司地址</label>
+              <label className="block text-sm font-medium text-foreground/70 mb-1">公司地址</label>
               <Input 
                 value={selectedClient.address || '未設定'} 
                 readOnly 
-                className="bg-white border-gray-200" 
+                className="bg-card border-border" 
               />
             </div>
           </div>
@@ -289,8 +290,8 @@ export function QuoteContactsSelector({
 
       {/* 顯示該客戶的所有聯絡人（如果有多個） */}
       {clientContacts.length > 1 && (
-        <div className="bg-gray-50 rounded-lg p-4">
-          <h4 className="font-medium text-gray-700 mb-3">
+        <div className="bg-secondary rounded-lg p-4">
+          <h4 className="font-medium text-foreground/70 mb-3">
             {selectedClient?.name} 的所有聯絡人 ({clientContacts.length}位)
           </h4>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -299,8 +300,8 @@ export function QuoteContactsSelector({
                 key={index}
                 className={`p-3 border rounded-lg cursor-pointer transition-colors ${
                   selectedContact && selectedContact.name === contact.name
-                    ? 'border-indigo-300 bg-indigo-50'
-                    : 'border-gray-200 bg-white hover:border-gray-300'
+                    ? 'border-emerald-500/30 bg-emerald-500/5'
+                    : 'border-border bg-card hover:border-border'
                 }`}
                 onClick={() => onContactChange(contact)}
               >
@@ -311,9 +312,9 @@ export function QuoteContactsSelector({
                   )}
                 </div>
                 {contact.position && (
-                  <div className="text-xs text-gray-600 mb-1">{contact.position}</div>
+                  <div className="text-xs text-muted-foreground mb-1">{contact.position}</div>
                 )}
-                <div className="text-xs text-gray-500 space-y-1">
+                <div className="text-xs text-muted-foreground space-y-1">
                   {contact.email && (
                     <div className="flex items-center space-x-1">
                       <Mail className="h-3 w-3" />
@@ -352,20 +353,7 @@ export function useClientsWithContacts() {
         if (error) throw error
 
         const clientsWithContacts = (data || []).map((client: Client) => {
-          let parsedContacts: Contact[] = []
-          
-          try {
-            if (client.contacts) {
-              if (typeof client.contacts === 'string') {
-                parsedContacts = JSON.parse(client.contacts)
-              } else if (Array.isArray(client.contacts)) {
-                parsedContacts = client.contacts as Contact[]
-              }
-            }
-          } catch (error) {
-            console.error(`解析客戶 ${client.name} 的聯絡人資料失敗:`, error)
-            parsedContacts = []
-          }
+          let parsedContacts = parseJsonArray<Contact>(client.contacts)
 
           // 如果沒有聯絡人但有舊的單一聯絡人資料，建立相容性聯絡人
           if (parsedContacts.length === 0 && client.contact_person) {

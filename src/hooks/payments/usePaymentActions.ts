@@ -114,9 +114,9 @@ export function usePaymentActions<T extends { id: string }>(
             const selectedItemsList = items.filter(item => selectedItems.has(item.id))
             await action(selectedItemsList)
             options?.onSuccess?.()
-        } catch (error: any) {
+        } catch (error: unknown) {
             console.error('Batch action failed:', error)
-            options?.onError?.(error)
+            options?.onError?.(error instanceof Error ? error : new Error(String(error)))
         } finally {
             setIsProcessing(false)
         }

@@ -49,7 +49,7 @@ export function InvoiceInput({
     return (
         <div className="relative">
             <div className="relative">
-                <Receipt className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <Receipt className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
                     type="text"
                     value={value || ''}
@@ -60,21 +60,21 @@ export function InvoiceInput({
                     placeholder={placeholder}
                     className={cn(
                         'pl-10 pr-10',
-                        showError && 'border-red-500 focus:border-red-500 focus:ring-red-500',
-                        showSuccess && 'border-green-500 focus:border-green-500 focus:ring-green-500',
+                        showError && 'border-destructive focus:border-destructive focus:ring-destructive',
+                        showSuccess && 'border-success focus:border-success focus:ring-success',
                         className
                     )}
                     maxLength={11}
                 />
                 {showSuccess && (
-                    <CheckCircle className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-green-600" />
+                    <CheckCircle className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-success" />
                 )}
                 {showError && (
-                    <AlertCircle className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-red-600" />
+                    <AlertCircle className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-destructive" />
                 )}
             </div>
             {showError && (
-                <div className="mt-1 text-xs text-red-600">
+                <div className="mt-1 text-xs text-destructive">
                     格式錯誤，正確格式：AB-12345678
                 </div>
             )}

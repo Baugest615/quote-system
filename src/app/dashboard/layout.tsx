@@ -1,5 +1,8 @@
 import Sidebar from '@/components/dashboard/Sidebar';
-import { Toaster } from 'sonner'; // 步驟 1: 引入 Toaster 元件
+import { Toaster } from 'sonner';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
+import { PermissionWrapper } from '@/components/dashboard/PermissionWrapper';
+import { ConfirmDialogProvider } from '@/components/ui/ConfirmDialog';
 
 export default function DashboardLayout({
   children,
@@ -7,13 +10,20 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="flex h-screen bg-gray-100 font-sans">
-      <Sidebar />
-      <main className="flex-1 p-6 sm:p-8 overflow-y-auto">
-        {children}
-      </main>
-      {/* 步驟 2: 在主佈局中加入 Toaster，richColors 提供了預設的成功/失敗顏色 */}
-      <Toaster richColors position="bottom-right" />
-    </div>
+    <PermissionWrapper>
+      <ConfirmDialogProvider>
+        <div className="flex min-h-screen min-h-dvh bg-background">
+          <Sidebar />
+          <main className="flex-1 min-w-0 p-4 sm:p-6 lg:p-8 overflow-y-auto lg:ml-0">
+            {/* 行動裝置留空給漢堡選單的空間 */}
+            <div className="lg:hidden h-12" />
+            <ErrorBoundary>
+              {children}
+            </ErrorBoundary>
+          </main>
+          <Toaster richColors position="bottom-right" />
+        </div>
+      </ConfirmDialogProvider>
+    </PermissionWrapper>
   );
 }

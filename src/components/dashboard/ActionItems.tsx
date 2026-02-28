@@ -1,0 +1,85 @@
+'use client'
+
+import Link from 'next/link'
+import { FileCheck, FileText, ChevronRight, CheckCircle } from 'lucide-react'
+
+interface ActionItemsProps {
+  pendingReview: number
+  pendingSignature: number
+  approvedPendingConfirm: number
+}
+
+const items = [
+  {
+    key: 'pendingReview' as const,
+    label: '筆請款待審核',
+    href: '/dashboard/payment-requests',
+    icon: FileCheck,
+    activeColor: 'text-rose-400 bg-rose-500/15',
+    badgeColor: 'bg-rose-500',
+  },
+  {
+    key: 'pendingSignature' as const,
+    label: '筆報價待簽約',
+    href: '/dashboard/quotes',
+    icon: FileText,
+    activeColor: 'text-amber-400 bg-amber-500/15',
+    badgeColor: 'bg-amber-500',
+  },
+  {
+    key: 'approvedPendingConfirm' as const,
+    label: '筆請款已核准待確認',
+    href: '/dashboard/payment-requests',
+    icon: CheckCircle,
+    activeColor: 'text-sky-400 bg-sky-500/15',
+    badgeColor: 'bg-sky-500',
+  },
+]
+
+export function ActionItems({
+  pendingReview,
+  pendingSignature,
+  approvedPendingConfirm,
+}: ActionItemsProps) {
+  const counts = { pendingReview, pendingSignature, approvedPendingConfirm }
+
+  return (
+    <div className="bg-card border border-border rounded-xl p-5 sm:p-6">
+      <h3 className="text-base font-bold text-foreground mb-4">待辦事項</h3>
+      <div className="space-y-2">
+        {items.map((item) => {
+          const count = counts[item.key]
+          const isZero = count === 0
+          const Icon = item.icon
+
+          return (
+            <Link
+              key={item.key}
+              href={item.href}
+              className={`flex items-center gap-3 p-3 rounded-lg transition-all duration-200 ${
+                isZero
+                  ? 'opacity-40 pointer-events-none'
+                  : 'hover:bg-muted/50 cursor-pointer'
+              }`}
+            >
+              <div
+                className={`rounded-lg p-2 flex-shrink-0 ${
+                  isZero ? 'bg-muted text-muted-foreground' : item.activeColor
+                }`}
+              >
+                <Icon className="h-4 w-4" />
+              </div>
+              <span className="text-sm text-foreground flex-1">
+                <span className="font-bold tabular-nums">{count}</span>{' '}
+                {item.label}
+              </span>
+              {!isZero && (
+                <ChevronRight className="h-4 w-4 text-muted-foreground" />
+              )}
+            </Link>
+          )
+        })}
+      </div>
+    </div>
+  )
+}

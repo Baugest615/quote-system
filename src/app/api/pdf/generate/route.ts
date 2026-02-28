@@ -2,19 +2,37 @@
 // Puppeteer PDF 生成 API - 兼容 Vercel 部署
 import { NextRequest, NextResponse } from 'next/server';
 import puppeteer, { Browser, Page } from 'puppeteer-core';
+import { createServerClient } from '@/lib/supabase/server';
+import { PAGE_PERMISSIONS, PAGE_KEYS, UserRole } from '@/types/custom.types';
+import { isDev, serverEnv } from '@/lib/env';
 
 // 動態 import @sparticuz/chromium 避免本地開發問題
 async function getBrowser(): Promise<Browser> {
-    const isDev = process.env.NODE_ENV === 'development';
-    const puppeteerPath = process.env.PUPPETEER_EXECUTABLE_PATH;
+    const puppeteerPath = serverEnv.puppeteerExecutablePath;
 
     if (isDev) {
-        // 本地開發：使用系統的 Chrome
-        const executablePath = process.platform === 'win32'
-            ? 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe'
+        // 本地開發：自動偵測可用的 Chromium 核心瀏覽器
+        const { existsSync } = await import('fs');
+        const candidates: string[] = process.platform === 'win32'
+            ? [
+                'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
+                'C:\\Program Files\\BraveSoftware\\Brave-Browser\\Application\\brave.exe',
+                'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe',
+            ]
             : process.platform === 'darwin'
-                ? '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'
-                : '/usr/bin/google-chrome';
+                ? [
+                    '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
+                    '/Applications/Brave Browser.app/Contents/MacOS/Brave Browser',
+                    '/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge',
+                    '/Applications/Chromium.app/Contents/MacOS/Chromium',
+                ]
+                : ['/usr/bin/google-chrome', '/usr/bin/chromium-browser', '/usr/bin/chromium'];
+
+        const executablePath = candidates.find(p => existsSync(p));
+        if (!executablePath) {
+            throw new Error(`找不到 Chromium 核心瀏覽器。請安裝 Chrome、Brave 或 Edge，或設定 PUPPETEER_EXECUTABLE_PATH 環境變數。`);
+        }
+        console.log(`[PDF API] Using local browser: ${executablePath}`);
 
         return puppeteer.launch({
             headless: true,
@@ -50,6 +68,26 @@ async function getBrowser(): Promise<Browser> {
 }
 
 export async function POST(request: NextRequest) {
+    // 驗證使用者身份
+    const supabase = await createServerClient();
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+
+    if (authError || !user) {
+        return NextResponse.json({ error: '未授權：請先登入' }, { status: 401 });
+    }
+
+    // 權限檢查：確認使用者有報價單存取權限
+    const { data: profile } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', user.id)
+        .single();
+
+    const userRole = profile?.role as UserRole | null;
+    if (!userRole || !PAGE_PERMISSIONS[PAGE_KEYS.QUOTES]?.allowedRoles.includes(userRole)) {
+        return NextResponse.json({ error: '無權限：您無法產生 PDF' }, { status: 403 });
+    }
+
     let browser: Browser | null = null;
 
     try {
@@ -67,8 +105,25 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: '缺少 HTML 內容' }, { status: 400 });
         }
 
+        // HTML sanitization — 移除危險標籤與屬性
+        const dangerousPatterns = [
+            /<script[\s>]/gi,
+            /<\/script>/gi,
+            /<iframe[\s>]/gi,
+            /<\/iframe>/gi,
+            /<object[\s>]/gi,
+            /<\/object>/gi,
+            /<embed[\s>]/gi,
+            /javascript\s*:/gi,
+            /on\w+\s*=/gi,
+        ];
+        let sanitizedHtml = html;
+        for (const pattern of dangerousPatterns) {
+            sanitizedHtml = sanitizedHtml.replace(pattern, '<!-- removed -->');
+        }
+
         console.log(`[PDF API] Received HTML length: ${html.length}`);
-        console.log(`[PDF API] HTML Preview: ${html.substring(0, 200)}...`);
+        console.log(`[PDF API] HTML Preview: ${sanitizedHtml.substring(0, 200)}...`);
 
         // 啟動瀏覽器
         browser = await getBrowser();
@@ -77,9 +132,9 @@ export async function POST(request: NextRequest) {
         // 設定視窗大小為 A4
         await page.setViewport({ width: 794, height: 1123, deviceScaleFactor: 2 });
 
-        // 直接設定 HTML 內容 (HTML Injection)
+        // 設定已清理的 HTML 內容
         // 改用 domcontentloaded 避免因圖片加載緩慢而超時
-        await page.setContent(html, {
+        await page.setContent(sanitizedHtml, {
             waitUntil: 'domcontentloaded',
             timeout: 60000,
         });
@@ -94,7 +149,45 @@ export async function POST(request: NextRequest) {
             throw e;
         }
 
-        // 生成 PDF
+        // 將 #printable-quote 直接搬到 body 下，保留 <style> 標籤
+        await page.evaluate(() => {
+            const el = document.getElementById('printable-quote');
+            if (el) {
+                // 先收集所有 <style> 元素（包含 print page 的 inline CSS）
+                const styles = Array.from(document.querySelectorAll('style'));
+                document.body.innerHTML = '';
+                // 先放回所有樣式
+                styles.forEach(s => document.body.appendChild(s));
+                // 再放入報價單內容
+                document.body.appendChild(el);
+            }
+        });
+
+        // 注入 PDF 專用樣式：白底 + CJK 字體
+        await page.addStyleTag({
+            content: `
+                html, body {
+                    background: white !important;
+                    color: #1f2937 !important;
+                    margin: 0 !important;
+                    padding: 0 !important;
+                }
+                #printable-quote {
+                    width: 100% !important;
+                    max-width: 100% !important;
+                    padding: 0 !important;
+                    margin: 0 !important;
+                }
+                body, body *, #printable-quote, #printable-quote * {
+                    font-family: 'Heiti TC', 'Apple LiGothic', 'STHeiti', 'PingFang TC',
+                                 'Noto Sans TC', 'Microsoft JhengHei', system-ui, sans-serif !important;
+                }
+            `
+        });
+
+        // 等待字體載入完成
+        await page.evaluate(() => document.fonts.ready);
+
         // 生成 PDF
         const pdfBuffer = await page.pdf({
             format: 'A4',

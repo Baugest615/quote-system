@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Trash2, Link as LinkIcon, Eye, Download, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
+import { useConfirm } from '@/components/ui/ConfirmDialog';
 import { PendingPaymentAttachment } from '@/lib/payments/types';
 
 interface PendingPaymentFileModalProps {
@@ -26,6 +27,7 @@ export function PendingPaymentFileModal({
   currentAttachments,
   onUpdate
 }: PendingPaymentFileModalProps) {
+  const confirm = useConfirm();
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [downloadError, setDownloadError] = useState<string | null>(null);
@@ -235,33 +237,39 @@ export function PendingPaymentFileModal({
 
   // 刪除檔案
   const handleFileDelete = async (attachment: PendingPaymentAttachment) => {
-    if (window.confirm(`確定要刪除檔案 "${attachment.name}" 嗎？`)) {
-      try {
-        console.log('Deleting file:', attachment.path);
+    const ok = await confirm({
+      title: '確認刪除',
+      description: `確定要刪除檔案 "${attachment.name}" 嗎？`,
+      confirmLabel: '刪除',
+      variant: 'destructive',
+    });
+    if (!ok) return;
 
-        // 從儲存空間刪除檔案
-        const { error: storageError } = await supabase.storage
-          .from('attachments')
-          .remove([attachment.path]);
+    try {
+      console.log('Deleting file:', attachment.path);
 
-        if (storageError) {
-          console.warn('從儲存空間刪除檔案失敗:', storageError.message);
-        }
+      // 從儲存空間刪除檔案
+      const { error: storageError } = await supabase.storage
+        .from('attachments')
+        .remove([attachment.path]);
 
-        // 從陣列中移除
-        const updatedAttachments = attachments.filter(a => a.path !== attachment.path);
-        setAttachments(updatedAttachments);
-
-        console.log('File deletion completed successfully');
-        toast.success('檔案已成功刪除！');
-
-        // 通知父組件更新
-        onUpdate(itemId, updatedAttachments);
-
-      } catch (error) {
-        console.error('Delete process error:', error);
-        setUploadError('刪除失敗: ' + (error instanceof Error ? error.message : '未知錯誤'));
+      if (storageError) {
+        console.warn('從儲存空間刪除檔案失敗:', storageError.message);
       }
+
+      // 從陣列中移除
+      const updatedAttachments = attachments.filter(a => a.path !== attachment.path);
+      setAttachments(updatedAttachments);
+
+      console.log('File deletion completed successfully');
+      toast.success('檔案已成功刪除！');
+
+      // 通知父組件更新
+      onUpdate(itemId, updatedAttachments);
+
+    } catch (error) {
+      console.error('Delete process error:', error);
+      setUploadError('刪除失敗: ' + (error instanceof Error ? error.message : '未知錯誤'));
     }
   };
 
@@ -280,18 +288,18 @@ export function PendingPaymentFileModal({
     <Modal isOpen={isOpen} onClose={handleClose} title={`檔案管理 - ${projectName}`}>
       <div className="space-y-6">
         {/* 檔案概況 */}
-        <div className="bg-blue-50 border border-blue-200 rounded-md p-3">
+        <div className="bg-info/10 border border-info/30 rounded-md p-3">
           <div className="flex items-center justify-between text-sm">
-            <span className="text-blue-800">
+            <span className="text-info">
               已上傳檔案：{attachments.length}/{MAX_FILES}
             </span>
-            <span className="text-blue-800">
+            <span className="text-info">
               總大小：{formatFileSize(currentTotalSize)}/5MB
             </span>
           </div>
-          <div className="mt-2 bg-blue-200 rounded-full h-2">
+          <div className="mt-2 bg-info/20 rounded-full h-2">
             <div
-              className="bg-blue-500 h-2 rounded-full transition-all duration-300"
+              className="bg-info h-2 rounded-full transition-all duration-300"
               style={{ width: `${Math.min((currentTotalSize / MAX_TOTAL_SIZE) * 100, 100)}%` }}
             />
           </div>
@@ -299,7 +307,7 @@ export function PendingPaymentFileModal({
 
         {/* 已上傳檔案列表 */}
         <div>
-          <h4 className="text-md font-semibold text-gray-700 mb-3 flex items-center">
+          <h4 className="text-md font-semibold text-foreground/80 mb-3 flex items-center">
             <LinkIcon className="h-4 w-4 mr-2" />
             已上傳檔案 ({attachments.length})
           </h4>
@@ -309,20 +317,20 @@ export function PendingPaymentFileModal({
               {attachments.map((attachment, index) => {
                 const fileType = getFileType(attachment.name);
                 return (
-                  <div key={attachment.path} className="bg-gray-50 p-3 rounded-lg border">
+                  <div key={attachment.path} className="bg-secondary p-3 rounded-lg border">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center flex-1 min-w-0">
                         <div className="flex-shrink-0 mr-3">
-                          {fileType === 'image' && <div className="w-6 h-6 bg-green-100 rounded flex items-center justify-center text-xs">🖼️</div>}
-                          {fileType === 'document' && <div className="w-6 h-6 bg-blue-100 rounded flex items-center justify-center text-xs">📄</div>}
-                          {fileType === 'spreadsheet' && <div className="w-6 h-6 bg-yellow-100 rounded flex items-center justify-center text-xs">📊</div>}
-                          {fileType === 'file' && <div className="w-6 h-6 bg-gray-100 rounded flex items-center justify-center text-xs">📎</div>}
+                          {fileType === 'image' && <div className="w-6 h-6 bg-success/15 rounded flex items-center justify-center text-xs">🖼️</div>}
+                          {fileType === 'document' && <div className="w-6 h-6 bg-info/15 rounded flex items-center justify-center text-xs">📄</div>}
+                          {fileType === 'spreadsheet' && <div className="w-6 h-6 bg-warning/15 rounded flex items-center justify-center text-xs">📊</div>}
+                          {fileType === 'file' && <div className="w-6 h-6 bg-muted rounded flex items-center justify-center text-xs">📎</div>}
                         </div>
                         <div className="min-w-0 flex-1">
-                          <p className="font-medium text-gray-900 truncate text-sm" title={attachment.name}>
+                          <p className="font-medium text-foreground truncate text-sm" title={attachment.name}>
                             {attachment.name}
                           </p>
-                          <p className="text-xs text-gray-500">
+                          <p className="text-xs text-muted-foreground">
                             {formatFileSize(attachment.size)} • {new Date(attachment.uploadedAt).toLocaleString('zh-TW')}
                           </p>
                         </div>
@@ -332,7 +340,7 @@ export function PendingPaymentFileModal({
                         <Button
                           variant="ghost"
                           size="sm"
-                          className="h-8 w-8 p-0 text-blue-500 hover:text-blue-700 hover:bg-blue-50"
+                          className="h-8 w-8 p-0 text-info hover:text-info/80 hover:bg-info/10"
                           onClick={() => handleFilePreview(attachment)}
                           title="預覽"
                         >
@@ -341,7 +349,7 @@ export function PendingPaymentFileModal({
                         <Button
                           variant="ghost"
                           size="sm"
-                          className="h-8 w-8 p-0 text-green-500 hover:text-green-700 hover:bg-green-50"
+                          className="h-8 w-8 p-0 text-success hover:text-success/80 hover:bg-success/10"
                           onClick={() => handleFileDownload(attachment)}
                           title="下載"
                         >
@@ -350,7 +358,7 @@ export function PendingPaymentFileModal({
                         <Button
                           variant="ghost"
                           size="sm"
-                          className="h-8 w-8 p-0 text-red-500 hover:text-red-700 hover:bg-red-50"
+                          className="h-8 w-8 p-0 text-destructive hover:text-destructive/80 hover:bg-destructive/10"
                           onClick={() => handleFileDelete(attachment)}
                           title="刪除"
                         >
@@ -363,7 +371,7 @@ export function PendingPaymentFileModal({
               })}
             </div>
           ) : (
-            <div className="text-center py-8 text-gray-500">
+            <div className="text-center py-8 text-muted-foreground">
               <AlertCircle className="mx-auto h-8 w-8 mb-2" />
               <p>尚未上傳任何檔案</p>
             </div>
@@ -372,10 +380,10 @@ export function PendingPaymentFileModal({
 
         {/* 上傳新檔案 */}
         <div className="border-t pt-4">
-          <h4 className="text-md font-semibold text-gray-700 mb-3">上傳新檔案</h4>
+          <h4 className="text-md font-semibold text-foreground/80 mb-3">上傳新檔案</h4>
 
-          <div className="bg-yellow-50 border border-yellow-200 rounded-md p-3 mb-3">
-            <p className="text-xs text-yellow-800">
+          <div className="bg-warning/10 border border-warning/30 rounded-md p-3 mb-3">
+            <p className="text-xs text-warning">
               <strong>重要說明：</strong><br />
               • 最多可上傳 5 個檔案，總大小不可超過 5MB<br />
               • 上傳第 6 個檔案時會自動刪除最舊的檔案<br />
@@ -389,34 +397,34 @@ export function PendingPaymentFileModal({
             ref={fileInputRef}
             onChange={handleFileUpload}
             disabled={uploading || currentTotalSize >= MAX_TOTAL_SIZE}
-            className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"
+            className="block w-full text-sm text-muted-foreground file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-primary/10 file:text-primary hover:file:bg-primary/20"
             accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.gif,.txt,.zip,.rar"
           />
 
           {currentTotalSize >= MAX_TOTAL_SIZE && (
-            <div className="mt-2 bg-red-50 border border-red-200 rounded-md p-2">
-              <p className="text-sm text-red-800">
+            <div className="mt-2 bg-destructive/10 border border-destructive/30 rounded-md p-2">
+              <p className="text-sm text-destructive">
                 已達檔案大小上限，請刪除部分檔案後再上傳
               </p>
             </div>
           )}
 
           {uploading && (
-            <div className="mt-2 flex items-center text-sm text-indigo-600">
-              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-indigo-600 mr-2"></div>
+            <div className="mt-2 flex items-center text-sm text-primary">
+              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary mr-2"></div>
               上傳中，請稍候...
             </div>
           )}
 
           {uploadError && (
-            <div className="mt-2 bg-red-50 border border-red-200 rounded-md p-2">
-              <p className="text-sm text-red-800">{uploadError}</p>
+            <div className="mt-2 bg-destructive/10 border border-destructive/30 rounded-md p-2">
+              <p className="text-sm text-destructive">{uploadError}</p>
             </div>
           )}
 
           {downloadError && (
-            <div className="mt-2 bg-red-50 border border-red-200 rounded-md p-2">
-              <p className="text-sm text-red-800">{downloadError}</p>
+            <div className="mt-2 bg-destructive/10 border border-destructive/30 rounded-md p-2">
+              <p className="text-sm text-destructive">{downloadError}</p>
             </div>
           )}
         </div>

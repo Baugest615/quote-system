@@ -22,7 +22,7 @@ export function PermissionGuard({
   const { checkPageAccess, checkFunctionAccess, loading } = usePermission()
   
   if (loading) {
-    return <div className="animate-pulse bg-gray-200 h-4 w-full rounded"></div>
+    return <div className="animate-pulse bg-muted h-4 w-full rounded"></div>
   }
   
   const hasAccess = functionName 

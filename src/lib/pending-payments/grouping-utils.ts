@@ -4,6 +4,7 @@ export interface ProjectGroup<T = PendingPaymentItem> {
     projectId: string
     projectName: string
     clientName: string | null
+    quotationCreatedAt: string | null
     items: T[]
     totalCost: number
     readyItems: number
@@ -33,6 +34,7 @@ export const groupItemsByProject = (items: PendingPaymentItem[]): ProjectGroup[]
                 projectId,
                 projectName,
                 clientName,
+                quotationCreatedAt: item.quotations?.created_at || null,
                 items: [],
                 totalCost: 0,
                 readyItems: 0,
@@ -74,18 +76,18 @@ export const getCompletionPercentage = (group: ProjectGroup): number => {
 
 // Get status color based on completion
 export const getStatusColor = (group: ProjectGroup): string => {
-    if (group.hasRejected) return 'bg-red-50 border-red-200'
+    if (group.hasRejected) return 'bg-red-500/10 border-red-500/30'
     const percentage = getCompletionPercentage(group)
-    if (percentage === 100) return 'bg-green-50 border-green-200'
-    if (percentage > 0) return 'bg-yellow-50 border-yellow-200'
-    return 'bg-gray-50 border-gray-200'
+    if (percentage === 100) return 'bg-emerald-500/10 border-emerald-500/30'
+    if (percentage > 0) return 'bg-yellow-500/10 border-yellow-500/30'
+    return 'bg-secondary border-border'
 }
 
 // Get status badge color
 export const getStatusBadgeColor = (group: ProjectGroup): string => {
-    if (group.hasRejected) return 'bg-red-100 text-red-800'
+    if (group.hasRejected) return 'bg-red-500/15 text-red-400'
     const percentage = getCompletionPercentage(group)
-    if (percentage === 100) return 'bg-green-100 text-green-800'
-    if (percentage > 0) return 'bg-yellow-100 text-yellow-800'
-    return 'bg-gray-100 text-gray-800'
+    if (percentage === 100) return 'bg-emerald-500/15 text-emerald-400'
+    if (percentage > 0) return 'bg-yellow-500/15 text-yellow-400'
+    return 'bg-muted text-foreground/80'
 }

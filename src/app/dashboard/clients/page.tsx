@@ -1,14 +1,29 @@
-// src/app/dashboard/clients/page.tsx - 針對JSONB contacts的優化版本
+// src/app/dashboard/clients/page.tsx - React Query 快取版本
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import supabase from '@/lib/supabase/client'
 import { Database } from '@/types/database.types'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { ClientModal } from '@/components/clients/ClientModal'
+import { ClientModal, type ClientFormData } from '@/components/clients/ClientModal'
 import { PlusCircle, Edit, Trash2, Search, Users, Mail, Phone, Star } from 'lucide-react'
 import { toast } from 'sonner'
+import { usePermission } from '@/lib/permissions'
+import { SkeletonPageHeader, SkeletonStatCards, SkeletonTable } from '@/components/ui/Skeleton'
+import { EmptyState } from '@/components/ui/EmptyState'
+import { useClients } from '@/hooks/useClients'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { queryKeys } from '@/lib/queryKeys'
+import Pagination from '@/components/ui/Pagination'
+import { useConfirm } from '@/components/ui/ConfirmDialog'
+import { parseJsonArray } from '@/lib/utils'
+import { useTableSort } from '@/hooks/useTableSort'
+import { SortableHeader } from '@/components/ui/SortableHeader'
+
+type ClientSortKey = 'name' | 'tin' | 'contact_person' | 'contact_count'
+
+const PAGE_SIZE = 20
 
 type Client = Database['public']['Tables']['clients']['Row']
 
@@ -27,95 +42,93 @@ type ClientWithContacts = Client & {
 }
 
 export default function ClientsPage() {
-  const [clients, setClients] = useState<ClientWithContacts[]>([])
-  const [filteredClients, setFilteredClients] = useState<ClientWithContacts[]>([])
-  const [loading, setLoading] = useState(true)
+  const confirm = useConfirm()
+  const queryClient = useQueryClient()
+  const { userId, hasRole } = usePermission()
+  const { data: rawClients = [], isLoading: loading } = useClients()
   const [searchTerm, setSearchTerm] = useState('')
+  const [currentPage, setCurrentPage] = useState(1)
+  const { sortState, toggleSort } = useTableSort<ClientSortKey>()
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [selectedClient, setSelectedClient] = useState<Client | null>(null)
 
-  const fetchClients = useCallback(async () => {
-    setLoading(true)
-    try {
-      const { data, error } = await supabase
-        .from('clients')
-        .select('*')
-        .order('created_at', { ascending: false })
+  // 搜尋改變時重置到第一頁
+  useEffect(() => { setCurrentPage(1) }, [searchTerm])
 
-      if (error) throw error
+  // 解析 JSONB contacts 並排序（client-side 轉換，有快取時不會重複計算）
+  const clients = useMemo(() => {
+    return rawClients.map(client => {
+      let parsedContacts = parseJsonArray<Contact>(client.contacts)
 
-      // 解析JSONB contacts並排序
-      const clientsWithContacts = (data || []).map(client => {
-        let parsedContacts: Contact[] = []
-        
-        try {
-          if (client.contacts) {
-            if (typeof client.contacts === 'string') {
-              parsedContacts = JSON.parse(client.contacts)
-            } else if (Array.isArray(client.contacts)) {
-              parsedContacts = client.contacts as Contact[]
-            }
-          }
-        } catch (error) {
-          console.error(`解析客戶 ${client.name} 的聯絡人資料失敗:`, error)
-          parsedContacts = []
-        }
+      // 如果沒有聯絡人但有舊的單一聯絡人資料，建立相容性聯絡人
+      if (parsedContacts.length === 0 && client.contact_person) {
+        parsedContacts = [{
+          name: client.contact_person,
+          email: client.email || undefined,
+          phone: client.phone || undefined,
+          position: undefined,
+          is_primary: true,
+        }]
+      }
 
-        // 如果沒有聯絡人但有舊的單一聯絡人資料，建立相容性聯絡人
-        if (parsedContacts.length === 0 && client.contact_person) {
-          parsedContacts = [{
-            name: client.contact_person,
-            email: client.email || undefined,
-            phone: client.phone || undefined,
-            position: undefined,
-            is_primary: true,
-          }]
-        }
-
-        // 排序：主要聯絡人在前
-        parsedContacts.sort((a, b) => {
-          if (a.is_primary && !b.is_primary) return -1
-          if (!a.is_primary && b.is_primary) return 1
-          return (a.name || '').localeCompare(b.name || '')
-        })
-
-        return {
-          ...client,
-          parsedContacts
-        }
+      // 排序：主要聯絡人在前
+      parsedContacts.sort((a, b) => {
+        if (a.is_primary && !b.is_primary) return -1
+        if (!a.is_primary && b.is_primary) return 1
+        return (a.name || '').localeCompare(b.name || '')
       })
 
-      setClients(clientsWithContacts)
-      setFilteredClients(clientsWithContacts)
-    } catch (error) {
-      console.error('載入客戶資料失敗:', error)
-      toast.error('載入客戶資料失敗')
-    } finally {
-      setLoading(false)
-    }
-  }, [])
+      return { ...client, parsedContacts }
+    })
+  }, [rawClients])
 
-  useEffect(() => {
-    fetchClients()
-  }, [fetchClients])
-
-  // 搜尋功能 - 包含聯絡人搜尋
-  useEffect(() => {
-    const filtered = clients.filter((client) => {
-      const searchLower = searchTerm.toLowerCase()
-      
-      // 搜尋公司名稱
+  // 搜尋過濾
+  const filteredClients = useMemo(() => {
+    if (!searchTerm.trim()) return clients
+    const searchLower = searchTerm.toLowerCase()
+    return clients.filter((client) => {
       if (client.name.toLowerCase().includes(searchLower)) return true
-      
-      // 搜尋所有聯絡人的姓名和電子郵件
-      return client.parsedContacts.some(contact => 
+      return client.parsedContacts.some(contact =>
         (contact.name && contact.name.toLowerCase().includes(searchLower)) ||
         (contact.email && contact.email.toLowerCase().includes(searchLower)) ||
         (contact.position && contact.position.toLowerCase().includes(searchLower))
       )
     })
-    setFilteredClients(filtered)
   }, [clients, searchTerm])
+
+  // 排序
+  const sortedClients = useMemo(() => {
+    if (!sortState.key || !sortState.direction) return filteredClients
+    const dir = sortState.direction === 'asc' ? 1 : -1
+    return [...filteredClients].sort((a, b) => {
+      let aVal: string | number | null = null
+      let bVal: string | number | null = null
+      switch (sortState.key) {
+        case 'name':
+          aVal = a.name; bVal = b.name; break
+        case 'tin':
+          aVal = a.tin; bVal = b.tin; break
+        case 'contact_person':
+          aVal = a.parsedContacts[0]?.name ?? null
+          bVal = b.parsedContacts[0]?.name ?? null
+          break
+        case 'contact_count':
+          aVal = a.parsedContacts.length; bVal = b.parsedContacts.length; break
+      }
+      if (aVal == null && bVal == null) return 0
+      if (aVal == null) return 1
+      if (bVal == null) return -1
+      if (typeof aVal === 'number' && typeof bVal === 'number') return (aVal - bVal) * dir
+      return String(aVal).localeCompare(String(bVal), 'zh-Hant') * dir
+    })
+  }, [filteredClients, sortState.key, sortState.direction])
+
+  // 分頁
+  const totalPages = Math.max(1, Math.ceil(sortedClients.length / PAGE_SIZE))
+  const paginatedClients = sortedClients.slice(
+    (currentPage - 1) * PAGE_SIZE,
+    currentPage * PAGE_SIZE
+  )
 
   const handleOpenModal = (client?: Client) => {
     setSelectedClient(client || null)
@@ -127,8 +140,10 @@ export default function ClientsPage() {
     setSelectedClient(null)
   }
 
-  const handleSaveClient = async (formData: any, id?: string) => {
-    try {
+  // 儲存 mutation
+  const saveMutation = useMutation({
+    mutationFn: async ({ formData, id }: { formData: ClientFormData; id?: string }) => {
+      const primaryContact = formData.contacts?.find(c => c.is_primary) || formData.contacts?.[0]
       const dataToSave = {
         name: formData.name,
         phone: formData.phone || null,
@@ -136,49 +151,57 @@ export default function ClientsPage() {
         tin: formData.tin || null,
         invoice_title: formData.invoice_title || null,
         bank_info: formData.bank_info || null,
-        contacts: formData.contacts || [], // 儲存JSONB陣列
-        // 為了向後相容性，同時更新單一聯絡人欄位
-        contact_person: formData.contact_person || null,
-        email: formData.email || null,
+        contacts: formData.contacts || [],
+        contact_person: primaryContact?.name || null,
+        email: primaryContact?.email || null,
       }
 
       if (id) {
-        const { error } = await supabase
-          .from('clients')
-          .update(dataToSave)
-          .eq('id', id)
-        
+        const { error } = await supabase.from('clients').update(dataToSave).eq('id', id)
         if (error) throw error
-        toast.success('客戶資料更新成功！')
       } else {
-        const { error } = await supabase
-          .from('clients')
-          .insert(dataToSave)
-        
+        const { error } = await supabase.from('clients').insert(dataToSave)
         if (error) throw error
-        toast.success('客戶新增成功！')
       }
-
-      await fetchClients()
-    } catch (error: any) {
-      console.error('儲存客戶失敗:', error)
+      return id
+    },
+    onSuccess: (id) => {
+      queryClient.invalidateQueries({ queryKey: [...queryKeys.clients] })
+      toast.success(id ? '客戶資料更新成功！' : '客戶新增成功！')
+    },
+    onError: (error: Error) => {
       toast.error(`儲存失敗: ${error.message}`)
-    }
+    },
+  })
+
+  const handleSaveClient = async (formData: ClientFormData, id?: string) => {
+    await saveMutation.mutateAsync({ formData, id })
   }
 
+  // 刪除 mutation
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from('clients').delete().eq('id', id)
+      if (error) throw error
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [...queryKeys.clients] })
+      toast.success('客戶已刪除')
+    },
+    onError: (error: Error) => {
+      toast.error(`刪除失敗: ${error.message}`)
+    },
+  })
+
   const handleDeleteClient = async (id: string) => {
-    if (window.confirm('確定要刪除這位客戶嗎？此操作無法復原，同時會刪除所有相關聯絡人資料。')) {
-      try {
-        const { error } = await supabase.from('clients').delete().eq('id', id)
-        if (error) throw error
-        
-        toast.success('客戶已刪除')
-        await fetchClients()
-      } catch (error: any) {
-        console.error('刪除客戶失敗:', error)
-        toast.error(`刪除失敗: ${error.message}`)
-      }
-    }
+    const ok = await confirm({
+      title: '確認刪除',
+      description: '確定要刪除這位客戶嗎？此操作無法復原，同時會刪除所有相關聯絡人資料。',
+      confirmLabel: '刪除',
+      variant: 'destructive',
+    })
+    if (!ok) return
+    await deleteMutation.mutateAsync(id)
   }
 
   const getPrimaryContact = (contacts: Contact[]) => {
@@ -189,42 +212,48 @@ export default function ClientsPage() {
     return contacts.length
   }
 
-  if (loading) return <div>讀取中...</div>
+  if (loading) return (
+    <div className="bg-card rounded-xl border border-border p-4 sm:p-6 space-y-6">
+      <SkeletonPageHeader />
+      <SkeletonStatCards count={3} />
+      <SkeletonTable rows={8} columns={5} />
+    </div>
+  )
 
   return (
-    <div className="bg-white rounded-lg shadow-md p-6">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold">客戶管理</h1>
-        <div className="flex items-center space-x-4">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+    <div className="bg-card rounded-xl border border-border p-4 sm:p-6">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-6">
+        <h1 className="text-xl sm:text-2xl font-bold text-foreground">客戶管理</h1>
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3">
+          <div className="relative w-full sm:w-56">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
               type="text"
-              placeholder="搜尋公司名稱、聯絡人或電子郵件..."
+              placeholder="搜尋公司名稱、聯絡人..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10 w-64"
+              className="pl-10 bg-secondary border-border"
             />
           </div>
-          <Button onClick={() => handleOpenModal()}>
+          <Button onClick={() => handleOpenModal()} className="bg-primary hover:bg-primary/90 text-primary-foreground">
             <PlusCircle className="mr-2 h-4 w-4" /> 新增客戶
           </Button>
         </div>
       </div>
 
       {/* 統計資訊 */}
-      <div className="mb-6 grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="bg-gray-50 p-4 rounded-lg">
-          <div className="text-sm text-gray-500">總客戶數</div>
-          <div className="text-xl font-semibold">{clients.length}</div>
+      <div className="mb-6 grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <div className="bg-secondary p-4 rounded-lg">
+          <div className="text-sm text-muted-foreground">總客戶數</div>
+          <div className="text-xl font-semibold text-foreground">{clients.length}</div>
         </div>
-        <div className="bg-gray-50 p-4 rounded-lg">
-          <div className="text-sm text-gray-500">搜尋結果</div>
-          <div className="text-xl font-semibold">{filteredClients.length}</div>
+        <div className="bg-secondary p-4 rounded-lg">
+          <div className="text-sm text-muted-foreground">搜尋結果</div>
+          <div className="text-xl font-semibold text-foreground">{filteredClients.length}</div>
         </div>
-        <div className="bg-gray-50 p-4 rounded-lg">
-          <div className="text-sm text-gray-500">總聯絡人數</div>
-          <div className="text-xl font-semibold">
+        <div className="bg-secondary p-4 rounded-lg">
+          <div className="text-sm text-muted-foreground">總聯絡人數</div>
+          <div className="text-xl font-semibold text-foreground">
             {clients.reduce((sum, client) => sum + client.parsedContacts.length, 0)}
           </div>
         </div>
@@ -233,32 +262,40 @@ export default function ClientsPage() {
       <div className="overflow-x-auto">
         <table className="w-full text-left">
           <thead>
-            <tr className="bg-gray-50 border-b">
-              <th className="p-4 font-medium text-sm">公司資訊</th>
-              <th className="p-4 font-medium text-sm">統一編號</th>
-              <th className="p-4 font-medium text-sm">主要聯絡人</th>
-              <th className="p-4 font-medium text-sm">聯絡方式</th>
-              <th className="p-4 font-medium text-sm text-center">聯絡人數</th>
-              <th className="p-4 font-medium text-sm text-center">操作</th>
+            <tr className="bg-secondary/50 border-b border-border">
+              <th className="p-4 font-medium text-sm text-muted-foreground">
+                <SortableHeader label="公司資訊" sortKey="name" sortState={sortState} onToggleSort={toggleSort} />
+              </th>
+              <th className="p-4 font-medium text-sm text-muted-foreground hidden md:table-cell">
+                <SortableHeader label="統一編號" sortKey="tin" sortState={sortState} onToggleSort={toggleSort} />
+              </th>
+              <th className="p-4 font-medium text-sm text-muted-foreground hidden sm:table-cell">
+                <SortableHeader label="主要聯絡人" sortKey="contact_person" sortState={sortState} onToggleSort={toggleSort} />
+              </th>
+              <th className="p-4 font-medium text-sm text-muted-foreground hidden lg:table-cell">聯絡方式</th>
+              <th className="p-4 font-medium text-sm text-muted-foreground text-center hidden sm:table-cell">
+                <SortableHeader label="聯絡人數" sortKey="contact_count" sortState={sortState} onToggleSort={toggleSort} className="justify-center" />
+              </th>
+              <th className="p-4 font-medium text-sm text-muted-foreground text-center">操作</th>
             </tr>
           </thead>
           <tbody>
-            {filteredClients.map((client) => {
+            {paginatedClients.map((client) => {
               const primaryContact = getPrimaryContact(client.parsedContacts)
               const contactCount = getContactCount(client.parsedContacts)
-              
+
               return (
-                <tr key={client.id} className="border-b hover:bg-gray-50">
+                <tr key={client.id} className="border-b border-border hover:bg-muted/50 transition-colors">
                   <td className="p-4">
                     <div>
-                      <div className="text-sm font-semibold text-indigo-700">{client.name}</div>
-                      <div className="text-xs text-gray-500">{client.address}</div>
+                      <div className="text-sm font-semibold text-primary">{client.name}</div>
+                      <div className="text-xs text-muted-foreground">{client.address}</div>
                     </div>
                   </td>
-                  
-                  <td className="p-4 text-sm">{client.tin || '-'}</td>
-                  
-                  <td className="p-4">
+
+                  <td className="p-4 text-sm hidden md:table-cell">{client.tin || '-'}</td>
+
+                  <td className="p-4 hidden sm:table-cell">
                     {primaryContact ? (
                       <div>
                         <div className="flex items-center space-x-1">
@@ -268,23 +305,23 @@ export default function ClientsPage() {
                           )}
                         </div>
                         {primaryContact.position && (
-                          <div className="text-xs text-gray-500">{primaryContact.position}</div>
+                          <div className="text-xs text-muted-foreground">{primaryContact.position}</div>
                         )}
                       </div>
                     ) : (
-                      <span className="text-gray-400 text-sm">無聯絡人</span>
+                      <span className="text-muted-foreground text-sm">無聯絡人</span>
                     )}
                   </td>
-                  
-                  <td className="p-4">
+
+                  <td className="p-4 hidden lg:table-cell">
                     {primaryContact ? (
                       <div className="space-y-1">
                         {primaryContact.email && (
-                          <div className="flex items-center text-xs text-gray-600">
+                          <div className="flex items-center text-xs text-muted-foreground">
                             <Mail className="h-3 w-3 mr-1" />
-                            <a 
+                            <a
                               href={`mailto:${primaryContact.email}`}
-                              className="hover:text-indigo-600 truncate max-w-[150px]"
+                              className="hover:text-primary truncate max-w-[150px]"
                               title={primaryContact.email}
                             >
                               {primaryContact.email}
@@ -292,57 +329,59 @@ export default function ClientsPage() {
                           </div>
                         )}
                         {primaryContact.phone && (
-                          <div className="flex items-center text-xs text-gray-600">
+                          <div className="flex items-center text-xs text-muted-foreground">
                             <Phone className="h-3 w-3 mr-1" />
-                            <a 
+                            <a
                               href={`tel:${primaryContact.phone}`}
-                              className="hover:text-indigo-600"
+                              className="hover:text-primary"
                             >
                               {primaryContact.phone}
                             </a>
                           </div>
                         )}
                         {!primaryContact.email && !primaryContact.phone && (
-                          <span className="text-xs text-gray-400">無聯絡方式</span>
+                          <span className="text-xs text-muted-foreground">無聯絡方式</span>
                         )}
                       </div>
                     ) : (
-                      <span className="text-gray-400 text-sm">-</span>
+                      <span className="text-muted-foreground text-sm">-</span>
                     )}
                   </td>
-                  
-                  <td className="p-4 text-center">
+
+                  <td className="p-4 text-center hidden sm:table-cell">
                     <div className="flex items-center justify-center space-x-1">
-                      <Users className="h-4 w-4 text-gray-400" />
-                      <span className="text-sm text-gray-600">{contactCount}</span>
+                      <Users className="h-4 w-4 text-muted-foreground" />
+                      <span className="text-sm text-foreground/80">{contactCount}</span>
                       {contactCount > 1 && (
-                        <span className="text-xs text-blue-600 bg-blue-100 px-1 rounded">
+                        <span className="text-xs text-primary bg-primary/10 px-1 rounded">
                           多窗口
                         </span>
                       )}
                     </div>
                   </td>
-                  
+
                   <td className="p-4 text-center">
                     <div className="flex justify-center space-x-2">
                       <Button
                         variant="outline"
                         size="sm"
                         onClick={() => handleOpenModal(client)}
-                        className="text-indigo-600 hover:text-indigo-700"
+                        className="text-primary hover:text-primary/80 border-border"
                         title="編輯客戶資料"
                       >
                         <Edit className="h-3 w-3" />
                       </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleDeleteClient(client.id)}
-                        className="text-red-600 hover:text-red-700"
-                        title="刪除客戶"
-                      >
-                        <Trash2 className="h-3 w-3" />
-                      </Button>
+                      {(hasRole('Editor') || (client.created_by != null && client.created_by === userId)) && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleDeleteClient(client.id)}
+                          className="text-destructive hover:text-destructive/80 border-border"
+                          title="刪除客戶"
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </Button>
+                      )}
                     </div>
                   </td>
                 </tr>
@@ -350,46 +389,56 @@ export default function ClientsPage() {
             })}
           </tbody>
         </table>
-        
+
+        <Pagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          totalItems={filteredClients.length}
+          pageSize={PAGE_SIZE}
+          onPageChange={setCurrentPage}
+        />
+
         {filteredClients.length === 0 && !loading && (
-          <div className="text-center py-8 text-gray-500">
-            {searchTerm ? (
-              <div>
-                <p>找不到符合條件的客戶</p>
-                <p className="text-sm mt-1">嘗試搜尋公司名稱、聯絡人姓名或電子郵件</p>
-              </div>
-            ) : (
-              <div>
-                <p>尚未新增任何客戶</p>
-                <p className="text-sm mt-1">點擊上方「新增客戶」開始建立客戶資料</p>
-              </div>
-            )}
-          </div>
+          searchTerm ? (
+            <EmptyState
+              type="no-results"
+              title="找不到符合條件的客戶"
+              description="嘗試搜尋公司名稱、聯絡人姓名或電子郵件"
+            />
+          ) : (
+            <EmptyState
+              type="no-data"
+              icon={Users}
+              title="尚未新增任何客戶"
+              description="點擊上方「新增客戶」開始建立客戶資料"
+              action={{ label: '新增客戶', onClick: () => handleOpenModal() }}
+            />
+          )
         )}
 
         {/* 顯示所有聯絡人的詳細資訊（可選，展開式） */}
         {searchTerm && (
-          <div className="mt-6 bg-gray-50 rounded-lg p-4">
-            <h3 className="text-sm font-semibold text-gray-700 mb-3">
+          <div className="mt-6 bg-secondary rounded-lg p-4">
+            <h3 className="text-sm font-semibold text-foreground/70 mb-3">
               搜尋結果中的所有聯絡人：
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-              {filteredClients.flatMap(client => 
+              {filteredClients.flatMap(client =>
                 client.parsedContacts
-                  .filter(contact => 
+                  .filter(contact =>
                     contact.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                     (contact.email && contact.email.toLowerCase().includes(searchTerm.toLowerCase())) ||
                     (contact.position && contact.position.toLowerCase().includes(searchTerm.toLowerCase()))
                   )
                   .map(contact => (
-                    <div key={`${client.id}-${contact.name}`} className="bg-white p-3 rounded border">
+                    <div key={`${client.id}-${contact.name}`} className="bg-card p-3 rounded border border-border">
                       <div className="flex items-center space-x-1 mb-1">
                         <span className="font-medium text-sm">{contact.name}</span>
                         {contact.is_primary && (
                           <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
                         )}
                       </div>
-                      <div className="text-xs text-gray-600">
+                      <div className="text-xs text-muted-foreground">
                         <div className="font-medium">{client.name}</div>
                         {contact.position && <div>{contact.position}</div>}
                         {contact.email && <div>{contact.email}</div>}

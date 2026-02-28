@@ -3,7 +3,7 @@
 
 import { useState, useMemo, useCallback } from 'react'
 import { groupItemsByProject, toggleGroupExpansion, expandAllGroups, collapseAllGroups } from '@/lib/payments/grouping'
-import type { ProjectGroup } from '@/lib/payments/types'
+import type { ProjectGroup, PaymentAttachment } from '@/lib/payments/types'
 
 export interface UsePaymentGroupingReturn<T> {
     projectGroups: ProjectGroup<T>[]
@@ -25,12 +25,13 @@ export function usePaymentGrouping<T extends {
     quotations: {
         project_name: string
         clients: { name: string } | null
+        created_at?: string | null
     } | null
     cost_amount_input?: number
     price?: number
     quantity?: number
     rejection_reason?: string | null
-    attachments?: any[]
+    attachments?: PaymentAttachment[]
     invoice_number_input?: string | null
 }>(items: T[]): UsePaymentGroupingReturn<T> {
     const [expandedProjects, setExpandedProjects] = useState<Set<string>>(new Set())

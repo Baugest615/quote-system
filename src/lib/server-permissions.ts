@@ -1,47 +1,9 @@
-import { createServerClient as createSupabaseServerClient, type CookieOptions } from '@supabase/ssr'
-import { cookies } from 'next/headers'
-import { 
+import { createServerClient } from '@/lib/supabase/server'
+import {
   PermissionCheckResult,
   PAGE_PERMISSIONS,
-  UserRole 
-} from '@/types/custom.types'  // 🔄 修改：從 custom.types 引入
-
-/**
- * 創建服務器端 Supabase 客戶端
- */
-async function createServerSupabaseClient() {
-  const cookieStore = await cookies()
-
-  return createSupabaseServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        get(name: string) {
-          return cookieStore.get(name)?.value
-        },
-        set(name: string, value: string, options: CookieOptions) {
-          try {
-            cookieStore.set({ name, value, ...options })
-          } catch (error) {
-            // The `set` method was called from a Server Component.
-            // This can be ignored if you have middleware refreshing
-            // user sessions.
-          }
-        },
-        remove(name: string, options: CookieOptions) {
-          try {
-            cookieStore.set({ name, value: '', ...options })
-          } catch (error) {
-            // The `delete` method was called from a Server Component.
-            // This can be ignored if you have middleware refreshing
-            // user sessions.
-          }
-        },
-      },
-    }
-  )
-}
+  UserRole
+} from '@/types/custom.types'
 
 /**
  * 伺服器端權限檢查
@@ -51,10 +13,10 @@ export async function checkServerPermission(
   functionName?: string
 ): Promise<PermissionCheckResult> {
   try {
-    const supabase = await createServerSupabaseClient()
-    
+    const supabase = await createServerClient()
+
     const { data: { user }, error: authError } = await supabase.auth.getUser()
-    
+
     if (authError || !user) {
       return {
         hasAccess: false,
@@ -82,14 +44,12 @@ export async function checkServerPermission(
       }
     }
 
-    // 取得用戶角色
+    // 使用 SECURITY DEFINER RPC 取得角色，避免直查 profiles 觸發 RLS 遞迴
     const { data: profile } = await supabase
-      .from('profiles')
-      .select('role')
-      .eq('id', user.id)
-      .single()
+      .rpc('get_my_profile')
+      .single() as { data: { role: UserRole; user_id: string } | null; error: any }
 
-    const userRole = profile?.role || null
+    const userRole = (profile as any)?.role || null
     const pageConfig = PAGE_PERMISSIONS[pageKey]
 
     return {
@@ -120,18 +80,16 @@ export async function quickPermissionCheck(pageKey: string): Promise<boolean> {
  */
 export async function getCurrentUserRole(): Promise<UserRole | null> {
   try {
-    const supabase = await createServerSupabaseClient()
+    const supabase = await createServerClient()
     const { data: { user } } = await supabase.auth.getUser()
-    
+
     if (!user) return null
 
     const { data: profile } = await supabase
-      .from('profiles')
-      .select('role')
-      .eq('id', user.id)
-      .single()
+      .rpc('get_my_profile')
+      .single() as { data: { role: UserRole; user_id: string } | null; error: any }
 
-    return profile?.role || null
+    return (profile as any)?.role || null
   } catch (error) {
     console.error('Error getting current user role:', error)
     return null

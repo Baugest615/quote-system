@@ -125,7 +125,6 @@ const styles = StyleSheet.create({
     colPrice: { width: '14%', padding: 5, textAlign: 'right', fontSize: 8 },
     colQty: { width: '10%', padding: 5, textAlign: 'center', fontSize: 8 },
     colTotal: { width: '14%', padding: 5, textAlign: 'right', fontSize: 8, fontWeight: 'bold' },
-    // 分類首行樣式
     colCategoryHighlight: { width: '12%', padding: 5, textAlign: 'center', fontSize: 8, backgroundColor: '#f3f4f6', fontWeight: 'bold' },
     colKolHighlight: { width: '14%', padding: 5, textAlign: 'center', fontSize: 8, backgroundColor: '#dbeafe', fontWeight: 'bold' },
     headerText: {

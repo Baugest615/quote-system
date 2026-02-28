@@ -41,10 +41,10 @@ export function ElectronicSealManager({
   // }, [config, onChange]);
 
   return (
-    <div className="space-y-6 p-6 bg-white rounded-lg border">
+    <div className="space-y-6 p-6 bg-card rounded-lg border">
       <div className="flex items-center justify-between">
         <div className="flex items-center space-x-2">
-          <Stamp className="h-5 w-5 text-green-600" />
+          <Stamp className="h-5 w-5 text-success" />
           <h3 className="text-lg font-semibold">電子用印設定</h3>
         </div>
         <Switch

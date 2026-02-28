@@ -2,7 +2,8 @@
 // 專供 Puppeteer PDF 渲染的列印頁面
 import { createServerClient } from '@/lib/supabase/server';
 import { Database } from '@/types/database.types';
-import { notFound } from 'next/navigation';
+import { notFound, redirect } from 'next/navigation';
+import type { SupabaseClient } from '@supabase/supabase-js';
 
 type Quotation = Database['public']['Tables']['quotations']['Row'];
 type QuotationItem = Database['public']['Tables']['quotation_items']['Row'];
@@ -71,9 +72,7 @@ function processTableData(items: (QuotationItem & { kols: Pick<Kol, 'name'> | nu
 }
 
 // 伺服器端取得資料
-async function getQuote(id: string): Promise<FullQuotation | null> {
-    const supabase = await createServerClient();
-
+async function getQuote(supabase: SupabaseClient, id: string): Promise<FullQuotation | null> {
     const { data, error } = await supabase
         .from('quotations')
         .select(`
@@ -100,7 +99,14 @@ interface PageProps {
 }
 
 export default async function PrintQuotePage({ params, searchParams }: PageProps) {
-    const quote = await getQuote(params.id);
+    // 身份驗證（縱深防禦，middleware 已有第一層保護）
+    const supabase = await createServerClient();
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError || !user) {
+        redirect('/auth/login');
+    }
+
+    const quote = await getQuote(supabase, params.id);
     if (!quote) notFound();
 
     const showElectronicSeal = searchParams.seal === 'true';
@@ -127,13 +133,15 @@ export default async function PrintQuotePage({ params, searchParams }: PageProps
                 <title>報價單 - {quote.project_name}</title>
                 <style>{`
           * { margin: 0; padding: 0; box-sizing: border-box; }
-          body { font-family: 'Microsoft JhengHei', 'PingFang TC', sans-serif; font-size: 13px; line-height: 1.5; color: #1f2937; }
-          .container { padding: 0; background: white; }
+          body, #printable-quote, #printable-quote * {
+            font-family: 'PingFang TC', 'Noto Sans TC', 'Microsoft JhengHei', 'Apple LiGothic', system-ui, sans-serif !important;
+          }
+          body { font-size: 13px; line-height: 1.5; color: #1f2937; }
+          .container { padding: 0; background: white; max-width: 100%; overflow: hidden; }
           .header { text-align: center; margin-bottom: 12px; padding-bottom: 8px; border-bottom: 1px solid #e5e7eb; }
           .header img { height: 36px; }
           .header h1 { font-size: 18px; font-weight: bold; margin-top: 6px; }
-          table { width: 100%; border-collapse: collapse; margin-bottom: 16px; }
-          th, td { border: 1px solid #d1d5db; padding: 6px; }
+          th, td { border: 1px solid #d1d5db; padding: 6px; word-wrap: break-word; }
           th { background-color: #f9fafb; text-align: center; font-weight: 600; font-size: 12px; }
           .info-table td { font-size: 12px; }
           .info-label { background-color: #f9fafb; font-weight: bold; white-space: nowrap; width: 100px; }
@@ -151,7 +159,8 @@ export default async function PrintQuotePage({ params, searchParams }: PageProps
           .text-gray { color: #6b7280; }
           .text-sm { font-size: 12px; }
           .text-xs { font-size: 10px; }
-          .section { border: 1px solid #d1d5db; padding: 12px; margin-bottom: 12px; }
+          table { width: 100%; border-collapse: collapse; margin-bottom: 16px; table-layout: fixed; }
+          .section { border: 1px solid #d1d5db; padding: 12px; margin-bottom: 12px; overflow: hidden; word-wrap: break-word; }
           .section-title { font-weight: bold; font-size: 13px; background: #f9fafb; padding: 6px; margin: -12px -12px 10px; border-bottom: 1px solid #d1d5db; }
           .signature-area { display: flex; justify-content: space-between; gap: 24px; margin-top: 24px; }
           .signature-box { width: 48%; text-align: center; border: 1px solid #d1d5db; padding: 12px; height: 110px; display: flex; flex-direction: column; justify-content: space-between; position: relative; }
@@ -210,8 +219,8 @@ export default async function PrintQuotePage({ params, searchParams }: PageProps
                         <thead>
                             <tr>
                                 <th style={{ width: '12%' }}>分類</th>
-                                <th style={{ width: '14%' }}>KOL</th>
-                                <th style={{ width: '30%' }}>服務內容</th>
+                                <th style={{ width: '14%' }}>KOL/服務</th>
+                                <th style={{ width: '30%' }}>執行內容</th>
                                 <th style={{ width: '14%' }}>單價</th>
                                 <th style={{ width: '10%' }}>數量</th>
                                 <th style={{ width: '14%' }}>合計</th>

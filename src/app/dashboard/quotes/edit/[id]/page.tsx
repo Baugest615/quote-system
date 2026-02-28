@@ -1,48 +1,43 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { useParams } from 'next/navigation'
-import supabase from '@/lib/supabase/client'
+import { useParams, useRouter } from 'next/navigation'
 import QuoteForm from '@/components/quotes/QuoteForm'
-import { Database } from '@/types/database.types'
-
-type Quotation = Database['public']['Tables']['quotations']['Row']
-type QuotationItem = Database['public']['Tables']['quotation_items']['Row']
-type QuotationWithItems = Quotation & { quotation_items: QuotationItem[] }
+import { SkeletonCard } from '@/components/ui/Skeleton'
+import { useQuotation } from '@/hooks/useQuotations'
+import { usePermission } from '@/lib/permissions'
+import { Button } from '@/components/ui/button'
+import { ShieldAlert } from 'lucide-react'
 
 export default function EditQuotePage() {
   const params = useParams()
+  const router = useRouter()
   const id = params.id as string
-  const [quote, setQuote] = useState<QuotationWithItems | null>(null)
-  const [loading, setLoading] = useState(true)
+  const { userId, hasRole, loading: permLoading } = usePermission()
+  const { data: quote, isLoading: loading } = useQuotation(id)
 
-  useEffect(() => {
-    if (id) {
-      const fetchQuote = async () => {
-        const { data, error } = await supabase
-          .from('quotations')
-          .select('*, quotation_items(*)')
-          .eq('id', id)
-          .single()
-
-        if (error) {
-          console.error(error)
-          setLoading(false)
-        } else {
-          setQuote(data as QuotationWithItems)
-          setLoading(false)
-        }
-      }
-      fetchQuote()
-    }
-  }, [id])
-
-  if (loading) {
-    return <div>讀取報價單資料中...</div>
+  if (loading || permLoading) {
+    return (
+      <div className="space-y-6 max-w-4xl mx-auto">
+        <SkeletonCard lines={4} />
+        <SkeletonCard lines={6} />
+      </div>
+    )
   }
 
   if (!quote) {
     return <div>找不到報價單</div>
+  }
+
+  const canEdit = hasRole('Editor') || quote.created_by == null || quote.created_by === userId
+  if (!canEdit) {
+    return (
+      <div className="text-center py-12">
+        <ShieldAlert className="mx-auto h-12 w-12 text-muted-foreground" />
+        <h3 className="mt-4 text-lg font-medium text-foreground">權限不足</h3>
+        <p className="mt-2 text-sm text-muted-foreground">您沒有編輯此報價單的權限，只能編輯自己建立的報價單。</p>
+        <Button variant="outline" onClick={() => router.back()} className="mt-4">返回</Button>
+      </div>
+    )
   }
 
   return (

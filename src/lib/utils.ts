@@ -1,9 +1,24 @@
 import { type ClassValue, clsx } from "clsx"
 import { twMerge } from "tailwind-merge"
-import { Contact } from '@/types/custom.types'  // 🆕 引入自定義類型
+import { toast } from 'sonner'
+import { Contact } from '@/types/custom.types'
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
+}
+
+/**
+ * 安全解析 Supabase JSONB 欄位為陣列
+ * 處理 Json[] | string | null 等各種可能的回傳型別
+ */
+export function parseJsonArray<T = Contact>(raw: unknown): T[] {
+  if (!raw) return []
+  if (Array.isArray(raw)) return raw as T[]
+  if (typeof raw === 'string') {
+    try { return JSON.parse(raw) as T[] }
+    catch { return [] }
+  }
+  return []
 }
 
 /**
@@ -48,14 +63,13 @@ export function formatDate(date: string | Date | null | undefined): string {
  * @param data 要匯出的資料陣列
  * @param fileName 下載的檔案名稱 (不需包含 .csv)
  */
-export function exportToCSV(data: any[], fileName: string) {
+export function exportToCSV(data: Record<string, unknown>[], fileName: string) {
   if (!data || data.length === 0) {
-    // 使用 alert 或 toast 通知使用者
-    alert("No data to export");
+    toast.error('沒有資料可匯出');
     return;
   }
 
-  const replacer = (key: string, value: any) => value === null ? '' : value;
+  const replacer = (_key: string, value: unknown) => value === null ? '' : value;
   const header = Object.keys(data[0]);
   const csv = [
     header.join(','), // header row
@@ -82,18 +96,18 @@ export function exportToCSV(data: any[], fileName: string) {
  * @param rawData 原始資料
  * @returns 解析後的聯絡人陣列
  */
-export function parseContacts(rawData: any[]): Contact[] {
+export function parseContacts(rawData: Record<string, unknown>[]): Contact[] {
   if (!Array.isArray(rawData)) {
     return []
   }
   
   return rawData.map(item => ({
-    id: item.id || crypto.randomUUID(),
-    name: item.name || '',
-    email: item.email || undefined,
-    phone: item.phone || undefined,
-    company: item.company || undefined,
-    role: item.role || undefined,
+    id: (item.id as string) || crypto.randomUUID(),
+    name: (item.name as string) || '',
+    email: (item.email as string) || undefined,
+    phone: (item.phone as string) || undefined,
+    company: (item.company as string) || undefined,
+    role: (item.role as string) || undefined,
   })).filter(contact => contact.name.trim() !== '')
 }
 
@@ -231,7 +245,7 @@ export function deepClone<T>(obj: T): T {
  * @param delay 延遲時間（毫秒）
  * @returns 防抖後的函數
  */
-export function debounce<T extends (...args: any[]) => any>(
+export function debounce<T extends (...args: unknown[]) => unknown>(
   func: T,
   delay: number
 ): (...args: Parameters<T>) => void {
@@ -248,7 +262,7 @@ export function debounce<T extends (...args: any[]) => any>(
  * @param limit 時間間隔（毫秒）
  * @returns 節流後的函數
  */
-export function throttle<T extends (...args: any[]) => any>(
+export function throttle<T extends (...args: unknown[]) => unknown>(
   func: T,
   limit: number
 ): (...args: Parameters<T>) => void {
@@ -285,7 +299,7 @@ export function formatFileSize(bytes: number, decimals = 2): string {
  * @param obj 物件
  * @returns 查詢字串
  */
-export function objectToQueryString(obj: Record<string, any>): string {
+export function objectToQueryString(obj: Record<string, unknown>): string {
   const params = new URLSearchParams()
   
   Object.entries(obj).forEach(([key, value]) => {

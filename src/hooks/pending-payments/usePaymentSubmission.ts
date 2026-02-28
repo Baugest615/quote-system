@@ -1,7 +1,9 @@
 // Custom hook for payment submission logic
 
 import { useCallback } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import supabase from '@/lib/supabase/client'
+import { queryKeys } from '@/lib/queryKeys'
 import { toast } from 'sonner'
 import type { PendingPaymentItem } from '@/lib/payments/types'
 
@@ -9,6 +11,7 @@ export function usePaymentSubmission(
     items: PendingPaymentItem[],
     fetchPendingItems: () => Promise<void>
 ) {
+    const queryClient = useQueryClient()
     const handleConfirmUpload = useCallback(async (setLoading: (loading: boolean) => void) => {
         const selectedItems = items.filter(item => item.is_selected)
 
@@ -69,10 +72,12 @@ export function usePaymentSubmission(
                 throw new Error(`部分項目提交失敗: ${firstError?.message}`)
             }
 
-            toast.success(`✅ 已成功提交 ${selectedItems.length} 筆請款申請`)
+            toast.success(`已成功提交 ${selectedItems.length} 筆請款申請`)
             await fetchPendingItems()
-        } catch (error: any) {
-            toast.error(error.message || '提交請款申請失敗')
+            // 跨頁快取失效：提交請款影響「請款申請」頁面
+            queryClient.invalidateQueries({ queryKey: [...queryKeys.paymentRequests] })
+        } catch (error: unknown) {
+            toast.error((error instanceof Error ? error.message : String(error)) || '提交請款申請失敗')
         } finally {
             setLoading(false)
         }

@@ -1,24 +1,65 @@
 'use client'
 
 import { useState, useCallback, useMemo } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Search, FileText, DollarSign, Calendar, RefreshCw, X } from 'lucide-react'
+import { RefreshCw, Shield, Banknote, FileSpreadsheet, ClipboardList } from 'lucide-react'
 import { toast } from 'sonner'
 import supabase from '@/lib/supabase/client'
 
+// Permissions
+import { usePermission } from '@/lib/permissions'
+
 // Hooks
 import { usePaymentData } from '@/hooks/payments/usePaymentData'
+import { useWithholdingSettings } from '@/hooks/useWithholdingSettings'
+import { queryKeys } from '@/lib/queryKeys'
+import { CURRENT_YEAR } from '@/lib/constants'
 
 // Types
-import { PaymentConfirmation } from '@/lib/payments/types'
+import { PaymentConfirmation, RemittanceSettings } from '@/lib/payments/types'
+import type { AccountingPayroll } from '@/types/custom.types'
 
 // Components
-import { LoadingState, EmptyState } from '@/components/payments/shared'
-import { ConfirmationRow } from '@/components/payments/confirmed/ConfirmationRow'
+import { LoadingState } from '@/components/payments/shared'
 import { PaymentStats } from '@/components/payments/confirmed/PaymentStats'
+import { PaymentOverviewTab } from '@/components/payments/confirmed/tabs/PaymentOverviewTab'
+import { WithholdingTab } from '@/components/payments/confirmed/tabs/WithholdingTab'
+import { ConfirmationHistoryTab } from '@/components/payments/confirmed/tabs/ConfirmationHistoryTab'
+import { ModuleErrorBoundary } from '@/components/ModuleErrorBoundary'
+import { useConfirm } from '@/components/ui/ConfirmDialog'
+
+type TabKey = 'overview' | 'withholding' | 'history'
+
+const TABS: { key: TabKey; label: string; icon: React.ReactNode }[] = [
+  { key: 'overview', label: '匯款總覽', icon: <Banknote className="h-4 w-4" /> },
+  { key: 'withholding', label: '代扣代繳', icon: <FileSpreadsheet className="h-4 w-4" /> },
+  { key: 'history', label: '確認紀錄', icon: <ClipboardList className="h-4 w-4" /> },
+]
 
 export default function ConfirmedPaymentsPage() {
+  const confirm = useConfirm()
+  const { loading: permLoading, checkPageAccess } = usePermission()
+  const hasAccess = checkPageAccess('confirmed_payments')
+
+  const queryClient = useQueryClient()
+  const { data: withholdingRates } = useWithholdingSettings()
+  const [activeTab, setActiveTab] = useState<TabKey>('overview')
+
+  // 薪資資料查詢（已付款的薪資，僅在匯款總覽中檢視）
+  const { data: payrollData } = useQuery({
+    queryKey: [...queryKeys.accountingPayroll(CURRENT_YEAR), 'confirmed-view'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('accounting_payroll')
+        .select('*')
+        .not('payment_date', 'is', null)
+        .order('payment_date', { ascending: false })
+      if (error) throw error
+      return (data || []) as AccountingPayroll[]
+    },
+  })
+
   // 1. 資料管理 Hook
   const fetchConfirmedPayments = useCallback(async () => {
     const { data, error } = await supabase
@@ -32,12 +73,14 @@ export default function ConfirmedPaymentsPage() {
             quotation_item_id,
             cost_amount,
             invoice_number,
+            merge_group_id,
+            merge_color,
             quotation_items (
               id,
               quotation_id,
               quotations ( project_name, client_id, clients ( name ) ),
               kol_id,
-              kols ( id, name, real_name, bank_info ),
+              kols ( id, name, real_name, bank_info, withholding_exempt ),
               service,
               quantity,
               price,
@@ -46,6 +89,19 @@ export default function ConfirmedPaymentsPage() {
               remark,
               created_at
             )
+          ),
+          expense_claims (
+            id,
+            expense_type,
+            vendor_name,
+            project_name,
+            amount,
+            tax_amount,
+            total_amount,
+            invoice_number,
+            claim_month,
+            note,
+            submitted_by
           )
         )
       `)
@@ -53,20 +109,47 @@ export default function ConfirmedPaymentsPage() {
 
     if (error) throw error
 
-    console.log('Fetched confirmations:', data)
-    if (data && data.length > 0) {
-      console.log('First confirmation settings:', data[0].remittance_settings)
+    // 收集所有 submitted_by UUID，透過 employees 取得提交人姓名
+    // (profiles 有 RLS 限制只能讀自己，employees 允許所有認證使用者讀取)
+    const submitterIds = new Set<string>()
+    data?.forEach(c => c.payment_confirmation_items?.forEach((item: { expense_claims?: { submitted_by?: string | null } | null }) => {
+      if (item.expense_claims?.submitted_by) submitterIds.add(item.expense_claims.submitted_by)
+    }))
+
+    let nameMap = new Map<string, string>()
+    if (submitterIds.size > 0) {
+      const { data: employees } = await supabase
+        .from('employees')
+        .select('user_id, name')
+        .in('user_id', Array.from(submitterIds))
+      if (employees) {
+        nameMap = new Map(employees.map(e => [e.user_id!, e.name]))
+      }
     }
 
-    // 初始化展開狀態
+    // 注入 submitter 到 expense_claims
     return (data || []).map(item => ({
       ...item,
-      isExpanded: false
+      isExpanded: false,
+      payment_confirmation_items: item.payment_confirmation_items?.map((pci: Record<string, unknown>) => {
+        const claim = pci.expense_claims as { submitted_by?: string | null } | null
+        if (claim?.submitted_by && nameMap.has(claim.submitted_by)) {
+          return {
+            ...pci,
+            expense_claims: {
+              ...claim,
+              submitter: { full_name: nameMap.get(claim.submitted_by) || null }
+            }
+          }
+        }
+        return pci
+      })
     })) as PaymentConfirmation[]
   }, [])
 
   const paymentDataOptions = useMemo(() => ({
-    autoRefresh: false
+    autoRefresh: false,
+    queryKey: [...queryKeys.confirmedPayments],
   }), [])
 
   const {
@@ -79,73 +162,16 @@ export default function ConfirmedPaymentsPage() {
     paymentDataOptions
   )
 
-  // 2. 本地狀態 (篩選與排序)
-  const [searchTerm, setSearchTerm] = useState('')
-  const [sortField, setSortField] = useState<'date' | 'amount' | 'items'>('date')
-  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc')
-  const [dateRange, setDateRange] = useState<{ start: string; end: string }>({ start: '', end: '' })
+  // 匯款設定跨 Tab 即時同步：確認紀錄 Tab 修改後同步到 parent state
+  const handleSettingsChange = useCallback((confirmationId: string, newSettings: RemittanceSettings) => {
+    setConfirmations(prev => prev.map(c =>
+      c.id === confirmationId
+        ? { ...c, remittance_settings: newSettings }
+        : c
+    ))
+  }, [setConfirmations])
 
-  // 3. 篩選邏輯
-  const filteredConfirmations = useMemo(() => {
-    let result = confirmations.filter((confirmation) => {
-      const searchLower = searchTerm.toLowerCase()
-      const confirmationDate = confirmation.confirmation_date
-
-      // 日期範圍篩選
-      if (dateRange.start && confirmationDate < dateRange.start) return false
-      if (dateRange.end && confirmationDate > dateRange.end) return false
-
-      // 搜尋關聯項目
-      const hasMatchingItem = confirmation.payment_confirmation_items.some(item => {
-        const request = item.payment_requests
-        const quotationItem = request?.quotation_items
-        const quotation = quotationItem?.quotations
-        const kol = quotationItem?.kols
-
-        return (
-          (quotation?.project_name || '').toLowerCase().includes(searchLower) ||
-          (kol?.name || '').toLowerCase().includes(searchLower) ||
-          (quotationItem?.service || '').toLowerCase().includes(searchLower)
-        )
-      })
-
-      return (confirmationDate || '').includes(searchTerm) || hasMatchingItem
-    })
-
-    // 排序邏輯
-    result.sort((a, b) => {
-      let aValue: any, bValue: any
-      switch (sortField) {
-        case 'date':
-          aValue = new Date(a.confirmation_date).getTime()
-          bValue = new Date(b.confirmation_date).getTime()
-          break
-        case 'amount':
-          aValue = a.total_amount
-          bValue = b.total_amount
-          break
-        case 'items':
-          aValue = a.total_items
-          bValue = b.total_items
-          break
-        default: return 0
-      }
-      return sortDirection === 'asc' ? aValue - bValue : bValue - aValue
-    })
-
-    return result
-  }, [confirmations, searchTerm, sortField, sortDirection, dateRange])
-
-  // 4. 操作函數
-  const handleSort = (field: 'date' | 'amount' | 'items') => {
-    if (sortField === field) {
-      setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc')
-    } else {
-      setSortField(field)
-      setSortDirection('desc')
-    }
-  }
-
+  // 操作函數
   const toggleExpansion = (id: string) => {
     setConfirmations(prev => prev.map(item =>
       item.id === id ? { ...item, isExpanded: !item.isExpanded } : item
@@ -155,143 +181,312 @@ export default function ConfirmedPaymentsPage() {
   const handleRevert = async (confirmation: PaymentConfirmation) => {
     const itemsToRevert = confirmation.payment_confirmation_items
 
+    // 孤立記錄（無關聯項目）：直接刪除確認記錄
     if (!itemsToRevert || itemsToRevert.length === 0) {
-      toast.error('此確認清單沒有項目可退回。')
+      const ok = await confirm({
+        title: '刪除空白清單',
+        description: '此確認清單沒有關聯項目，是否直接刪除？',
+        confirmLabel: '刪除',
+        variant: 'destructive',
+      })
+      if (!ok) return
+      try {
+        await supabase.from('accounting_expenses').delete().eq('payment_confirmation_id', confirmation.id)
+        await supabase.from('payment_confirmations').delete().eq('id', confirmation.id)
+        toast.success('已刪除空白確認清單')
+        refresh()
+      } catch (error: unknown) {
+        toast.error('刪除失敗: ' + (error instanceof Error ? error.message : String(error)))
+      }
       return
     }
 
-    if (!confirm('確定要將此清單中的 ' + itemsToRevert.length + ' 筆項目退回到「請款申請」頁面嗎？')) return
+    const ok = await confirm({
+      title: '確認退回',
+      description: '確定要將此清單中的 ' + itemsToRevert.length + ' 筆項目退回到「請款申請」頁面嗎？',
+      confirmLabel: '退回',
+    })
+    if (!ok) return
 
     try {
-      const requestIdsToRevert = itemsToRevert.map(item => item.payment_request_id)
+      const projectItems = itemsToRevert.filter(item => item.payment_request_id && item.source_type !== 'personal')
+      const personalItems = itemsToRevert.filter(item => item.expense_claim_id || item.source_type === 'personal')
 
-      // 1. 刪除確認項目
       const { error: itemsError } = await supabase
         .from('payment_confirmation_items')
         .delete()
         .eq('payment_confirmation_id', confirmation.id)
       if (itemsError) throw new Error('刪除確認項目失敗: ' + itemsError.message)
 
-      // 2. 刪除確認主記錄
+      // 清理匯費 accounting_expenses（必須在刪除 confirmation 之前，因為有 FK）
+      const { error: feeError } = await supabase
+        .from('accounting_expenses')
+        .delete()
+        .eq('payment_confirmation_id', confirmation.id)
+      if (feeError) console.warn('清理匯費記錄失敗:', feeError.message)
+
       const { error: confirmationError } = await supabase
         .from('payment_confirmations')
         .delete()
         .eq('id', confirmation.id)
       if (confirmationError) throw new Error('刪除確認主記錄失敗: ' + confirmationError.message)
 
-      // 3. 更新原始申請狀態
-      const { error: updateError } = await supabase
-        .from('payment_requests')
-        .update({ verification_status: 'pending' })
-        .in('id', requestIdsToRevert)
-      if (updateError) throw new Error('退回項目狀態失敗: ' + updateError.message)
+      if (projectItems.length > 0) {
+        const requestIds = projectItems.map(item => item.payment_request_id).filter(Boolean) as string[]
+        if (requestIds.length > 0) {
+          // 清理專案請款對應的 accounting_expenses 記錄
+          const { error: projExpenseError } = await supabase
+            .from('accounting_expenses')
+            .delete()
+            .in('payment_request_id', requestIds)
+          if (projExpenseError) console.warn('清理專案進項記錄失敗:', projExpenseError.message)
+
+          const { error: updateError } = await supabase
+            .from('payment_requests')
+            .update({ verification_status: 'pending' })
+            .in('id', requestIds)
+          if (updateError) throw new Error('退回專案請款狀態失敗: ' + updateError.message)
+        }
+      }
+
+      if (personalItems.length > 0) {
+        const claimIds = personalItems.map(item => item.expense_claim_id).filter(Boolean) as string[]
+        if (claimIds.length > 0) {
+          const { error: claimError } = await supabase
+            .from('expense_claims')
+            .update({ status: 'submitted', approved_by: null, approved_at: null })
+            .in('id', claimIds)
+          if (claimError) throw new Error('退回個人報帳狀態失敗: ' + claimError.message)
+
+          const { error: expenseError } = await supabase
+            .from('accounting_expenses')
+            .delete()
+            .in('expense_claim_id', claimIds)
+          if (expenseError) console.warn('清理進項記錄失敗:', expenseError.message)
+
+          // 同時清理代扣代繳 settlement 記錄（避免重新核准時產生重複）
+          const { error: settlementError } = await supabase
+            .from('withholding_settlements')
+            .delete()
+            .in('expense_claim_id', claimIds)
+          if (settlementError) console.warn('清理代扣繳納記錄失敗:', settlementError.message)
+        }
+      }
 
       toast.success('清單已退回，相關項目已回到「請款申請」頁面。')
       refresh()
+      queryClient.invalidateQueries({ queryKey: [...queryKeys.paymentRequests] })
+      queryClient.invalidateQueries({ queryKey: [...queryKeys.pendingPayments] })
+      queryClient.invalidateQueries({ queryKey: [...queryKeys.dashboardStats] })
+      queryClient.invalidateQueries({ queryKey: ['monthly-settlement'] })
+      queryClient.invalidateQueries({ queryKey: ['accounting-expenses'] })
+      if (personalItems.length > 0) {
+        queryClient.invalidateQueries({ queryKey: ['expense-claims'] })
+        queryClient.invalidateQueries({ queryKey: [...queryKeys.expenseClaimsPending] })
+        queryClient.invalidateQueries({ queryKey: ['my-employee'] })
+        queryClient.invalidateQueries({ queryKey: [...queryKeys.withholdingSettlements] })
+      }
 
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('退回請款清單失敗:', error)
-      toast.error('操作失敗: ' + error.message)
+      toast.error('操作失敗: ' + (error instanceof Error ? error.message : String(error)))
     }
   }
 
-  if (loading) return <LoadingState message="載入已確認請款記錄..." />
+  // ====== 單筆退回 ======
+  const handleRevertItem = async (itemId: string) => {
+    const ok = await confirm({
+      title: '確認退回此項目',
+      description: '此項目將退回到「請款申請」頁面，是否繼續？',
+      confirmLabel: '退回',
+    })
+    if (!ok) return
+
+    try {
+      // 1. 查詢 item 詳情
+      const { data: item, error: fetchErr } = await supabase
+        .from('payment_confirmation_items')
+        .select('id, payment_confirmation_id, payment_request_id, expense_claim_id, source_type, amount_at_confirmation')
+        .eq('id', itemId)
+        .single()
+      if (fetchErr || !item) throw new Error('找不到該確認項目')
+
+      const confirmationId = item.payment_confirmation_id
+      const amount = item.amount_at_confirmation || 0
+
+      // 2. 刪除 confirmation item
+      const { error: delErr } = await supabase
+        .from('payment_confirmation_items')
+        .delete()
+        .eq('id', itemId)
+      if (delErr) throw new Error('刪除確認項目失敗: ' + delErr.message)
+
+      // 3. 更新父 confirmation 的 totals，若為空則刪除
+      const { data: remaining } = await supabase
+        .from('payment_confirmation_items')
+        .select('id')
+        .eq('payment_confirmation_id', confirmationId)
+
+      if (!remaining || remaining.length === 0) {
+        // 清理匯費
+        await supabase.from('accounting_expenses').delete().eq('payment_confirmation_id', confirmationId)
+        await supabase.from('payment_confirmations').delete().eq('id', confirmationId)
+      } else {
+        await supabase
+          .from('payment_confirmations')
+          .update({
+            total_amount: remaining.length > 0 ? undefined : 0, // 讓 DB 自己計算
+            total_items: remaining.length,
+          })
+          .eq('id', confirmationId)
+
+        // 手動扣減金額
+        const { data: conf } = await supabase
+          .from('payment_confirmations')
+          .select('total_amount')
+          .eq('id', confirmationId)
+          .single()
+        if (conf) {
+          await supabase
+            .from('payment_confirmations')
+            .update({ total_amount: (conf.total_amount || 0) - amount })
+            .eq('id', confirmationId)
+        }
+      }
+
+      // 4. 根據來源類型清理
+      if (item.payment_request_id && item.source_type !== 'personal') {
+        await supabase
+          .from('accounting_expenses')
+          .delete()
+          .eq('payment_request_id', item.payment_request_id)
+
+        await supabase
+          .from('payment_requests')
+          .update({
+            verification_status: 'pending',
+            approved_by: null,
+            approved_at: null,
+            rejection_reason: null,
+            rejected_by: null,
+            rejected_at: null,
+          })
+          .eq('id', item.payment_request_id)
+      }
+
+      if (item.expense_claim_id || item.source_type === 'personal') {
+        const claimId = item.expense_claim_id
+        if (claimId) {
+          await supabase
+            .from('expense_claims')
+            .update({ status: 'submitted', approved_by: null, approved_at: null })
+            .eq('id', claimId)
+
+          await supabase
+            .from('accounting_expenses')
+            .delete()
+            .eq('expense_claim_id', claimId)
+
+          await supabase
+            .from('withholding_settlements')
+            .delete()
+            .eq('expense_claim_id', claimId)
+        }
+      }
+
+      // 5. 快取失效
+      toast.success('已退回此項目')
+      refresh()
+      queryClient.invalidateQueries({ queryKey: [...queryKeys.paymentRequests] })
+      queryClient.invalidateQueries({ queryKey: [...queryKeys.pendingPayments] })
+      queryClient.invalidateQueries({ queryKey: [...queryKeys.dashboardStats] })
+      queryClient.invalidateQueries({ queryKey: ['monthly-settlement'] })
+      queryClient.invalidateQueries({ queryKey: ['accounting-expenses'] })
+      queryClient.invalidateQueries({ queryKey: ['expense-claims'] })
+      queryClient.invalidateQueries({ queryKey: [...queryKeys.expenseClaimsPending] })
+    } catch (error: unknown) {
+      console.error('單筆退回失敗:', error)
+      toast.error('操作失敗: ' + (error instanceof Error ? error.message : String(error)))
+    }
+  }
+
+  if (permLoading || loading) return <LoadingState message="載入已確認請款記錄..." />
+
+  if (!hasAccess) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh] text-muted-foreground">
+        <Shield className="w-16 h-16 mb-4 text-muted-foreground/50" />
+        <p className="text-lg font-medium">此頁面僅限管理員與編輯者存取</p>
+      </div>
+    )
+  }
 
   return (
+    <ModuleErrorBoundary module="已確認請款">
     <div className="space-y-6">
       {/* 標題 */}
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-3xl font-bold">已確認請款清單</h1>
-          <p className="text-gray-500 mt-1">檢視和管理已確認的請款清單</p>
+          <p className="text-muted-foreground mt-1">匯款總覽、代扣代繳管理與確認紀錄</p>
         </div>
         <div className="flex space-x-2">
-          <Button onClick={() => refresh()} variant="outline" disabled={loading} className="text-blue-600 hover:text-blue-700">
+          <Button onClick={() => refresh()} variant="outline" disabled={loading} className="text-info hover:text-info/80">
             <RefreshCw className="h-4 w-4 mr-2" />重新載入
           </Button>
         </div>
       </div>
 
       {/* 統計面板 */}
-      <PaymentStats confirmations={filteredConfirmations} />
+      <PaymentStats confirmations={confirmations} />
 
-      {/* 控制列 */}
-      <div className="flex flex-col md:flex-row gap-4 items-center justify-between bg-white p-4 rounded-lg shadow-sm border border-gray-100">
-        <div className="relative flex-1 w-full md:max-w-md">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-          <Input
-            placeholder="搜尋日期、專案名稱、KOL名稱或服務項目..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-10"
-          />
-        </div>
-
-        {/* 日期篩選 */}
-        <div className="flex items-center space-x-2 w-full md:w-auto">
-          <div className="flex items-center space-x-2 bg-gray-50 p-1 rounded-md border">
-            <Calendar className="h-4 w-4 text-gray-500 ml-2" />
-            <input
-              type="date"
-              value={dateRange.start}
-              onChange={(e) => setDateRange(prev => ({ ...prev, start: e.target.value }))}
-              className="bg-transparent border-none text-sm focus:ring-0 p-1 text-gray-600"
-              placeholder="開始日期"
-            />
-            <span className="text-gray-400">-</span>
-            <input
-              type="date"
-              value={dateRange.end}
-              onChange={(e) => setDateRange(prev => ({ ...prev, end: e.target.value }))}
-              className="bg-transparent border-none text-sm focus:ring-0 p-1 text-gray-600"
-              placeholder="結束日期"
-            />
-            {(dateRange.start || dateRange.end) && (
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-6 w-6 p-0 rounded-full hover:bg-gray-200"
-                onClick={() => setDateRange({ start: '', end: '' })}
-              >
-                <X className="h-3 w-3 text-gray-500" />
-              </Button>
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* 排序按鈕 */}
-      <div className="flex space-x-2">
-        <Button variant={sortField === 'date' ? 'default' : 'outline'} size="sm" onClick={() => handleSort('date')}>
-          <Calendar className="h-4 w-4 mr-1" /> 日期 {sortField === 'date' && (sortDirection === 'asc' ? '↑' : '↓')}
-        </Button>
-        <Button variant={sortField === 'amount' ? 'default' : 'outline'} size="sm" onClick={() => handleSort('amount')}>
-          <DollarSign className="h-4 w-4 mr-1" /> 金額 {sortField === 'amount' && (sortDirection === 'asc' ? '↑' : '↓')}
-        </Button>
-        <Button variant={sortField === 'items' ? 'default' : 'outline'} size="sm" onClick={() => handleSort('items')}>
-          <FileText className="h-4 w-4 mr-1" /> 項目數 {sortField === 'items' && (sortDirection === 'asc' ? '↑' : '↓')}
-        </Button>
-      </div>
-
-      {/* 列表內容 */}
-      {filteredConfirmations.length > 0 ? (
-        <div className="space-y-4">
-          {filteredConfirmations.map((confirmation) => (
-            <ConfirmationRow
-              key={confirmation.id}
-              confirmation={confirmation}
-              onToggleExpansion={toggleExpansion}
-              onRevert={handleRevert}
-            />
+      {/* Tab 切換列 */}
+      <div className="border-b border-border">
+        <div className="flex space-x-1">
+          {TABS.map(tab => (
+            <button
+              key={tab.key}
+              onClick={() => setActiveTab(tab.key)}
+              className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
+                activeTab === tab.key
+                  ? 'border-info text-info'
+                  : 'border-transparent text-muted-foreground hover:text-foreground hover:border-border'
+              }`}
+            >
+              {tab.icon}
+              {tab.label}
+            </button>
           ))}
         </div>
-      ) : (
-        <EmptyState
-          type={searchTerm || dateRange.start || dateRange.end ? 'no-results' : 'no-data'}
-          title={searchTerm || dateRange.start || dateRange.end ? '沒有找到符合的清單' : '目前沒有已確認的請款記錄'}
-          description={searchTerm || dateRange.start || dateRange.end ? '請嘗試其他搜尋關鍵字或日期範圍' : '所有請款都還在處理中'}
+      </div>
+
+      {/* Tab 內容 */}
+      {activeTab === 'overview' && (
+        <PaymentOverviewTab
+          confirmations={confirmations}
+          withholdingRates={withholdingRates}
+          payrollData={payrollData}
+        />
+      )}
+
+      {activeTab === 'withholding' && (
+        <WithholdingTab
+          confirmations={confirmations}
+          withholdingRates={withholdingRates}
+        />
+      )}
+
+      {activeTab === 'history' && (
+        <ConfirmationHistoryTab
+          confirmations={confirmations}
+          onToggleExpansion={toggleExpansion}
+          onRevert={handleRevert}
+          onRevertItem={handleRevertItem}
+          onSettingsChange={handleSettingsChange}
+          withholdingRates={withholdingRates}
         />
       )}
     </div>
+    </ModuleErrorBoundary>
   )
 }
