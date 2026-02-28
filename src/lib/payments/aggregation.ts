@@ -9,11 +9,11 @@ import { groupItemsByRemittance } from './grouping'
 import { downloadCsv } from './withholding-export'
 import { getBillingMonthKey } from './billingPeriod'
 
-/** 將 expense_month（"2026年02月"）轉換為 YYYY-MM 格式 */
+/** 將 expense_month（"2026年2月" 或 "2026年02月"）轉換為 YYYY-MM 格式 */
 function expenseMonthToYYYYMM(expenseMonth: string): string | null {
-  const match = expenseMonth?.match(/(\d{4})年(\d{2})月/)
+  const match = expenseMonth?.match(/(\d{4})年(\d{1,2})月/)
   if (!match) return null
-  return `${match[1]}-${match[2]}`
+  return `${match[1]}-${match[2].padStart(2, '0')}`
 }
 
 /**
