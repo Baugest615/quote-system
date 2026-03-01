@@ -9,15 +9,13 @@ import { Input } from '@/components/ui/input'
 import { Search, PlusCircle, ChevronLeft, ChevronRight } from 'lucide-react'
 import { QuotesDataGrid } from '@/components/quotes/v2/QuotesDataGrid'
 import { SkeletonTable } from '@/components/ui/Skeleton'
-import { useQuotations } from '@/hooks/useQuotations'
+import { useQuotations, type QuotationWithItemsSummary } from '@/hooks/useQuotations'
 import { useClients } from '@/hooks/useClients'
 import { queryKeys } from '@/lib/queryKeys'
 import { ModuleErrorBoundary } from '@/components/ModuleErrorBoundary'
 
-// 類型定義 (與 V1 保持一致)
-type Quotation = Database['public']['Tables']['quotations']['Row']
-type Client = Database['public']['Tables']['clients']['Row']
-export type QuotationWithClient = Quotation & { clients: Client | null }
+// 類型定義：使用含項目摘要的型別（支援 KOL/執行內容搜尋）
+export type QuotationWithClient = QuotationWithItemsSummary
 
 export default function QuotesV2Page() {
     const queryClient = useQueryClient()
@@ -37,14 +35,18 @@ export default function QuotesV2Page() {
         queryClient.invalidateQueries({ queryKey: [...queryKeys.dashboardStats] })
     }, [queryClient])
 
-    // 全文搜尋（ID、專案名稱、客戶名稱）
+    // 全文搜尋（ID、專案名稱、客戶名稱、KOL 名稱、執行內容）
     const filteredQuotations = useMemo(() => {
         if (!searchTerm) return quotations
         const term = searchTerm.toLowerCase()
         return quotations.filter((quote) =>
             quote.id.toLowerCase().includes(term) ||
             quote.project_name.toLowerCase().includes(term) ||
-            (quote.clients?.name || '').toLowerCase().includes(term)
+            (quote.clients?.name || '').toLowerCase().includes(term) ||
+            quote.quotation_items?.some(item =>
+                (item.kols?.name || '').toLowerCase().includes(term) ||
+                (item.service || '').toLowerCase().includes(term)
+            )
         )
     }, [quotations, searchTerm])
 
@@ -80,7 +82,7 @@ export default function QuotesV2Page() {
                     <div className="relative w-64">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                         <Input
-                            placeholder="搜尋專案、客戶..."
+                            placeholder="搜尋專案、客戶、KOL、執行內容..."
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
                             className="pl-10"

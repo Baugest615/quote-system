@@ -19,19 +19,26 @@ export type QuotationWithDetails = Quotation & {
   clients: Client | null
 }
 
-// 取得所有報價單（含客戶）
+// 取得所有報價單（含客戶 + 項目摘要：KOL 名稱和執行內容）
 export function useQuotations() {
   return useQuery({
     queryKey: QUERY_KEY,
     queryFn: async () => {
       const { data, error } = await supabase
         .from('quotations')
-        .select('*, clients(*)')
+        .select('*, clients(*), quotation_items(service, kols(name))')
         .order('created_at', { ascending: false })
       if (error) throw error
-      return data as (Quotation & { clients: Client | null })[]
+      return data as QuotationWithItemsSummary[]
     },
   })
+}
+
+// 報價單含項目摘要（供列表頁搜尋/篩選用）
+export type QuotationItemSummary = { service: string | null; kols: Pick<Kol, 'name'> | null }
+export type QuotationWithItemsSummary = Quotation & {
+  clients: Client | null
+  quotation_items: QuotationItemSummary[]
 }
 
 // 取得單一報價單（含項目 + 客戶）

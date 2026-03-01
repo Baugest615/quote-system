@@ -23,7 +23,7 @@ import { useColumnFilters, type FilterValue } from '@/hooks/useColumnFilters'
 import type { QuotationWithClient } from '@/app/dashboard/quotes/page'
 
 // Sort key type for QuotesDataGrid (includes computed columns)
-type QuoteSortKey = 'created_at' | 'project_name' | 'client_name' | 'budget_total' | 'status'
+type QuoteSortKey = 'created_at' | 'project_name' | 'client_name' | 'budget_total' | 'status' | 'kol_names' | 'services'
 
 interface QuotesDataGridProps {
     data: QuotationWithClient[]
@@ -38,6 +38,20 @@ function getQuoteTotal(q: QuotationWithClient): number {
         : (q.grand_total_taxed || 0)
 }
 
+// Helper: get KOL names from quotation items
+function getKolNames(q: QuotationWithClient): string {
+    if (!q.quotation_items?.length) return ''
+    const names = Array.from(new Set(q.quotation_items.map(i => i.kols?.name).filter((n): n is string => !!n)))
+    return names.join(', ')
+}
+
+// Helper: get service names from quotation items
+function getServices(q: QuotationWithClient): string {
+    if (!q.quotation_items?.length) return ''
+    const services = Array.from(new Set(q.quotation_items.map(i => i.service).filter((s): s is string => !!s)))
+    return services.join(', ')
+}
+
 // Helper: get sortable value from quote by key
 function getSortValue(q: QuotationWithClient, key: QuoteSortKey): string | number | null {
     switch (key) {
@@ -46,6 +60,8 @@ function getSortValue(q: QuotationWithClient, key: QuoteSortKey): string | numbe
         case 'client_name': return q.clients?.name ?? null
         case 'budget_total': return getQuoteTotal(q)
         case 'status': return q.status ?? null
+        case 'kol_names': return getKolNames(q) || null
+        case 'services': return getServices(q) || null
     }
 }
 
@@ -85,6 +101,18 @@ export function QuotesDataGrid({ data, clients, onRefresh }: QuotesDataGridProps
         [data]
     )
 
+    // Unique KOL names for filter
+    const kolNames = useMemo(() =>
+        Array.from(new Set(data.flatMap(q => q.quotation_items?.map(i => i.kols?.name) ?? []).filter((n): n is string => !!n))).sort((a, b) => a.localeCompare(b, 'zh-Hant')),
+        [data]
+    )
+
+    // Unique service names for filter
+    const serviceNames = useMemo(() =>
+        Array.from(new Set(data.flatMap(q => q.quotation_items?.map(i => i.service) ?? []).filter((n): n is string => !!n))).sort((a, b) => a.localeCompare(b, 'zh-Hant')),
+        [data]
+    )
+
     // ------ Apply filters + sort ------
     const processedData = useMemo(() => {
         let result = [...data]
@@ -96,6 +124,21 @@ export function QuotesDataGrid({ data, clients, onRefresh }: QuotesDataGridProps
                 filters.forEach((fv, key) => {
                     if (!pass) return
                     const sortKey = String(key) as QuoteSortKey
+
+                    // KOL/服務篩選：用「包含任一」邏輯（一個報價單有多個項目）
+                    if (sortKey === 'kol_names' && fv.type === 'select') {
+                        if (fv.selected.length === 0) return
+                        const itemKols = q.quotation_items?.map(i => i.kols?.name).filter(Boolean) ?? []
+                        if (!fv.selected.some(s => itemKols.includes(s))) pass = false
+                        return
+                    }
+                    if (sortKey === 'services' && fv.type === 'select') {
+                        if (fv.selected.length === 0) return
+                        const itemServices = q.quotation_items?.map(i => i.service).filter(Boolean) ?? []
+                        if (!fv.selected.some(s => itemServices.includes(s))) pass = false
+                        return
+                    }
+
                     const val = getSortValue(q, sortKey)
 
                     switch (fv.type) {
@@ -301,6 +344,38 @@ export function QuotesDataGrid({ data, clients, onRefresh }: QuotesDataGridProps
                         }
                     />
                 </div>
+                <div className="w-40 p-3 flex-shrink-0">
+                    <SortableHeader<QuoteSortKey>
+                        label="KOL/服務"
+                        sortKey="kol_names"
+                        sortState={sortState}
+                        onToggleSort={toggleSort}
+                        filterContent={
+                            <ColumnFilterPopover
+                                filterType="select"
+                                options={kolNames}
+                                value={getFilter('kol_names')}
+                                onChange={(v) => setFilterByKey('kol_names', v)}
+                            />
+                        }
+                    />
+                </div>
+                <div className="w-40 p-3 flex-shrink-0">
+                    <SortableHeader<QuoteSortKey>
+                        label="執行內容"
+                        sortKey="services"
+                        sortState={sortState}
+                        onToggleSort={toggleSort}
+                        filterContent={
+                            <ColumnFilterPopover
+                                filterType="select"
+                                options={serviceNames}
+                                value={getFilter('services')}
+                                onChange={(v) => setFilterByKey('services', v)}
+                            />
+                        }
+                    />
+                </div>
                 <div className="w-36 p-3 flex-shrink-0 text-right">
                     <SortableHeader<QuoteSortKey>
                         label="專案預算（含稅）"
@@ -396,6 +471,16 @@ export function QuotesDataGrid({ data, clients, onRefresh }: QuotesDataGridProps
                                             {clients.find(c => c.id === quote.client_id)?.name || '-'}
                                         </div>
                                     )}
+                                </div>
+
+                                {/* KOL/服務 摘要 */}
+                                <div className="w-40 p-3 flex-shrink-0 text-xs text-muted-foreground truncate" title={getKolNames(quote)}>
+                                    {getKolNames(quote) || '—'}
+                                </div>
+
+                                {/* 執行內容 摘要 */}
+                                <div className="w-40 p-3 flex-shrink-0 text-xs text-muted-foreground truncate" title={getServices(quote)}>
+                                    {getServices(quote) || '—'}
                                 </div>
 
                                 {/* 專案預算（含稅）(唯讀 - 自動計算) */}
