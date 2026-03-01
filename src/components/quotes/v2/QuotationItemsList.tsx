@@ -227,18 +227,67 @@ export function QuotationItemsList({ quotationId, onUpdate, readOnly = false, qu
     const handleSave = async () => {
         setIsSaving(true)
         try {
-            // 0. 自動建立新服務類型與 KOL 服務關聯
+            // 0a. 自動建立新 KOL 記錄（輸入的名稱不在現有 KOL 中時）
+            const kolNameToId = new Map<string, string>()
+            for (const item of items) {
+                if (!item.kol_id?.trim()) continue
+                const isExistingKol = kols.some(k => k.id === item.kol_id)
+                if (isExistingKol) continue
+
+                const kolName = item.kol_id.trim()
+                if (kolNameToId.has(kolName)) continue
+
+                // 檢查 DB 中是否已有同名 KOL
+                const { data: existingByName } = await supabase
+                    .from('kols')
+                    .select('id')
+                    .eq('name', kolName)
+                    .maybeSingle()
+
+                if (existingByName) {
+                    kolNameToId.set(kolName, existingByName.id)
+                } else {
+                    const { data: newKol, error: kolError } = await supabase
+                        .from('kols')
+                        .insert({ name: kolName })
+                        .select()
+                        .single()
+                    if (kolError) {
+                        toast.error(`無法建立 KOL/服務「${kolName}」: ${kolError.message}`)
+                        setIsSaving(false)
+                        return
+                    }
+                    kolNameToId.set(kolName, newKol.id)
+                    toast.success(`已自動建立 KOL/服務「${kolName}」`)
+                }
+            }
+
+            // 將新 KOL 名稱替換為實際 ID
+            if (kolNameToId.size > 0) {
+                const resolveKolId = (kolId: string | null) => {
+                    if (kolId && kolNameToId.has(kolId.trim())) {
+                        return kolNameToId.get(kolId.trim())!
+                    }
+                    return kolId
+                }
+                // 更新本地 items（讓後續邏輯使用正確的 kol_id）
+                for (const item of items) {
+                    item.kol_id = resolveKolId(item.kol_id)
+                }
+            }
+
+            // 0b. 自動建立新服務類型與 KOL 服務關聯
             for (const item of items) {
                 if (!item.kol_id || !item.service?.trim()) continue
 
                 const kol = kols.find(k => k.id === item.kol_id)
-                if (!kol) continue
-
-                // 檢查該 KOL 是否已有此服務
-                const hasService = kol.kol_services.some(
-                    s => s.service_types?.name === item.service.trim()
-                )
-                if (hasService) continue
+                // 對既有 KOL 檢查是否已有此服務；新建 KOL 則直接建立服務
+                if (kol) {
+                    const hasService = kol.kol_services.some(
+                        s => s.service_types?.name === item.service.trim()
+                    )
+                    if (hasService) continue
+                }
 
                 // 查詢或建立 service_type
                 let serviceTypeId: string
@@ -893,11 +942,12 @@ export function QuotationItemsList({ quotationId, onUpdate, readOnly = false, qu
                                         ) : (
                                             <SearchableSelectCell
                                                 value={item.kol_id}
-                                                displayValue={selectedKol?.name}
+                                                displayValue={selectedKol?.name || item.kol_id || undefined}
                                                 onChange={(val) => handleKolChange(item.id, val)}
                                                 options={kolOptions}
                                                 placeholder="搜尋 KOL/服務"
                                                 className="px-3 py-2 font-medium text-primary"
+                                                allowCustomValue={true}
                                             />
                                         )}
                                     </td>
