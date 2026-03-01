@@ -502,6 +502,9 @@ export interface AccountingPayroll {
   labor_rate: number | null
   health_rate: number | null
   pension_rate: number | null
+  employment_insurance_rate: number | null
+  is_employer: boolean
+  dependents_count: number | null
   note: string | null
   payment_status: PaymentStatus
   paid_at: string | null
@@ -549,6 +552,8 @@ export interface Employee {
   insurance_grade: number | null
   has_labor_insurance: boolean
   has_health_insurance: boolean
+  is_employer: boolean
+  dependents_count: number | null
   // 銀行資料
   bank_name: string | null
   bank_branch: string | null
@@ -559,6 +564,20 @@ export interface Employee {
   created_by: string | null
   created_at: string
   updated_at: string
+}
+
+// ===== 保險設定 =====
+
+export interface InsuranceSettings {
+  id: string
+  default_dependents: number
+  note: string | null
+  effective_date: string
+  expiry_date: string | null
+  created_by: string | null
+  created_at: string
+  updated_at: string | null
+  updated_by: string | null
 }
 
 // ===== 代扣代繳費率設定 =====
@@ -589,19 +608,6 @@ export interface WithholdingSettlement {
   created_at: string | null
 }
 
-// ===== 勞健保設定相關類型 =====
-
-export interface InsuranceSettings {
-  id: string
-  default_dependents: number
-  effective_date: string
-  expiry_date: string | null
-  note: string | null
-  created_by: string | null
-  created_at: string
-  updated_at: string
-}
-
 // ===== 勞健保費率相關類型 =====
 
 export interface InsuranceRateTable {
@@ -621,6 +627,7 @@ export interface InsuranceRateTable {
   pension_rate_employee: number
   occupational_injury_rate: number
   employment_stabilization_rate: number
+  employment_insurance_rate: number
   effective_date: string
   expiry_date: string | null
   note: string | null

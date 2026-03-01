@@ -6,7 +6,7 @@ import { usePermission } from '@/lib/permissions'
 import supabase from '@/lib/supabase/client'
 import { queryKeys } from '@/lib/queryKeys'
 import { toast } from 'sonner'
-import { Plus, Search, Users, Pencil, Trash2, ChevronLeft, UserCheck, UserX, Mail } from 'lucide-react'
+import { Plus, Search, Users, Pencil, Trash2, ChevronLeft, UserCheck, UserX, Mail, Info } from 'lucide-react'
 import AccountingLoadingGuard from '@/components/accounting/AccountingLoadingGuard'
 import AccountingModal from '@/components/accounting/AccountingModal'
 import Pagination from '@/components/accounting/Pagination'
@@ -46,6 +46,8 @@ const emptyForm = (): Partial<Employee> => ({
   insurance_grade: null,
   has_labor_insurance: true,
   has_health_insurance: true,
+  is_employer: false,
+  dependents_count: null,
   bank_name: '',
   bank_branch: '',
   bank_account: '',
@@ -365,6 +367,11 @@ export default function EmployeesPage() {
                       <span className={`px-2 py-0.5 rounded text-xs font-medium ${
                         e.has_health_insurance ? 'bg-success/10 text-success' : 'bg-muted text-muted-foreground'
                       }`}>健</span>
+                      {e.is_employer && (
+                        <span className="px-2 py-0.5 rounded text-xs font-medium bg-amber-500/10 text-amber-400">
+                          雇主
+                        </span>
+                      )}
                     </div>
                   </td>
                   <td className="px-4 py-3 text-xs">
@@ -611,6 +618,52 @@ export default function EmployeesPage() {
                 />
               </button>
             </div>
+          </div>
+
+          {/* 雇主身份 */}
+          <div className="grid grid-cols-1 gap-4 mt-2">
+            <div className="flex items-center justify-between p-3 bg-amber-500/10 rounded-lg">
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-medium text-foreground">雇主/負責人</span>
+                <span className="text-xs text-muted-foreground">(勞健保計算規則不同)</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => updateForm({ is_employer: !form.is_employer, dependents_count: !form.is_employer ? (form.dependents_count ?? 0.58) : null })}
+                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                  form.is_employer ? 'bg-amber-500' : 'bg-muted-foreground/30'
+                }`}
+              >
+                <span
+                  className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                    form.is_employer ? 'translate-x-6' : 'translate-x-1'
+                  }`}
+                />
+              </button>
+            </div>
+            {form.is_employer && (
+              <>
+                <div className="bg-amber-500/5 rounded-lg p-3 text-xs text-amber-400 flex items-start gap-2">
+                  <Info className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+                  <span>雇主適用不同的保險規則：勞保全額自付（12%）、健保依眷屬口數計算、不適用勞退提繳。</span>
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-muted-foreground mb-1">
+                    健保眷屬口數
+                    <span className="ml-2 text-xs text-amber-400 font-normal">(影響雇主健保費計算)</span>
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={form.dependents_count ?? ''}
+                    onChange={(e) => updateForm({ dependents_count: e.target.value ? Number(e.target.value) : null })}
+                    className="w-full border border-border rounded-lg px-3 py-2 text-sm bg-card focus:outline-none focus:ring-2 focus:ring-ring"
+                    placeholder="0.58（政府公告平均值）"
+                  />
+                </div>
+              </>
+            )}
           </div>
 
           {/* 銀行資料 */}

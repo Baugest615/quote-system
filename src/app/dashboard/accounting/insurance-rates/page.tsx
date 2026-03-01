@@ -19,10 +19,11 @@ const PAGE_SIZE = 20
 const emptyForm = (): Partial<InsuranceRateTable> => ({
   grade: 1,
   monthly_salary: 27470,
-  labor_rate_total: 0.12,
-  labor_rate_employee: 0.024,
-  labor_rate_company: 0.084,
-  labor_rate_government: 0.012,
+  labor_rate_total: 0.115,
+  labor_rate_employee: 0.023,
+  labor_rate_company: 0.0805,
+  labor_rate_government: 0.0115,
+  employment_insurance_rate: 0.01,
   health_rate_total: 0.0517,
   health_rate_employee: 0.0155,
   health_rate_company: 0.031,
@@ -30,7 +31,7 @@ const emptyForm = (): Partial<InsuranceRateTable> => ({
   supplementary_rate: 0.0217,
   pension_rate_company: 0.06,
   pension_rate_employee: 0,
-  occupational_injury_rate: 0.0021,
+  occupational_injury_rate: 0.0015,
   employment_stabilization_rate: 0.001,
   effective_date: new Date().toISOString().split('T')[0],
   expiry_date: null,
@@ -158,7 +159,7 @@ export default function InsuranceRatesPage() {
             <ul className="text-xs space-y-1 text-info/80">
               <li>此表管理台灣勞保、健保、勞退的投保級距與費率</li>
               <li>系統會根據「生效日期」與「失效日期」自動選擇正確的費率</li>
-              <li>2026 年台灣費率：勞保 12%（個人 20%、公司 70%）、健保 5.17%（個人 30%、公司 60%）、勞退 6%</li>
+              <li>2026 年費率：勞保普通事故 11.5%（個人 20%、公司 70%）+ 就業保險 1%（同比例分攤）、健保 5.17%、勞退 6%</li>
               <li>若費率變動，請新增新的費率記錄並設定生效日期，舊費率會自動保留為歷史記錄</li>
             </ul>
           </div>
@@ -206,6 +207,7 @@ export default function InsuranceRatesPage() {
                 <th className="text-center px-4 py-3">級距</th>
                 <th className="text-right px-4 py-3">投保薪資</th>
                 <th className="text-right px-4 py-3">勞保（個人）</th>
+                <th className="text-right px-4 py-3">就保</th>
                 <th className="text-right px-4 py-3">健保（個人）</th>
                 <th className="text-right px-4 py-3">勞退（公司）</th>
                 <th className="text-left px-4 py-3">生效日期</th>
@@ -216,7 +218,7 @@ export default function InsuranceRatesPage() {
             </thead>
             <tbody>
               {filtered.length === 0 ? (
-                <tr><td colSpan={9} className="text-center py-12 text-muted-foreground/60">尚無費率資料</td></tr>
+                <tr><td colSpan={10} className="text-center py-12 text-muted-foreground/60">尚無費率資料</td></tr>
               ) : filtered.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE).map(r => {
                 const isActive = !r.expiry_date || new Date(r.expiry_date) >= new Date()
                 return (
@@ -224,6 +226,7 @@ export default function InsuranceRatesPage() {
                     <td className="px-4 py-3 text-center font-semibold text-foreground">第 {r.grade} 級</td>
                     <td className="px-4 py-3 text-right font-medium text-foreground">NT$ {fmt(r.monthly_salary)}</td>
                     <td className="px-4 py-3 text-right text-destructive">{fmtRate(r.labor_rate_employee)}</td>
+                    <td className="px-4 py-3 text-right text-amber-400">{fmtRate(r.employment_insurance_rate ?? 0)}</td>
                     <td className="px-4 py-3 text-right text-destructive">{fmtRate(r.health_rate_employee)}</td>
                     <td className="px-4 py-3 text-right text-primary">{fmtRate(r.pension_rate_company)}</td>
                     <td className="px-4 py-3 text-muted-foreground text-xs">{r.effective_date || '-'}</td>
@@ -291,27 +294,38 @@ export default function InsuranceRatesPage() {
           </div>
 
           {/* 勞保費率 */}
-          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide pt-2">勞保費率（總費率 12%）</p>
+          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide pt-2">勞保普通事故費率（11.5%）</p>
           <div className="grid grid-cols-4 gap-4">
             <div>
               <label className="block text-xs font-medium text-muted-foreground mb-1">總費率</label>
               <input type="number" step="0.0001" value={form.labor_rate_total || ''} onChange={(e) => updateForm({ labor_rate_total: Number(e.target.value) })}
-                className="w-full border border-border rounded-lg px-3 py-2 text-sm bg-card focus:outline-none focus:ring-2 focus:ring-ring" placeholder="0.12" />
+                className="w-full border border-border rounded-lg px-3 py-2 text-sm bg-card focus:outline-none focus:ring-2 focus:ring-ring" placeholder="0.115" />
             </div>
             <div>
               <label className="block text-xs font-medium text-muted-foreground mb-1">個人（20%）</label>
               <input type="number" step="0.0001" value={form.labor_rate_employee || ''} onChange={(e) => updateForm({ labor_rate_employee: Number(e.target.value) })}
-                className="w-full border border-border rounded-lg px-3 py-2 text-sm bg-card focus:outline-none focus:ring-2 focus:ring-ring" placeholder="0.024" />
+                className="w-full border border-border rounded-lg px-3 py-2 text-sm bg-card focus:outline-none focus:ring-2 focus:ring-ring" placeholder="0.023" />
             </div>
             <div>
               <label className="block text-xs font-medium text-muted-foreground mb-1">公司（70%）</label>
               <input type="number" step="0.0001" value={form.labor_rate_company || ''} onChange={(e) => updateForm({ labor_rate_company: Number(e.target.value) })}
-                className="w-full border border-border rounded-lg px-3 py-2 text-sm bg-card focus:outline-none focus:ring-2 focus:ring-ring" placeholder="0.084" />
+                className="w-full border border-border rounded-lg px-3 py-2 text-sm bg-card focus:outline-none focus:ring-2 focus:ring-ring" placeholder="0.0805" />
             </div>
             <div>
               <label className="block text-xs font-medium text-muted-foreground mb-1">政府（10%）</label>
               <input type="number" step="0.0001" value={form.labor_rate_government || ''} onChange={(e) => updateForm({ labor_rate_government: Number(e.target.value) })}
-                className="w-full border border-border rounded-lg px-3 py-2 text-sm bg-card focus:outline-none focus:ring-2 focus:ring-ring" placeholder="0.012" />
+                className="w-full border border-border rounded-lg px-3 py-2 text-sm bg-card focus:outline-none focus:ring-2 focus:ring-ring" placeholder="0.0115" />
+            </div>
+          </div>
+
+          {/* 就業保險費率 */}
+          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide pt-2">就業保險費率（1.0%，20/70/10 分攤）</p>
+          <div className="grid grid-cols-4 gap-4">
+            <div>
+              <label className="block text-xs font-medium text-muted-foreground mb-1">就保費率</label>
+              <input type="number" step="0.0001" value={form.employment_insurance_rate ?? ''} onChange={(e) => updateForm({ employment_insurance_rate: Number(e.target.value) })}
+                className="w-full border border-border rounded-lg px-3 py-2 text-sm bg-card focus:outline-none focus:ring-2 focus:ring-ring" placeholder="0.01" />
+              <p className="text-xs text-muted-foreground mt-1">雇主不適用就業保險</p>
             </div>
           </div>
 
