@@ -91,7 +91,7 @@ export function RemittanceGroupCard({
                                     個人報帳
                                 </span>
                             )}
-                            {group.payrollItems.length > 0 && group.items.length === 0 && group.expenseItems.length === 0 && (
+                            {group.payrollItems.length > 0 && (
                                 <span className="text-xs bg-info/20 text-info px-2 py-0.5 rounded">
                                     薪資
                                 </span>
@@ -124,30 +124,46 @@ export function RemittanceGroupCard({
             {/* 展開明細 */}
             {isExpanded && (
                 <div className="border-t border-border">
-                    {/* 匯費設定區（只有專案項目才顯示，薪資/個人報帳不顯示） */}
-                    {onUpdateSettings && settings && group.items.length > 0 && !group.isPersonalClaim && (
+                    {/* 匯費 + 匯款日期設定區 */}
+                    {onUpdateSettings && settings && (group.items.length > 0 || group.expenseItems.length > 0 || group.payrollItems.length > 0) && (
                         <div className="px-4 py-3 bg-muted/20 border-b border-border">
-                            <div className="flex items-center gap-3 text-sm">
-                                <label className="flex items-center gap-2 cursor-pointer hover:text-foreground transition-colors">
-                                    <input
-                                        type="checkbox"
-                                        className="rounded border-border"
-                                        checked={settings.hasRemittanceFee}
-                                        onChange={(e) => onUpdateSettings(group.remittanceName, { hasRemittanceFee: e.target.checked })}
-                                    />
-                                    <span>匯費自付 (扣除)</span>
-                                </label>
-                                {settings.hasRemittanceFee && (
-                                    <div className="flex items-center gap-1">
-                                        <span className="text-muted-foreground">$</span>
-                                        <input
-                                            type="number"
-                                            className="w-16 h-7 text-sm border-border rounded px-2 py-0"
-                                            value={settings.remittanceFeeAmount}
-                                            onChange={(e) => onUpdateSettings(group.remittanceName, { remittanceFeeAmount: Number(e.target.value) })}
-                                        />
-                                    </div>
+                            <div className="flex flex-wrap items-center gap-4 text-sm">
+                                {/* 匯費自付（專案項目，不含個人報帳） */}
+                                {!group.isPersonalClaim && group.items.length > 0 && (
+                                    <>
+                                        <label className="flex items-center gap-2 cursor-pointer hover:text-foreground transition-colors">
+                                            <input
+                                                type="checkbox"
+                                                className="rounded border-border"
+                                                checked={settings.hasRemittanceFee}
+                                                onChange={(e) => onUpdateSettings(group.remittanceName, { hasRemittanceFee: e.target.checked })}
+                                            />
+                                            <span>匯費自付 (扣除)</span>
+                                        </label>
+                                        {settings.hasRemittanceFee && (
+                                            <div className="flex items-center gap-1">
+                                                <span className="text-muted-foreground">$</span>
+                                                <input
+                                                    type="number"
+                                                    className="w-16 h-7 text-sm border-border rounded px-2 py-0"
+                                                    value={settings.remittanceFeeAmount}
+                                                    onChange={(e) => onUpdateSettings(group.remittanceName, { remittanceFeeAmount: Number(e.target.value) })}
+                                                />
+                                            </div>
+                                        )}
+                                        <div className="w-px h-5 bg-border" />
+                                    </>
                                 )}
+                                {/* 匯款日期 */}
+                                <div className="flex items-center gap-2">
+                                    <label className="text-xs text-muted-foreground whitespace-nowrap">匯款日期</label>
+                                    <input
+                                        type="date"
+                                        value={settings.paymentDate || ''}
+                                        onChange={(e) => onUpdateSettings(group.remittanceName, { paymentDate: e.target.value || undefined })}
+                                        className="bg-card border border-border rounded px-2 py-0.5 text-xs h-7 focus:outline-none focus:ring-1 focus:ring-primary"
+                                    />
+                                </div>
                             </div>
                         </div>
                     )}

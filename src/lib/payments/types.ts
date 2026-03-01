@@ -172,6 +172,7 @@ export interface RemittanceSettings {
         remittanceFeeAmount: number
         hasTax: boolean
         hasInsurance: boolean
+        paymentDate?: string  // ISO date, e.g. '2026-03-15'
     }
 }
 

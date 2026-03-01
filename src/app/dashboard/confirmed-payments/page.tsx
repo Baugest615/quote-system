@@ -307,6 +307,19 @@ export default function ConfirmedPaymentsPage() {
     }
   }, [setConfirmations])
 
+  // 薪資群組：直接更新 accounting_payroll.payment_date
+  const handlePayrollPaymentDate = useCallback(async (payrollIds: string[], date: string | null) => {
+    const { error } = await supabase
+      .from('accounting_payroll')
+      .update({ payment_date: date })
+      .in('id', payrollIds)
+    if (error) {
+      toast.error('儲存薪資匯款日期失敗: ' + error.message)
+    } else {
+      queryClient.invalidateQueries({ queryKey: queryKeys.accountingPayroll(CURRENT_YEAR) })
+    }
+  }, [queryClient])
+
   // 操作函數
   const toggleExpansion = (id: string) => {
     setConfirmations(prev => prev.map(item =>
@@ -663,6 +676,7 @@ export default function ConfirmedPaymentsPage() {
           payrollData={payrollData}
           expensesData={expensesData}
           onUpdateSettings={handleOverviewSettingsChange}
+          onSetPayrollPaymentDate={handlePayrollPaymentDate}
           onRevertItem={handleRevertItem}
           isAdmin={hasRole('Admin')}
         />

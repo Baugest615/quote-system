@@ -22,6 +22,7 @@ interface PaymentOverviewTabProps {
     payrollData?: AccountingPayroll[]
     expensesData?: AccountingExpense[]
     onUpdateSettings?: (confirmationId: string, remittanceName: string, updates: Partial<RemittanceSettings[string]>) => void
+    onSetPayrollPaymentDate?: (payrollIds: string[], date: string | null) => void
     onRevertItem?: (itemId: string) => void
     isAdmin?: boolean
 }
@@ -32,6 +33,7 @@ export function PaymentOverviewTab({
     payrollData,
     expensesData,
     onUpdateSettings,
+    onSetPayrollPaymentDate,
     onRevertItem,
     isAdmin,
 }: PaymentOverviewTabProps) {
@@ -103,12 +105,13 @@ export function PaymentOverviewTab({
             const hasInsurance = applicability.showWithholding && group.totalAmount >= nhiThreshold
 
             if (dbSettings) {
-                // 已有 DB 設定：匯費用 DB 值，代扣重新計算
+                // 已有 DB 設定：匯費/匯款日期用 DB 值，代扣重新計算
                 inits[group.remittanceName] = {
                     hasTax,
                     hasInsurance,
                     hasRemittanceFee: dbSettings.hasRemittanceFee,
                     remittanceFeeAmount: dbSettings.remittanceFeeAmount,
+                    paymentDate: dbSettings.paymentDate || undefined,
                 }
             } else {
                 // 新群組：根據類型預設
@@ -117,6 +120,14 @@ export function PaymentOverviewTab({
                     hasInsurance,
                     hasRemittanceFee: !applicability.showWithholding && group.items.length > 0 && !group.isPersonalClaim,
                     remittanceFeeAmount: feeDefault,
+                }
+            }
+
+            // 薪資群組：從 payroll 記錄反推 paymentDate（不存在 remittance_settings 中）
+            if (group.payrollItems.length > 0 && !inits[group.remittanceName].paymentDate) {
+                const dates = Array.from(new Set(group.payrollItems.map(p => p.payment_date).filter(Boolean)))
+                if (dates.length === 1) {
+                    inits[group.remittanceName].paymentDate = dates[0]!
                 }
             }
         }
@@ -151,8 +162,19 @@ export function PaymentOverviewTab({
             for (const cid of ids) {
                 onUpdateSettings(cid, remittanceName, mergedSettings)
             }
+
+            // 薪資群組無 confirmationIds，改走直接更新路徑
+            if (ids.length === 0 && updates.paymentDate !== undefined && onSetPayrollPaymentDate) {
+                const group = groups.find(g => g.remittanceName === remittanceName)
+                if (group?.payrollItems.length) {
+                    onSetPayrollPaymentDate(
+                        group.payrollItems.map(p => p.id),
+                        updates.paymentDate || null
+                    )
+                }
+            }
         }
-    }, [onUpdateSettings, getConfirmationIdsForName])
+    }, [onUpdateSettings, getConfirmationIdsForName, onSetPayrollPaymentDate, groups])
 
     const getSettings = useCallback((remittanceName: string) => {
         return localSettings[remittanceName] || undefined
