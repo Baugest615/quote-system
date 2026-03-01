@@ -18,6 +18,25 @@ import type { SpreadsheetColumn, BatchSaveResult, RowError } from '@/lib/spreads
 import { calculateInsurance, type InsuranceCalculation } from '@/lib/accounting/insurance-calculator'
 import { CURRENT_YEAR, MONTH_OPTIONS } from '@/lib/constants'
 import { useConfirm } from '@/components/ui/ConfirmDialog'
+import { useTableSort } from '@/hooks/useTableSort'
+import { SortableHeader } from '@/components/ui/SortableHeader'
+import { ColumnFilterPopover } from '@/components/ui/ColumnFilterPopover'
+import { useColumnFilters, type FilterValue } from '@/hooks/useColumnFilters'
+
+type PayrollSortKey = 'salary_month' | 'employee_name' | 'base_salary' | 'bonus' | 'personal_total' | 'net_salary' | 'company_total' | 'note'
+
+function getPayrollSortValue(r: AccountingPayroll, key: PayrollSortKey): string | number | null {
+  switch (key) {
+    case 'salary_month': return r.salary_month ?? null
+    case 'employee_name': return r.employee_name ?? null
+    case 'base_salary': return r.base_salary ?? 0
+    case 'bonus': return r.bonus ?? 0
+    case 'personal_total': return r.personal_total ?? 0
+    case 'net_salary': return r.net_salary ?? 0
+    case 'company_total': return r.company_total ?? 0
+    case 'note': return r.note ?? null
+  }
+}
 
 const PAGE_SIZE = 20
 
@@ -58,6 +77,10 @@ export default function AccountingPayrollPage() {
   const queryClient = useQueryClient()
   const [year, setYear] = useState(CURRENT_YEAR)
   const [search, setSearch] = useState('')
+  const { sortState, toggleSort } = useTableSort<PayrollSortKey>()
+  const { filters, setFilter } = useColumnFilters<Record<PayrollSortKey, unknown>>()
+  const getFilter = (key: PayrollSortKey): FilterValue | null => filters.get(key as keyof Record<PayrollSortKey, unknown>) ?? null
+  const setFilterByKey = (key: PayrollSortKey, value: FilterValue | null) => setFilter(key as keyof Record<PayrollSortKey, unknown>, value)
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editing, setEditing] = useState<AccountingPayroll | null>(null)
   const [form, setForm] = useState<Partial<AccountingPayroll>>(emptyForm())
@@ -169,11 +192,46 @@ export default function AccountingPayrollPage() {
 
   const filtered = useMemo(() => {
     const q = search.toLowerCase()
-    return records.filter(r =>
+    let result = records.filter(r =>
       r.employee_name.toLowerCase().includes(q) ||
       (r.salary_month || '').toLowerCase().includes(q)
     )
-  }, [search, records])
+    // 欄位篩選
+    if (filters.size > 0) {
+      result = result.filter(r => {
+        let pass = true
+        filters.forEach((fv, key) => {
+          if (!pass) return
+          const val = getPayrollSortValue(r, String(key) as PayrollSortKey)
+          if (fv.type === 'text') {
+            if (!String(val ?? '').toLowerCase().includes(fv.value.toLowerCase())) pass = false
+          } else if (fv.type === 'select') {
+            if (!fv.selected.includes(String(val ?? ''))) pass = false
+          } else if (fv.type === 'number') {
+            const num = typeof val === 'number' ? val : parseFloat(String(val ?? ''))
+            if (isNaN(num)) { if (fv.min != null || fv.max != null) pass = false; return }
+            if (fv.min != null && num < fv.min) pass = false
+            if (fv.max != null && num > fv.max) pass = false
+          }
+        })
+        return pass
+      })
+    }
+    // 排序
+    if (sortState.key && sortState.direction) {
+      const dir = sortState.direction === 'asc' ? 1 : -1
+      result.sort((a, b) => {
+        const aVal = getPayrollSortValue(a, sortState.key as PayrollSortKey)
+        const bVal = getPayrollSortValue(b, sortState.key as PayrollSortKey)
+        if (aVal == null && bVal == null) return 0
+        if (aVal == null) return 1
+        if (bVal == null) return -1
+        if (typeof aVal === 'number' && typeof bVal === 'number') return (aVal - bVal) * dir
+        return String(aVal).localeCompare(String(bVal), 'zh-Hant') * dir
+      })
+    }
+    return result
+  }, [search, records, filters, sortState])
 
   // 選擇員工後自動計算
   const handleSelectEmployee = async (employeeId: string) => {
@@ -420,14 +478,38 @@ export default function AccountingPayrollPage() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="bg-muted text-muted-foreground text-xs">
-                  <th className="text-left px-4 py-3">記帳月份</th>
-                  <th className="text-left px-4 py-3">員工姓名</th>
-                  <th className="text-right px-4 py-3">本薪</th>
-                  <th className="text-right px-4 py-3">獎金</th>
-                  <th className="text-right px-4 py-3">個人負擔</th>
-                  <th className="text-right px-4 py-3">實領薪資</th>
-                  <th className="text-right px-4 py-3">公司負擔</th>
-                  <th className="text-left px-4 py-3">備註</th>
+                  <th className="text-left px-4 py-3">
+                    <SortableHeader<PayrollSortKey> label="記帳月份" sortKey="salary_month" sortState={sortState} onToggleSort={toggleSort}
+                      filterContent={<ColumnFilterPopover filterType="select" options={MONTH_OPTIONS.map(m => `${year}年${m}`)} value={getFilter('salary_month')} onChange={v => setFilterByKey('salary_month', v)} />} />
+                  </th>
+                  <th className="text-left px-4 py-3">
+                    <SortableHeader<PayrollSortKey> label="員工姓名" sortKey="employee_name" sortState={sortState} onToggleSort={toggleSort}
+                      filterContent={<ColumnFilterPopover filterType="text" value={getFilter('employee_name')} onChange={v => setFilterByKey('employee_name', v)} />} />
+                  </th>
+                  <th className="text-right px-4 py-3">
+                    <SortableHeader<PayrollSortKey> label="本薪" sortKey="base_salary" sortState={sortState} onToggleSort={toggleSort}
+                      filterContent={<ColumnFilterPopover filterType="number" value={getFilter('base_salary')} onChange={v => setFilterByKey('base_salary', v)} />} />
+                  </th>
+                  <th className="text-right px-4 py-3">
+                    <SortableHeader<PayrollSortKey> label="獎金" sortKey="bonus" sortState={sortState} onToggleSort={toggleSort}
+                      filterContent={<ColumnFilterPopover filterType="number" value={getFilter('bonus')} onChange={v => setFilterByKey('bonus', v)} />} />
+                  </th>
+                  <th className="text-right px-4 py-3">
+                    <SortableHeader<PayrollSortKey> label="個人負擔" sortKey="personal_total" sortState={sortState} onToggleSort={toggleSort}
+                      filterContent={<ColumnFilterPopover filterType="number" value={getFilter('personal_total')} onChange={v => setFilterByKey('personal_total', v)} />} />
+                  </th>
+                  <th className="text-right px-4 py-3">
+                    <SortableHeader<PayrollSortKey> label="實領薪資" sortKey="net_salary" sortState={sortState} onToggleSort={toggleSort}
+                      filterContent={<ColumnFilterPopover filterType="number" value={getFilter('net_salary')} onChange={v => setFilterByKey('net_salary', v)} />} />
+                  </th>
+                  <th className="text-right px-4 py-3">
+                    <SortableHeader<PayrollSortKey> label="公司負擔" sortKey="company_total" sortState={sortState} onToggleSort={toggleSort}
+                      filterContent={<ColumnFilterPopover filterType="number" value={getFilter('company_total')} onChange={v => setFilterByKey('company_total', v)} />} />
+                  </th>
+                  <th className="text-left px-4 py-3">
+                    <SortableHeader<PayrollSortKey> label="備註" sortKey="note" sortState={sortState} onToggleSort={toggleSort}
+                      filterContent={<ColumnFilterPopover filterType="text" value={getFilter('note')} onChange={v => setFilterByKey('note', v)} />} />
+                  </th>
                   <th className="text-center px-4 py-3">操作</th>
                 </tr>
               </thead>

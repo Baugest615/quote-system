@@ -29,6 +29,7 @@ interface SpreadsheetEditorProps<T extends { id: string }> {
     toDelete: string[]
   ) => Promise<BatchSaveResult>
   canDelete?: (row: T) => boolean
+  allowInsert?: boolean
   accentColor?: 'blue' | 'red' | 'purple'
   onClose: () => void
 }
@@ -71,6 +72,7 @@ export default function SpreadsheetEditor<T extends { id: string }>({
   onAutoCalc,
   onBatchSave,
   canDelete,
+  allowInsert = true,
   accentColor = 'blue',
   onClose,
 }: SpreadsheetEditorProps<T>) {
@@ -137,10 +139,11 @@ export default function SpreadsheetEditor<T extends { id: string }>({
 
   // ------ Sorted/filtered addRow / paste ------
   const handleAddRow = useCallback(() => {
+    if (!allowInsert) return
     if (isFiltered) return // disabled during filtering
     if (isSorted) resetSort()
     addRow()
-  }, [isFiltered, isSorted, resetSort, addRow])
+  }, [allowInsert, isFiltered, isSorted, resetSort, addRow])
 
   const handlePasteWithSort = useCallback(
     (e: React.ClipboardEvent) => {
@@ -247,6 +250,7 @@ export default function SpreadsheetEditor<T extends { id: string }>({
             清除篩選 ({filterCount})
           </button>
         )}
+        {allowInsert && (
         <button
           onClick={handleAddRow}
           disabled={isFiltered}
@@ -256,6 +260,7 @@ export default function SpreadsheetEditor<T extends { id: string }>({
           <Plus className="w-3.5 h-3.5" />
           新增列
         </button>
+        )}
         {deletedCount > 0 && (
           <button
             onClick={undoAllDeleted}
@@ -341,7 +346,7 @@ export default function SpreadsheetEditor<T extends { id: string }>({
                       type="no-data"
                       icon={ClipboardList}
                       title="尚無資料"
-                      description="點擊「新增列」或直接貼上資料"
+                      description={allowInsert ? '點擊「新增列」或直接貼上資料' : '目前沒有可編輯的資料'}
                     />
                   </td>
                 </tr>
@@ -508,10 +513,12 @@ export default function SpreadsheetEditor<T extends { id: string }>({
 
       {/* Legend */}
       <div className="flex items-center gap-4 text-[10px] text-muted-foreground/60 px-1">
+        {allowInsert && (
         <span className="flex items-center gap-1">
           <span className="w-2.5 h-2.5 rounded-sm bg-success/30 border border-success" />
           新增列
         </span>
+        )}
         <span className="flex items-center gap-1">
           <span className="w-2.5 h-2.5 rounded-sm bg-warning/30 border border-warning" />
           已修改

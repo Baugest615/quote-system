@@ -17,6 +17,8 @@ import { ProjectNotesPanel } from './ProjectNotesPanel'
 import { useProjectNotesCounts } from '@/hooks/useProjectNotes'
 import { useTableSort } from '@/hooks/useTableSort'
 import { SortableHeader } from '@/components/ui/SortableHeader'
+import { ColumnFilterPopover } from '@/components/ui/ColumnFilterPopover'
+import { useColumnFilters, type FilterValue } from '@/hooks/useColumnFilters'
 import type { Project, ProjectStatus } from '@/types/custom.types'
 
 type ProjectWithQuotation = Project & { quotations?: { quote_number: string | null } | null }
@@ -62,12 +64,37 @@ export function ProjectTable({
   const { data: notesCounts = {} } = useProjectNotesCounts()
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const { sortState, toggleSort } = useTableSort<ProjectSortKey>()
+  const { filters, setFilter } = useColumnFilters<Record<ProjectSortKey, unknown>>()
+  const getFilter = (key: ProjectSortKey): FilterValue | null => filters.get(key as keyof Record<ProjectSortKey, unknown>) ?? null
+  const setFilterByKey = (key: ProjectSortKey, value: FilterValue | null) => setFilter(key as keyof Record<ProjectSortKey, unknown>, value)
+
+  const filteredProjects = useMemo(() => {
+    if (filters.size === 0) return projects
+    return projects.filter(p => {
+      let pass = true
+      filters.forEach((fv, key) => {
+        if (!pass) return
+        const val = p[key as keyof Project]
+        if (fv.type === 'text') {
+          if (!String(val ?? '').toLowerCase().includes(fv.value.toLowerCase())) pass = false
+        } else if (fv.type === 'select') {
+          if (!fv.selected.includes(String(val ?? ''))) pass = false
+        } else if (fv.type === 'number') {
+          const num = typeof val === 'number' ? val : parseFloat(String(val ?? ''))
+          if (isNaN(num)) { if (fv.min != null || fv.max != null) pass = false; return }
+          if (fv.min != null && num < fv.min) pass = false
+          if (fv.max != null && num > fv.max) pass = false
+        }
+      })
+      return pass
+    })
+  }, [projects, filters])
 
   const sortedProjects = useMemo(() => {
-    if (!sortState.key || !sortState.direction) return projects
+    if (!sortState.key || !sortState.direction) return filteredProjects
     const key = sortState.key
     const dir = sortState.direction === 'asc' ? 1 : -1
-    return [...projects].sort((a, b) => {
+    return [...filteredProjects].sort((a, b) => {
       const aVal = a[key as keyof Project]
       const bVal = b[key as keyof Project]
       if (aVal == null && bVal == null) return 0
@@ -76,7 +103,7 @@ export function ProjectTable({
       if (typeof aVal === 'number' && typeof bVal === 'number') return (aVal - bVal) * dir
       return String(aVal).localeCompare(String(bVal), 'zh-Hant') * dir
     })
-  }, [projects, sortState.key, sortState.direction])
+  }, [filteredProjects, sortState.key, sortState.direction])
 
   // 切換 tab 時收合展開列
   useEffect(() => {
@@ -114,16 +141,20 @@ export function ProjectTable({
           <TableRow className="bg-secondary/50">
             <TableHead className="w-8" />
             <TableHead className="w-[170px]">
-              <SortableHeader label="廠商名稱" sortKey="client_name" sortState={sortState} onToggleSort={toggleSort} />
+              <SortableHeader label="廠商名稱" sortKey="client_name" sortState={sortState} onToggleSort={toggleSort}
+                filterContent={<ColumnFilterPopover filterType="text" value={getFilter('client_name')} onChange={v => setFilterByKey('client_name', v)} />} />
             </TableHead>
             <TableHead className="min-w-[200px]">
-              <SortableHeader label="專案名稱" sortKey="project_name" sortState={sortState} onToggleSort={toggleSort} />
+              <SortableHeader label="專案名稱" sortKey="project_name" sortState={sortState} onToggleSort={toggleSort}
+                filterContent={<ColumnFilterPopover filterType="text" value={getFilter('project_name')} onChange={v => setFilterByKey('project_name', v)} />} />
             </TableHead>
             <TableHead className="w-[70px] text-center">
-              <SortableHeader label="類型" sortKey="project_type" sortState={sortState} onToggleSort={toggleSort} />
+              <SortableHeader label="類型" sortKey="project_type" sortState={sortState} onToggleSort={toggleSort}
+                filterContent={<ColumnFilterPopover filterType="select" options={['專案', '經紀']} value={getFilter('project_type')} onChange={v => setFilterByKey('project_type', v)} />} />
             </TableHead>
             <TableHead className="w-[110px] text-right">
-              <SortableHeader label="預算（含稅）" sortKey="budget_with_tax" sortState={sortState} onToggleSort={toggleSort} className="justify-end" />
+              <SortableHeader label="預算（含稅）" sortKey="budget_with_tax" sortState={sortState} onToggleSort={toggleSort} className="justify-end"
+                filterContent={<ColumnFilterPopover filterType="number" value={getFilter('budget_with_tax')} onChange={v => setFilterByKey('budget_with_tax', v)} />} />
             </TableHead>
             {showStatusColumn && (
               <TableHead className="w-[110px]">目前進度</TableHead>

@@ -19,6 +19,8 @@ import { queryKeys } from '@/lib/queryKeys'
 import Pagination from '@/components/ui/Pagination'
 import { useTableSort } from '@/hooks/useTableSort'
 import { SortableHeader } from '@/components/ui/SortableHeader'
+import { ColumnFilterPopover } from '@/components/ui/ColumnFilterPopover'
+import { useColumnFilters, type FilterValue } from '@/hooks/useColumnFilters'
 
 type KolSortKey = 'name' | 'type_name'
 
@@ -42,15 +44,18 @@ export default function KolsPage() {
   // 搜尋改變時重置到第一頁
   useEffect(() => { setCurrentPage(1) }, [searchTerm])
 
-  // 排序
+  // 排序 & 欄位篩選
   const { sortState, toggleSort } = useTableSort<KolSortKey>()
+  const { filters, setFilter } = useColumnFilters<Record<KolSortKey, unknown>>()
+  const getFilter = (key: KolSortKey): FilterValue | null => filters.get(key as keyof Record<KolSortKey, unknown>) ?? null
+  const setFilterByKey = (key: KolSortKey, value: FilterValue | null) => setFilter(key as keyof Record<KolSortKey, unknown>, value)
 
   // 展開的行 ID 集合
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set())
 
   const filteredKols = useMemo(() => {
     const lowercasedFilter = searchTerm.toLowerCase();
-    return kols.filter(kol => {
+    let result = kols.filter(kol => {
       const kolType = kolTypes.find(t => t.id === kol.type_id);
       return (
         kol.name.toLowerCase().includes(lowercasedFilter) ||
@@ -58,7 +63,26 @@ export default function KolsPage() {
         (kolType && kolType.name.toLowerCase().includes(lowercasedFilter))
       );
     });
-  }, [searchTerm, kols, kolTypes]);
+    // 欄位篩選
+    if (filters.size > 0) {
+      result = result.filter(kol => {
+        let pass = true
+        filters.forEach((fv, key) => {
+          if (!pass) return
+          let val: string | null = null
+          if (key === 'name') val = kol.name
+          else if (key === 'type_name') val = kolTypes.find(t => t.id === kol.type_id)?.name ?? null
+          if (fv.type === 'text') {
+            if (!String(val ?? '').toLowerCase().includes(fv.value.toLowerCase())) pass = false
+          } else if (fv.type === 'select') {
+            if (!fv.selected.includes(String(val ?? ''))) pass = false
+          }
+        })
+        return pass
+      })
+    }
+    return result
+  }, [searchTerm, kols, kolTypes, filters]);
 
   // 排序後的 KOL 列表
   const sortedKols = useMemo(() => {
@@ -288,10 +312,12 @@ export default function KolsPage() {
             <tr className="bg-secondary/50 border-b border-border">
               <th className="p-4 w-10"></th>
               <th className="p-4 font-medium text-sm text-muted-foreground hidden sm:table-cell">
-                <SortableHeader label="類型" sortKey="type_name" sortState={sortState} onToggleSort={toggleSort} />
+                <SortableHeader label="類型" sortKey="type_name" sortState={sortState} onToggleSort={toggleSort}
+                  filterContent={<ColumnFilterPopover filterType="select" options={kolTypes.map(t => t.name)} value={getFilter('type_name')} onChange={v => setFilterByKey('type_name', v)} />} />
               </th>
               <th className="p-4 font-medium text-sm text-muted-foreground">
-                <SortableHeader label="KOL/服務" sortKey="name" sortState={sortState} onToggleSort={toggleSort} />
+                <SortableHeader label="KOL/服務" sortKey="name" sortState={sortState} onToggleSort={toggleSort}
+                  filterContent={<ColumnFilterPopover filterType="text" value={getFilter('name')} onChange={v => setFilterByKey('name', v)} />} />
               </th>
               <th className="p-4 font-medium text-sm text-muted-foreground hidden md:table-cell">社群平台</th>
               <th className="p-4 font-medium text-sm text-muted-foreground hidden sm:table-cell">執行內容概覽</th>

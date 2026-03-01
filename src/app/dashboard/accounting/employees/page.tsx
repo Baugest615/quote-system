@@ -14,6 +14,8 @@ import Link from 'next/link'
 import { useConfirm } from '@/components/ui/ConfirmDialog'
 import { useTableSort } from '@/hooks/useTableSort'
 import { SortableHeader } from '@/components/ui/SortableHeader'
+import { ColumnFilterPopover } from '@/components/ui/ColumnFilterPopover'
+import { useColumnFilters, type FilterValue } from '@/hooks/useColumnFilters'
 import type { Employee, EmploymentType, EmployeeStatus, Gender } from '@/types/custom.types'
 
 type EmployeeSortKey = 'employee_number' | 'name' | 'position' | 'department' | 'status' | 'base_salary' | 'insurance_grade' | 'hire_date'
@@ -62,6 +64,9 @@ export default function EmployeesPage() {
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<EmployeeStatus | 'all'>('在職')
   const { sortState, toggleSort } = useTableSort<EmployeeSortKey>()
+  const { filters, setFilter } = useColumnFilters<Record<EmployeeSortKey, unknown>>()
+  const getFilter = (key: EmployeeSortKey): FilterValue | null => filters.get(key as keyof Record<EmployeeSortKey, unknown>) ?? null
+  const setFilterByKey = (key: EmployeeSortKey, value: FilterValue | null) => setFilter(key as keyof Record<EmployeeSortKey, unknown>, value)
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editing, setEditing] = useState<Employee | null>(null)
   const [form, setForm] = useState<Partial<Employee>>(emptyForm())
@@ -138,8 +143,34 @@ export default function EmployeesPage() {
     if (statusFilter !== 'all') {
       result = result.filter(e => e.status === statusFilter)
     }
+    // 欄位篩選
+    if (filters.size > 0) {
+      result = result.filter(e => {
+        let pass = true
+        filters.forEach((fv, key) => {
+          if (!pass) return
+          const val = e[key as keyof Employee]
+          if (fv.type === 'text') {
+            if (!String(val ?? '').toLowerCase().includes(fv.value.toLowerCase())) pass = false
+          } else if (fv.type === 'select') {
+            if (!fv.selected.includes(String(val ?? ''))) pass = false
+          } else if (fv.type === 'number') {
+            const num = typeof val === 'number' ? val : parseFloat(String(val ?? ''))
+            if (isNaN(num)) { if (fv.min != null || fv.max != null) pass = false; return }
+            if (fv.min != null && num < fv.min) pass = false
+            if (fv.max != null && num > fv.max) pass = false
+          } else if (fv.type === 'date') {
+            const str = String(val ?? '')
+            if (!str) { pass = false; return }
+            if (fv.start && str < fv.start) pass = false
+            if (fv.end && str > fv.end) pass = false
+          }
+        })
+        return pass
+      })
+    }
     return result
-  }, [search, statusFilter, employees])
+  }, [search, statusFilter, employees, filters])
 
   // 排序
   const sortedFiltered = useMemo(() => {
@@ -310,30 +341,38 @@ export default function EmployeesPage() {
             <thead>
               <tr className="bg-muted text-muted-foreground text-xs">
                 <th className="text-left px-4 py-3">
-                  <SortableHeader label="員工編號" sortKey="employee_number" sortState={sortState} onToggleSort={toggleSort} />
+                  <SortableHeader label="員工編號" sortKey="employee_number" sortState={sortState} onToggleSort={toggleSort}
+                    filterContent={<ColumnFilterPopover filterType="text" value={getFilter('employee_number')} onChange={v => setFilterByKey('employee_number', v)} />} />
                 </th>
                 <th className="text-left px-4 py-3">
-                  <SortableHeader label="姓名" sortKey="name" sortState={sortState} onToggleSort={toggleSort} />
+                  <SortableHeader label="姓名" sortKey="name" sortState={sortState} onToggleSort={toggleSort}
+                    filterContent={<ColumnFilterPopover filterType="text" value={getFilter('name')} onChange={v => setFilterByKey('name', v)} />} />
                 </th>
                 <th className="text-left px-4 py-3">
-                  <SortableHeader label="職位" sortKey="position" sortState={sortState} onToggleSort={toggleSort} />
+                  <SortableHeader label="職位" sortKey="position" sortState={sortState} onToggleSort={toggleSort}
+                    filterContent={<ColumnFilterPopover filterType="text" value={getFilter('position')} onChange={v => setFilterByKey('position', v)} />} />
                 </th>
                 <th className="text-left px-4 py-3">
-                  <SortableHeader label="部門" sortKey="department" sortState={sortState} onToggleSort={toggleSort} />
+                  <SortableHeader label="部門" sortKey="department" sortState={sortState} onToggleSort={toggleSort}
+                    filterContent={<ColumnFilterPopover filterType="text" value={getFilter('department')} onChange={v => setFilterByKey('department', v)} />} />
                 </th>
                 <th className="text-left px-4 py-3">
-                  <SortableHeader label="狀態" sortKey="status" sortState={sortState} onToggleSort={toggleSort} />
+                  <SortableHeader label="狀態" sortKey="status" sortState={sortState} onToggleSort={toggleSort}
+                    filterContent={<ColumnFilterPopover filterType="select" options={['在職', '離職', '留停']} value={getFilter('status')} onChange={v => setFilterByKey('status', v)} />} />
                 </th>
                 <th className="text-right px-4 py-3">
-                  <SortableHeader label="本薪" sortKey="base_salary" sortState={sortState} onToggleSort={toggleSort} className="justify-end" />
+                  <SortableHeader label="本薪" sortKey="base_salary" sortState={sortState} onToggleSort={toggleSort} className="justify-end"
+                    filterContent={<ColumnFilterPopover filterType="number" value={getFilter('base_salary')} onChange={v => setFilterByKey('base_salary', v)} />} />
                 </th>
                 <th className="text-center px-4 py-3">
-                  <SortableHeader label="投保級距" sortKey="insurance_grade" sortState={sortState} onToggleSort={toggleSort} className="justify-center" />
+                  <SortableHeader label="投保級距" sortKey="insurance_grade" sortState={sortState} onToggleSort={toggleSort} className="justify-center"
+                    filterContent={<ColumnFilterPopover filterType="number" value={getFilter('insurance_grade')} onChange={v => setFilterByKey('insurance_grade', v)} />} />
                 </th>
                 <th className="text-center px-4 py-3">勞/健保</th>
                 <th className="text-left px-4 py-3">綁定帳號</th>
                 <th className="text-left px-4 py-3">
-                  <SortableHeader label="到職日" sortKey="hire_date" sortState={sortState} onToggleSort={toggleSort} />
+                  <SortableHeader label="到職日" sortKey="hire_date" sortState={sortState} onToggleSort={toggleSort}
+                    filterContent={<ColumnFilterPopover filterType="date" value={getFilter('hire_date')} onChange={v => setFilterByKey('hire_date', v)} />} />
                 </th>
                 <th className="text-center px-4 py-3">操作</th>
               </tr>

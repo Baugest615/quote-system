@@ -6,7 +6,7 @@ import { usePermission } from '@/lib/permissions'
 import supabase from '@/lib/supabase/client'
 import { queryKeys } from '@/lib/queryKeys'
 import { toast } from 'sonner'
-import { Plus, Search, Receipt, Pencil, Trash2, ChevronLeft, Table2 } from 'lucide-react'
+import { Search, Receipt, Pencil, Trash2, ChevronLeft, Table2 } from 'lucide-react'
 import AccountingLoadingGuard from '@/components/accounting/AccountingLoadingGuard'
 import AccountingModal from '@/components/accounting/AccountingModal'
 import Pagination from '@/components/accounting/Pagination'
@@ -26,7 +26,9 @@ import { useConfirm } from '@/components/ui/ConfirmDialog'
 
 const PAGE_SIZE = 20
 
-type SalesSortKey = 'invoice_month' | 'project_name' | 'client_name' | 'sales_amount' | 'tax_amount' | 'total_amount' | 'invoice_number' | 'actual_receipt_date'
+type SalesSortKey = 'invoice_month' | 'project_name' | 'client_name' | 'sales_amount' | 'tax_amount' | 'total_amount' | 'invoice_number' | 'actual_receipt_date' | 'receipt_status'
+
+const getReceiptStatus = (r: AccountingSale) => r.actual_receipt_date ? '已收' : '未收'
 
 function getSalesSortValue(r: AccountingSale, key: SalesSortKey): string | number | null {
   switch (key) {
@@ -38,6 +40,7 @@ function getSalesSortValue(r: AccountingSale, key: SalesSortKey): string | numbe
     case 'total_amount': return r.total_amount ?? 0
     case 'invoice_number': return r.invoice_number ?? null
     case 'actual_receipt_date': return r.actual_receipt_date ?? null
+    case 'receipt_status': return getReceiptStatus(r)
   }
 }
 
@@ -193,12 +196,6 @@ export default function AccountingSalesPage() {
     return result
   }, [search, records, filters, sortState])
 
-  const openCreate = () => {
-    setEditing(null)
-    setForm(emptyForm())
-    setIsModalOpen(true)
-  }
-
   const openEdit = (record: AccountingSale) => {
     setEditing(record)
     setForm({ ...record })
@@ -213,19 +210,15 @@ export default function AccountingSalesPage() {
 
   const saveMutation = useMutation({
     mutationFn: async () => {
+      if (!editing) return
       const { data: { user } } = await supabase.auth.getUser()
       const payload = { ...form, created_by: user?.id }
-      if (editing) {
-        const { error } = await supabase.from('accounting_sales').update(payload).eq('id', editing.id)
-        if (error) throw error
-      } else {
-        const { error } = await supabase.from('accounting_sales').insert(payload)
-        if (error) throw error
-      }
+      const { error } = await supabase.from('accounting_sales').update(payload).eq('id', editing.id)
+      if (error) throw error
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [...currentQueryKey] })
-      toast.success(editing ? '已更新銷項記錄' : '已新增銷項記錄')
+      toast.success('已更新銷項記錄')
       setIsModalOpen(false)
     },
     onError: () => toast.error('儲存失敗，請重試'),
@@ -305,15 +298,6 @@ export default function AccountingSalesPage() {
             className="w-full pl-9 pr-4 py-2 border border-border rounded-lg text-sm bg-card focus:outline-none focus:ring-2 focus:ring-ring"
           />
         </div>
-        {!isSpreadsheetMode && (
-          <button
-            onClick={openCreate}
-            className="flex items-center gap-2 bg-primary text-primary-foreground px-4 py-2 rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors"
-          >
-            <Plus className="w-4 h-4" />
-            新增銷項
-          </button>
-        )}
         <button
           onClick={() => setIsSpreadsheetMode(!isSpreadsheetMode)}
           className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
@@ -335,6 +319,7 @@ export default function AccountingSalesPage() {
           emptyRow={emptyForm}
           onAutoCalc={handleAutoCalcSales}
           onBatchSave={handleBatchSave}
+          allowInsert={false}
           accentColor="blue"
           onClose={() => setIsSpreadsheetMode(false)}
         />
@@ -397,12 +382,16 @@ export default function AccountingSalesPage() {
                     <SortableHeader<SalesSortKey> label="實際入帳日" sortKey="actual_receipt_date" sortState={sortState} onToggleSort={toggleSort}
                       filterContent={<ColumnFilterPopover filterType="date" value={getFilter('actual_receipt_date')} onChange={v => setFilterByKey('actual_receipt_date', v)} />} />
                   </th>
+                  <th className="text-center px-4 py-2">
+                    <SortableHeader<SalesSortKey> label="收款狀態" sortKey="receipt_status" sortState={sortState} onToggleSort={toggleSort}
+                      filterContent={<ColumnFilterPopover filterType="select" options={['已收', '未收']} value={getFilter('receipt_status')} onChange={v => setFilterByKey('receipt_status', v)} />} />
+                  </th>
                   <th className="text-center px-4 py-3">操作</th>
                 </tr>
               </thead>
               <tbody>
                 {filtered.length === 0 ? (
-                  <tr><td colSpan={9}><EmptyState type="no-data" icon={Receipt} title="尚無銷售記錄" description="新增第一筆銷售記錄開始追蹤" /></td></tr>
+                  <tr><td colSpan={10}><EmptyState type="no-data" icon={Receipt} title="尚無銷售記錄" description="銷項記錄由報價單簽約時自動建立" /></td></tr>
                 ) : filtered.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE).map(r => (
                   <tr key={r.id} className="border-t border-border/50 hover:bg-accent">
                     <td className="px-4 py-3 text-muted-foreground">{r.invoice_month || '-'}</td>
@@ -417,6 +406,15 @@ export default function AccountingSalesPage() {
                     <td className="px-4 py-3 text-right font-medium text-success">NT$ {fmt(r.total_amount || 0)}</td>
                     <td className="px-4 py-3 text-muted-foreground font-mono text-xs">{r.invoice_number || '-'}</td>
                     <td className="px-4 py-3 text-muted-foreground">{r.actual_receipt_date || '-'}</td>
+                    <td className="px-4 py-3 text-center">
+                      <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+                        r.actual_receipt_date
+                          ? 'bg-success/15 text-success'
+                          : 'bg-warning/15 text-warning'
+                      }`}>
+                        {getReceiptStatus(r)}
+                      </span>
+                    </td>
                     <td className="px-4 py-3">
                       <div className="flex items-center justify-center gap-2">
                         <button onClick={() => openEdit(r)} className="p-1.5 text-muted-foreground/60 hover:text-primary rounded hover:bg-primary/10">
@@ -446,7 +444,7 @@ export default function AccountingSalesPage() {
       <AccountingModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
-        title={editing ? '編輯銷項記錄' : '新增銷項記錄'}
+        title="編輯銷項記錄"
         footer={
           <div className="flex justify-end gap-3">
             <button onClick={() => setIsModalOpen(false)} className="px-4 py-2 text-sm text-muted-foreground border border-border rounded-lg hover:bg-accent">
@@ -560,7 +558,14 @@ export default function AccountingSalesPage() {
                 </div>
               </div>
               <div>
-                <label className="block text-xs font-medium text-muted-foreground mb-1">實際入帳日</label>
+                <label className="block text-xs font-medium text-muted-foreground mb-1">
+                  實際入帳日
+                  <span className={`ml-2 text-[10px] px-1.5 py-0.5 rounded-full ${
+                    form.actual_receipt_date ? 'bg-success/15 text-success' : 'bg-warning/15 text-warning'
+                  }`}>
+                    {form.actual_receipt_date ? '已收' : '未收'}
+                  </span>
+                </label>
                 <input
                   type="date"
                   value={form.actual_receipt_date || ''}

@@ -20,6 +20,8 @@ import { useConfirm } from '@/components/ui/ConfirmDialog'
 import { parseJsonArray } from '@/lib/utils'
 import { useTableSort } from '@/hooks/useTableSort'
 import { SortableHeader } from '@/components/ui/SortableHeader'
+import { ColumnFilterPopover } from '@/components/ui/ColumnFilterPopover'
+import { useColumnFilters, type FilterValue } from '@/hooks/useColumnFilters'
 
 type ClientSortKey = 'name' | 'tin' | 'contact_person' | 'contact_count'
 
@@ -44,6 +46,9 @@ export default function ClientsPage() {
   const [searchTerm, setSearchTerm] = useState('')
   const [currentPage, setCurrentPage] = useState(1)
   const { sortState, toggleSort } = useTableSort<ClientSortKey>()
+  const { filters, setFilter } = useColumnFilters<Record<ClientSortKey, unknown>>()
+  const getFilter = (key: ClientSortKey): FilterValue | null => filters.get(key as keyof Record<ClientSortKey, unknown>) ?? null
+  const setFilterByKey = (key: ClientSortKey, value: FilterValue | null) => setFilter(key as keyof Record<ClientSortKey, unknown>, value)
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [selectedClient, setSelectedClient] = useState<Client | null>(null)
 
@@ -77,19 +82,44 @@ export default function ClientsPage() {
     })
   }, [rawClients])
 
-  // 搜尋過濾
+  // 搜尋過濾 + 欄位篩選
   const filteredClients = useMemo(() => {
-    if (!searchTerm.trim()) return clients
-    const searchLower = searchTerm.toLowerCase()
-    return clients.filter((client) => {
-      if (client.name.toLowerCase().includes(searchLower)) return true
-      return client.parsedContacts.some(contact =>
-        (contact.name && contact.name.toLowerCase().includes(searchLower)) ||
-        (contact.email && contact.email.toLowerCase().includes(searchLower)) ||
-        (contact.position && contact.position.toLowerCase().includes(searchLower))
-      )
-    })
-  }, [clients, searchTerm])
+    let result = clients
+    if (searchTerm.trim()) {
+      const searchLower = searchTerm.toLowerCase()
+      result = result.filter((client) => {
+        if (client.name.toLowerCase().includes(searchLower)) return true
+        return client.parsedContacts.some(contact =>
+          (contact.name && contact.name.toLowerCase().includes(searchLower)) ||
+          (contact.email && contact.email.toLowerCase().includes(searchLower)) ||
+          (contact.position && contact.position.toLowerCase().includes(searchLower))
+        )
+      })
+    }
+    if (filters.size > 0) {
+      result = result.filter(client => {
+        let pass = true
+        filters.forEach((fv, key) => {
+          if (!pass) return
+          let val: string | number | null = null
+          if (key === 'name') val = client.name
+          else if (key === 'tin') val = client.tin
+          else if (key === 'contact_person') val = client.parsedContacts[0]?.name ?? null
+          else if (key === 'contact_count') val = client.parsedContacts.length
+          if (fv.type === 'text') {
+            if (!String(val ?? '').toLowerCase().includes(fv.value.toLowerCase())) pass = false
+          } else if (fv.type === 'number') {
+            const num = typeof val === 'number' ? val : parseFloat(String(val ?? ''))
+            if (isNaN(num)) { if (fv.min != null || fv.max != null) pass = false; return }
+            if (fv.min != null && num < fv.min) pass = false
+            if (fv.max != null && num > fv.max) pass = false
+          }
+        })
+        return pass
+      })
+    }
+    return result
+  }, [clients, searchTerm, filters])
 
   // 排序
   const sortedClients = useMemo(() => {
@@ -259,17 +289,21 @@ export default function ClientsPage() {
           <thead>
             <tr className="bg-secondary/50 border-b border-border">
               <th className="p-4 font-medium text-sm text-muted-foreground">
-                <SortableHeader label="公司資訊" sortKey="name" sortState={sortState} onToggleSort={toggleSort} />
+                <SortableHeader label="公司資訊" sortKey="name" sortState={sortState} onToggleSort={toggleSort}
+                  filterContent={<ColumnFilterPopover filterType="text" value={getFilter('name')} onChange={v => setFilterByKey('name', v)} />} />
               </th>
               <th className="p-4 font-medium text-sm text-muted-foreground hidden md:table-cell">
-                <SortableHeader label="統一編號" sortKey="tin" sortState={sortState} onToggleSort={toggleSort} />
+                <SortableHeader label="統一編號" sortKey="tin" sortState={sortState} onToggleSort={toggleSort}
+                  filterContent={<ColumnFilterPopover filterType="text" value={getFilter('tin')} onChange={v => setFilterByKey('tin', v)} />} />
               </th>
               <th className="p-4 font-medium text-sm text-muted-foreground hidden sm:table-cell">
-                <SortableHeader label="主要聯絡人" sortKey="contact_person" sortState={sortState} onToggleSort={toggleSort} />
+                <SortableHeader label="主要聯絡人" sortKey="contact_person" sortState={sortState} onToggleSort={toggleSort}
+                  filterContent={<ColumnFilterPopover filterType="text" value={getFilter('contact_person')} onChange={v => setFilterByKey('contact_person', v)} />} />
               </th>
               <th className="p-4 font-medium text-sm text-muted-foreground hidden lg:table-cell">聯絡方式</th>
               <th className="p-4 font-medium text-sm text-muted-foreground text-center hidden sm:table-cell">
-                <SortableHeader label="聯絡人數" sortKey="contact_count" sortState={sortState} onToggleSort={toggleSort} className="justify-center" />
+                <SortableHeader label="聯絡人數" sortKey="contact_count" sortState={sortState} onToggleSort={toggleSort} className="justify-center"
+                  filterContent={<ColumnFilterPopover filterType="number" value={getFilter('contact_count')} onChange={v => setFilterByKey('contact_count', v)} />} />
               </th>
               <th className="p-4 font-medium text-sm text-muted-foreground text-center">操作</th>
             </tr>
