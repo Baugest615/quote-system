@@ -165,7 +165,7 @@ export function QuotationItemsList({ quotationId, onUpdate, readOnly = false, qu
     // 本地新增項目
     const handleAddItem = () => {
         const newItem: QuotationItem = {
-            id: crypto.randomUUID(), // 🆕 使用正式 UUID
+            id: crypto.randomUUID(),
             quotation_id: quotationId,
             service: '',
             quantity: 1,
@@ -178,6 +178,22 @@ export function QuotationItemsList({ quotationId, onUpdate, readOnly = false, qu
             remark: null,
             remittance_name: null,
             is_supplement: isSupplementMode,
+            accounting_subject: null,
+            approved_at: null,
+            approved_by: null,
+            attachments: '[]',
+            cost_amount: null,
+            expected_payment_month: null,
+            expense_type: null,
+            invoice_number: null,
+            is_merge_leader: null,
+            merge_color: null,
+            merge_group_id: null,
+            rejected_at: null,
+            rejected_by: null,
+            rejection_reason: null,
+            requested_at: null,
+            requested_by: null,
         }
         setItems(prev => [...prev, newItem])
     }
@@ -492,7 +508,7 @@ export function QuotationItemsList({ quotationId, onUpdate, readOnly = false, qu
             }
 
             newItems.push({
-                id: crypto.randomUUID(), // 🆕 使用正式 UUID
+                id: crypto.randomUUID(),
                 quotation_id: quotationId,
                 category,
                 kol_id: kolId,
@@ -505,6 +521,22 @@ export function QuotationItemsList({ quotationId, onUpdate, readOnly = false, qu
                 remark: null,
                 remittance_name: null,
                 is_supplement: isSupplementMode,
+                accounting_subject: null,
+                approved_at: null,
+                approved_by: null,
+                attachments: '[]',
+                cost_amount: null,
+                expected_payment_month: null,
+                expense_type: null,
+                invoice_number: null,
+                is_merge_leader: null,
+                merge_color: null,
+                merge_group_id: null,
+                rejected_at: null,
+                rejected_by: null,
+                rejection_reason: null,
+                requested_at: null,
+                requested_by: null,
             })
         })
 
@@ -621,7 +653,7 @@ export function QuotationItemsList({ quotationId, onUpdate, readOnly = false, qu
     }
 
     const isVerificationPassed = (item: QuotationItemWithPayments): boolean => {
-        const attachments = (item.attachments || []) as PaymentAttachment[]
+        const attachments = (item.attachments || []) as unknown as PaymentAttachment[]
         const hasAttachments = attachments.length > 0
         const invoiceNumber = item.invoice_number || ''
         const hasValidInvoice = /^[A-Za-z]{2}-\d{8}$/.test(invoiceNumber)
@@ -1191,18 +1223,19 @@ export function QuotationItemsList({ quotationId, onUpdate, readOnly = false, qu
                             <AttachmentUploader
                                 itemId={verificationItemId}
                                 currentAttachments={
-                                    ((items.find(i => i.id === verificationItemId)?.attachments || []) as PaymentAttachment[])
+                                    ((items.find(i => i.id === verificationItemId)?.attachments || []) as unknown as PaymentAttachment[])
                                 }
                                 onUpdate={(newAttachments) => {
                                     // 同步更新本地狀態
+                                    const attJson = JSON.parse(JSON.stringify(newAttachments))
                                     setItems(prev => prev.map(item =>
                                         item.id === verificationItemId
-                                            ? { ...item, attachments: newAttachments as unknown }
+                                            ? { ...item, attachments: attJson }
                                             : item
                                     ))
                                     setOriginalItems(prev => prev.map(item =>
                                         item.id === verificationItemId
-                                            ? { ...item, attachments: newAttachments as unknown }
+                                            ? { ...item, attachments: attJson }
                                             : item
                                     ))
                                 }}

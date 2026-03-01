@@ -205,8 +205,14 @@ function SelectFilter({
   options: string[]
   onChange: (v: FilterValue | null) => void
 }) {
+  const [search, setSearch] = useState('')
   const selected = value?.selected ?? []
-  const allSelected = selected.length === options.length
+
+  const filteredOptions = search
+    ? options.filter(opt => opt.toLowerCase().includes(search.toLowerCase()))
+    : options
+
+  const allFilteredSelected = filteredOptions.length > 0 && filteredOptions.every(opt => selected.includes(opt))
 
   const toggle = (opt: string) => {
     const next = selected.includes(opt)
@@ -215,32 +221,54 @@ function SelectFilter({
     onChange(next.length > 0 ? { type: 'select', selected: next } : null)
   }
 
-  const toggleAll = () => {
-    onChange(allSelected ? null : { type: 'select', selected: [...options] })
+  const toggleAllFiltered = () => {
+    if (allFilteredSelected) {
+      // 取消所有目前篩選到的選項
+      const next = selected.filter(s => !filteredOptions.includes(s))
+      onChange(next.length > 0 ? { type: 'select', selected: next } : null)
+    } else {
+      // 勾選所有目前篩選到的選項
+      const next = Array.from(new Set([...selected, ...filteredOptions]))
+      onChange(next.length > 0 ? { type: 'select', selected: next } : null)
+    }
   }
 
   return (
-    <div className="space-y-1 max-h-40 overflow-y-auto">
-      <label className="flex items-center gap-2 px-1 py-0.5 cursor-pointer hover:bg-muted rounded text-sm">
-        <input
-          type="checkbox"
-          checked={allSelected}
-          onChange={toggleAll}
-          className="rounded border-border text-primary focus:ring-ring h-3.5 w-3.5"
+    <div className="space-y-1">
+      {options.length > 8 && (
+        <Input
+          placeholder="搜尋..."
+          className="h-7 text-xs mb-1"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          autoFocus
         />
-        <span className="text-muted-foreground">全選</span>
-      </label>
-      {options.map(opt => (
-        <label key={opt} className="flex items-center gap-2 px-1 py-0.5 cursor-pointer hover:bg-muted rounded text-sm">
+      )}
+      <div className="space-y-1 max-h-40 overflow-y-auto">
+        <label className="flex items-center gap-2 px-1 py-0.5 cursor-pointer hover:bg-muted rounded text-sm">
           <input
             type="checkbox"
-            checked={selected.includes(opt)}
-            onChange={() => toggle(opt)}
+            checked={allFilteredSelected}
+            onChange={toggleAllFiltered}
             className="rounded border-border text-primary focus:ring-ring h-3.5 w-3.5"
           />
-          <span className="truncate">{opt}</span>
+          <span className="text-muted-foreground">全選{search ? ` (${filteredOptions.length})` : ''}</span>
         </label>
-      ))}
+        {filteredOptions.map(opt => (
+          <label key={opt} className="flex items-center gap-2 px-1 py-0.5 cursor-pointer hover:bg-muted rounded text-sm">
+            <input
+              type="checkbox"
+              checked={selected.includes(opt)}
+              onChange={() => toggle(opt)}
+              className="rounded border-border text-primary focus:ring-ring h-3.5 w-3.5"
+            />
+            <span className="truncate">{opt}</span>
+          </label>
+        ))}
+        {search && filteredOptions.length === 0 && (
+          <p className="text-xs text-muted-foreground px-1 py-2">無符合項目</p>
+        )}
+      </div>
     </div>
   )
 }

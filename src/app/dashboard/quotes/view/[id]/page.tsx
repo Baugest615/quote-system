@@ -319,6 +319,9 @@ export default function ViewQuotePage() {
             <ArrowLeft className="h-4 w-4 mr-1" /> 返回列表
           </Link>
           <h1 className="text-3xl font-bold">檢視報價單</h1>
+          {quote.quote_number && (
+            <p className="text-sm text-muted-foreground mt-1">編號：{quote.quote_number}</p>
+          )}
         </div>
         <div className="flex space-x-2">
           {hasRole('Editor') && (

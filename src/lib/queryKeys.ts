@@ -22,6 +22,7 @@ export const queryKeys = {
   quotations: ['quotations'] as const,
   quotationsList: (page: number, pageSize: number) => ['quotations', 'list', page, pageSize] as const,
   quotation: (id: string) => ['quotations', id] as const,
+  quotationItemsFlat: ['quotations', 'flat'] as const,
 
   // 請款流程
   pendingPayments: ['pending-payments'] as const,

@@ -23,7 +23,7 @@ import { useColumnFilters, type FilterValue } from '@/hooks/useColumnFilters'
 import type { QuotationWithClient } from '@/app/dashboard/quotes/page'
 
 // Sort key type for QuotesDataGrid (includes computed columns)
-type QuoteSortKey = 'created_at' | 'project_name' | 'client_name' | 'budget_total' | 'status' | 'kol_names' | 'services'
+type QuoteSortKey = 'quote_number' | 'created_at' | 'project_name' | 'client_name' | 'budget_total' | 'status' | 'kol_names' | 'services'
 
 interface QuotesDataGridProps {
     data: QuotationWithClient[]
@@ -55,6 +55,7 @@ function getServices(q: QuotationWithClient): string {
 // Helper: get sortable value from quote by key
 function getSortValue(q: QuotationWithClient, key: QuoteSortKey): string | number | null {
     switch (key) {
+        case 'quote_number': return q.quote_number ?? null
         case 'created_at': return q.created_at ?? null
         case 'project_name': return q.project_name ?? null
         case 'client_name': return q.clients?.name ?? null
@@ -297,7 +298,21 @@ export function QuotesDataGrid({ data, clients, onRefresh }: QuotesDataGridProps
             {/* 表頭 */}
             <div className="flex bg-secondary/50 border-b font-medium text-sm text-muted-foreground sticky top-0 z-10 min-w-max">
                 <div className="w-10 p-3 flex-shrink-0"></div>
-                <div className="w-28 p-3 flex-shrink-0">ID</div>
+                <div className="w-28 p-3 flex-shrink-0">
+                    <SortableHeader<QuoteSortKey>
+                        label="編號"
+                        sortKey="quote_number"
+                        sortState={sortState}
+                        onToggleSort={toggleSort}
+                        filterContent={
+                            <ColumnFilterPopover
+                                filterType="text"
+                                value={getFilter('quote_number')}
+                                onChange={(v) => setFilterByKey('quote_number', v)}
+                            />
+                        }
+                    />
+                </div>
                 <div className="w-28 p-3 flex-shrink-0">
                     <SortableHeader<QuoteSortKey>
                         label="日期"
@@ -432,9 +447,9 @@ export function QuotesDataGrid({ data, clients, onRefresh }: QuotesDataGridProps
                                     }
                                 </div>
 
-                                {/* ID (唯讀) */}
-                                <div className="w-28 p-3 flex-shrink-0 text-xs font-mono text-muted-foreground truncate" title={quote.id}>
-                                    {quote.id.slice(0, 8)}...
+                                {/* 編號 (唯讀) */}
+                                <div className="w-28 p-3 flex-shrink-0 text-sm font-mono text-muted-foreground" title={quote.quote_number || quote.id}>
+                                    {quote.quote_number || quote.id.slice(0, 8)}
                                 </div>
 
                                 {/* 日期 (唯讀) */}

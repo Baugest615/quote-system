@@ -239,7 +239,7 @@ export type QuotationItemWithPayments = Database['public']['Tables']['quotation_
   rejected_at?: string | null
   rejected_by?: string | null
   merge_group_id?: string | null
-  is_merge_leader?: boolean
+  is_merge_leader?: boolean | null
   merge_color?: string | null
 }
 
