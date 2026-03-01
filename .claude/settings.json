@@ -5,12 +5,7 @@
       "Bash(npx tsc:*)",
       "Bash(npx supabase:*)",
       "Bash(npx supabase db push)",
-      "Bash(npx supabase db execute:*)",
-      "Bash(node:*)",
-      "Bash(ls:*)",
-      "Bash(echo:*)",
-      "Bash(wc:*)",
-      "Bash(where:*)"
+      "Bash(npx supabase db execute:*)"
     ]
   }
 }
