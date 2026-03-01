@@ -304,8 +304,12 @@ export default function ConfirmedPaymentsPage() {
     })
     if (error) {
       toast.error('儲存匯費設定失敗: ' + error.message)
+    } else {
+      // 匯款日期變更後，需要讓進項管理 / 月結總覽等頁面刷新
+      queryClient.invalidateQueries({ queryKey: ['accounting-expenses'] })
+      queryClient.invalidateQueries({ queryKey: ['monthly-settlement'] })
     }
-  }, [setConfirmations])
+  }, [setConfirmations, queryClient])
 
   // 薪資群組：直接更新 accounting_payroll.payment_date
   const handlePayrollPaymentDate = useCallback(async (payrollIds: string[], date: string | null) => {
@@ -317,6 +321,21 @@ export default function ConfirmedPaymentsPage() {
       toast.error('儲存薪資匯款日期失敗: ' + error.message)
     } else {
       queryClient.invalidateQueries({ queryKey: queryKeys.accountingPayroll(CURRENT_YEAR) })
+      queryClient.invalidateQueries({ queryKey: ['monthly-settlement'] })
+    }
+  }, [queryClient])
+
+  // 手動進項：直接更新 accounting_expenses.payment_date（無 FK 的獨立記錄）
+  const handleExpensePaymentDate = useCallback(async (expenseIds: string[], date: string | null) => {
+    const { error } = await supabase
+      .from('accounting_expenses')
+      .update({ payment_date: date })
+      .in('id', expenseIds)
+    if (error) {
+      toast.error('儲存進項匯款日期失敗: ' + error.message)
+    } else {
+      queryClient.invalidateQueries({ queryKey: ['accounting-expenses'] })
+      queryClient.invalidateQueries({ queryKey: ['monthly-settlement'] })
     }
   }, [queryClient])
 
@@ -677,6 +696,7 @@ export default function ConfirmedPaymentsPage() {
           expensesData={expensesData}
           onUpdateSettings={handleOverviewSettingsChange}
           onSetPayrollPaymentDate={handlePayrollPaymentDate}
+          onSetExpensePaymentDate={handleExpensePaymentDate}
           onRevertItem={handleRevertItem}
           isAdmin={hasRole('Admin')}
         />

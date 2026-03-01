@@ -81,7 +81,7 @@ BEGIN
                     (SELECT name FROM employees WHERE user_id = ec.submitted_by LIMIT 1),
                     ec.vendor_name,
                     '個人報帳'
-                  ) || '（個人報帳）'
+                  )
               END
             ELSE
               COALESCE(
@@ -140,7 +140,7 @@ BEGIN
                     (SELECT name FROM employees WHERE user_id = ec.submitted_by LIMIT 1),
                     ec.vendor_name,
                     '個人報帳'
-                  ) || '（個人報帳）'
+                  )
               END
             ELSE
               COALESCE(

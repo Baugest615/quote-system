@@ -23,6 +23,7 @@ interface PaymentOverviewTabProps {
     expensesData?: AccountingExpense[]
     onUpdateSettings?: (confirmationId: string, remittanceName: string, updates: Partial<RemittanceSettings[string]>) => void
     onSetPayrollPaymentDate?: (payrollIds: string[], date: string | null) => void
+    onSetExpensePaymentDate?: (expenseIds: string[], date: string | null) => void
     onRevertItem?: (itemId: string) => void
     isAdmin?: boolean
 }
@@ -34,6 +35,7 @@ export function PaymentOverviewTab({
     expensesData,
     onUpdateSettings,
     onSetPayrollPaymentDate,
+    onSetExpensePaymentDate,
     onRevertItem,
     isAdmin,
 }: PaymentOverviewTabProps) {
@@ -163,8 +165,8 @@ export function PaymentOverviewTab({
                 onUpdateSettings(cid, remittanceName, mergedSettings)
             }
 
-            // 薪資群組無 confirmationIds，改走直接更新路徑
-            if (ids.length === 0 && updates.paymentDate !== undefined && onSetPayrollPaymentDate) {
+            // 薪資項目：直接更新 accounting_payroll（薪資不經 RPC）
+            if (updates.paymentDate !== undefined && onSetPayrollPaymentDate) {
                 const group = groups.find(g => g.remittanceName === remittanceName)
                 if (group?.payrollItems.length) {
                     onSetPayrollPaymentDate(
@@ -173,8 +175,19 @@ export function PaymentOverviewTab({
                     )
                 }
             }
+
+            // 手動進項：直接更新 accounting_expenses（不經 RPC，因無 FK 關聯）
+            if (updates.paymentDate !== undefined && onSetExpensePaymentDate) {
+                const group = groups.find(g => g.remittanceName === remittanceName)
+                if (group?.expenseItems.length) {
+                    onSetExpensePaymentDate(
+                        group.expenseItems.map(e => e.id),
+                        updates.paymentDate || null
+                    )
+                }
+            }
         }
-    }, [onUpdateSettings, getConfirmationIdsForName, onSetPayrollPaymentDate, groups])
+    }, [onUpdateSettings, getConfirmationIdsForName, onSetPayrollPaymentDate, onSetExpensePaymentDate, groups])
 
     const getSettings = useCallback((remittanceName: string) => {
         return localSettings[remittanceName] || undefined
