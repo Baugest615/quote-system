@@ -262,25 +262,28 @@ export function QuotationItemsList({ quotationId, onUpdate, readOnly = false, qu
                 }
             }
 
-            // 將新 KOL 名稱替換為實際 ID
+            // 將新 KOL 名稱解析為實際 ID 的輔助函式
+            const resolveKolId = (kolId: string | null) => {
+                if (kolId && kolNameToId.has(kolId.trim())) {
+                    return kolNameToId.get(kolId.trim())!
+                }
+                return kolId
+            }
+
+            // 不可變更新 UI 狀態
             if (kolNameToId.size > 0) {
-                const resolveKolId = (kolId: string | null) => {
-                    if (kolId && kolNameToId.has(kolId.trim())) {
-                        return kolNameToId.get(kolId.trim())!
-                    }
-                    return kolId
-                }
-                // 更新本地 items（讓後續邏輯使用正確的 kol_id）
-                for (const item of items) {
-                    item.kol_id = resolveKolId(item.kol_id)
-                }
+                setItems(prev => prev.map(item => ({
+                    ...item,
+                    kol_id: resolveKolId(item.kol_id)
+                })))
             }
 
             // 0b. 自動建立新服務類型與 KOL 服務關聯
             for (const item of items) {
-                if (!item.kol_id || !item.service?.trim()) continue
+                const itemKolId = resolveKolId(item.kol_id)
+                if (!itemKolId || !item.service?.trim()) continue
 
-                const kol = kols.find(k => k.id === item.kol_id)
+                const kol = kols.find(k => k.id === itemKolId)
                 // 對既有 KOL 檢查是否已有此服務；新建 KOL 則直接建立服務
                 if (kol) {
                     const hasService = kol.kol_services.some(
@@ -316,13 +319,13 @@ export function QuotationItemsList({ quotationId, onUpdate, readOnly = false, qu
                 const { data: existingLink } = await supabase
                     .from('kol_services')
                     .select('id')
-                    .eq('kol_id', item.kol_id)
+                    .eq('kol_id', itemKolId)
                     .eq('service_type_id', serviceTypeId)
                     .maybeSingle()
 
                 if (!existingLink) {
                     await supabase.from('kol_services').insert({
-                        kol_id: item.kol_id,
+                        kol_id: itemKolId,
                         service_type_id: serviceTypeId,
                         price: Number(item.price) || 0,
                         cost: Number(item.cost) || 0,
@@ -345,6 +348,7 @@ export function QuotationItemsList({ quotationId, onUpdate, readOnly = false, qu
                 } = item
                 return {
                     ...rest,
+                    kol_id: resolveKolId(rest.kol_id),
                     quotation_id: quotationId,
                     price: Number(item.price) || 0,
                     cost: Number(item.cost) || 0,
