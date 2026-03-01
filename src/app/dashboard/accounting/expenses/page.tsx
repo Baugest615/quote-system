@@ -165,7 +165,9 @@ export default function AccountingExpensesPage() {
     }
 
     for (const { id, data } of toUpdate) {
-      const { error } = await supabase.from('accounting_expenses').update({ ...data, created_by: user?.id }).eq('id', id)
+      // 移除關聯物件與自動管理欄位，避免 PostgREST 400
+      const { payment_requests: _pr, id: _id, created_at: _ca, updated_at: _ua, ...updateData } = data as Record<string, unknown>
+      const { error } = await supabase.from('accounting_expenses').update({ ...updateData, created_by: user?.id }).eq('id', id)
       if (error) errors.push({ tempId: id, message: error.message })
       else successCount++
     }
@@ -698,7 +700,7 @@ export default function AccountingExpensesPage() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-medium text-muted-foreground mb-1">匯款日</label>
-                  <input type="date" value={form.payment_date || ''} onChange={(e) => setForm(f => ({ ...f, payment_date: e.target.value }))}
+                  <input type="date" value={form.payment_date || ''} onChange={(e) => setForm(f => ({ ...f, payment_date: e.target.value || null }))}
                     className="w-full border border-border rounded-lg px-3 py-2 text-sm bg-card focus:outline-none focus:ring-2 focus:ring-ring" />
                 </div>
                 <div>
@@ -716,7 +718,7 @@ export default function AccountingExpensesPage() {
               </div>
               <div>
                 <label className="block text-xs font-medium text-muted-foreground mb-1">發票日期</label>
-                <input type="date" value={form.invoice_date || ''} onChange={(e) => setForm(f => ({ ...f, invoice_date: e.target.value }))}
+                <input type="date" value={form.invoice_date || ''} onChange={(e) => setForm(f => ({ ...f, invoice_date: e.target.value || null }))}
                   className="w-full border border-border rounded-lg px-3 py-2 text-sm bg-card focus:outline-none focus:ring-2 focus:ring-ring" />
               </div>
               <div>
