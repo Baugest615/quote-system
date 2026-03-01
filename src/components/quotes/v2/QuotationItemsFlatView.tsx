@@ -30,6 +30,7 @@ import {
 } from '@/hooks/useQuotationItemsFlat'
 import { autoCreateKolIfNeeded, autoCreateServiceIfNeeded } from '@/lib/kol/auto-create-kol'
 import { usePermission } from '@/lib/permissions'
+import { useExpenseDefaults } from '@/hooks/useExpenseDefaults'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import {
@@ -228,6 +229,7 @@ export function QuotationItemsFlatView({ onClose }: QuotationItemsFlatViewProps)
   const requestPayment = useRequestPayment()
   const approvePayment = useApprovePayment()
   const rejectPayment = useRejectPayment()
+  const { getSmartDefaults } = useExpenseDefaults()
 
   // 參考資料
   const [kols, setKols] = useState<KolWithServices[]>([])
@@ -491,12 +493,20 @@ export function QuotationItemsFlatView({ onClose }: QuotationItemsFlatViewProps)
     }
     if (!userId) return
     const costAmount = item.cost_amount ?? item.cost ?? 0
+    // 若尚未設定支出種類，根據 KOL 銀行帳戶類型套用智慧預設
+    const defaults = (!item.expense_type || item.expense_type === '勞務報酬')
+      ? getSmartDefaults(item.kols)
+      : undefined
     setActionLoading(item.id, true)
     requestPayment.mutate(
-      { itemId: item.id, userId, costAmount: Number(costAmount) },
+      {
+        itemId: item.id, userId, costAmount: Number(costAmount),
+        expenseType: defaults?.expenseType,
+        accountingSubject: defaults?.accountingSubject,
+      },
       { onSettled: () => setActionLoading(item.id, false) }
     )
-  }, [userId, requestPayment])
+  }, [userId, requestPayment, getSmartDefaults])
 
   const handleApprovePayment = useCallback(async (item: FlatQuotationItem) => {
     if (!isEditor) {

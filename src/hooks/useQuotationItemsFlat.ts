@@ -13,7 +13,7 @@ type Kol = Database['public']['Tables']['kols']['Row']
 
 // 攤平型別：每個 quotation_item 帶父報價單資訊
 export type FlatQuotationItem = QuotationItem & {
-  kols: Pick<Kol, 'name'> | null
+  kols: Pick<Kol, 'name' | 'bank_info'> | null
   quotations: (Quotation & {
     clients: Pick<Client, 'name'> | null
   }) | null
@@ -30,7 +30,7 @@ export function useQuotationItemsFlat() {
         .from('quotation_items')
         .select(`
           *,
-          kols(name),
+          kols(name, bank_info),
           quotations!inner(*, clients(name))
         `)
         .order('created_at', { ascending: false })
@@ -87,17 +87,23 @@ export function useBatchUpdateInvoice() {
 export function useRequestPayment() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: async ({ itemId, userId, costAmount }: { itemId: string; userId: string; costAmount: number }) => {
+    mutationFn: async ({ itemId, userId, costAmount, expenseType, accountingSubject }: {
+      itemId: string; userId: string; costAmount: number
+      expenseType?: string; accountingSubject?: string
+    }) => {
+      const updates: Record<string, unknown> = {
+        requested_at: new Date().toISOString(),
+        requested_by: userId,
+        cost_amount: costAmount,
+        rejection_reason: null,
+        rejected_at: null,
+        rejected_by: null,
+      }
+      if (expenseType) updates.expense_type = expenseType
+      if (accountingSubject) updates.accounting_subject = accountingSubject
       const { error } = await supabase
         .from('quotation_items')
-        .update({
-          requested_at: new Date().toISOString(),
-          requested_by: userId,
-          cost_amount: costAmount,
-          rejection_reason: null,
-          rejected_at: null,
-          rejected_by: null,
-        })
+        .update(updates)
         .eq('id', itemId)
       if (error) throw error
     },
