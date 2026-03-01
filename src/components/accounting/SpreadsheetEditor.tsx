@@ -454,7 +454,7 @@ export default function SpreadsheetEditor<T extends { id: string }>({
                             <SearchableSelectCell
                               value={String(value ?? '')}
                               onChange={(val) => updateCell(origIdx, col.key, val)}
-                              options={(col.suggestions || []).map(s => ({ label: s, value: s }))}
+                              options={col.suggestionOptions || (col.suggestions || []).map(s => ({ label: s, value: s }))}
                               placeholder="搜尋..."
                               allowCustomValue={true}
                               className="text-xs"

@@ -241,12 +241,12 @@ export function PaymentOverviewTab({
                 <SummaryCard label="實付總額" value={summary.netTotal} color="text-info" highlight />
             </div>
 
-            {/* 個人匯款區塊 */}
+            {/* 個人匯款區塊（含薪資） */}
             {personalGroups.length > 0 && (
                 <div className="space-y-3">
                     <div className="flex items-center gap-2 text-foreground font-medium">
                         <Users className="h-5 w-5 text-info" />
-                        個人匯款（{personalGroups.length} 筆）
+                        個人匯款（{personalGroups.length} 人）
                     </div>
                     <div className="space-y-3">
                         {personalGroups.map((group) => (

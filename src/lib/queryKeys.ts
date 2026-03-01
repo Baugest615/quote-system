@@ -22,6 +22,7 @@ export const queryKeys = {
   quotations: ['quotations'] as const,
   quotationsList: (page: number, pageSize: number) => ['quotations', 'list', page, pageSize] as const,
   quotation: (id: string) => ['quotations', id] as const,
+  quotationItemsFlat: ['quotations', 'flat'] as const,
 
   // 請款流程
   pendingPayments: ['pending-payments'] as const,
@@ -43,6 +44,7 @@ export const queryKeys = {
   expenseClaims: (year: number) => ['expense-claims', year] as const,
   expenseClaimsPending: ['expense-claims-pending'] as const,
   projectNames: ['project-names'] as const,
+  quotationOptions: ['quotation-options'] as const,
 
   // 使用者管理
   userManagement: ['user-management'] as const,
@@ -59,7 +61,7 @@ export const queryKeys = {
   accountingReconciliation: (year: number, month: string) => ['accounting-reconciliation', year, month] as const,
   employees: ['employees'] as const,
   insuranceRates: ['insurance-rates'] as const,
+  insuranceSettings: ['insurance-settings'] as const,
   withholdingSettings: ['withholding-settings'] as const,
   withholdingSettlements: ['withholding-settlements'] as const,
-  insuranceSettings: ['insurance-settings'] as const,
 } as const

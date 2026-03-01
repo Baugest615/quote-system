@@ -55,6 +55,8 @@ export function QuotationItemsList({ quotationId, onUpdate, readOnly = false, qu
     const [verificationItemId, setVerificationItemId] = useState<string | null>(null)
     const [verificationInvoice, setVerificationInvoice] = useState('')
     const [actionLoading, setActionLoading] = useState<Set<string>>(new Set())
+    const [rejectingItemId, setRejectingItemId] = useState<string | null>(null)
+    const [rejectionReason, setRejectionReason] = useState('')
 
     // 🆕 資料狀態
     const [kols, setKols] = useState<KolWithServices[]>([])
@@ -163,7 +165,7 @@ export function QuotationItemsList({ quotationId, onUpdate, readOnly = false, qu
     // 本地新增項目
     const handleAddItem = () => {
         const newItem: QuotationItem = {
-            id: crypto.randomUUID(), // 🆕 使用正式 UUID
+            id: crypto.randomUUID(),
             quotation_id: quotationId,
             service: '',
             quantity: 1,
@@ -176,6 +178,22 @@ export function QuotationItemsList({ quotationId, onUpdate, readOnly = false, qu
             remark: null,
             remittance_name: null,
             is_supplement: isSupplementMode,
+            accounting_subject: null,
+            approved_at: null,
+            approved_by: null,
+            attachments: '[]',
+            cost_amount: null,
+            expected_payment_month: null,
+            expense_type: null,
+            invoice_number: null,
+            is_merge_leader: null,
+            merge_color: null,
+            merge_group_id: null,
+            rejected_at: null,
+            rejected_by: null,
+            rejection_reason: null,
+            requested_at: null,
+            requested_by: null,
         }
         setItems(prev => [...prev, newItem])
     }
@@ -227,18 +245,70 @@ export function QuotationItemsList({ quotationId, onUpdate, readOnly = false, qu
     const handleSave = async () => {
         setIsSaving(true)
         try {
-            // 0. 自動建立新服務類型與 KOL 服務關聯
+            // 0a. 自動建立新 KOL 記錄（輸入的名稱不在現有 KOL 中時）
+            const kolNameToId = new Map<string, string>()
             for (const item of items) {
-                if (!item.kol_id || !item.service?.trim()) continue
+                if (!item.kol_id?.trim()) continue
+                const isExistingKol = kols.some(k => k.id === item.kol_id)
+                if (isExistingKol) continue
 
-                const kol = kols.find(k => k.id === item.kol_id)
-                if (!kol) continue
+                const kolName = item.kol_id.trim()
+                if (kolNameToId.has(kolName)) continue
 
-                // 檢查該 KOL 是否已有此服務
-                const hasService = kol.kol_services.some(
-                    s => s.service_types?.name === item.service.trim()
-                )
-                if (hasService) continue
+                // 檢查 DB 中是否已有同名 KOL
+                const { data: existingByName } = await supabase
+                    .from('kols')
+                    .select('id')
+                    .eq('name', kolName)
+                    .maybeSingle()
+
+                if (existingByName) {
+                    kolNameToId.set(kolName, existingByName.id)
+                } else {
+                    const { data: newKol, error: kolError } = await supabase
+                        .from('kols')
+                        .insert({ name: kolName })
+                        .select()
+                        .single()
+                    if (kolError) {
+                        toast.error(`無法建立 KOL/服務「${kolName}」: ${kolError.message}`)
+                        setIsSaving(false)
+                        return
+                    }
+                    kolNameToId.set(kolName, newKol.id)
+                    toast.success(`已自動建立 KOL/服務「${kolName}」`)
+                }
+            }
+
+            // 將新 KOL 名稱解析為實際 ID 的輔助函式
+            const resolveKolId = (kolId: string | null) => {
+                if (kolId && kolNameToId.has(kolId.trim())) {
+                    return kolNameToId.get(kolId.trim())!
+                }
+                return kolId
+            }
+
+            // 不可變更新 UI 狀態
+            if (kolNameToId.size > 0) {
+                setItems(prev => prev.map(item => ({
+                    ...item,
+                    kol_id: resolveKolId(item.kol_id)
+                })))
+            }
+
+            // 0b. 自動建立新服務類型與 KOL 服務關聯
+            for (const item of items) {
+                const itemKolId = resolveKolId(item.kol_id)
+                if (!itemKolId || !item.service?.trim()) continue
+
+                const kol = kols.find(k => k.id === itemKolId)
+                // 對既有 KOL 檢查是否已有此服務；新建 KOL 則直接建立服務
+                if (kol) {
+                    const hasService = kol.kol_services.some(
+                        s => s.service_types?.name === item.service.trim()
+                    )
+                    if (hasService) continue
+                }
 
                 // 查詢或建立 service_type
                 let serviceTypeId: string
@@ -267,13 +337,13 @@ export function QuotationItemsList({ quotationId, onUpdate, readOnly = false, qu
                 const { data: existingLink } = await supabase
                     .from('kol_services')
                     .select('id')
-                    .eq('kol_id', item.kol_id)
+                    .eq('kol_id', itemKolId)
                     .eq('service_type_id', serviceTypeId)
                     .maybeSingle()
 
                 if (!existingLink) {
                     await supabase.from('kol_services').insert({
-                        kol_id: item.kol_id,
+                        kol_id: itemKolId,
                         service_type_id: serviceTypeId,
                         price: Number(item.price) || 0,
                         cost: Number(item.cost) || 0,
@@ -296,6 +366,7 @@ export function QuotationItemsList({ quotationId, onUpdate, readOnly = false, qu
                 } = item
                 return {
                     ...rest,
+                    kol_id: resolveKolId(rest.kol_id),
                     quotation_id: quotationId,
                     price: Number(item.price) || 0,
                     cost: Number(item.cost) || 0,
@@ -437,7 +508,7 @@ export function QuotationItemsList({ quotationId, onUpdate, readOnly = false, qu
             }
 
             newItems.push({
-                id: crypto.randomUUID(), // 🆕 使用正式 UUID
+                id: crypto.randomUUID(),
                 quotation_id: quotationId,
                 category,
                 kol_id: kolId,
@@ -450,6 +521,22 @@ export function QuotationItemsList({ quotationId, onUpdate, readOnly = false, qu
                 remark: null,
                 remittance_name: null,
                 is_supplement: isSupplementMode,
+                accounting_subject: null,
+                approved_at: null,
+                approved_by: null,
+                attachments: '[]',
+                cost_amount: null,
+                expected_payment_month: null,
+                expense_type: null,
+                invoice_number: null,
+                is_merge_leader: null,
+                merge_color: null,
+                merge_group_id: null,
+                rejected_at: null,
+                rejected_by: null,
+                rejection_reason: null,
+                requested_at: null,
+                requested_by: null,
             })
         })
 
@@ -566,7 +653,7 @@ export function QuotationItemsList({ quotationId, onUpdate, readOnly = false, qu
     }
 
     const isVerificationPassed = (item: QuotationItemWithPayments): boolean => {
-        const attachments = (item.attachments || []) as PaymentAttachment[]
+        const attachments = (item.attachments || []) as unknown as PaymentAttachment[]
         const hasAttachments = attachments.length > 0
         const invoiceNumber = item.invoice_number || ''
         const hasValidInvoice = /^[A-Za-z]{2}-\d{8}$/.test(invoiceNumber)
@@ -708,6 +795,30 @@ export function QuotationItemsList({ quotationId, onUpdate, readOnly = false, qu
             toast.error('核准失敗: ' + (error instanceof Error ? error.message : String(error)))
         } finally {
             setItemActionLoading(item.id, false)
+        }
+    }
+
+    // 駁回請款
+    const handleRejectPayment = async () => {
+        if (!rejectingItemId) return
+
+        setItemActionLoading(rejectingItemId, true)
+        try {
+            const { error } = await supabase.rpc('reject_quotation_item', {
+                p_item_id: rejectingItemId,
+                p_reason: rejectionReason.trim() || '未提供原因',
+            })
+
+            if (error) throw error
+
+            await fetchItems()
+            toast.success('已駁回請款')
+        } catch (error) {
+            toast.error('駁回失敗: ' + (error instanceof Error ? error.message : String(error)))
+        } finally {
+            setItemActionLoading(rejectingItemId, false)
+            setRejectingItemId(null)
+            setRejectionReason('')
         }
     }
 
@@ -893,11 +1004,12 @@ export function QuotationItemsList({ quotationId, onUpdate, readOnly = false, qu
                                         ) : (
                                             <SearchableSelectCell
                                                 value={item.kol_id}
-                                                displayValue={selectedKol?.name}
+                                                displayValue={selectedKol?.name || item.kol_id || undefined}
                                                 onChange={(val) => handleKolChange(item.id, val)}
                                                 options={kolOptions}
                                                 placeholder="搜尋 KOL/服務"
                                                 className="px-3 py-2 font-medium text-primary"
+                                                allowCustomValue={true}
                                             />
                                         )}
                                     </td>
@@ -1013,18 +1125,30 @@ export function QuotationItemsList({ quotationId, onUpdate, readOnly = false, qu
                                             {status === 'approved' ? (
                                                 <CheckCircle2 className="h-4 w-4 text-success mx-auto" />
                                             ) : status === 'requested' ? (
-                                                <button
-                                                    onClick={() => handleApprovePayment(item)}
-                                                    disabled={isItemLoading}
-                                                    className="p-1 rounded hover:bg-accent transition-colors mx-auto flex items-center justify-center disabled:opacity-50"
-                                                    title="勾選審核通過"
-                                                >
-                                                    {isItemLoading ? (
-                                                        <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-                                                    ) : (
-                                                        <div className="h-4 w-4 border-2 border-muted-foreground/40 rounded" />
-                                                    )}
-                                                </button>
+                                                <div className="flex items-center justify-center gap-0.5">
+                                                    <button
+                                                        onClick={() => handleApprovePayment(item)}
+                                                        disabled={isItemLoading}
+                                                        className="p-1 rounded hover:bg-success/10 transition-colors disabled:opacity-50"
+                                                        title="核准"
+                                                    >
+                                                        {isItemLoading ? (
+                                                            <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                                                        ) : (
+                                                            <div className="h-4 w-4 border-2 border-muted-foreground/40 rounded" />
+                                                        )}
+                                                    </button>
+                                                    <button
+                                                        onClick={() => setRejectingItemId(item.id)}
+                                                        disabled={isItemLoading}
+                                                        className="p-0.5 rounded hover:bg-destructive/10 transition-colors disabled:opacity-50"
+                                                        title="駁回"
+                                                    >
+                                                        <XCircle className="h-3.5 w-3.5 text-destructive/70" />
+                                                    </button>
+                                                </div>
+                                            ) : status === 'rejected' ? (
+                                                <span className="text-[10px] text-destructive" title={item.rejection_reason || '已駁回'}>✗</span>
                                             ) : (
                                                 <span className="text-muted-foreground/30">—</span>
                                             )}
@@ -1099,18 +1223,19 @@ export function QuotationItemsList({ quotationId, onUpdate, readOnly = false, qu
                             <AttachmentUploader
                                 itemId={verificationItemId}
                                 currentAttachments={
-                                    ((items.find(i => i.id === verificationItemId)?.attachments || []) as PaymentAttachment[])
+                                    ((items.find(i => i.id === verificationItemId)?.attachments || []) as unknown as PaymentAttachment[])
                                 }
                                 onUpdate={(newAttachments) => {
                                     // 同步更新本地狀態
+                                    const attJson = JSON.parse(JSON.stringify(newAttachments))
                                     setItems(prev => prev.map(item =>
                                         item.id === verificationItemId
-                                            ? { ...item, attachments: newAttachments as unknown }
+                                            ? { ...item, attachments: attJson }
                                             : item
                                     ))
                                     setOriginalItems(prev => prev.map(item =>
                                         item.id === verificationItemId
-                                            ? { ...item, attachments: newAttachments as unknown }
+                                            ? { ...item, attachments: attJson }
                                             : item
                                     ))
                                 }}
@@ -1124,6 +1249,33 @@ export function QuotationItemsList({ quotationId, onUpdate, readOnly = false, qu
                         </Button>
                         <Button onClick={handleSaveVerification}>
                             儲存
+                        </Button>
+                    </div>
+                </div>
+            </Modal>
+
+            {/* 駁回原因 Modal */}
+            <Modal
+                isOpen={!!rejectingItemId}
+                onClose={() => { setRejectingItemId(null); setRejectionReason('') }}
+                title="駁回請款"
+            >
+                <div className="space-y-4">
+                    <p className="text-sm text-muted-foreground">
+                        請輸入駁回原因，申請人可依據原因修改後重新送出請款。
+                    </p>
+                    <Textarea
+                        placeholder="駁回原因..."
+                        value={rejectionReason}
+                        onChange={(e) => setRejectionReason(e.target.value)}
+                        rows={3}
+                    />
+                    <div className="flex justify-end gap-2">
+                        <Button variant="outline" onClick={() => { setRejectingItemId(null); setRejectionReason('') }}>
+                            取消
+                        </Button>
+                        <Button variant="destructive" onClick={handleRejectPayment}>
+                            確認駁回
                         </Button>
                     </div>
                 </div>

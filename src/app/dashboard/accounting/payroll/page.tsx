@@ -45,6 +45,9 @@ const emptyForm = (): Partial<AccountingPayroll> => ({
   labor_rate: null,
   health_rate: null,
   pension_rate: null,
+  employment_insurance_rate: null,
+  is_employer: false,
+  dependents_count: null,
   note: '',
 })
 
@@ -202,12 +205,17 @@ export default function AccountingPayrollPage() {
           labor_rate: calc.laborRate,
           health_rate: calc.healthRate,
           pension_rate: calc.pensionRate,
-          labor_insurance_personal: calc.laborInsuranceEmployee,
+          employment_insurance_rate: calc.employmentInsuranceRate,
+          // 勞保個人含就保個人（合併存入）
+          labor_insurance_personal: calc.laborInsuranceEmployee + calc.employmentInsuranceEmployee,
           health_insurance_personal: calc.healthInsuranceEmployee,
-          labor_insurance_company: calc.laborInsuranceCompany,
+          // 勞保公司含就保公司（合併存入）
+          labor_insurance_company: calc.laborInsuranceCompany + calc.employmentInsuranceCompany,
           health_insurance_company: calc.healthInsuranceCompany,
           severance_fund: calc.occupationalInjuryFee + calc.employmentStabilizationFee,
           retirement_fund: calc.retirementFund,
+          is_employer: calc.isEmployer,
+          dependents_count: calc.averageDependents,
         })
       } else {
         toast.error('無法計算勞健保，請檢查員工投保級距設定')
@@ -438,7 +446,7 @@ export default function AccountingPayrollPage() {
                     <td className="px-4 py-3 text-muted-foreground text-xs max-w-32 truncate">{r.note || '-'}</td>
                     <td className="px-4 py-3">
                       <div className="flex items-center justify-center gap-2">
-                        <button onClick={() => { setEditing(r); setForm({ ...r }); setIsModalOpen(true) }} className="p-1.5 text-muted-foreground/60 hover:text-primary rounded hover:bg-primary/10">
+                        <button onClick={() => { setEditing(r); setForm({ ...r }); setInsuranceCalc(null); setSelectedEmployee(null); setIsModalOpen(true) }} className="p-1.5 text-muted-foreground/60 hover:text-primary rounded hover:bg-primary/10">
                           <Pencil className="w-4 h-4" />
                         </button>
                         <button onClick={() => handleDelete(r.id)} className="p-1.5 text-muted-foreground/60 hover:text-destructive rounded hover:bg-destructive/10">
@@ -572,10 +580,19 @@ export default function AccountingPayrollPage() {
 
               {/* 勞健保計算明細 */}
               {insuranceCalc && (
-                <div className="bg-gradient-to-br from-primary/10 to-chart-5/10 rounded-lg p-4 border-2 border-primary/20">
+                <div className={`rounded-lg p-4 border-2 ${
+                  insuranceCalc.isEmployer
+                    ? 'bg-gradient-to-br from-amber-500/10 to-orange-500/10 border-amber-500/20'
+                    : 'bg-gradient-to-br from-primary/10 to-chart-5/10 border-primary/20'
+                }`}>
                   <p className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
                     <Calculator className="w-4 h-4" />
                     勞健保計算明細（自動計算）
+                    {insuranceCalc.isEmployer && (
+                      <span className="px-2 py-0.5 bg-amber-500/10 text-amber-400 rounded text-xs font-medium">
+                        雇主計算
+                      </span>
+                    )}
                   </p>
                   <div className="grid grid-cols-2 gap-3 text-xs">
                     <div className="bg-card rounded p-2">
@@ -586,29 +603,67 @@ export default function AccountingPayrollPage() {
                       <p className="text-muted-foreground">投保薪資</p>
                       <p className="font-semibold text-foreground">NT$ {fmt(insuranceCalc.insuranceSalary)}</p>
                     </div>
+                    {insuranceCalc.isEmployer && insuranceCalc.averageDependents != null && (
+                      <div className="bg-card rounded p-2 col-span-2">
+                        <p className="text-muted-foreground">健保眷屬口數</p>
+                        <p className="font-semibold text-amber-400">{insuranceCalc.averageDependents}</p>
+                      </div>
+                    )}
                     <div className="bg-card rounded p-2">
-                      <p className="text-muted-foreground">勞保（個人 {fmtRate(insuranceCalc.laborRate)}）</p>
+                      <p className="text-muted-foreground">
+                        勞保（{insuranceCalc.isEmployer ? '全額自付' : `個人 ${fmtRate(insuranceCalc.laborRate)}`}）
+                      </p>
                       <p className="font-semibold text-destructive">-NT$ {fmt(insuranceCalc.laborInsuranceEmployee)}</p>
                     </div>
+                    {!insuranceCalc.isEmployer && insuranceCalc.employmentInsuranceEmployee > 0 && (
+                      <div className="bg-card rounded p-2">
+                        <p className="text-muted-foreground">
+                          就保（個人 {fmtRate(insuranceCalc.employmentInsuranceRate * 0.20)}）
+                        </p>
+                        <p className="font-semibold text-destructive">-NT$ {fmt(insuranceCalc.employmentInsuranceEmployee)}</p>
+                      </div>
+                    )}
                     <div className="bg-card rounded p-2">
-                      <p className="text-muted-foreground">健保（個人 {fmtRate(insuranceCalc.healthRate)}）</p>
+                      <p className="text-muted-foreground">
+                        健保（{insuranceCalc.isEmployer ? '含眷屬' : `個人 ${fmtRate(insuranceCalc.healthRate)}`}）
+                      </p>
                       <p className="font-semibold text-destructive">-NT$ {fmt(insuranceCalc.healthInsuranceEmployee)}</p>
                     </div>
+                    {!insuranceCalc.isEmployer && (
+                      <>
+                        <div className="bg-card rounded p-2">
+                          <p className="text-muted-foreground">勞保（公司）</p>
+                          <p className="font-semibold text-chart-4">NT$ {fmt(insuranceCalc.laborInsuranceCompany)}</p>
+                        </div>
+                        {insuranceCalc.employmentInsuranceCompany > 0 && (
+                          <div className="bg-card rounded p-2">
+                            <p className="text-muted-foreground">就保（公司）</p>
+                            <p className="font-semibold text-chart-4">NT$ {fmt(insuranceCalc.employmentInsuranceCompany)}</p>
+                          </div>
+                        )}
+                        <div className="bg-card rounded p-2">
+                          <p className="text-muted-foreground">健保（公司）</p>
+                          <p className="font-semibold text-chart-4">NT$ {fmt(insuranceCalc.healthInsuranceCompany)}</p>
+                        </div>
+                      </>
+                    )}
                     <div className="bg-card rounded p-2">
-                      <p className="text-muted-foreground">勞保（公司）</p>
-                      <p className="font-semibold text-chart-4">NT$ {fmt(insuranceCalc.laborInsuranceCompany)}</p>
+                      <p className="text-muted-foreground">
+                        勞退{insuranceCalc.isEmployer ? '' : `（公司 ${fmtRate(insuranceCalc.pensionRate)}）`}
+                      </p>
+                      {insuranceCalc.isEmployer ? (
+                        <p className="text-muted-foreground/60 italic">不適用</p>
+                      ) : (
+                        <p className="font-semibold text-chart-4">NT$ {fmt(insuranceCalc.retirementFund)}</p>
+                      )}
                     </div>
                     <div className="bg-card rounded p-2">
-                      <p className="text-muted-foreground">健保（公司）</p>
-                      <p className="font-semibold text-chart-4">NT$ {fmt(insuranceCalc.healthInsuranceCompany)}</p>
-                    </div>
-                    <div className="bg-card rounded p-2">
-                      <p className="text-muted-foreground">勞退（公司 {fmtRate(insuranceCalc.pensionRate)}）</p>
-                      <p className="font-semibold text-chart-4">NT$ {fmt(insuranceCalc.retirementFund)}</p>
-                    </div>
-                    <div className="bg-card rounded p-2">
-                      <p className="text-muted-foreground">職災 + 就安</p>
-                      <p className="font-semibold text-chart-4">NT$ {fmt(insuranceCalc.occupationalInjuryFee + insuranceCalc.employmentStabilizationFee)}</p>
+                      <p className="text-muted-foreground">
+                        職災 + 就安{insuranceCalc.isEmployer ? '（自付）' : ''}
+                      </p>
+                      <p className={`font-semibold ${insuranceCalc.isEmployer ? 'text-destructive' : 'text-chart-4'}`}>
+                        {insuranceCalc.isEmployer ? '-' : ''}NT$ {fmt(insuranceCalc.occupationalInjuryFee + insuranceCalc.employmentStabilizationFee)}
+                      </p>
                     </div>
                   </div>
                 </div>

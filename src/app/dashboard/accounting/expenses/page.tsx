@@ -19,7 +19,7 @@ import { useExpenseDefaults } from '@/hooks/useExpenseDefaults'
 import { CURRENT_YEAR, MONTH_OPTIONS } from '@/lib/constants'
 import { PaymentStatusBadge } from '@/components/accounting/monthly-settlement/PaymentStatusBadge'
 import type { SpreadsheetColumn, BatchSaveResult, RowError } from '@/lib/spreadsheet-utils'
-import { useProjectNames } from '@/hooks/useProjectNames'
+import { useQuotationOptions } from '@/hooks/useQuotationOptions'
 import { SearchableSelect } from '@/components/ui/SearchableSelect'
 import { useConfirm } from '@/components/ui/ConfirmDialog'
 import { getMergeLabel } from '@/lib/mergeLabel'
@@ -93,11 +93,7 @@ export default function AccountingExpensesPage() {
   const [form, setForm] = useState<Partial<AccountingExpense>>(emptyForm())
   const [currentPage, setCurrentPage] = useState(1)
   const [isSpreadsheetMode, setIsSpreadsheetMode] = useState(false)
-  const { data: projectNames = [] } = useProjectNames()
-  const projectNameOptions = useMemo(
-    () => projectNames.map(name => ({ label: name, value: name })),
-    [projectNames]
-  )
+  const { projectNameOptions, suggestionOptions: quotationSuggestionOptions, quotationMap } = useQuotationOptions()
 
   const spreadsheetColumns = useMemo<SpreadsheetColumn<AccountingExpense>[]>(() => [
     { key: 'expense_month', label: '支出月份', type: 'select',
@@ -110,12 +106,12 @@ export default function AccountingExpensesPage() {
     { key: 'amount', label: '金額（未稅）', type: 'number', autoCalcSource: true, width: 'w-28' },
     { key: 'tax_amount', label: '稅額', type: 'number', readOnly: true, width: 'w-24' },
     { key: 'total_amount', label: '實付金額', type: 'number', readOnly: true, width: 'w-28' },
-    { key: 'project_name', label: '專案名稱', type: 'autocomplete', suggestions: projectNames, width: 'w-36' },
+    { key: 'project_name', label: '專案名稱', type: 'autocomplete', suggestionOptions: quotationSuggestionOptions, width: 'w-36' },
     { key: 'payment_date', label: '匯款日', type: 'date', width: 'w-28' },
     { key: 'invoice_number', label: '發票號碼', type: 'text', autoCalcTrigger: true, width: 'w-28' },
     { key: 'invoice_date', label: '發票日期', type: 'date', width: 'w-28' },
     { key: 'note', label: '備註', type: 'text', width: 'w-40' },
-  ], [year, projectNames, expenseTypeNames, accountingSubjectNames])
+  ], [year, quotationSuggestionOptions, expenseTypeNames, accountingSubjectNames])
 
   const currentQueryKey = queryKeys.accountingExpenses(year)
 
@@ -560,7 +556,10 @@ export default function AccountingExpensesPage() {
                         </span>
                       )}
                     </td>
-                    <td className="px-4 py-3 text-muted-foreground max-w-32 truncate">{r.project_name || '-'}</td>
+                    <td className="px-4 py-3 text-muted-foreground max-w-40 truncate">
+                      {quotationMap.get(r.project_name || '') && <span className="text-xs font-mono text-muted-foreground/70 mr-1">{quotationMap.get(r.project_name || '')}</span>}
+                      {r.project_name || '-'}
+                    </td>
                     <td className="px-4 py-3 text-muted-foreground max-w-40 truncate" title={r.note || ''}>{r.note || '-'}</td>
                     <td className="px-4 py-3 text-muted-foreground">{r.payment_date || '-'}</td>
                     <td className="px-4 py-3 text-center">
@@ -693,7 +692,7 @@ export default function AccountingExpensesPage() {
                   value={form.project_name || null}
                   onChange={(val) => setForm(f => ({ ...f, project_name: val }))}
                   options={projectNameOptions}
-                  placeholder="搜尋專案名稱..."
+                  placeholder="搜尋編號或專案名稱..."
                   clearable
                 />
               </div>

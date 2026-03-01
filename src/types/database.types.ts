@@ -7,11 +7,6 @@ export type Json =
   | Json[]
 
 export type Database = {
-  // Allows to automatically instantiate createClient with right options
-  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
-  __InternalSupabase: {
-    PostgrestVersion: "12.2.12 (cd3cf9e)"
-  }
   graphql_public: {
     Tables: {
       [_ in never]: never
@@ -59,12 +54,15 @@ export type Database = {
           payment_status: string | null
           payment_target_type: string | null
           project_name: string | null
+          quotation_item_id: string | null
           remittance_fee: number | null
           submitted_by: string | null
           tax_amount: number | null
           total_amount: number | null
           updated_at: string | null
           vendor_name: string | null
+          withholding_nhi: number
+          withholding_tax: number
           year: number
         }
         Insert: {
@@ -86,12 +84,15 @@ export type Database = {
           payment_status?: string | null
           payment_target_type?: string | null
           project_name?: string | null
+          quotation_item_id?: string | null
           remittance_fee?: number | null
           submitted_by?: string | null
           tax_amount?: number | null
           total_amount?: number | null
           updated_at?: string | null
           vendor_name?: string | null
+          withholding_nhi?: number
+          withholding_tax?: number
           year?: number
         }
         Update: {
@@ -113,12 +114,15 @@ export type Database = {
           payment_status?: string | null
           payment_target_type?: string | null
           project_name?: string | null
+          quotation_item_id?: string | null
           remittance_fee?: number | null
           submitted_by?: string | null
           tax_amount?: number | null
           total_amount?: number | null
           updated_at?: string | null
           vendor_name?: string | null
+          withholding_nhi?: number
+          withholding_tax?: number
           year?: number
         }
         Relationships: [
@@ -150,6 +154,13 @@ export type Database = {
             referencedRelation: "payment_requests_with_details"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "accounting_expenses_quotation_item_id_fkey"
+            columns: ["quotation_item_id"]
+            isOneToOne: false
+            referencedRelation: "quotation_items"
+            referencedColumns: ["id"]
+          },
         ]
       }
       accounting_payroll: {
@@ -160,14 +171,17 @@ export type Database = {
           created_at: string | null
           created_by: string | null
           deduction: number | null
+          dependents_count: number | null
           employee_id: string | null
           employee_name: string
+          employment_insurance_rate: number | null
           health_insurance_company: number | null
           health_insurance_personal: number | null
           health_rate: number | null
           id: string
           insurance_grade: number | null
           insurance_salary: number | null
+          is_employer: boolean | null
           labor_insurance_company: number | null
           labor_insurance_personal: number | null
           labor_rate: number | null
@@ -192,14 +206,17 @@ export type Database = {
           created_at?: string | null
           created_by?: string | null
           deduction?: number | null
+          dependents_count?: number | null
           employee_id?: string | null
           employee_name: string
+          employment_insurance_rate?: number | null
           health_insurance_company?: number | null
           health_insurance_personal?: number | null
           health_rate?: number | null
           id?: string
           insurance_grade?: number | null
           insurance_salary?: number | null
+          is_employer?: boolean | null
           labor_insurance_company?: number | null
           labor_insurance_personal?: number | null
           labor_rate?: number | null
@@ -224,14 +241,17 @@ export type Database = {
           created_at?: string | null
           created_by?: string | null
           deduction?: number | null
+          dependents_count?: number | null
           employee_id?: string | null
           employee_name?: string
+          employment_insurance_rate?: number | null
           health_insurance_company?: number | null
           health_insurance_personal?: number | null
           health_rate?: number | null
           id?: string
           insurance_grade?: number | null
           insurance_salary?: number | null
+          is_employer?: boolean | null
           labor_insurance_company?: number | null
           labor_insurance_personal?: number | null
           labor_rate?: number | null
@@ -258,6 +278,60 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      accounting_reconciliation: {
+        Row: {
+          bank_balance: number | null
+          created_at: string | null
+          created_by: string | null
+          difference: number | null
+          expense_total: number | null
+          id: string
+          income_total: number | null
+          month: string
+          note: string | null
+          prev_bank_balance: number | null
+          reconciled_at: string | null
+          reconciled_by: string | null
+          status: string
+          updated_at: string | null
+          year: number
+        }
+        Insert: {
+          bank_balance?: number | null
+          created_at?: string | null
+          created_by?: string | null
+          difference?: number | null
+          expense_total?: number | null
+          id?: string
+          income_total?: number | null
+          month: string
+          note?: string | null
+          prev_bank_balance?: number | null
+          reconciled_at?: string | null
+          reconciled_by?: string | null
+          status?: string
+          updated_at?: string | null
+          year: number
+        }
+        Update: {
+          bank_balance?: number | null
+          created_at?: string | null
+          created_by?: string | null
+          difference?: number | null
+          expense_total?: number | null
+          id?: string
+          income_total?: number | null
+          month?: string
+          note?: string | null
+          prev_bank_balance?: number | null
+          reconciled_at?: string | null
+          reconciled_by?: string | null
+          status?: string
+          updated_at?: string | null
+          year?: number
+        }
+        Relationships: []
       }
       accounting_sales: {
         Row: {
@@ -434,6 +508,7 @@ export type Database = {
           created_at: string | null
           created_by: string | null
           department: string | null
+          dependents_count: number | null
           email: string | null
           emergency_contact: string | null
           emergency_phone: string | null
@@ -446,6 +521,7 @@ export type Database = {
           id: string
           id_number: string | null
           insurance_grade: number | null
+          is_employer: boolean | null
           meal_allowance: number | null
           name: string
           note: string | null
@@ -466,6 +542,7 @@ export type Database = {
           created_at?: string | null
           created_by?: string | null
           department?: string | null
+          dependents_count?: number | null
           email?: string | null
           emergency_contact?: string | null
           emergency_phone?: string | null
@@ -478,6 +555,7 @@ export type Database = {
           id?: string
           id_number?: string | null
           insurance_grade?: number | null
+          is_employer?: boolean | null
           meal_allowance?: number | null
           name: string
           note?: string | null
@@ -498,6 +576,7 @@ export type Database = {
           created_at?: string | null
           created_by?: string | null
           department?: string | null
+          dependents_count?: number | null
           email?: string | null
           emergency_contact?: string | null
           emergency_phone?: string | null
@@ -510,6 +589,7 @@ export type Database = {
           id?: string
           id_number?: string | null
           insurance_grade?: number | null
+          is_employer?: boolean | null
           meal_allowance?: number | null
           name?: string
           note?: string | null
@@ -541,6 +621,7 @@ export type Database = {
           payment_status: string | null
           payment_target_type: string | null
           project_name: string | null
+          quotation_id: string | null
           rejected_at: string | null
           rejected_by: string | null
           rejection_reason: string | null
@@ -550,6 +631,7 @@ export type Database = {
           tax_amount: number | null
           total_amount: number | null
           updated_at: string | null
+          vendor_bank_type: string | null
           vendor_name: string | null
           withholding_month: string | null
           year: number
@@ -572,6 +654,7 @@ export type Database = {
           payment_status?: string | null
           payment_target_type?: string | null
           project_name?: string | null
+          quotation_id?: string | null
           rejected_at?: string | null
           rejected_by?: string | null
           rejection_reason?: string | null
@@ -581,6 +664,7 @@ export type Database = {
           tax_amount?: number | null
           total_amount?: number | null
           updated_at?: string | null
+          vendor_bank_type?: string | null
           vendor_name?: string | null
           withholding_month?: string | null
           year?: number
@@ -603,6 +687,7 @@ export type Database = {
           payment_status?: string | null
           payment_target_type?: string | null
           project_name?: string | null
+          quotation_id?: string | null
           rejected_at?: string | null
           rejected_by?: string | null
           rejection_reason?: string | null
@@ -612,11 +697,19 @@ export type Database = {
           tax_amount?: number | null
           total_amount?: number | null
           updated_at?: string | null
+          vendor_bank_type?: string | null
           vendor_name?: string | null
           withholding_month?: string | null
           year?: number
         }
         Relationships: [
+          {
+            foreignKeyName: "expense_claims_quotation_id_fkey"
+            columns: ["quotation_id"]
+            isOneToOne: false
+            referencedRelation: "quotations"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "expense_claims_submitted_by_profiles_fkey"
             columns: ["submitted_by"]
@@ -661,6 +754,7 @@ export type Database = {
         Row: {
           created_at: string | null
           effective_date: string
+          employment_insurance_rate: number | null
           employment_stabilization_rate: number | null
           expiry_date: string | null
           grade: number
@@ -684,6 +778,7 @@ export type Database = {
         Insert: {
           created_at?: string | null
           effective_date: string
+          employment_insurance_rate?: number | null
           employment_stabilization_rate?: number | null
           expiry_date?: string | null
           grade: number
@@ -707,6 +802,7 @@ export type Database = {
         Update: {
           created_at?: string | null
           effective_date?: string
+          employment_insurance_rate?: number | null
           employment_stabilization_rate?: number | null
           expiry_date?: string | null
           grade?: number
@@ -726,6 +822,36 @@ export type Database = {
           pension_rate_employee?: number | null
           supplementary_rate?: number | null
           updated_at?: string | null
+        }
+        Relationships: []
+      }
+      insurance_settings: {
+        Row: {
+          default_dependents: number
+          effective_date: string
+          expiry_date: string | null
+          id: string
+          note: string | null
+          updated_at: string | null
+          updated_by: string | null
+        }
+        Insert: {
+          default_dependents?: number
+          effective_date?: string
+          expiry_date?: string | null
+          id?: string
+          note?: string | null
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Update: {
+          default_dependents?: number
+          effective_date?: string
+          expiry_date?: string | null
+          id?: string
+          note?: string | null
+          updated_at?: string | null
+          updated_by?: string | null
         }
         Relationships: []
       }
@@ -1009,6 +1135,7 @@ export type Database = {
           attachment_file_path: string | null
           cost_amount: number | null
           created_at: string | null
+          created_by: string | null
           expected_payment_month: string | null
           expense_type: string | null
           id: string
@@ -1032,6 +1159,7 @@ export type Database = {
           attachment_file_path?: string | null
           cost_amount?: number | null
           created_at?: string | null
+          created_by?: string | null
           expected_payment_month?: string | null
           expense_type?: string | null
           id?: string
@@ -1055,6 +1183,7 @@ export type Database = {
           attachment_file_path?: string | null
           cost_amount?: number | null
           created_at?: string | null
+          created_by?: string | null
           expected_payment_month?: string | null
           expense_type?: string | null
           id?: string
@@ -1227,48 +1356,96 @@ export type Database = {
       }
       quotation_items: {
         Row: {
+          accounting_subject: string | null
+          approved_at: string | null
+          approved_by: string | null
+          attachments: Json | null
           category: string | null
           cost: number | null
+          cost_amount: number | null
           created_at: string | null
           created_by: string | null
+          expected_payment_month: string | null
+          expense_type: string | null
           id: string
+          invoice_number: string | null
+          is_merge_leader: boolean | null
           is_supplement: boolean
           kol_id: string | null
+          merge_color: string | null
+          merge_group_id: string | null
           price: number
           quantity: number | null
           quotation_id: string | null
+          rejected_at: string | null
+          rejected_by: string | null
+          rejection_reason: string | null
           remark: string | null
           remittance_name: string | null
+          requested_at: string | null
+          requested_by: string | null
           service: string
         }
         Insert: {
+          accounting_subject?: string | null
+          approved_at?: string | null
+          approved_by?: string | null
+          attachments?: Json | null
           category?: string | null
           cost?: number | null
+          cost_amount?: number | null
           created_at?: string | null
           created_by?: string | null
+          expected_payment_month?: string | null
+          expense_type?: string | null
           id?: string
+          invoice_number?: string | null
+          is_merge_leader?: boolean | null
           is_supplement?: boolean
           kol_id?: string | null
+          merge_color?: string | null
+          merge_group_id?: string | null
           price?: number
           quantity?: number | null
           quotation_id?: string | null
+          rejected_at?: string | null
+          rejected_by?: string | null
+          rejection_reason?: string | null
           remark?: string | null
           remittance_name?: string | null
+          requested_at?: string | null
+          requested_by?: string | null
           service: string
         }
         Update: {
+          accounting_subject?: string | null
+          approved_at?: string | null
+          approved_by?: string | null
+          attachments?: Json | null
           category?: string | null
           cost?: number | null
+          cost_amount?: number | null
           created_at?: string | null
           created_by?: string | null
+          expected_payment_month?: string | null
+          expense_type?: string | null
           id?: string
+          invoice_number?: string | null
+          is_merge_leader?: boolean | null
           is_supplement?: boolean
           kol_id?: string | null
+          merge_color?: string | null
+          merge_group_id?: string | null
           price?: number
           quantity?: number | null
           quotation_id?: string | null
+          rejected_at?: string | null
+          rejected_by?: string | null
+          rejection_reason?: string | null
           remark?: string | null
           remittance_name?: string | null
+          requested_at?: string | null
+          requested_by?: string | null
           service?: string
         }
         Relationships: [
@@ -1303,6 +1480,7 @@ export type Database = {
           id: string
           payment_method: Database["public"]["Enums"]["payment_method"] | null
           project_name: string
+          quote_number: string | null
           remarks: string | null
           status: Database["public"]["Enums"]["quotation_status"] | null
           subtotal_untaxed: number | null
@@ -1324,6 +1502,7 @@ export type Database = {
           id?: string
           payment_method?: Database["public"]["Enums"]["payment_method"] | null
           project_name: string
+          quote_number?: string | null
           remarks?: string | null
           status?: Database["public"]["Enums"]["quotation_status"] | null
           subtotal_untaxed?: number | null
@@ -1345,6 +1524,7 @@ export type Database = {
           id?: string
           payment_method?: Database["public"]["Enums"]["payment_method"] | null
           project_name?: string
+          quote_number?: string | null
           remarks?: string | null
           status?: Database["public"]["Enums"]["quotation_status"] | null
           subtotal_untaxed?: number | null
@@ -1377,6 +1557,21 @@ export type Database = {
           created_at?: string | null
           id?: string
           name?: string
+        }
+        Relationships: []
+      }
+      quote_number_counters: {
+        Row: {
+          last_number: number
+          year: number
+        }
+        Insert: {
+          last_number?: number
+          year: number
+        }
+        Update: {
+          last_number?: number
+          year?: number
         }
         Relationships: []
       }
@@ -1590,7 +1785,7 @@ export type Database = {
     }
     Functions: {
       approve_expense_claim: {
-        Args: { approver_id: string; claim_id: string }
+        Args: { approver_id?: string; claim_id: string }
         Returns: undefined
       }
       approve_payment_request: {
@@ -1601,6 +1796,14 @@ export type Database = {
           verifier_id: string
         }
         Returns: undefined
+      }
+      approve_quotation_item: {
+        Args: {
+          p_accounting_subject?: string
+          p_expense_type?: string
+          p_item_id: string
+        }
+        Returns: string
       }
       auto_close_projects: { Args: never; Returns: undefined }
       check_page_permission: {
@@ -1683,6 +1886,7 @@ export type Database = {
         }[]
       }
       get_user_role: { Args: { user_id: string }; Returns: string }
+      is_admin: { Args: never; Returns: boolean }
       process_payment_confirmation: {
         Args: { p_approved_request_ids: string[]; p_user_id: string }
         Returns: {
@@ -1696,8 +1900,16 @@ export type Database = {
         Args: { claim_id: string; reason?: string; rejector_id?: string }
         Returns: undefined
       }
+      reject_quotation_item: {
+        Args: { p_item_id: string; p_reason?: string }
+        Returns: undefined
+      }
       remove_accounting_sale_for_quotation: {
         Args: { p_quotation_id: string }
+        Returns: undefined
+      }
+      revert_quotation_item: {
+        Args: { p_item_id: string; p_reason?: string }
         Returns: undefined
       }
       sync_kol_service_prices_from_quotation: {

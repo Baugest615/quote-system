@@ -7,6 +7,7 @@ import { Shield } from 'lucide-react'
 import { Skeleton, SkeletonCard } from '@/components/ui/Skeleton'
 import PasswordChangeCard from '@/components/settings/PasswordChangeCard'
 import ReferenceDictCard from '@/components/settings/ReferenceDictCard'
+import InsuranceSettingsCard from '@/components/settings/InsuranceSettingsCard'
 
 export default function SettingsPage() {
   const { hasRole, loading } = usePermission()
@@ -28,6 +29,9 @@ export default function SettingsPage() {
 
       {/* 資料字典管理 — Editor 以上 */}
       {hasRole('Editor') && <ReferenceDictCard />}
+
+      {/* 保險設定 — Admin 限定 */}
+      {hasRole('Admin') && <InsuranceSettingsCard />}
 
       {/* 權限管理 — Admin 限定 */}
       {hasRole('Admin') && (

@@ -11,7 +11,7 @@ import {
   Send, AlertCircle, CheckCircle, XCircle, FileEdit, Shield,
 } from 'lucide-react'
 import { Skeleton } from '@/components/ui/Skeleton'
-import { useProjectNames } from '@/hooks/useProjectNames'
+// useProjectNames removed — ExpenseClaimModal now uses useQuotationOptions internally
 import ExpenseClaimModal from '@/components/expense-claims/ExpenseClaimModal'
 import type { ExpenseClaimFormData } from '@/components/expense-claims/ExpenseClaimModal'
 import { ExpenseClaimGroups } from '@/components/expense-claims/ExpenseClaimGroups'
@@ -38,8 +38,7 @@ export default function ExpenseClaimsPage() {
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingClaim, setEditingClaim] = useState<ExpenseClaim | null>(null)
 
-  // 專案名稱建議
-  const { data: projectNames = [] } = useProjectNames()
+  // projectNames removed — ExpenseClaimModal now uses useQuotationOptions internally
 
   // 取得目前登入者的員工姓名（用於 vendor_name 預設值）
   const { data: myEmployeeName } = useQuery({
@@ -63,7 +62,7 @@ export default function ExpenseClaimsPage() {
       const { data: { user } } = await supabase.auth.getUser()
       let query = supabase
         .from('expense_claims')
-        .select('*')
+        .select('*, quotations:quotation_id(quote_number)')
         .eq('year', year)
         .order('created_at', { ascending: false })
 
@@ -73,7 +72,7 @@ export default function ExpenseClaimsPage() {
 
       const { data, error } = await query
       if (error) throw error
-      return (data || []) as ExpenseClaim[]
+      return (data || []) as (ExpenseClaim & { quotations?: { quote_number: string | null } | null })[]
     },
     enabled: !permLoading && hasAccess,
   })
@@ -458,7 +457,6 @@ export default function ExpenseClaimsPage() {
         onSave={handleSave}
         claim={editingClaim}
         year={year}
-        projectNames={projectNames}
       />
     </div>
   )

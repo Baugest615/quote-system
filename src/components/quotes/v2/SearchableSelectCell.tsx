@@ -137,7 +137,11 @@ export function SearchableSelectCell({
                         ))
                     ) : (
                         <div className="px-3 py-2 text-sm text-muted-foreground italic">
-                            {allowCustomValue ? '按 Enter 使用輸入值' : '無相符結果'}
+                            {allowCustomValue && searchTerm.trim()
+                                ? `按 Enter 新增「${searchTerm.trim()}」`
+                                : allowCustomValue
+                                    ? '輸入名稱以新增'
+                                    : '無相符結果'}
                         </div>
                     )}
                 </PortalDropdown>

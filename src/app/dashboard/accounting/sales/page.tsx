@@ -15,7 +15,7 @@ import { EmptyState } from '@/components/ui/EmptyState'
 import Link from 'next/link'
 import type { AccountingSale } from '@/types/custom.types'
 import type { SpreadsheetColumn, BatchSaveResult, RowError } from '@/lib/spreadsheet-utils'
-import { useProjectNames } from '@/hooks/useProjectNames'
+import { useQuotationOptions } from '@/hooks/useQuotationOptions'
 import { SearchableSelect } from '@/components/ui/SearchableSelect'
 import { CURRENT_YEAR, MONTH_OPTIONS } from '@/lib/constants'
 import { useConfirm } from '@/components/ui/ConfirmDialog'
@@ -48,17 +48,13 @@ export default function AccountingSalesPage() {
   const [form, setForm] = useState<Partial<AccountingSale>>(emptyForm())
   const [currentPage, setCurrentPage] = useState(1)
   const [isSpreadsheetMode, setIsSpreadsheetMode] = useState(false)
-  const { data: projectNames = [] } = useProjectNames()
-  const projectNameOptions = useMemo(
-    () => projectNames.map(name => ({ label: name, value: name })),
-    [projectNames]
-  )
+  const { options: quotationOptions, suggestionOptions: quotationSuggestionOptions } = useQuotationOptions()
 
   // 試算表欄位定義
   const spreadsheetColumns = useMemo<SpreadsheetColumn<AccountingSale>[]>(() => [
     { key: 'invoice_month', label: '報價年月', type: 'select',
       options: MONTH_OPTIONS.map(m => `${year}年${m}`), width: 'w-28' },
-    { key: 'project_name', label: '案件名稱', type: 'autocomplete', suggestions: projectNames, required: true, width: 'w-40' },
+    { key: 'project_name', label: '案件名稱', type: 'autocomplete', suggestionOptions: quotationSuggestionOptions, required: true, width: 'w-40' },
     { key: 'client_name', label: '開立對象', type: 'text', width: 'w-32' },
     { key: 'sales_amount', label: '銷售額（未稅）', type: 'number', autoCalcSource: true, width: 'w-28' },
     { key: 'tax_amount', label: '稅額', type: 'number', readOnly: true, width: 'w-24' },
@@ -67,7 +63,7 @@ export default function AccountingSalesPage() {
     { key: 'invoice_date', label: '發票開立日', type: 'date', width: 'w-28' },
     { key: 'actual_receipt_date', label: '實際入帳日', type: 'date', width: 'w-28' },
     { key: 'note', label: '備註', type: 'text', width: 'w-40' },
-  ], [year, projectNames])
+  ], [year, quotationSuggestionOptions])
 
   const currentQueryKey = queryKeys.accountingSales(year)
 
@@ -76,11 +72,11 @@ export default function AccountingSalesPage() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('accounting_sales')
-        .select('*')
+        .select('*, quotations:quotation_id(quote_number)')
         .eq('year', year)
         .order('created_at', { ascending: false })
       if (error) throw error
-      return (data || []) as AccountingSale[]
+      return (data || []) as (AccountingSale & { quotations: { quote_number: string } | null })[]
     },
     enabled: !permLoading && hasAccess,
   })
@@ -324,6 +320,7 @@ export default function AccountingSalesPage() {
                   <tr key={r.id} className="border-t border-border/50 hover:bg-accent">
                     <td className="px-4 py-3 text-muted-foreground">{r.invoice_month || '-'}</td>
                     <td className="px-4 py-3 font-medium text-foreground">
+                      {r.quotations?.quote_number && <span className="text-xs font-mono text-muted-foreground mr-1.5">{r.quotations.quote_number}</span>}
                       {r.project_name}
                       {r.quotation_id && <span className="ml-1.5 text-[10px] text-primary bg-primary/10 px-1 py-0.5 rounded" title="由報價單自動建立">自動</span>}
                     </td>
@@ -405,10 +402,10 @@ export default function AccountingSalesPage() {
               <div>
                 <label className="block text-xs font-medium text-muted-foreground mb-1">案件名稱 *</label>
                 <SearchableSelect
-                  value={form.project_name || null}
-                  onChange={(val) => setForm(f => ({ ...f, project_name: val }))}
-                  options={projectNameOptions}
-                  placeholder="搜尋案件名稱..."
+                  value={form.quotation_id || null}
+                  onChange={(val, data) => setForm(f => ({ ...f, quotation_id: val || null, project_name: data?.project_name ?? f.project_name ?? '' }))}
+                  options={quotationOptions}
+                  placeholder="搜尋編號或案件名稱..."
                   clearable
                 />
               </div>

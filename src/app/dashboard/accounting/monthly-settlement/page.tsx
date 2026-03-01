@@ -12,6 +12,7 @@ import type { PaymentTargetType, AccountingSale } from '@/types/custom.types'
 import { useMonthlySettlement } from '@/hooks/useMonthlySettlement'
 import type { EmployeeSettlementGroup, SettlementItemType } from '@/hooks/useMonthlySettlement'
 import { useReconciliation } from '@/hooks/useReconciliation'
+import { useQuotationOptions } from '@/hooks/useQuotationOptions'
 import { CURRENT_YEAR, CURRENT_MONTH, MONTH_OPTIONS } from '@/lib/constants'
 
 const fmt = (n: number) => new Intl.NumberFormat('zh-TW').format(n)
@@ -38,6 +39,7 @@ export default function MonthlySettlementPage() {
   const [selectedItems, setSelectedItems] = useState<{ type: SettlementItemType; id: string }[]>([])
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set())
 
+  const { quotationMap } = useQuotationOptions()
   const { data, isLoading, markPaid, markUnpaid, isMarking } = useMonthlySettlement(year, month)
 
   // 外部付款篩選
@@ -208,6 +210,7 @@ export default function MonthlySettlementPage() {
             isMarking={isMarking}
             expandedGroups={expandedGroups}
             toggleGroup={toggleGroup}
+            quotationMap={quotationMap}
           />
         ) : activeTab === 'external' ? (
           <ExternalTab
@@ -222,9 +225,10 @@ export default function MonthlySettlementPage() {
             onMarkPaid={handleMarkPaid}
             onMarkUnpaid={handleMarkUnpaid}
             isMarking={isMarking}
+            quotationMap={quotationMap}
           />
         ) : (
-          <IncomeTab sales={data.sales} />
+          <IncomeTab sales={data.sales} quotationMap={quotationMap} />
         )}
 
       </div>
@@ -257,6 +261,7 @@ function EmployeeTab({
   isMarking,
   expandedGroups,
   toggleGroup,
+  quotationMap,
 }: {
   groups: EmployeeSettlementGroup[]
   selectedItems: { type: SettlementItemType; id: string }[]
@@ -269,6 +274,7 @@ function EmployeeTab({
   isMarking: boolean
   expandedGroups: Set<string>
   toggleGroup: (id: string) => void
+  quotationMap: Map<string, string>
 }) {
   // 計算合計
   const totals = useMemo(() => {
@@ -325,6 +331,7 @@ function EmployeeTab({
                   onToggle={() => toggleGroup(g.employeeId)}
                   isSelected={isSelected}
                   toggleSelect={toggleSelect}
+                  quotationMap={quotationMap}
                 />
               )
             })}
@@ -355,6 +362,7 @@ function EmployeeGroupRow({
   onToggle,
   isSelected,
   toggleSelect,
+  quotationMap,
 }: {
   group: EmployeeSettlementGroup
   itemCount: number
@@ -362,6 +370,7 @@ function EmployeeGroupRow({
   onToggle: () => void
   isSelected: (type: SettlementItemType, id: string) => boolean
   toggleSelect: (type: SettlementItemType, id: string) => void
+  quotationMap: Map<string, string>
 }) {
   return (
     <>
@@ -456,7 +465,9 @@ function EmployeeGroupRow({
                       報帳
                     </span>
                     <span className="text-xs text-muted-foreground">
-                      {e.expense_type} — {e.accounting_subject || e.project_name || '-'}
+                      {e.expense_type} — {e.project_name ? (
+                        <>{quotationMap.get(e.project_name) && <span className="font-mono mr-1">{quotationMap.get(e.project_name)}</span>}{e.accounting_subject || e.project_name}</>
+                      ) : (e.accounting_subject || '-')}
                     </span>
                   </div>
                   <div className="text-xs text-muted-foreground/70 pl-6 mt-0.5">
@@ -536,6 +547,7 @@ function ExternalTab({
   onMarkPaid,
   onMarkUnpaid,
   isMarking,
+  quotationMap,
 }: {
   expenses: import('@/types/custom.types').AccountingExpense[]
   filter: string
@@ -548,6 +560,7 @@ function ExternalTab({
   onMarkPaid: () => void
   onMarkUnpaid: () => void
   isMarking: boolean
+  quotationMap: Map<string, string>
 }) {
   const externalTotal = expenses.reduce((s, e) => s + (e.total_amount || 0), 0)
 
@@ -628,7 +641,10 @@ function ExternalTab({
                       )}
                     </td>
                     <td className="px-3 py-3 max-w-40">
-                      <div className="text-muted-foreground truncate">{e.project_name || '-'}</div>
+                      <div className="text-muted-foreground truncate">
+                        {e.project_name && quotationMap.get(e.project_name) && <span className="text-xs font-mono mr-1.5">{quotationMap.get(e.project_name)}</span>}
+                        {e.project_name || '-'}
+                      </div>
                       {(e.invoice_number || extractNote(e.note)) && (
                         <div className="text-xs text-muted-foreground/70 mt-0.5 truncate">
                           {[
@@ -660,7 +676,7 @@ function ExternalTab({
 
 // ====== 收入 Tab ======
 
-function IncomeTab({ sales }: { sales: AccountingSale[] }) {
+function IncomeTab({ sales, quotationMap }: { sales: AccountingSale[]; quotationMap: Map<string, string> }) {
   const totals = useMemo(() => {
     let salesAmount = 0, taxAmount = 0, totalAmount = 0
     for (const s of sales) {
@@ -698,7 +714,10 @@ function IncomeTab({ sales }: { sales: AccountingSale[] }) {
             <tbody>
               {sales.map(s => (
                 <tr key={s.id} className="border-t border-border/50 hover:bg-accent">
-                  <td className="px-3 py-3 font-medium text-foreground">{s.project_name || '-'}</td>
+                  <td className="px-3 py-3 font-medium text-foreground">
+                    {s.project_name && quotationMap.get(s.project_name) && <span className="text-xs font-mono text-muted-foreground mr-1.5">{quotationMap.get(s.project_name)}</span>}
+                    {s.project_name || '-'}
+                  </td>
                   <td className="px-3 py-3 text-muted-foreground">{s.client_name || '-'}</td>
                   <td className="px-3 py-3 text-right tabular-nums">NT$ {fmt(s.sales_amount || 0)}</td>
                   <td className="px-3 py-3 text-right tabular-nums text-muted-foreground">NT$ {fmt(s.tax_amount || 0)}</td>
