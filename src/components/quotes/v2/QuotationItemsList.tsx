@@ -55,6 +55,8 @@ export function QuotationItemsList({ quotationId, onUpdate, readOnly = false, qu
     const [verificationItemId, setVerificationItemId] = useState<string | null>(null)
     const [verificationInvoice, setVerificationInvoice] = useState('')
     const [actionLoading, setActionLoading] = useState<Set<string>>(new Set())
+    const [rejectingItemId, setRejectingItemId] = useState<string | null>(null)
+    const [rejectionReason, setRejectionReason] = useState('')
 
     // 🆕 資料狀態
     const [kols, setKols] = useState<KolWithServices[]>([])
@@ -764,6 +766,30 @@ export function QuotationItemsList({ quotationId, onUpdate, readOnly = false, qu
         }
     }
 
+    // 駁回請款
+    const handleRejectPayment = async () => {
+        if (!rejectingItemId) return
+
+        setItemActionLoading(rejectingItemId, true)
+        try {
+            const { error } = await supabase.rpc('reject_quotation_item', {
+                p_item_id: rejectingItemId,
+                p_reason: rejectionReason.trim() || '未提供原因',
+            })
+
+            if (error) throw error
+
+            await fetchItems()
+            toast.success('已駁回請款')
+        } catch (error) {
+            toast.error('駁回失敗: ' + (error instanceof Error ? error.message : String(error)))
+        } finally {
+            setItemActionLoading(rejectingItemId, false)
+            setRejectingItemId(null)
+            setRejectionReason('')
+        }
+    }
+
     // 選項準備
     const categoryOptions = useMemo(() =>
         categories.map(c => ({ label: c.name, value: c.name })),
@@ -1067,18 +1093,30 @@ export function QuotationItemsList({ quotationId, onUpdate, readOnly = false, qu
                                             {status === 'approved' ? (
                                                 <CheckCircle2 className="h-4 w-4 text-success mx-auto" />
                                             ) : status === 'requested' ? (
-                                                <button
-                                                    onClick={() => handleApprovePayment(item)}
-                                                    disabled={isItemLoading}
-                                                    className="p-1 rounded hover:bg-accent transition-colors mx-auto flex items-center justify-center disabled:opacity-50"
-                                                    title="勾選審核通過"
-                                                >
-                                                    {isItemLoading ? (
-                                                        <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-                                                    ) : (
-                                                        <div className="h-4 w-4 border-2 border-muted-foreground/40 rounded" />
-                                                    )}
-                                                </button>
+                                                <div className="flex items-center justify-center gap-0.5">
+                                                    <button
+                                                        onClick={() => handleApprovePayment(item)}
+                                                        disabled={isItemLoading}
+                                                        className="p-1 rounded hover:bg-success/10 transition-colors disabled:opacity-50"
+                                                        title="核准"
+                                                    >
+                                                        {isItemLoading ? (
+                                                            <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                                                        ) : (
+                                                            <div className="h-4 w-4 border-2 border-muted-foreground/40 rounded" />
+                                                        )}
+                                                    </button>
+                                                    <button
+                                                        onClick={() => setRejectingItemId(item.id)}
+                                                        disabled={isItemLoading}
+                                                        className="p-0.5 rounded hover:bg-destructive/10 transition-colors disabled:opacity-50"
+                                                        title="駁回"
+                                                    >
+                                                        <XCircle className="h-3.5 w-3.5 text-destructive/70" />
+                                                    </button>
+                                                </div>
+                                            ) : status === 'rejected' ? (
+                                                <span className="text-[10px] text-destructive" title={item.rejection_reason || '已駁回'}>✗</span>
                                             ) : (
                                                 <span className="text-muted-foreground/30">—</span>
                                             )}
@@ -1178,6 +1216,33 @@ export function QuotationItemsList({ quotationId, onUpdate, readOnly = false, qu
                         </Button>
                         <Button onClick={handleSaveVerification}>
                             儲存
+                        </Button>
+                    </div>
+                </div>
+            </Modal>
+
+            {/* 駁回原因 Modal */}
+            <Modal
+                isOpen={!!rejectingItemId}
+                onClose={() => { setRejectingItemId(null); setRejectionReason('') }}
+                title="駁回請款"
+            >
+                <div className="space-y-4">
+                    <p className="text-sm text-muted-foreground">
+                        請輸入駁回原因，申請人可依據原因修改後重新送出請款。
+                    </p>
+                    <Textarea
+                        placeholder="駁回原因..."
+                        value={rejectionReason}
+                        onChange={(e) => setRejectionReason(e.target.value)}
+                        rows={3}
+                    />
+                    <div className="flex justify-end gap-2">
+                        <Button variant="outline" onClick={() => { setRejectingItemId(null); setRejectionReason('') }}>
+                            取消
+                        </Button>
+                        <Button variant="destructive" onClick={handleRejectPayment}>
+                            確認駁回
                         </Button>
                     </div>
                 </div>
