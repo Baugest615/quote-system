@@ -58,10 +58,10 @@ export function useProjects() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('projects')
-        .select('*')
+        .select('*, quotations:quotation_id(quote_number)')
         .order('created_at', { ascending: false })
       if (error) throw error
-      return data as Project[]
+      return data as (Project & { quotations?: { quote_number: string | null } | null })[]
     },
   })
 }

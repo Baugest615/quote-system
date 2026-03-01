@@ -45,13 +45,15 @@ type QuoteCategory = Database['public']['Tables']['quote_categories']['Row']
 type KolWithServices = Kol & { kol_services: (KolService & { service_types: ServiceType | null })[] }
 
 // ─── 欄位定義 ───────────────────────────────────────────────
+// 對齊明細表欄位順序：..., 小計, 發票號碼, 附件, 狀態, 檢核, 請款, 審核
 type ColumnKey =
   | 'checkbox' | 'quote_number' | 'project_name' | 'client_name'
   | 'quotation_status' | 'category' | 'kol_name' | 'service'
   | 'quantity' | 'price' | 'cost' | 'subtotal'
-  | 'payment_status' | 'operation' | 'invoice_number' | 'attachments' | 'verification'
+  | 'invoice_number' | 'attachments'
+  | 'payment_status' | 'verification' | 'payment_request' | 'approval'
 
-type FlatSortKey = Exclude<ColumnKey, 'checkbox' | 'operation' | 'attachments' | 'verification'>
+type FlatSortKey = Exclude<ColumnKey, 'checkbox' | 'attachments' | 'verification' | 'payment_request' | 'approval'>
 
 const COLUMN_DEFS: { key: ColumnKey; label: string; hideable: boolean }[] = [
   { key: 'checkbox', label: '選取', hideable: false },
@@ -66,11 +68,12 @@ const COLUMN_DEFS: { key: ColumnKey; label: string; hideable: boolean }[] = [
   { key: 'price', label: '單價', hideable: true },
   { key: 'cost', label: '成本', hideable: true },
   { key: 'subtotal', label: '小計', hideable: true },
-  { key: 'payment_status', label: '請款狀態', hideable: true },
-  { key: 'operation', label: '操作', hideable: true },
   { key: 'invoice_number', label: '發票號碼', hideable: true },
   { key: 'attachments', label: '附件', hideable: true },
+  { key: 'payment_status', label: '狀態', hideable: true },
   { key: 'verification', label: '檢核', hideable: true },
+  { key: 'payment_request', label: '請款', hideable: true },
+  { key: 'approval', label: '審核', hideable: true },
 ]
 
 // ─── 請款狀態 ───────────────────────────────────────────────
@@ -100,8 +103,14 @@ function isVerificationPassed(item: FlatQuotationItem): boolean {
   return hasAttachments || hasValidInvoice
 }
 
-function isItemLocked(item: FlatQuotationItem): boolean {
+// 資料欄位鎖定（類別、KOL、執行內容、數量、單價、成本）
+function isDataLocked(item: FlatQuotationItem): boolean {
   return !!item.approved_at || (item.quotations?.status === '已簽約' && !item.is_supplement)
+}
+
+// 付款流程鎖定（發票、附件、請款、審核）— 僅已核准才鎖
+function isPaymentLocked(item: FlatQuotationItem): boolean {
+  return !!item.approved_at
 }
 
 function getSortValue(item: FlatQuotationItem, key: FlatSortKey): string | number | null {
@@ -117,7 +126,7 @@ function getSortValue(item: FlatQuotationItem, key: FlatSortKey): string | numbe
     case 'price': return Number(item.price) || 0
     case 'cost': return Number(item.cost) || 0
     case 'subtotal': return (item.quantity || 0) * (Number(item.price) || 0)
-    case 'payment_status': return getPaymentStatus(item)
+    case 'payment_status': return PAYMENT_STATUS_CONFIG[getPaymentStatus(item)].label
     case 'invoice_number': return item.invoice_number ?? null
   }
 }
@@ -405,7 +414,7 @@ export function QuotationItemsFlatView({ onClose }: QuotationItemsFlatViewProps)
   }
 
   const toggleSelectAll = () => {
-    const pageItemIds = paginatedItems.filter(i => !isItemLocked(i)).map(i => i.id)
+    const pageItemIds = paginatedItems.filter(i => !isDataLocked(i)).map(i => i.id)
     const allSelected = pageItemIds.every(id => selectedIds.has(id))
     if (allSelected) {
       setSelectedIds(prev => {
@@ -422,7 +431,7 @@ export function QuotationItemsFlatView({ onClose }: QuotationItemsFlatViewProps)
     }
   }
 
-  const pageItemIds = paginatedItems.filter(i => !isItemLocked(i)).map(i => i.id)
+  const pageItemIds = paginatedItems.filter(i => !isDataLocked(i)).map(i => i.id)
   const allPageSelected = pageItemIds.length > 0 && pageItemIds.every(id => selectedIds.has(id))
 
   // ─── 欄位更新 ────────────────────────────────────────────
@@ -718,21 +727,6 @@ export function QuotationItemsFlatView({ onClose }: QuotationItemsFlatViewProps)
                     <SortableHeader<FlatSortKey> label="小計" sortKey="subtotal" sortState={sortState} onToggleSort={toggleSort} className="justify-end" />
                   </th>
                 )}
-                {/* ── 請款狀態 ── */}
-                {isColVisible('payment_status') && (
-                  <th className="w-20 p-2 sticky top-0 z-20 bg-secondary/50">
-                    <SortableHeader<FlatSortKey>
-                      label="請款"
-                      sortKey="payment_status"
-                      sortState={sortState}
-                      onToggleSort={toggleSort}
-                    />
-                  </th>
-                )}
-                {/* ── 操作 ── */}
-                {isColVisible('operation') && (
-                  <th className="w-24 p-2 text-center sticky top-0 z-20 bg-secondary/50">操作</th>
-                )}
                 {/* ── 發票號碼 ── */}
                 {isColVisible('invoice_number') && (
                   <th className="w-28 p-2 sticky top-0 z-20 bg-secondary/50">
@@ -749,16 +743,37 @@ export function QuotationItemsFlatView({ onClose }: QuotationItemsFlatViewProps)
                 {isColVisible('attachments') && (
                   <th className="w-16 p-2 text-center sticky top-0 z-20 bg-secondary/50">附件</th>
                 )}
+                {/* ── 狀態（請款狀態 badge） ── */}
+                {isColVisible('payment_status') && (
+                  <th className="w-20 p-2 sticky top-0 z-20 bg-secondary/50">
+                    <SortableHeader<FlatSortKey>
+                      label="狀態"
+                      sortKey="payment_status"
+                      sortState={sortState}
+                      onToggleSort={toggleSort}
+                      filterContent={<ColumnFilterPopover filterType="select" options={['待請款', '待審核', '已請款', '被駁回']} value={getFilter('payment_status')} onChange={(v) => setFilterByKey('payment_status', v)} />}
+                    />
+                  </th>
+                )}
                 {/* ── 檢核 ── */}
                 {isColVisible('verification') && (
                   <th className="w-12 p-2 text-center sticky top-0 z-20 bg-secondary/50">檢核</th>
+                )}
+                {/* ── 請款 ── */}
+                {isColVisible('payment_request') && (
+                  <th className="w-16 p-2 text-center sticky top-0 z-20 bg-secondary/50">請款</th>
+                )}
+                {/* ── 審核（Editor+ only） ── */}
+                {isColVisible('approval') && isEditor && (
+                  <th className="w-20 p-2 text-center sticky top-0 z-20 bg-secondary/50">審核</th>
                 )}
               </tr>
             </thead>
 
             <tbody>
               {paginatedItems.map((item) => {
-                const locked = isItemLocked(item)
+                const locked = isDataLocked(item)
+                const paymentLocked = isPaymentLocked(item)
                 const paymentStatus = getPaymentStatus(item)
                 const statusConfig = PAYMENT_STATUS_CONFIG[paymentStatus]
                 const verified = isVerificationPassed(item)
@@ -934,80 +949,6 @@ export function QuotationItemsFlatView({ onClose }: QuotationItemsFlatViewProps)
                       </td>
                     )}
 
-                    {/* ── 請款狀態 (唯讀) ── */}
-                    {isColVisible('payment_status') && (
-                      <td className="w-20 p-2">
-                        <span
-                          className={cn('text-xs px-1.5 py-0.5 rounded-full', statusConfig.className)}
-                          title={paymentStatus === 'rejected' ? (item.rejection_reason || '已駁回') : undefined}
-                        >
-                          {statusConfig.label}
-                        </span>
-                      </td>
-                    )}
-
-                    {/* ── 操作 ── */}
-                    {isColVisible('operation') && (
-                      <td className="w-24 p-2 text-center">
-                        {paymentStatus === 'approved' ? (
-                          <CheckCircle2 className="h-4 w-4 text-success mx-auto" />
-                        ) : paymentStatus === 'requested' ? (
-                          isEditor ? (
-                            <div className="flex items-center justify-center gap-1">
-                              <button
-                                onClick={() => handleApprovePayment(item)}
-                                disabled={isActionLoading}
-                                className="p-1 rounded hover:bg-success/10 transition-colors disabled:opacity-50"
-                                title="核准"
-                              >
-                                {isActionLoading ? (
-                                  <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-                                ) : (
-                                  <div className="h-4 w-4 border-2 border-muted-foreground/40 rounded" />
-                                )}
-                              </button>
-                              <button
-                                onClick={() => setRejectingItemId(item.id)}
-                                disabled={isActionLoading}
-                                className="p-0.5 rounded hover:bg-destructive/10 transition-colors disabled:opacity-50"
-                                title="駁回"
-                              >
-                                <XCircle className="h-3.5 w-3.5 text-destructive/70" />
-                              </button>
-                            </div>
-                          ) : (
-                            <span className="text-xs text-muted-foreground">等待審核</span>
-                          )
-                        ) : paymentStatus === 'rejected' ? (
-                          <button
-                            onClick={() => handleRequestPayment(item)}
-                            disabled={isActionLoading || locked}
-                            className="text-xs text-primary hover:underline disabled:opacity-50"
-                            title={`駁回原因：${item.rejection_reason || '未提供'}`}
-                          >
-                            {isActionLoading ? (
-                              <Loader2 className="h-3.5 w-3.5 animate-spin mx-auto" />
-                            ) : '重新請款'}
-                          </button>
-                        ) : paymentStatus === 'pending' ? (
-                          <button
-                            onClick={() => handleRequestPayment(item)}
-                            disabled={isActionLoading || locked}
-                            className="p-1 rounded hover:bg-accent transition-colors mx-auto flex items-center justify-center disabled:opacity-50"
-                            title="送出請款"
-                          >
-                            {isActionLoading ? (
-                              <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-                            ) : (
-                              <div className="h-4 w-4 border-2 border-muted-foreground/40 rounded" />
-                            )}
-                          </button>
-                        ) : (
-                          <span className="text-muted-foreground/30">—</span>
-                        )}
-                      </td>
-                    )}
-
                     {/* ── 發票號碼 (可編輯) ── */}
                     {isColVisible('invoice_number') && (
                       <td className="w-28 p-1">
@@ -1046,13 +987,99 @@ export function QuotationItemsFlatView({ onClose }: QuotationItemsFlatViewProps)
                       </td>
                     )}
 
-                    {/* ── 檢核狀態 ── */}
+                    {/* ── 狀態（請款狀態 badge） ── */}
+                    {isColVisible('payment_status') && (
+                      <td className="w-20 p-2">
+                        <span
+                          className={cn('text-xs px-1.5 py-0.5 rounded-full', statusConfig.className)}
+                          title={paymentStatus === 'rejected' ? (item.rejection_reason || '已駁回') : undefined}
+                        >
+                          {statusConfig.label}
+                        </span>
+                      </td>
+                    )}
+
+                    {/* ── 檢核 ── */}
                     {isColVisible('verification') && (
                       <td className="w-12 p-2 text-center">
                         {verified ? (
                           <CheckCircle2 className="h-4 w-4 text-success mx-auto" />
                         ) : (
                           <AlertTriangle className="h-4 w-4 text-muted-foreground/40 mx-auto" />
+                        )}
+                      </td>
+                    )}
+
+                    {/* ── 請款 ── */}
+                    {isColVisible('payment_request') && (
+                      <td className="w-16 p-2 text-center">
+                        {paymentStatus === 'approved' ? (
+                          <CheckCircle2 className="h-4 w-4 text-success mx-auto" />
+                        ) : paymentStatus === 'requested' ? (
+                          <span title="已送出，待審核"><CheckCircle2 className="h-4 w-4 text-warning mx-auto" /></span>
+                        ) : paymentStatus === 'rejected' ? (
+                          <button
+                            onClick={() => handleRequestPayment(item)}
+                            disabled={isActionLoading || paymentLocked}
+                            className="p-1 rounded hover:bg-accent transition-colors mx-auto flex items-center justify-center disabled:opacity-50"
+                            title={`駁回原因：${item.rejection_reason || '未提供'}（點擊重新請款）`}
+                          >
+                            {isActionLoading ? (
+                              <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                            ) : (
+                              <XCircle className="h-4 w-4 text-destructive/70" />
+                            )}
+                          </button>
+                        ) : (
+                          /* pending */
+                          <button
+                            onClick={() => handleRequestPayment(item)}
+                            disabled={isActionLoading || paymentLocked}
+                            className="p-1 rounded hover:bg-accent transition-colors mx-auto flex items-center justify-center disabled:opacity-50"
+                            title="勾選送出請款"
+                          >
+                            {isActionLoading ? (
+                              <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                            ) : (
+                              <div className="h-4 w-4 border-2 border-muted-foreground/40 rounded" />
+                            )}
+                          </button>
+                        )}
+                      </td>
+                    )}
+
+                    {/* ── 審核（Editor+ only） ── */}
+                    {isColVisible('approval') && isEditor && (
+                      <td className="w-20 p-2 text-center">
+                        {paymentStatus === 'approved' ? (
+                          <CheckCircle2 className="h-4 w-4 text-success mx-auto" />
+                        ) : paymentStatus === 'requested' ? (
+                          <div className="flex items-center justify-center gap-0.5">
+                            <button
+                              onClick={() => handleApprovePayment(item)}
+                              disabled={isActionLoading}
+                              className="p-1 rounded hover:bg-success/10 transition-colors disabled:opacity-50"
+                              title="核准"
+                            >
+                              {isActionLoading ? (
+                                <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                              ) : (
+                                <div className="h-4 w-4 border-2 border-muted-foreground/40 rounded" />
+                              )}
+                            </button>
+                            <button
+                              onClick={() => setRejectingItemId(item.id)}
+                              disabled={isActionLoading}
+                              className="p-0.5 rounded hover:bg-destructive/10 transition-colors disabled:opacity-50"
+                              title="駁回"
+                            >
+                              <XCircle className="h-3.5 w-3.5 text-destructive/70" />
+                            </button>
+                          </div>
+                        ) : paymentStatus === 'rejected' ? (
+                          <span className="text-[10px] text-destructive" title={item.rejection_reason || '已駁回'}>✗</span>
+                        ) : (
+                          <span className="text-muted-foreground/30">—</span>
                         )}
                       </td>
                     )}
@@ -1121,7 +1148,7 @@ export function QuotationItemsFlatView({ onClose }: QuotationItemsFlatViewProps)
               itemId={attachmentItem.id}
               currentAttachments={(attachmentItem.attachments || []) as unknown as PaymentAttachment[]}
               onUpdate={handleAttachmentUpdate}
-              readOnly={isItemLocked(attachmentItem)}
+              readOnly={isPaymentLocked(attachmentItem)}
             />
           </div>
         </Modal>

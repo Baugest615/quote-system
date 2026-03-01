@@ -8,6 +8,7 @@ import AccountingModal from '@/components/accounting/AccountingModal'
 import { SearchableSelect } from '@/components/ui/SearchableSelect'
 import { type ExpenseClaim } from '@/types/custom.types'
 import { useExpenseDefaults } from '@/hooks/useExpenseDefaults'
+import { useQuotationOptions } from '@/hooks/useQuotationOptions'
 import { MONTH_OPTIONS } from '@/lib/constants'
 
 const schema = z.object({
@@ -17,6 +18,7 @@ const schema = z.object({
   accounting_subject: z.string().optional(),
   vendor_name: z.string().optional(),
   project_name: z.string().optional(),
+  quotation_id: z.string().nullable().optional(),
   amount: z.coerce.number().min(0, '金額不能為負'),
   tax_amount: z.coerce.number(),
   total_amount: z.coerce.number(),
@@ -33,7 +35,7 @@ interface ExpenseClaimModalProps {
   onSave: (data: ExpenseClaimFormData, id?: string) => Promise<void>
   claim?: ExpenseClaim | null
   year: number
-  projectNames: string[]
+  projectNames?: string[]  // deprecated, kept for backward compat
 }
 
 export default function ExpenseClaimModal({
@@ -42,9 +44,9 @@ export default function ExpenseClaimModal({
   onSave,
   claim,
   year,
-  projectNames,
 }: ExpenseClaimModalProps) {
   const { expenseTypeNames, accountingSubjectNames, defaultSubjectsMap } = useExpenseDefaults()
+  const { options: quotationOptions } = useQuotationOptions()
   const [saving, setSaving] = useState(false)
 
   const {
@@ -64,6 +66,7 @@ export default function ExpenseClaimModal({
       accounting_subject: '',
       vendor_name: '',
       project_name: '',
+      quotation_id: null,
       amount: 0,
       tax_amount: 0,
       total_amount: 0,
@@ -84,6 +87,7 @@ export default function ExpenseClaimModal({
         accounting_subject: claim.accounting_subject || '',
         vendor_name: claim.vendor_name || '',
         project_name: claim.project_name || '',
+        quotation_id: claim.quotation_id || null,
         amount: claim.amount || 0,
         tax_amount: claim.tax_amount || 0,
         total_amount: claim.total_amount || 0,
@@ -99,6 +103,7 @@ export default function ExpenseClaimModal({
         accounting_subject: '',
         vendor_name: '',
         project_name: '',
+        quotation_id: null,
         amount: 0,
         tax_amount: 0,
         total_amount: 0,
@@ -142,12 +147,6 @@ export default function ExpenseClaimModal({
     setValue('tax_amount', tax)
     setValue('total_amount', total)
   }, [watchedAmount, watchedInvoiceNumber, setValue])
-
-  // 專案名稱選項
-  const projectNameOptions = useMemo(
-    () => projectNames.map(name => ({ label: name, value: name })),
-    [projectNames]
-  )
 
   // 月份選項
   const monthOptions = useMemo(
@@ -272,14 +271,17 @@ export default function ExpenseClaimModal({
             <div>
               <label className={labelClass}>專案名稱</label>
               <Controller
-                name="project_name"
+                name="quotation_id"
                 control={control}
                 render={({ field }) => (
                   <SearchableSelect
                     value={field.value || null}
-                    onChange={(val) => field.onChange(val)}
-                    options={projectNameOptions}
-                    placeholder="搜尋專案名稱..."
+                    onChange={(val, data) => {
+                      field.onChange(val || null)
+                      setValue('project_name', data?.project_name ?? '')
+                    }}
+                    options={quotationOptions}
+                    placeholder="搜尋編號或專案名稱..."
                     clearable
                   />
                 )}

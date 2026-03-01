@@ -29,6 +29,7 @@ import { ModuleErrorBoundary } from '@/components/ModuleErrorBoundary'
 import { useConfirm } from '@/components/ui/ConfirmDialog'
 
 type TabType = 'project' | 'personal'
+type ExpenseClaimWithQuotation = ExpenseClaim & { quotations?: { quote_number: string | null } | null }
 
 // --- 檔案檢視 Modal ---
 const FileViewerModal = ({ isOpen, onClose, request }: {
@@ -131,6 +132,7 @@ export default function PaymentRequestsPage() {
           *,
           quotations:quotation_id (
             project_name,
+            quote_number,
             client_id,
             clients:client_id (name)
           ),
@@ -161,6 +163,7 @@ export default function PaymentRequestsPage() {
         payment_request_id: req.id,
         quotations: {
           project_name: quotation?.project_name || '',
+          quote_number: quotation?.quote_number || null,
           client_id: quotation?.client_id,
           clients: { name: client?.name || '' }
         },
@@ -291,11 +294,11 @@ export default function PaymentRequestsPage() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('expense_claims')
-        .select('*')
+        .select('*, quotations:quotation_id(quote_number)')
         .eq('status', 'submitted')
         .order('submitted_at', { ascending: true })
       if (error) throw error
-      return (data || []) as ExpenseClaim[]
+      return (data || []) as (ExpenseClaim & { quotations?: { quote_number: string | null } | null })[]
     },
     enabled: !permLoading && hasAccess,
   })
@@ -822,7 +825,10 @@ export default function PaymentRequestsPage() {
                       <td className="px-4 py-3 text-sm">{claim.expense_type}</td>
                       <td className="px-4 py-3 text-sm font-medium">{claim.vendor_name || '-'}</td>
                       <td className="px-4 py-3 text-sm text-muted-foreground max-w-32">
-                        <div className="truncate">{claim.project_name || '-'}</div>
+                        <div className="truncate">
+                          {(claim as ExpenseClaimWithQuotation).quotations?.quote_number && <span className="text-xs font-mono text-muted-foreground mr-1.5">{(claim as ExpenseClaimWithQuotation).quotations?.quote_number}</span>}
+                          {claim.project_name || '-'}
+                        </div>
                         {claim.note && (
                           <p className="text-[10px] text-muted-foreground/60 mt-0.5 truncate" title={claim.note}>
                             {claim.note}

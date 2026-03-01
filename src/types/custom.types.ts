@@ -472,6 +472,7 @@ export interface ExpenseClaim {
   attachment_file_path: string | null
   payment_status: PaymentStatus | null
   paid_at: string | null
+  quotation_id: string | null
   created_by: string | null
   created_at: string
   updated_at: string

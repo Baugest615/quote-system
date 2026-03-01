@@ -15,6 +15,7 @@ export interface SpreadsheetColumn<T> {
   autoCalcSource?: boolean  // triggers onAutoCalc when changed
   autoCalcTrigger?: boolean // also triggers onAutoCalc (secondary trigger)
   suggestions?: string[]    // for type='autocomplete'
+  suggestionOptions?: { label: string; value: string }[]  // autocomplete with separate label/value
 }
 
 export type RowStatus = 'clean' | 'modified' | 'new' | 'deleted'

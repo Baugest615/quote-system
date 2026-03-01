@@ -125,7 +125,10 @@ export function RequestItemRow({
                 {/* 專案與申請資訊 */}
                 <td className="px-4 py-4 align-top">
                     <div className="flex flex-col space-y-1">
-                        <span className="font-medium text-foreground">{item.quotations?.project_name || '未命名專案'}</span>
+                        <span className="font-medium text-foreground">
+                            {item.quotations?.quote_number && <span className="text-xs font-mono text-muted-foreground mr-1.5">{item.quotations.quote_number}</span>}
+                            {item.quotations?.project_name || '未命名專案'}
+                        </span>
                         <span className="text-xs text-muted-foreground">
                             申請日期: {new Date(item.request_date || '').toLocaleDateString('zh-TW')}
                         </span>

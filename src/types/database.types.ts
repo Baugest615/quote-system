@@ -621,6 +621,7 @@ export type Database = {
           payment_status: string | null
           payment_target_type: string | null
           project_name: string | null
+          quotation_id: string | null
           rejected_at: string | null
           rejected_by: string | null
           rejection_reason: string | null
@@ -653,6 +654,7 @@ export type Database = {
           payment_status?: string | null
           payment_target_type?: string | null
           project_name?: string | null
+          quotation_id?: string | null
           rejected_at?: string | null
           rejected_by?: string | null
           rejection_reason?: string | null
@@ -685,6 +687,7 @@ export type Database = {
           payment_status?: string | null
           payment_target_type?: string | null
           project_name?: string | null
+          quotation_id?: string | null
           rejected_at?: string | null
           rejected_by?: string | null
           rejection_reason?: string | null
@@ -700,6 +703,13 @@ export type Database = {
           year?: number
         }
         Relationships: [
+          {
+            foreignKeyName: "expense_claims_quotation_id_fkey"
+            columns: ["quotation_id"]
+            isOneToOne: false
+            referencedRelation: "quotations"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "expense_claims_submitted_by_profiles_fkey"
             columns: ["submitted_by"]

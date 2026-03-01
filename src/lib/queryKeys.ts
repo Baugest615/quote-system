@@ -44,6 +44,7 @@ export const queryKeys = {
   expenseClaims: (year: number) => ['expense-claims', year] as const,
   expenseClaimsPending: ['expense-claims-pending'] as const,
   projectNames: ['project-names'] as const,
+  quotationOptions: ['quotation-options'] as const,
 
   // 使用者管理
   userManagement: ['user-management'] as const,

@@ -6,6 +6,8 @@ import {
   CheckCircle2, Loader2, Pencil, Trash2,
 } from 'lucide-react'
 import type { ExpenseClaim } from '@/types/custom.types'
+
+type ExpenseClaimWithQuotation = ExpenseClaim & { quotations?: { quote_number: string | null } | null }
 import {
   CLAIM_STATUS_LABELS, CLAIM_STATUS_COLORS,
   PAYMENT_STATUS_LABELS, PAYMENT_STATUS_COLORS,
@@ -22,7 +24,7 @@ interface ClaimGroup {
   date: string           // YYYY-MM-DD
   displayDate: string    // "2月28日"
   submitterName?: string
-  claims: ExpenseClaim[]
+  claims: ExpenseClaimWithQuotation[]
   totalAmount: number
   draftCount: number
   submittedCount: number
@@ -30,10 +32,10 @@ interface ClaimGroup {
 }
 
 interface ExpenseClaimGroupsProps {
-  claims: ExpenseClaim[]
+  claims: ExpenseClaimWithQuotation[]
   isEditor: boolean
   nameMap: Map<string, string>
-  onEdit: (claim: ExpenseClaim) => void
+  onEdit: (claim: ExpenseClaimWithQuotation) => void
   onDelete: (id: string) => void
   onSubmit: (ids: string[]) => void
   onApprove: (claimId: string) => void
@@ -49,7 +51,7 @@ function formatDate(dateStr: string): string {
 }
 
 function groupClaims(
-  claims: ExpenseClaim[],
+  claims: ExpenseClaimWithQuotation[],
   isEditor: boolean,
   nameMap: Map<string, string>
 ): ClaimGroup[] {
@@ -325,10 +327,10 @@ function ClaimRow({
   onApprove,
   onRejectOpen,
 }: {
-  claim: ExpenseClaim
+  claim: ExpenseClaimWithQuotation
   isEditor: boolean
   isLoading: boolean
-  onEdit: (claim: ExpenseClaim) => void
+  onEdit: (claim: ExpenseClaimWithQuotation) => void
   onDelete: (id: string) => void
   onSubmit: (ids: string[]) => void
   onApprove: (claimId: string) => void
@@ -375,6 +377,7 @@ function ClaimRow({
       {/* 專案名稱 */}
       <td className="px-3 py-2.5 text-muted-foreground max-w-32">
         <div className="truncate" title={claim.project_name || ''}>
+          {claim.quotations?.quote_number && <span className="text-xs font-mono text-muted-foreground mr-1.5">{claim.quotations.quote_number}</span>}
           {claim.project_name || '—'}
         </div>
       </td>

@@ -10,6 +10,7 @@ import AccountingLoadingGuard from '@/components/accounting/AccountingLoadingGua
 import { EmptyState } from '@/components/ui/EmptyState'
 import Link from 'next/link'
 import { CURRENT_YEAR } from '@/lib/constants'
+import { useQuotationOptions } from '@/hooks/useQuotationOptions'
 
 interface ProjectSummary {
   project_name: string
@@ -24,6 +25,7 @@ interface ProjectSummary {
 export default function AccountingProjectsPage() {
   const { loading: permLoading, hasRole } = usePermission()
   const hasAccess = hasRole('Editor')
+  const { quotationMap } = useQuotationOptions()
   const [year, setYear] = useState(CURRENT_YEAR)
   const [search, setSearch] = useState('')
   const [sortBy, setSortBy] = useState<keyof Pick<ProjectSummary, 'total_sales' | 'profit' | 'margin'>>('total_sales')
@@ -138,7 +140,10 @@ export default function AccountingProjectsPage() {
                   <tr><td colSpan={6}><EmptyState type="no-data" icon={BarChart3} title="尚無專案損益資料" description="有銷售或支出記錄後將自動顯示" /></td></tr>
                 ) : filtered.map(p => (
                   <tr key={p.project_name} className="border-t border-border/50 hover:bg-accent">
-                    <td className="px-4 py-3 font-medium text-foreground max-w-64 truncate">{p.project_name}</td>
+                    <td className="px-4 py-3 font-medium text-foreground max-w-64 truncate">
+                      {quotationMap.get(p.project_name) && <span className="text-xs font-mono text-muted-foreground mr-1.5">{quotationMap.get(p.project_name)}</span>}
+                      {p.project_name}
+                    </td>
                     <td className="px-4 py-3 text-right text-chart-4">{p.total_sales > 0 ? `NT$ ${fmt(p.total_sales)}` : '-'}</td>
                     <td className="px-4 py-3 text-right text-destructive">{p.total_expenses > 0 ? `NT$ ${fmt(p.total_expenses)}` : '-'}</td>
                     <td className={`px-4 py-3 text-right font-semibold ${p.profit >= 0 ? 'text-chart-1' : 'text-warning'}`}>

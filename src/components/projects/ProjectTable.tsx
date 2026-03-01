@@ -18,15 +18,17 @@ import { useProjectNotesCounts } from '@/hooks/useProjectNotes'
 import { useTableSort } from '@/hooks/useTableSort'
 import { SortableHeader } from '@/components/ui/SortableHeader'
 import type { Project, ProjectStatus } from '@/types/custom.types'
+
+type ProjectWithQuotation = Project & { quotations?: { quote_number: string | null } | null }
 import { cn } from '@/lib/utils'
 
 type ProjectSortKey = 'client_name' | 'project_name' | 'project_type' | 'budget_with_tax'
 
 interface ProjectTableProps {
-  projects: Project[]
+  projects: ProjectWithQuotation[]
   activeTab: ProjectStatus
-  onEdit: (project: Project) => void
-  onDelete: (project: Project) => void
+  onEdit: (project: ProjectWithQuotation) => void
+  onDelete: (project: ProjectWithQuotation) => void
   onStatusChange: (projectId: string, newStatus: ProjectStatus) => void
   isAdmin: boolean
   currentUserId?: string
@@ -157,7 +159,10 @@ export function ProjectTable({
                   <TableCell className="font-medium text-sm">{project.client_name}</TableCell>
                   <TableCell className="text-sm">
                     <div className="flex items-center gap-2">
-                      <span>{project.project_name}</span>
+                      <span>
+                        {project.quotations?.quote_number && <span className="text-xs font-mono text-muted-foreground mr-1.5">{project.quotations.quote_number}</span>}
+                        {project.project_name}
+                      </span>
                       {notesCount > 0 && (
                         <span className="inline-flex items-center gap-0.5 text-muted-foreground/50">
                           <MessageSquare className="h-3 w-3" />

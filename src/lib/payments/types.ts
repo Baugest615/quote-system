@@ -20,6 +20,7 @@ export interface BasePaymentItem {
     quotation_id: string | null
     quotations: {
         project_name: string
+        quote_number: string | null
         client_id: string | null
         clients: { name: string } | null
         created_at: string | null
