@@ -153,8 +153,15 @@ export default function AccountingExpensesPage() {
     const errors: RowError[] = []
     let successCount = 0
 
+    // 自動根據匯款日設定付款狀態
+    const autoPaymentStatus = (row: Partial<AccountingExpense>) => ({
+      ...row,
+      payment_status: row.payment_date ? 'paid' : (row.payment_status || 'unpaid'),
+      paid_at: row.payment_date && !row.paid_at ? new Date().toISOString() : row.paid_at,
+    })
+
     if (toInsert.length > 0) {
-      const payload = toInsert.map(r => ({ ...r, year, created_by: user?.id }))
+      const payload = toInsert.map(r => autoPaymentStatus({ ...r, year, created_by: user?.id }))
       const { error } = await supabase.from('accounting_expenses').insert(payload)
       if (error) toInsert.forEach((_, i) => errors.push({ tempId: `insert-${i}`, message: error.message }))
       else successCount += toInsert.length
@@ -163,7 +170,8 @@ export default function AccountingExpensesPage() {
     for (const { id, data } of toUpdate) {
       // 移除關聯物件與自動管理欄位，避免 PostgREST 400
       const { payment_requests: _pr, id: _id, created_at: _ca, updated_at: _ua, ...updateData } = data as Record<string, unknown>
-      const { error } = await supabase.from('accounting_expenses').update({ ...updateData, created_by: user?.id }).eq('id', id)
+      const patched = autoPaymentStatus(updateData as Partial<AccountingExpense>)
+      const { error } = await supabase.from('accounting_expenses').update({ ...patched, created_by: user?.id }).eq('id', id)
       if (error) errors.push({ tempId: id, message: error.message })
       else successCount++
     }
@@ -266,8 +274,8 @@ export default function AccountingExpensesPage() {
         invoice_number: form.invoice_number,
         project_name: form.project_name,
         note: form.note,
-        payment_status: form.payment_status,
-        paid_at: form.paid_at || null,
+        payment_status: form.payment_date ? 'paid' : (form.payment_status || 'unpaid'),
+        paid_at: form.payment_date ? (form.paid_at || new Date().toISOString()) : null,
       }
       if (editing) {
         const { error } = await supabase.from('accounting_expenses').update(payload).eq('id', editing.id)
@@ -698,7 +706,12 @@ export default function AccountingExpensesPage() {
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-medium text-muted-foreground mb-1">匯款日</label>
+                  <label className="block text-xs font-medium text-muted-foreground mb-1">
+                    匯款日
+                    {form.payment_date
+                      ? <span className="ml-2 text-green-500 text-[10px]">已付</span>
+                      : <span className="ml-2 text-yellow-500 text-[10px]">未付</span>}
+                  </label>
                   <input type="date" value={form.payment_date || ''} onChange={(e) => setForm(f => ({ ...f, payment_date: e.target.value || null }))}
                     className="w-full border border-border rounded-lg px-3 py-2 text-sm bg-card focus:outline-none focus:ring-2 focus:ring-ring" />
                 </div>
