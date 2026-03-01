@@ -23,6 +23,7 @@
 - ✅ DB migrations：expense_claims 新增 quotation_id FK
 - ✅ 請款智慧預設支出種類（依 KOL 銀行帳戶類型：無KOL→專案費用、公司戶→外包服務、個人戶→勞務報酬）
 - ✅ 進項管理付款狀態自動標記（填入匯款日→自動已付、清空→自動未付）
+- ✅ 進項/銷項管理表格標題排序與篩選（SortableHeader + ColumnFilterPopover）
 - ✅ `npx tsc --noEmit` 通過，零型別錯誤
 
 ## 待辦事項
