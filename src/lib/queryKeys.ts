@@ -61,4 +61,5 @@ export const queryKeys = {
   insuranceRates: ['insurance-rates'] as const,
   withholdingSettings: ['withholding-settings'] as const,
   withholdingSettlements: ['withholding-settlements'] as const,
+  insuranceSettings: ['insurance-settings'] as const,
 } as const

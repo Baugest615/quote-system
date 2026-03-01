@@ -180,7 +180,7 @@ export function groupItemsByRemittance(items: PaymentConfirmationItem[]): import
 
             if (!remittanceMap.has(groupKey)) {
                 remittanceMap.set(groupKey, {
-                    remittanceName: isExternalVendor ? vendorName : `${displayName}（個人報帳）`,
+                    remittanceName: isExternalVendor ? vendorName : displayName,
                     bankName: '',
                     branchName: '',
                     accountNumber: '',
@@ -197,7 +197,50 @@ export function groupItemsByRemittance(items: PaymentConfirmationItem[]): import
             return
         }
 
-        // 專案請款項目：以匯款戶名分組（原有邏輯）
+        // 報價單直接請款項目（新流程）
+        if (item.source_type === 'quotation' || item.quotation_item_id) {
+            const qi = item.quotation_items
+
+            // qi 可能為 null（fullSelect 查詢 fallback 到 baseSelect 時）
+            // 使用 _at_confirmation 快照欄位作為 fallback
+            const kol = qi?.kols
+            const bankInfo = (kol?.bank_info || {}) as KolBankInfo
+
+            let remittanceName = qi?.remittance_name?.trim()
+            if (!remittanceName || remittanceName === '未知匯款戶名' || remittanceName === 'Unknown Remittance Name') {
+                remittanceName = undefined
+            }
+            if (!remittanceName && kol) {
+                if (bankInfo.bankType === 'company') {
+                    remittanceName = bankInfo.companyAccountName || kol.name
+                } else {
+                    remittanceName = bankInfo.personalAccountName || kol.real_name || kol.name
+                }
+            }
+            // 最終 fallback：使用 KOL 名稱快照
+            remittanceName = remittanceName || item.kol_name_at_confirmation || '未知匯款戶名'
+            const groupKey = remittanceName
+
+            if (!remittanceMap.has(groupKey)) {
+                remittanceMap.set(groupKey, {
+                    remittanceName,
+                    bankName: bankInfo.bankName || '',
+                    branchName: bankInfo.branchName || '',
+                    accountNumber: bankInfo.accountNumber || '',
+                    items: [],
+                    totalAmount: 0,
+                    isCompanyAccount: bankInfo.bankType === 'company',
+                    isWithholdingExempt: (kol as Record<string, unknown>)?.withholding_exempt === true,
+                })
+            }
+
+            const group = remittanceMap.get(groupKey)!
+            group.items.push(item)
+            group.totalAmount += item.amount_at_confirmation || qi?.cost_amount || qi?.cost || 0
+            return
+        }
+
+        // 專案請款項目：以匯款戶名分組（舊流程）
         const paymentRequest = item.payment_requests
         if (!paymentRequest) return
 

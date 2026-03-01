@@ -118,11 +118,18 @@ export interface PaymentConfirmationItem {
     payment_confirmation_id: string
     payment_request_id: string | null
     expense_claim_id: string | null
-    source_type: 'project' | 'personal'
+    quotation_item_id: string | null
+    source_type: 'project' | 'personal' | 'quotation'
     amount: number
     created_at: string
 
-    // 關聯資料（專案請款）
+    // snapshot 欄位（確認時快照）
+    amount_at_confirmation?: number
+    kol_name_at_confirmation?: string
+    project_name_at_confirmation?: string
+    service_at_confirmation?: string
+
+    // 關聯資料（專案請款，source_type='project'）
     payment_requests: {
         quotation_item_id: string
         cost_amount: number
@@ -132,7 +139,7 @@ export interface PaymentConfirmationItem {
         quotation_items: BasePaymentItem
     } | null
 
-    // 關聯資料（個人報帳）
+    // 關聯資料（個人報帳，source_type='personal'）
     expense_claims: {
         id: string
         expense_type: string
@@ -147,6 +154,15 @@ export interface PaymentConfirmationItem {
         submitted_by: string | null
         submitter: { full_name: string | null } | null
     } | null
+
+    // 關聯資料（報價單直接請款，source_type='quotation'）
+    quotation_items: (BasePaymentItem & {
+        cost_amount: number | null
+        invoice_number: string | null
+        merge_group_id: string | null
+        merge_color: string | null
+        withholding_exempt?: boolean
+    }) | null
 }
 
 export interface RemittanceSettings {
@@ -233,6 +249,8 @@ export interface MergedRemittanceGroup {
     isWithholdingExempt: boolean
     isPersonalClaim: boolean
     items: PaymentConfirmationItem[]
+    expenseItems: import('@/types/custom.types').AccountingExpense[]
+    payrollItems: import('@/types/custom.types').AccountingPayroll[]
     confirmationBreakdowns: ConfirmationBreakdown[]
     totalAmount: number
     totalTax: number

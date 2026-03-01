@@ -1,24 +1,12 @@
--- ============================================================
--- 修復：個人報帳中外部廠商的匯款分組邏輯
---
--- 問題：
---   當陳亭羽提交黃智宏的外包服務報帳時，匯款分組以「提交人」為主，
---   導致黃智宏的款項被歸到「陳亭羽（個人報帳）」群組下。
---
--- 修復：
---   當 vendor_name 與提交人姓名不同時，視為外部廠商，
---   直接以 vendor_name 作為匯款群組名稱（無「個人報帳」後綴）。
---   與前端 groupItemsByRemittance() 邏輯保持一致。
--- ============================================================
+-- =============================================================
+-- Fix: update_remittance_settings RPC
+-- 1. 新增 quotation_item_id JOIN（新流程項目匯費同步）
+-- 2. 修正個人報帳命名：移除 '（個人報帳）' 後綴（前端已移除）
+-- =============================================================
 
-CREATE OR REPLACE FUNCTION update_remittance_settings(
-  p_confirmation_id uuid,
-  p_settings jsonb
-)
-RETURNS jsonb
-LANGUAGE plpgsql
-SECURITY DEFINER
-AS $$
+CREATE OR REPLACE FUNCTION "public"."update_remittance_settings"("p_confirmation_id" "uuid", "p_settings" "jsonb") RETURNS "jsonb"
+    LANGUAGE "plpgsql" SECURITY DEFINER
+    AS $$
 DECLARE
   v_result jsonb;
   v_key text;
@@ -47,6 +35,7 @@ BEGIN
     AND (
       (pci.payment_request_id IS NOT NULL AND ae.payment_request_id = pci.payment_request_id)
       OR (pci.expense_claim_id IS NOT NULL AND ae.expense_claim_id = pci.expense_claim_id)
+      OR (pci.quotation_item_id IS NOT NULL AND ae.quotation_item_id = pci.quotation_item_id)
     );
 
   -- ====== 刪除舊的獨立匯費記錄（若有） ======
@@ -66,9 +55,13 @@ BEGIN
       LEFT JOIN quotation_items qi ON pr.quotation_item_id = qi.id
       LEFT JOIN kols k ON qi.kol_id = k.id
       LEFT JOIN expense_claims ec ON pci.expense_claim_id = ec.id
+      -- 新增：直接 quotation_item 的 JOIN（新流程項目）
+      LEFT JOIN quotation_items qi_direct ON pci.quotation_item_id = qi_direct.id
+      LEFT JOIN kols k_direct ON qi_direct.kol_id = k_direct.id
       JOIN accounting_expenses ae ON (
         (pci.payment_request_id IS NOT NULL AND ae.payment_request_id = pci.payment_request_id)
         OR (pci.expense_claim_id IS NOT NULL AND ae.expense_claim_id = pci.expense_claim_id)
+        OR (pci.quotation_item_id IS NOT NULL AND ae.quotation_item_id = pci.quotation_item_id)
       )
       WHERE pci.payment_confirmation_id = p_confirmation_id
         AND (
@@ -83,15 +76,26 @@ BEGIN
                     ''
                   )
                 THEN ec.vendor_name
-                -- 提交人本人：提交人姓名 + '（個人報帳）'
+                -- 提交人本人：提交人姓名（不加後綴，與前端一致）
                 ELSE
                   COALESCE(
                     (SELECT name FROM employees WHERE user_id = ec.submitted_by LIMIT 1),
                     ec.vendor_name,
                     '個人報帳'
-                  ) || '（個人報帳）'
+                  )
               END
-            -- 專案請款：匯款戶名 fallback 鏈
+            -- 報價單直接請款（新流程，quotation_item_id 直連）
+            WHEN pci.source_type = 'quotation' OR (pci.quotation_item_id IS NOT NULL AND pci.payment_request_id IS NULL) THEN
+              COALESCE(
+                NULLIF(NULLIF(NULLIF(TRIM(COALESCE(qi_direct.remittance_name, '')), ''), '未知匯款戶名'), 'Unknown Remittance Name'),
+                CASE
+                  WHEN (k_direct.bank_info->>'bankType') = 'company'
+                  THEN COALESCE(k_direct.bank_info->>'companyAccountName', k_direct.name)
+                  ELSE COALESCE(k_direct.bank_info->>'personalAccountName', k_direct.real_name, k_direct.name)
+                END,
+                '未知匯款戶名'
+              )
+            -- 專案請款（舊流程，透過 payment_request → quotation_item）
             ELSE
               COALESCE(
                 NULLIF(NULLIF(NULLIF(TRIM(COALESCE(qi.remittance_name, '')), ''), '未知匯款戶名'), 'Unknown Remittance Name'),
@@ -122,8 +126,4 @@ BEGIN
 END;
 $$;
 
-COMMENT ON FUNCTION update_remittance_settings IS
-  '更新匯款設定並將匯費分配到對應的勞務報酬記錄（支援外部廠商獨立分組）';
-
--- Notify PostgREST to reload schema cache
-NOTIFY pgrst, 'reload schema';
+COMMENT ON FUNCTION "public"."update_remittance_settings"("p_confirmation_id" "uuid", "p_settings" "jsonb") IS '更新匯款設定並將匯費分配到對應的進項記錄（支援新流程 quotation_item_id + 外部廠商獨立分組）';

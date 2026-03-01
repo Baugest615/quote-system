@@ -453,6 +453,7 @@ export function QuotesDataGrid({ data, clients, onRefresh }: QuotesDataGridProps
                                         quotationId={quote.id}
                                         onUpdate={onRefresh}
                                         readOnly={!(hasRole('Editor') || quote.created_by == null || quote.created_by === userId)}
+                                        quotationStatus={quote.status ?? undefined}
                                     />
                                 </div>
                             )}

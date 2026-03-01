@@ -470,7 +470,7 @@ export default function AccountingSalesPage() {
                   <input
                     type="date"
                     value={form.invoice_date || ''}
-                    onChange={(e) => setForm(f => ({ ...f, invoice_date: e.target.value }))}
+                    onChange={(e) => setForm(f => ({ ...f, invoice_date: e.target.value || null }))}
                     className="w-full border border-border rounded-lg px-3 py-2 text-sm bg-card focus:outline-none focus:ring-2 focus:ring-ring"
                   />
                 </div>
@@ -480,7 +480,7 @@ export default function AccountingSalesPage() {
                 <input
                   type="date"
                   value={form.actual_receipt_date || ''}
-                  onChange={(e) => setForm(f => ({ ...f, actual_receipt_date: e.target.value }))}
+                  onChange={(e) => setForm(f => ({ ...f, actual_receipt_date: e.target.value || null }))}
                   className="w-full border border-border rounded-lg px-3 py-2 text-sm bg-card focus:outline-none focus:ring-2 focus:ring-ring"
                 />
               </div>

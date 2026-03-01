@@ -16,6 +16,7 @@ import {
     downloadCsv,
     type WithholdingPersonSummary
 } from '@/lib/payments/withholding-export'
+import { getBillingMonthKey } from '@/lib/payments/billingPeriod'
 
 interface WithholdingReportProps {
     confirmations: PaymentConfirmation[]
@@ -29,21 +30,18 @@ export function WithholdingReport({ confirmations, withholdingRates, alwaysExpan
     const [settleAmount, setSettleAmount] = useState('')
     const [settleNote, setSettleNote] = useState('')
 
-    // 取得所有可用月份（優先算出，用於決定 selectedMonth）
+    // 取得所有可用帳務月份（使用 10 日切點規則）
     const availableMonths = useMemo(() => {
         const months = new Set<string>()
-        confirmations.forEach(c => {
-            const m = c.confirmation_date.slice(0, 7)
-            months.add(m)
-        })
+        confirmations.forEach(c => months.add(getBillingMonthKey(c.confirmation_date)))
         return Array.from(months).sort().reverse()
     }, [confirmations])
 
-    // 預設選擇最近有確認記錄的月份（而非當前月份，避免月份不匹配）
+    // 預設選擇當前帳務月份（若有資料），否則選最近有資料的月份
     const [selectedMonth, setSelectedMonth] = useState(() => {
-        const currentMonth = new Date().toISOString().slice(0, 7)
+        const currentMonth = getBillingMonthKey(new Date())
         const months = new Set<string>()
-        confirmations.forEach(c => months.add(c.confirmation_date.slice(0, 7)))
+        confirmations.forEach(c => months.add(getBillingMonthKey(c.confirmation_date)))
         return months.has(currentMonth) ? currentMonth : (Array.from(months).sort().reverse()[0] || currentMonth)
     })
 

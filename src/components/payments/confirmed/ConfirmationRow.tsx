@@ -1,7 +1,6 @@
 import { useMemo } from 'react'
-import { ChevronDown, ChevronRight, FileText, Trash2 } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { PaymentConfirmation, RemittanceSettings } from '@/lib/payments/types'
+import { ChevronDown, ChevronRight, FileText } from 'lucide-react'
+import { PaymentConfirmation } from '@/lib/payments/types'
 import { ConfirmationDetails } from './ConfirmationDetails'
 import { ExportControls } from './ExportControls'
 import { useRemittanceSettings } from '@/hooks/payments/useRemittanceSettings'
@@ -10,17 +9,13 @@ import type { WithholdingSettings } from '@/types/custom.types'
 interface ConfirmationRowProps {
     confirmation: PaymentConfirmation
     onToggleExpansion: (id: string) => void
-    onRevert: (confirmation: PaymentConfirmation) => void
-    onRevertItem?: (itemId: string) => void
-    onSettingsChange?: (confirmationId: string, newSettings: RemittanceSettings) => void
     withholdingRates?: WithholdingSettings | null
 }
 
-export function ConfirmationRow({ confirmation, onToggleExpansion, onRevert, onRevertItem, onSettingsChange, withholdingRates }: ConfirmationRowProps) {
-    const { settings, updateSettings, getSettings } = useRemittanceSettings(
+export function ConfirmationRow({ confirmation, onToggleExpansion, withholdingRates }: ConfirmationRowProps) {
+    const { settings, getSettings } = useRemittanceSettings(
         confirmation.id,
         confirmation.remittance_settings,
-        onSettingsChange ? (newSettings) => onSettingsChange(confirmation.id, newSettings) : undefined
     )
 
     // 計算匯費合計
@@ -56,30 +51,18 @@ export function ConfirmationRow({ confirmation, onToggleExpansion, onRevert, onR
                         </div>
                     </div>
                 </div>
-                <div className="flex items-center space-x-2">
-                    <ExportControls confirmation={confirmation} settingsMap={settings} withholdingRates={withholdingRates} />
-                    <Button
-                        variant="destructive"
-                        size="sm"
-                        onClick={(e) => {
-                            e.stopPropagation()
-                            onRevert(confirmation)
-                        }}
-                    >
-                        <Trash2 className="h-4 w-4 mr-1" /> 退回申請
-                    </Button>
+                <div className="flex items-center space-x-2" onClick={(e) => e.stopPropagation()}>
+                    <ExportControls confirmation={confirmation} settingsMap={settings} />
                 </div>
             </div>
 
-            {/* 展開內容 */}
+            {/* 展開內容（唯讀模式） */}
             {confirmation.isExpanded && (
                 <ConfirmationDetails
                     confirmation={confirmation}
                     settings={settings}
-                    updateSettings={updateSettings}
                     getSettings={getSettings}
                     withholdingRates={withholdingRates}
-                    onRevertItem={onRevertItem}
                 />
             )}
         </div>

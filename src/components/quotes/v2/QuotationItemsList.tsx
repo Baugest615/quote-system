@@ -5,13 +5,18 @@ import supabase from '@/lib/supabase/client'
 import { Database } from '@/types/database.types'
 import { QuotationItemWithPayments } from '@/types/custom.types'
 import { Button } from '@/components/ui/button'
-import { Plus, Trash2, Loader2, Save, XCircle, ClipboardPaste, ArrowUp, ArrowDown, ArrowUpDown } from 'lucide-react'
+import { Plus, Trash2, Loader2, Save, XCircle, ClipboardPaste, ArrowUp, ArrowDown, ArrowUpDown, CheckCircle2, AlertTriangle, Paperclip, Lock, Info } from 'lucide-react'
 import { EditableCell } from './EditableCell'
 import { SearchableSelectCell } from './SearchableSelectCell'
 import { toast } from 'sonner'
 import { Modal } from '@/components/ui/modal'
 import { Textarea } from "@/components/ui/textarea"
 import { useConfirm } from '@/components/ui/ConfirmDialog'
+import { usePermission } from '@/lib/permissions'
+import type { PaymentAttachment } from '@/lib/payments/types'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { AttachmentUploader } from './AttachmentUploader'
 
 type QuotationItem = Database['public']['Tables']['quotation_items']['Row']
 type Kol = Database['public']['Tables']['kols']['Row']
@@ -25,10 +30,17 @@ interface QuotationItemsListProps {
     quotationId: string
     onUpdate?: () => void
     readOnly?: boolean
+    quotationStatus?: string
 }
 
-export function QuotationItemsList({ quotationId, onUpdate, readOnly = false }: QuotationItemsListProps) {
+export function QuotationItemsList({ quotationId, onUpdate, readOnly = false, quotationStatus }: QuotationItemsListProps) {
     const confirm = useConfirm()
+    const { hasRole, userId } = usePermission()
+    const isEditor = hasRole('Editor')
+
+    // 追加模式：已簽約報價單鎖定原始項目，只允許新增追加項目
+    const isSupplementMode = quotationStatus === '已簽約'
+
     // 原始資料 (用於取消還原)
     const [originalItems, setOriginalItems] = useState<QuotationItemWithPayments[]>([])
     // 本地編輯狀態
@@ -38,6 +50,11 @@ export function QuotationItemsList({ quotationId, onUpdate, readOnly = false }: 
     const [isSaving, setIsSaving] = useState(false)
     const [isPasteModalOpen, setIsPasteModalOpen] = useState(false)
     const [pasteContent, setPasteContent] = useState('')
+
+    // 請款管理狀態
+    const [verificationItemId, setVerificationItemId] = useState<string | null>(null)
+    const [verificationInvoice, setVerificationInvoice] = useState('')
+    const [actionLoading, setActionLoading] = useState<Set<string>>(new Set())
 
     // 🆕 資料狀態
     const [kols, setKols] = useState<KolWithServices[]>([])
@@ -78,6 +95,17 @@ export function QuotationItemsList({ quotationId, onUpdate, readOnly = false }: 
 
     useEffect(() => {
         fetchItems()
+    }, [fetchItems])
+
+    // 頁面切換回來時自動重新載入（處理從其他頁面退回後狀態同步）
+    useEffect(() => {
+        const handleVisibility = () => {
+            if (document.visibilityState === 'visible') {
+                fetchItems()
+            }
+        }
+        document.addEventListener('visibilitychange', handleVisibility)
+        return () => document.removeEventListener('visibilitychange', handleVisibility)
     }, [fetchItems])
 
     // 檢查是否有未儲存的變更
@@ -147,15 +175,26 @@ export function QuotationItemsList({ quotationId, onUpdate, readOnly = false }: 
             created_by: null,
             remark: null,
             remittance_name: null,
+            is_supplement: isSupplementMode,
         }
         setItems(prev => [...prev, newItem])
     }
 
     // 本地刪除項目
     const handleDeleteItem = (id: string) => {
-        // 檢查是否有關聯的付款申請
         const item = items.find(i => i.id === id);
         if (item) {
+            // 追加模式下，原始項目不可刪除
+            if (isSupplementMode && !item.is_supplement) {
+                toast.error('追加模式下不可刪除原始項目。');
+                return;
+            }
+            // 新流程：已進入請款流程的項目不可刪除
+            if (item.requested_at || item.approved_at) {
+                toast.error('此項目已進入請款流程，無法刪除。');
+                return;
+            }
+            // 舊流程：檢查是否有關聯的付款申請
             const paymentRequests = item.payment_requests;
             if (paymentRequests && paymentRequests.length > 0) {
                 const hasActiveRequest = paymentRequests.some(pr => pr.verification_status !== 'rejected');
@@ -243,9 +282,18 @@ export function QuotationItemsList({ quotationId, onUpdate, readOnly = false }: 
                 }
             }
 
-            // 1. 準備要保存的項目資料
+            // 1. 準備要保存的項目資料（排除請款管理欄位，避免覆蓋即時操作的狀態）
             const itemsToSave = items.map(item => {
-                const { created_at: _created_at, payment_requests: _payment_requests, ...rest } = item
+                const {
+                    created_at: _ca, payment_requests: _pr,
+                    cost_amount: _costAmt, invoice_number: _inv, attachments: _att,
+                    expense_type: _et, accounting_subject: _as, expected_payment_month: _epm,
+                    requested_at: _reqAt, requested_by: _reqBy,
+                    approved_at: _appAt, approved_by: _appBy,
+                    rejection_reason: _rr, rejected_at: _rejAt, rejected_by: _rejBy,
+                    merge_group_id: _mgId, is_merge_leader: _iml, merge_color: _mc,
+                    ...rest
+                } = item
                 return {
                     ...rest,
                     quotation_id: quotationId,
@@ -256,26 +304,38 @@ export function QuotationItemsList({ quotationId, onUpdate, readOnly = false }: 
                 }
             })
 
-            // 2. 刪除 DB 中不該存在的項目（伺服器端篩選，徹底清理髒資料）
+            // 2. 刪除 DB 中不該存在的項目
             const keepIds = items
                 .filter(item => originalItems.some(o => o.id === item.id))
                 .map(item => item.id)
 
-            if (keepIds.length > 0) {
-                // 刪除此報價單中不在保留清單裡的所有項目
-                const { error: deleteError } = await supabase
-                    .from('quotation_items')
-                    .delete()
-                    .eq('quotation_id', quotationId)
-                    .not('id', 'in', `(${keepIds.join(',')})`)
-                if (deleteError) throw new Error(`刪除項目失敗: ${deleteError.message}`)
+            if (isSupplementMode) {
+                // 追加模式：僅刪除被移除的追加項目，原始項目絕不動
+                if (keepIds.length > 0) {
+                    const { error: deleteError } = await supabase
+                        .from('quotation_items')
+                        .delete()
+                        .eq('quotation_id', quotationId)
+                        .eq('is_supplement', true)
+                        .not('id', 'in', `(${keepIds.join(',')})`)
+                    if (deleteError) throw new Error(`刪除項目失敗: ${deleteError.message}`)
+                }
             } else {
-                // 沒有要保留的既有項目，全部刪除
-                const { error: deleteError } = await supabase
-                    .from('quotation_items')
-                    .delete()
-                    .eq('quotation_id', quotationId)
-                if (deleteError) throw new Error(`刪除項目失敗: ${deleteError.message}`)
+                // 一般模式：清理所有不在保留清單裡的項目
+                if (keepIds.length > 0) {
+                    const { error: deleteError } = await supabase
+                        .from('quotation_items')
+                        .delete()
+                        .eq('quotation_id', quotationId)
+                        .not('id', 'in', `(${keepIds.join(',')})`)
+                    if (deleteError) throw new Error(`刪除項目失敗: ${deleteError.message}`)
+                } else {
+                    const { error: deleteError } = await supabase
+                        .from('quotation_items')
+                        .delete()
+                        .eq('quotation_id', quotationId)
+                    if (deleteError) throw new Error(`刪除項目失敗: ${deleteError.message}`)
+                }
             }
 
             // 3. 寫入項目（明確指定 onConflict 避免 PostgREST 衝突偵測問題）
@@ -302,7 +362,26 @@ export function QuotationItemsList({ quotationId, onUpdate, readOnly = false }: 
 
             if (updateError) throw updateError
 
-            toast.success('儲存成功')
+            // 追加模式：同步更新銷項管理金額
+            if (isSupplementMode) {
+                const { error: salesError } = await supabase
+                    .from('accounting_sales')
+                    .update({
+                        sales_amount: subtotalUntaxed,
+                        tax_amount: tax,
+                        total_amount: grandTotalTaxed,
+                    })
+                    .eq('quotation_id', quotationId)
+                if (salesError) {
+                    console.error('銷項同步失敗:', salesError)
+                    toast.warning('項目已儲存，但銷項帳務同步失敗')
+                } else {
+                    toast.success('儲存成功，銷項帳務已同步更新')
+                }
+            } else {
+                toast.success('儲存成功')
+            }
+
             // 重新載入項目和 KOL 資料（反映新建立的服務）
             const [, kolsRes] = await Promise.all([
                 fetchItems(),
@@ -370,6 +449,7 @@ export function QuotationItemsList({ quotationId, onUpdate, readOnly = false }: 
                 created_by: null,
                 remark: null,
                 remittance_name: null,
+                is_supplement: isSupplementMode,
             })
         })
 
@@ -467,6 +547,170 @@ export function QuotationItemsList({ quotationId, onUpdate, readOnly = false }: 
         return <ArrowDown className="h-3 w-3 ml-1 text-primary" />
     }
 
+    // ==================== 請款管理邏輯 ====================
+
+    type PaymentStatus = 'pending' | 'requested' | 'approved' | 'rejected'
+
+    const getPaymentStatus = (item: QuotationItemWithPayments): PaymentStatus => {
+        if (item.approved_at) return 'approved'
+        if (item.requested_at) return 'requested'
+        if (item.rejected_at && item.rejection_reason) return 'rejected'
+        return 'pending'
+    }
+
+    const PAYMENT_STATUS_CONFIG: Record<PaymentStatus, { label: string; className: string }> = {
+        pending: { label: '待請款', className: 'bg-muted text-muted-foreground' },
+        requested: { label: '待審核', className: 'bg-warning/20 text-warning' },
+        approved: { label: '已請款', className: 'bg-success/20 text-success' },
+        rejected: { label: '被駁回', className: 'bg-destructive/20 text-destructive' },
+    }
+
+    const isVerificationPassed = (item: QuotationItemWithPayments): boolean => {
+        const attachments = (item.attachments || []) as PaymentAttachment[]
+        const hasAttachments = attachments.length > 0
+        const invoiceNumber = item.invoice_number || ''
+        const hasValidInvoice = /^[A-Za-z]{2}-\d{8}$/.test(invoiceNumber)
+        return hasAttachments || hasValidInvoice
+    }
+
+    const setItemActionLoading = (itemId: string, loading: boolean) => {
+        setActionLoading(prev => {
+            const next = new Set(prev)
+            if (loading) next.add(itemId)
+            else next.delete(itemId)
+            return next
+        })
+    }
+
+    // 開啟檢核 modal
+    const handleOpenVerification = (item: QuotationItemWithPayments) => {
+        setVerificationItemId(item.id)
+        setVerificationInvoice(item.invoice_number || '')
+    }
+
+    // 儲存檢核資訊（發票號碼）
+    const handleSaveVerification = async () => {
+        if (!verificationItemId) return
+        const trimmed = verificationInvoice.trim()
+
+        if (trimmed && !/^[A-Za-z]{2}-\d{8}$/.test(trimmed)) {
+            toast.error('發票號碼格式不正確（範例：AB-12345678）')
+            return
+        }
+
+        setItemActionLoading(verificationItemId, true)
+        try {
+            const { error } = await supabase
+                .from('quotation_items')
+                .update({ invoice_number: trimmed || null })
+                .eq('id', verificationItemId)
+
+            if (error) throw error
+
+            // 更新本地狀態
+            setItems(prev => prev.map(item =>
+                item.id === verificationItemId
+                    ? { ...item, invoice_number: trimmed || null }
+                    : item
+            ))
+            setOriginalItems(prev => prev.map(item =>
+                item.id === verificationItemId
+                    ? { ...item, invoice_number: trimmed || null }
+                    : item
+            ))
+            toast.success('發票號碼已更新')
+            setVerificationItemId(null)
+        } catch (error) {
+            toast.error('更新失敗: ' + (error instanceof Error ? error.message : String(error)))
+        } finally {
+            setItemActionLoading(verificationItemId, false)
+        }
+    }
+
+    // 勾選請款
+    const handleRequestPayment = async (item: QuotationItemWithPayments) => {
+        if (!isVerificationPassed(item)) {
+            toast.error('請先完成文件檢核（上傳附件或輸入有效發票號碼）')
+            return
+        }
+
+        // 如果尚未設定 cost_amount，使用 cost 作為預設值
+        const costAmount = item.cost_amount ?? item.cost ?? 0
+
+        setItemActionLoading(item.id, true)
+        try {
+            const { error } = await supabase
+                .from('quotation_items')
+                .update({
+                    requested_at: new Date().toISOString(),
+                    requested_by: userId,
+                    cost_amount: costAmount,
+                    rejection_reason: null,
+                    rejected_at: null,
+                    rejected_by: null,
+                })
+                .eq('id', item.id)
+
+            if (error) throw error
+
+            // 更新本地狀態
+            setItems(prev => prev.map(i =>
+                i.id === item.id
+                    ? {
+                        ...i,
+                        requested_at: new Date().toISOString(),
+                        requested_by: userId,
+                        cost_amount: costAmount,
+                        rejection_reason: null,
+                        rejected_at: null,
+                        rejected_by: null,
+                    }
+                    : i
+            ))
+            setOriginalItems(prev => prev.map(i =>
+                i.id === item.id
+                    ? { ...i, requested_at: new Date().toISOString(), requested_by: userId, cost_amount: costAmount }
+                    : i
+            ))
+            toast.success('已送出請款申請')
+        } catch (error) {
+            toast.error('請款失敗: ' + (error instanceof Error ? error.message : String(error)))
+        } finally {
+            setItemActionLoading(item.id, false)
+        }
+    }
+
+    // 審核通過（呼叫 RPC）
+    const handleApprovePayment = async (item: QuotationItemWithPayments) => {
+        if (!isEditor) {
+            toast.error('僅 Editor 以上角色可審核')
+            return
+        }
+
+        const ok = await confirm({
+            title: '審核請款',
+            description: `確定要核准「${item.service || '未命名服務'}」的請款嗎？核准後將自動建立進項記錄和確認記錄。`,
+        })
+        if (!ok) return
+
+        setItemActionLoading(item.id, true)
+        try {
+            const { error } = await supabase.rpc('approve_quotation_item', {
+                p_item_id: item.id,
+            })
+
+            if (error) throw error
+
+            // 重新載入項目以取得最新狀態
+            await fetchItems()
+            toast.success('已核准請款，進項記錄已自動建立')
+        } catch (error) {
+            toast.error('核准失敗: ' + (error instanceof Error ? error.message : String(error)))
+        } finally {
+            setItemActionLoading(item.id, false)
+        }
+    }
+
     // 選項準備
     const categoryOptions = useMemo(() =>
         categories.map(c => ({ label: c.name, value: c.name })),
@@ -484,12 +728,22 @@ export function QuotationItemsList({ quotationId, onUpdate, readOnly = false }: 
             onPaste={readOnly ? undefined : handlePaste}
             tabIndex={0} // 讓 div 可以接收焦點
         >
+            {/* 追加模式提示 */}
+            {isSupplementMode && !readOnly && (
+                <div className="flex items-center gap-2 mb-3 px-3 py-2 rounded-md bg-info/10 border border-info/25 text-sm text-info">
+                    <Info className="h-4 w-4 shrink-0" />
+                    <span>追加模式 — 原始項目已鎖定，僅可新增追加項目</span>
+                </div>
+            )}
+
             <div className="flex justify-between items-center mb-3">
                 <h4 className="text-sm font-semibold text-foreground/70">
                     成本明細 (報價項目)
-                    <span className="ml-2 text-xs font-normal text-muted-foreground hidden sm:inline">
-                        (支援 Excel 貼上: 類別 | KOL/服務 | 執行內容 | 數量 | 單價 | 成本)
-                    </span>
+                    {!isSupplementMode && (
+                        <span className="ml-2 text-xs font-normal text-muted-foreground hidden sm:inline">
+                            (支援 Excel 貼上: 類別 | KOL/服務 | 執行內容 | 數量 | 單價 | 成本)
+                        </span>
+                    )}
                 </h4>
                 {!readOnly && (
                     <div className="flex space-x-2">
@@ -505,40 +759,44 @@ export function QuotationItemsList({ quotationId, onUpdate, readOnly = false }: 
                             </>
                         )}
 
-                        <Button
-                            size="sm"
-                            variant="outline"
-                            className="h-7 text-xs"
-                            onClick={() => setIsPasteModalOpen(true)}
-                        >
-                            <ClipboardPaste className="h-3 w-3 mr-1" /> 貼上 Excel
-                        </Button>
+                        {!isSupplementMode && (
+                            <>
+                                <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="h-7 text-xs"
+                                    onClick={() => setIsPasteModalOpen(true)}
+                                >
+                                    <ClipboardPaste className="h-3 w-3 mr-1" /> 貼上 Excel
+                                </Button>
 
-                        <Modal
-                            isOpen={isPasteModalOpen}
-                            onClose={() => setIsPasteModalOpen(false)}
-                            title="貼上 Excel 資料"
-                        >
-                            <div className="space-y-4">
-                                <p className="text-sm text-muted-foreground">
-                                    請將 Excel 資料複製並貼上到下方區域。<br />
-                                    格式順序：類別 | KOL/服務 | 執行內容 | 數量 | 單價 | 成本
-                                </p>
-                                <Textarea
-                                    placeholder="在此貼上資料..."
-                                    className="min-h-[200px]"
-                                    value={pasteContent}
-                                    onChange={(e) => setPasteContent(e.target.value)}
-                                />
-                                <div className="flex justify-end space-x-2">
-                                    <Button variant="outline" onClick={() => setIsPasteModalOpen(false)}>取消</Button>
-                                    <Button onClick={() => processPasteData(pasteContent)}>確認匯入</Button>
-                                </div>
-                            </div>
-                        </Modal>
+                                <Modal
+                                    isOpen={isPasteModalOpen}
+                                    onClose={() => setIsPasteModalOpen(false)}
+                                    title="貼上 Excel 資料"
+                                >
+                                    <div className="space-y-4">
+                                        <p className="text-sm text-muted-foreground">
+                                            請將 Excel 資料複製並貼上到下方區域。<br />
+                                            格式順序：類別 | KOL/服務 | 執行內容 | 數量 | 單價 | 成本
+                                        </p>
+                                        <Textarea
+                                            placeholder="在此貼上資料..."
+                                            className="min-h-[200px]"
+                                            value={pasteContent}
+                                            onChange={(e) => setPasteContent(e.target.value)}
+                                        />
+                                        <div className="flex justify-end space-x-2">
+                                            <Button variant="outline" onClick={() => setIsPasteModalOpen(false)}>取消</Button>
+                                            <Button onClick={() => processPasteData(pasteContent)}>確認匯入</Button>
+                                        </div>
+                                    </div>
+                                </Modal>
+                            </>
+                        )}
 
                         <Button size="sm" variant="outline" onClick={handleAddItem} className="h-7 text-xs">
-                            <Plus className="h-3 w-3 mr-1" /> 新增項目
+                            <Plus className="h-3 w-3 mr-1" /> {isSupplementMode ? '追加項目' : '新增項目'}
                         </Button>
                     </div>
                 )}
@@ -569,6 +827,11 @@ export function QuotationItemsList({ quotationId, onUpdate, readOnly = false }: 
                             <th className="px-3 py-2 text-right w-24 group/th cursor-pointer select-none hover:text-foreground transition-colors" onClick={() => handleSort('subtotal')}>
                                 <span className="inline-flex items-center justify-end">小計<SortIcon columnKey="subtotal" /></span>
                             </th>
+                            {/* 請款管理欄位 */}
+                            <th className="px-3 py-2 text-center w-20 border-l-2 border-border">狀態</th>
+                            <th className="px-3 py-2 text-center w-16">檢核</th>
+                            <th className="px-3 py-2 text-center w-16">請款</th>
+                            {isEditor && <th className="px-3 py-2 text-center w-16">審核</th>}
                             {!readOnly && <th className="px-3 py-2 text-center w-10"></th>}
                         </tr>
                     </thead>
@@ -581,87 +844,215 @@ export function QuotationItemsList({ quotationId, onUpdate, readOnly = false }: 
                                 data: { price: s.price, cost: s.cost }
                             })) || []
 
+                            // 請款管理狀態
+                            const status = getPaymentStatus(item)
+                            const statusConfig = PAYMENT_STATUS_CONFIG[status]
+                            const verified = isVerificationPassed(item)
+                            const isItemLoading = actionLoading.has(item.id)
+                            // 追加模式下：原始項目也鎖定編輯
+                            const isOriginalInSupplement = isSupplementMode && !item.is_supplement
+                            const isLocked = !!item.approved_at || isOriginalInSupplement
+                            const canDelete = !isOriginalInSupplement
+                                && !item.requested_at && !item.approved_at
+                                && !item.payment_requests?.some(pr => pr.verification_status !== 'rejected')
+
                             return (
-                                <tr key={item.id} className="hover:bg-accent/30 group">
+                                <tr key={item.id} className={`hover:bg-accent/30 group ${
+                                    isOriginalInSupplement ? 'bg-muted/30 opacity-70' :
+                                    item.is_supplement ? 'border-l-4 border-l-success' :
+                                    isLocked ? 'opacity-80' : ''
+                                }`}>
                                     <td className="border-r border-border/50 p-0">
-                                        <SearchableSelectCell
-                                            value={item.category}
-                                            onChange={(val) => handleUpdateItem(item.id, { category: val })}
-                                            options={categoryOptions}
-                                            placeholder="選擇類別"
-                                            className="px-3 py-2"
-                                            allowCustomValue={true}
-                                        />
+                                        {isLocked ? (
+                                            <div className="px-3 py-2 text-muted-foreground flex items-center gap-1.5">
+                                                {isOriginalInSupplement && <Lock className="h-3 w-3 text-muted-foreground/50" />}
+                                                {item.category || '—'}
+                                                {item.is_supplement && (
+                                                    <span className="text-[10px] text-success bg-success/10 px-1.5 py-0.5 rounded">追加</span>
+                                                )}
+                                            </div>
+                                        ) : (
+                                            <div className="flex items-center gap-1.5">
+                                                <SearchableSelectCell
+                                                    value={item.category}
+                                                    onChange={(val) => handleUpdateItem(item.id, { category: val })}
+                                                    options={categoryOptions}
+                                                    placeholder="選擇類別"
+                                                    className="px-3 py-2 flex-1"
+                                                    allowCustomValue={true}
+                                                />
+                                                {item.is_supplement && (
+                                                    <span className="text-[10px] text-success bg-success/10 px-1.5 py-0.5 rounded mr-1 shrink-0">追加</span>
+                                                )}
+                                            </div>
+                                        )}
                                     </td>
                                     <td className="border-r border-border/50 p-0">
-                                        <SearchableSelectCell
-                                            value={item.kol_id}
-                                            displayValue={selectedKol?.name}
-                                            onChange={(val) => handleKolChange(item.id, val)}
-                                            options={kolOptions}
-                                            placeholder="搜尋 KOL/服務"
-                                            className="px-3 py-2 font-medium text-primary"
-                                        />
+                                        {isLocked ? (
+                                            <div className="px-3 py-2 font-medium text-primary">{selectedKol?.name || '—'}</div>
+                                        ) : (
+                                            <SearchableSelectCell
+                                                value={item.kol_id}
+                                                displayValue={selectedKol?.name}
+                                                onChange={(val) => handleKolChange(item.id, val)}
+                                                options={kolOptions}
+                                                placeholder="搜尋 KOL/服務"
+                                                className="px-3 py-2 font-medium text-primary"
+                                            />
+                                        )}
                                     </td>
                                     <td className="border-r border-border/50 p-0">
-                                        <SearchableSelectCell
-                                            value={item.service}
-                                            onChange={(val, data) => handleServiceChange(item.id, val, data as { price: number; cost: number } | undefined)}
-                                            options={serviceOptions}
-                                            placeholder={item.kol_id ? "選擇執行內容" : "請先選 KOL/服務"}
-                                            className="px-3 py-2"
-                                            allowCustomValue={true}
-                                        />
+                                        {isLocked ? (
+                                            <div className="px-3 py-2">{item.service || '—'}</div>
+                                        ) : (
+                                            <SearchableSelectCell
+                                                value={item.service}
+                                                onChange={(val, data) => handleServiceChange(item.id, val, data as { price: number; cost: number } | undefined)}
+                                                options={serviceOptions}
+                                                placeholder={item.kol_id ? "選擇執行內容" : "請先選 KOL/服務"}
+                                                className="px-3 py-2"
+                                                allowCustomValue={true}
+                                            />
+                                        )}
                                     </td>
                                     <td className="border-r border-border/50 p-0">
-                                        <EditableCell
-                                            value={item.quantity}
-                                            type="number"
-                                            onChange={(val) => handleUpdateItem(item.id, { quantity: Number(val) })}
-                                            className="px-3 py-2 text-right"
-                                        />
+                                        {isLocked ? (
+                                            <div className="px-3 py-2 text-right">{item.quantity}</div>
+                                        ) : (
+                                            <EditableCell
+                                                value={item.quantity}
+                                                type="number"
+                                                onChange={(val) => handleUpdateItem(item.id, { quantity: Number(val) })}
+                                                className="px-3 py-2 text-right"
+                                            />
+                                        )}
                                     </td>
                                     <td className="border-r border-border/50 p-0">
-                                        <EditableCell
-                                            value={item.price}
-                                            type="number"
-                                            onChange={(val) => handleUpdateItem(item.id, { price: Number(val) })}
-                                            className="px-3 py-2 text-right"
-                                        />
+                                        {isLocked ? (
+                                            <div className="px-3 py-2 text-right">{item.price.toLocaleString()}</div>
+                                        ) : (
+                                            <EditableCell
+                                                value={item.price}
+                                                type="number"
+                                                onChange={(val) => handleUpdateItem(item.id, { price: Number(val) })}
+                                                className="px-3 py-2 text-right"
+                                            />
+                                        )}
                                     </td>
                                     <td className="border-r border-border/50 p-0">
-                                        <EditableCell
-                                            value={item.cost}
-                                            type="number"
-                                            onChange={(val) => handleUpdateItem(item.id, { cost: Number(val) })}
-                                            className="px-3 py-2 text-right text-muted-foreground"
-                                        />
+                                        {isLocked ? (
+                                            <div className="px-3 py-2 text-right text-muted-foreground">{(item.cost ?? 0).toLocaleString()}</div>
+                                        ) : (
+                                            <EditableCell
+                                                value={item.cost}
+                                                type="number"
+                                                onChange={(val) => handleUpdateItem(item.id, { cost: Number(val) })}
+                                                className="px-3 py-2 text-right text-muted-foreground"
+                                            />
+                                        )}
                                     </td>
                                     <td className="px-3 py-2 text-right font-medium text-foreground/70">
                                         {((item.quantity ?? 0) * item.price).toLocaleString()}
                                     </td>
+
+                                    {/* ===== 請款管理欄位 ===== */}
+
+                                    {/* 狀態 */}
+                                    <td className="px-2 py-2 text-center border-l-2 border-border">
+                                        <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium ${statusConfig.className}`}>
+                                            {statusConfig.label}
+                                        </span>
+                                    </td>
+
+                                    {/* 檢核 */}
+                                    <td className="px-2 py-2 text-center">
+                                        {isLocked ? (
+                                            <CheckCircle2 className="h-4 w-4 text-success mx-auto" />
+                                        ) : (
+                                            <button
+                                                onClick={() => handleOpenVerification(item)}
+                                                className="p-1 rounded hover:bg-accent transition-colors mx-auto flex items-center justify-center"
+                                                title={verified ? `發票: ${item.invoice_number || '附件已上傳'}` : '點擊檢核文件'}
+                                            >
+                                                {verified ? (
+                                                    <CheckCircle2 className="h-4 w-4 text-success" />
+                                                ) : (
+                                                    <AlertTriangle className="h-4 w-4 text-warning" />
+                                                )}
+                                            </button>
+                                        )}
+                                    </td>
+
+                                    {/* 請款 */}
+                                    <td className="px-2 py-2 text-center">
+                                        {status === 'approved' ? (
+                                            <CheckCircle2 className="h-4 w-4 text-success mx-auto" />
+                                        ) : status === 'requested' ? (
+                                            <CheckCircle2 className="h-4 w-4 text-warning mx-auto" />
+                                        ) : verified ? (
+                                            <button
+                                                onClick={() => handleRequestPayment(item)}
+                                                disabled={isItemLoading}
+                                                className="p-1 rounded hover:bg-accent transition-colors mx-auto flex items-center justify-center disabled:opacity-50"
+                                                title="勾選送出請款"
+                                            >
+                                                {isItemLoading ? (
+                                                    <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                                                ) : (
+                                                    <div className="h-4 w-4 border-2 border-muted-foreground/40 rounded" />
+                                                )}
+                                            </button>
+                                        ) : (
+                                            <span className="text-muted-foreground/30">—</span>
+                                        )}
+                                    </td>
+
+                                    {/* 審核（Editor+ only） */}
+                                    {isEditor && (
+                                        <td className="px-2 py-2 text-center">
+                                            {status === 'approved' ? (
+                                                <CheckCircle2 className="h-4 w-4 text-success mx-auto" />
+                                            ) : status === 'requested' ? (
+                                                <button
+                                                    onClick={() => handleApprovePayment(item)}
+                                                    disabled={isItemLoading}
+                                                    className="p-1 rounded hover:bg-accent transition-colors mx-auto flex items-center justify-center disabled:opacity-50"
+                                                    title="勾選審核通過"
+                                                >
+                                                    {isItemLoading ? (
+                                                        <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                                                    ) : (
+                                                        <div className="h-4 w-4 border-2 border-muted-foreground/40 rounded" />
+                                                    )}
+                                                </button>
+                                            ) : (
+                                                <span className="text-muted-foreground/30">—</span>
+                                            )}
+                                        </td>
+                                    )}
+
                                     {!readOnly && (
                                         <td className="px-1 py-1 text-center">
-                                            <Button
-                                                variant="ghost"
-                                                size="sm"
-                                                className={`h-6 w-6 p-0 ${
-                                                    item.payment_requests?.some(pr => pr.verification_status !== 'rejected')
-                                                        ? 'text-muted-foreground cursor-not-allowed'
-                                                        : 'opacity-0 group-hover:opacity-100 text-destructive/70 hover:text-destructive'
-                                                    }`}
-                                                onClick={() => handleDeleteItem(item.id)}
-                                                disabled={
-                                                    item.payment_requests?.some(pr => pr.verification_status !== 'rejected')
-                                                }
-                                                title={
-                                                    item.payment_requests?.some(pr => pr.verification_status !== 'rejected')
-                                                        ? '此項目已有付款申請，無法刪除'
-                                                        : '刪除項目'
-                                                }
-                                            >
-                                                <Trash2 className="h-3 w-3" />
-                                            </Button>
+                                            {isOriginalInSupplement ? (
+                                                <span className="h-6 w-6 inline-flex items-center justify-center text-muted-foreground/30" title="原始項目已鎖定">
+                                                    <Lock className="h-3 w-3" />
+                                                </span>
+                                            ) : (
+                                                <Button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    className={`h-6 w-6 p-0 ${
+                                                        !canDelete
+                                                            ? 'text-muted-foreground cursor-not-allowed'
+                                                            : 'opacity-0 group-hover:opacity-100 text-destructive/70 hover:text-destructive'
+                                                        }`}
+                                                    onClick={() => handleDeleteItem(item.id)}
+                                                    disabled={!canDelete}
+                                                    title={!canDelete ? '此項目已進入請款流程，無法刪除' : '刪除項目'}
+                                                >
+                                                    <Trash2 className="h-3 w-3" />
+                                                </Button>
+                                            )}
                                         </td>
                                     )}
                                 </tr>
@@ -669,7 +1060,7 @@ export function QuotationItemsList({ quotationId, onUpdate, readOnly = false }: 
                         })}
                         {items.length === 0 && (
                             <tr>
-                                <td colSpan={8} className="px-3 py-8 text-center text-muted-foreground italic">
+                                <td colSpan={11 + (isEditor ? 1 : 0)} className="px-3 py-8 text-center text-muted-foreground italic">
                                     尚無項目，請點擊上方按鈕新增，或直接貼上 Excel 資料 (Ctrl+V)
                                 </td>
                             </tr>
@@ -677,6 +1068,66 @@ export function QuotationItemsList({ quotationId, onUpdate, readOnly = false }: 
                     </tbody>
                 </table>
             </div>
+
+            {/* 檢核 Modal */}
+            <Modal
+                isOpen={!!verificationItemId}
+                onClose={() => setVerificationItemId(null)}
+                title="文件檢核"
+            >
+                <div className="space-y-4">
+                    <div>
+                        <Label htmlFor="invoice-number" className="text-sm font-medium">
+                            發票號碼
+                        </Label>
+                        <Input
+                            id="invoice-number"
+                            placeholder="XX-12345678"
+                            value={verificationInvoice}
+                            onChange={(e) => setVerificationInvoice(e.target.value)}
+                            className="mt-1"
+                        />
+                        <p className="text-xs text-muted-foreground mt-1">
+                            格式：2 碼英文 + 連字號 + 8 碼數字（如 AB-12345678）
+                        </p>
+                    </div>
+                    <div>
+                        <Label className="text-sm font-medium flex items-center gap-1 mb-2">
+                            <Paperclip className="h-3.5 w-3.5" /> 附件
+                        </Label>
+                        {verificationItemId && (
+                            <AttachmentUploader
+                                itemId={verificationItemId}
+                                currentAttachments={
+                                    ((items.find(i => i.id === verificationItemId)?.attachments || []) as PaymentAttachment[])
+                                }
+                                onUpdate={(newAttachments) => {
+                                    // 同步更新本地狀態
+                                    setItems(prev => prev.map(item =>
+                                        item.id === verificationItemId
+                                            ? { ...item, attachments: newAttachments as unknown }
+                                            : item
+                                    ))
+                                    setOriginalItems(prev => prev.map(item =>
+                                        item.id === verificationItemId
+                                            ? { ...item, attachments: newAttachments as unknown }
+                                            : item
+                                    ))
+                                }}
+                                readOnly={!!items.find(i => i.id === verificationItemId)?.approved_at}
+                            />
+                        )}
+                    </div>
+                    <div className="flex justify-end space-x-2">
+                        <Button variant="outline" onClick={() => setVerificationItemId(null)}>
+                            取消
+                        </Button>
+                        <Button onClick={handleSaveVerification}>
+                            儲存
+                        </Button>
+                    </div>
+                </div>
+            </Modal>
         </div>
     )
 }

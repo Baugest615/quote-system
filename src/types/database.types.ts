@@ -885,6 +885,7 @@ export type Database = {
           payment_confirmation_id: string
           payment_request_id: string | null
           project_name_at_confirmation: string
+          quotation_item_id: string | null
           service_at_confirmation: string
           source_type: string | null
         }
@@ -897,6 +898,7 @@ export type Database = {
           payment_confirmation_id: string
           payment_request_id?: string | null
           project_name_at_confirmation: string
+          quotation_item_id?: string | null
           service_at_confirmation: string
           source_type?: string | null
         }
@@ -909,6 +911,7 @@ export type Database = {
           payment_confirmation_id?: string
           payment_request_id?: string | null
           project_name_at_confirmation?: string
+          quotation_item_id?: string | null
           service_at_confirmation?: string
           source_type?: string | null
         }
@@ -939,6 +942,13 @@ export type Database = {
             columns: ["payment_request_id"]
             isOneToOne: false
             referencedRelation: "payment_requests_with_details"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_confirmation_items_quotation_item_id_fkey"
+            columns: ["quotation_item_id"]
+            isOneToOne: false
+            referencedRelation: "quotation_items"
             referencedColumns: ["id"]
           },
         ]
@@ -1222,6 +1232,7 @@ export type Database = {
           created_at: string | null
           created_by: string | null
           id: string
+          is_supplement: boolean
           kol_id: string | null
           price: number
           quantity: number | null
@@ -1236,6 +1247,7 @@ export type Database = {
           created_at?: string | null
           created_by?: string | null
           id?: string
+          is_supplement?: boolean
           kol_id?: string | null
           price?: number
           quantity?: number | null
@@ -1250,6 +1262,7 @@ export type Database = {
           created_at?: string | null
           created_by?: string | null
           id?: string
+          is_supplement?: boolean
           kol_id?: string | null
           price?: number
           quantity?: number | null

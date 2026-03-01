@@ -3,20 +3,13 @@ import { Download } from 'lucide-react'
 import { toast } from 'sonner'
 import { PaymentConfirmation, RemittanceSettings } from '@/lib/payments/types'
 import { groupItemsByRemittance } from '@/lib/payments/grouping'
-import type { WithholdingSettings } from '@/types/custom.types'
-import { DEFAULT_WITHHOLDING } from '@/hooks/useWithholdingSettings'
 
 interface ExportControlsProps {
     confirmation: PaymentConfirmation
     settingsMap: RemittanceSettings
-    withholdingRates?: WithholdingSettings | null
 }
 
-export function ExportControls({ confirmation, settingsMap, withholdingRates }: ExportControlsProps) {
-    // 從 DB 或 fallback 取得費率
-    const taxRate = withholdingRates?.income_tax_rate ?? DEFAULT_WITHHOLDING.income_tax_rate
-    const nhiRate = withholdingRates?.nhi_supplement_rate ?? DEFAULT_WITHHOLDING.nhi_supplement_rate
-
+export function ExportControls({ confirmation, settingsMap }: ExportControlsProps) {
     const handleExport = (e: React.MouseEvent) => {
         e.stopPropagation()
 
@@ -34,8 +27,6 @@ export function ExportControls({ confirmation, settingsMap, withholdingRates }: 
                 '執行內容',
                 '原始金額',
                 '小計',
-                '代扣所得稅',
-                '代扣二代健保',
                 '匯費',
                 '實付金額'
             ])
@@ -49,12 +40,10 @@ export function ExportControls({ confirmation, settingsMap, withholdingRates }: 
                     hasInsurance: false
                 }
 
-                // 計算邏輯 (與 ConfirmationDetails 一致，使用 DB 費率)
+                // 計算邏輯（只計算匯費，代扣由 WithholdingTab 獨立處理）
                 const subtotal = group.totalAmount
-                const tax = settings.hasTax ? Math.floor(subtotal * taxRate) : 0
-                const insurance = settings.hasInsurance ? Math.floor(subtotal * nhiRate) : 0
                 const fee = settings.hasRemittanceFee ? settings.remittanceFeeAmount : 0
-                const netTotal = subtotal - tax - insurance - fee
+                const netTotal = subtotal - fee
 
                 group.items.forEach(item => {
                     const request = item.payment_requests
@@ -62,20 +51,17 @@ export function ExportControls({ confirmation, settingsMap, withholdingRates }: 
                     const quotation = quotationItem?.quotations
                     const kol = quotationItem?.kols
 
-                    // Fallback to cost_amount if amount is 0
-                    const amount = item.amount || request?.cost_amount || 0
+                    const amount = item.amount_at_confirmation || item.amount || request?.cost_amount || 0
 
                     csvData.push([
                         confirmation.confirmation_date,
                         group.remittanceName,
                         bankInfo,
-                        quotation?.project_name || '',
-                        kol?.name || '',
-                        quotationItem?.service || '',
+                        quotation?.project_name || item.project_name_at_confirmation || '',
+                        kol?.name || item.kol_name_at_confirmation || '',
+                        quotationItem?.service || item.service_at_confirmation || '',
                         amount,
                         subtotal,   // 小計 (整組相同)
-                        tax,        // 稅額 (整組相同)
-                        insurance,  // 健保 (整組相同)
                         fee,        // 匯費 (整組相同)
                         netTotal    // 實付金額 (整組相同)
                     ])

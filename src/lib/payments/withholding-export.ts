@@ -5,6 +5,7 @@ import type { PaymentConfirmation, RemittanceSettings } from './types'
 import { groupItemsByRemittance } from './grouping'
 import type { WithholdingSettings } from '@/types/custom.types'
 import { DEFAULT_WITHHOLDING } from '@/hooks/useWithholdingSettings'
+import { getBillingMonthKey } from './billingPeriod'
 
 // ==================== 型別定義 ====================
 
@@ -32,12 +33,14 @@ export function computeMonthlyWithholding(
 ): WithholdingPersonSummary[] {
     const taxRate = rates?.income_tax_rate ?? DEFAULT_WITHHOLDING.income_tax_rate
     const nhiRate = rates?.nhi_supplement_rate ?? DEFAULT_WITHHOLDING.nhi_supplement_rate
+    const taxThreshold = rates?.income_tax_threshold ?? DEFAULT_WITHHOLDING.income_tax_threshold
+    const nhiThreshold = rates?.nhi_threshold ?? DEFAULT_WITHHOLDING.nhi_threshold
 
     const personMap = new Map<string, WithholdingPersonSummary>()
 
-    // 篩選指定月份的確認清單
+    // 篩選指定帳務月份的確認清單（使用 10 日切點規則）
     const monthConfirmations = confirmations.filter(c =>
-        c.confirmation_date.startsWith(month)
+        getBillingMonthKey(c.confirmation_date) === month
     )
 
     monthConfirmations.forEach(confirmation => {
@@ -50,14 +53,18 @@ export function computeMonthlyWithholding(
                 item => item.source_type === 'personal' || item.expense_claim_id
             )
             if (isPersonalClaim) return
+
+            const isExempt = group.isCompanyAccount || group.isWithholdingExempt
+            const subtotal = group.totalAmount
+
+            // 從 DB 讀取已儲存的設定；若無則根據門檻自動判斷
             const settings = savedSettings[group.remittanceName] || {
                 hasRemittanceFee: false,
                 remittanceFeeAmount: 30,
-                hasTax: false,
-                hasInsurance: false
+                hasTax: !isExempt && subtotal >= taxThreshold,
+                hasInsurance: !isExempt && subtotal >= nhiThreshold,
             }
 
-            const subtotal = group.totalAmount
             const tax = settings.hasTax ? Math.floor(subtotal * taxRate) : 0
             const nhi = settings.hasInsurance ? Math.floor(subtotal * nhiRate) : 0
 

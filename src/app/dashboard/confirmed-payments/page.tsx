@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback, useMemo } from 'react'
+import { useState, useCallback, useMemo, useRef } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Button } from '@/components/ui/button'
 import { RefreshCw, Shield, Banknote, FileSpreadsheet, ClipboardList } from 'lucide-react'
@@ -18,7 +18,7 @@ import { CURRENT_YEAR } from '@/lib/constants'
 
 // Types
 import { PaymentConfirmation, RemittanceSettings } from '@/lib/payments/types'
-import type { AccountingPayroll } from '@/types/custom.types'
+import type { AccountingPayroll, AccountingExpense } from '@/types/custom.types'
 
 // Components
 import { LoadingState } from '@/components/payments/shared'
@@ -39,7 +39,7 @@ const TABS: { key: TabKey; label: string; icon: React.ReactNode }[] = [
 
 export default function ConfirmedPaymentsPage() {
   const confirm = useConfirm()
-  const { loading: permLoading, checkPageAccess } = usePermission()
+  const { loading: permLoading, checkPageAccess, hasRole } = usePermission()
   const hasAccess = checkPageAccess('confirmed_payments')
 
   const queryClient = useQueryClient()
@@ -60,11 +60,23 @@ export default function ConfirmedPaymentsPage() {
     },
   })
 
+  // 進項管理資料查詢（手動新增的支出，併入匯款分組）
+  const { data: expensesData } = useQuery({
+    queryKey: ['accounting-expenses', 'confirmed-view'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('accounting_expenses')
+        .select('*')
+        .order('created_at', { ascending: false })
+      if (error) throw error
+      return (data || []) as AccountingExpense[]
+    },
+  })
+
   // 1. 資料管理 Hook
   const fetchConfirmedPayments = useCallback(async () => {
-    const { data, error } = await supabase
-      .from('payment_confirmations')
-      .select(`
+    // 基礎查詢（不含新的 quotation_items 直接關聯，確保 migration 未套用時也能正常運作）
+    const baseSelect = `
         *,
         remittance_settings,
         payment_confirmation_items (
@@ -104,9 +116,84 @@ export default function ConfirmedPaymentsPage() {
             submitted_by
           )
         )
-      `)
+      `
+
+    // 嘗試含新 FK 的完整查詢；若 migration 尚未套用則 fallback 到基礎查詢
+    const fullSelect = `
+        *,
+        remittance_settings,
+        payment_confirmation_items (
+          *,
+          payment_requests (
+            quotation_item_id,
+            cost_amount,
+            invoice_number,
+            merge_group_id,
+            merge_color,
+            quotation_items (
+              id,
+              quotation_id,
+              quotations ( project_name, client_id, clients ( name ) ),
+              kol_id,
+              kols ( id, name, real_name, bank_info, withholding_exempt ),
+              service,
+              quantity,
+              price,
+              cost,
+              remittance_name,
+              remark,
+              created_at
+            )
+          ),
+          expense_claims (
+            id,
+            expense_type,
+            vendor_name,
+            project_name,
+            amount,
+            tax_amount,
+            total_amount,
+            invoice_number,
+            claim_month,
+            note,
+            submitted_by
+          ),
+          quotation_items!payment_confirmation_items_quotation_item_id_fkey (
+            id,
+            quotation_id,
+            quotations ( project_name, client_id, clients ( name ) ),
+            kol_id,
+            kols ( id, name, real_name, bank_info, withholding_exempt ),
+            service,
+            quantity,
+            price,
+            cost,
+            cost_amount,
+            invoice_number,
+            remittance_name,
+            remark,
+            merge_group_id,
+            merge_color,
+            created_at
+          )
+        )
+      `
+
+    let result = await supabase
+      .from('payment_confirmations')
+      .select(fullSelect)
       .order('confirmation_date', { ascending: false })
 
+    // Fallback：如果完整查詢因 FK 不存在而失敗（400），改用基礎查詢
+    if (result.error) {
+      console.warn('完整查詢失敗，使用基礎查詢（migration 可能尚未套用）:', result.error.message)
+      result = await supabase
+        .from('payment_confirmations')
+        .select(baseSelect)
+        .order('confirmation_date', { ascending: false })
+    }
+
+    const { data, error } = result
     if (error) throw error
 
     // 收集所有 submitted_by UUID，透過 employees 取得提交人姓名
@@ -171,6 +258,55 @@ export default function ConfirmedPaymentsPage() {
     ))
   }, [setConfirmations])
 
+  // 用 ref 追蹤最新 confirmations，避免 useCallback 閉包讀到舊值
+  const confirmationsRef = useRef(confirmations)
+  confirmationsRef.current = confirmations
+
+  // 匯款總覽：設定變更（跨 confirmation 批次更新）
+  const handleOverviewSettingsChange = useCallback(async (
+    confirmationId: string,
+    remittanceName: string,
+    updates: Partial<RemittanceSettings[string]>
+  ) => {
+    // 從 ref 讀取最新 state（避免 stale closure）
+    const conf = confirmationsRef.current.find(c => c.id === confirmationId)
+    if (!conf) return
+
+    const currentSettings = conf.remittance_settings || {}
+    const currentGroup = currentSettings[remittanceName] || {
+      hasRemittanceFee: false,
+      remittanceFeeAmount: 30,
+      hasTax: false,
+      hasInsurance: false,
+    }
+    const newSettings = {
+      ...currentSettings,
+      [remittanceName]: { ...currentGroup, ...updates },
+    }
+
+    // Optimistic update: 同步 parent state
+    setConfirmations(prev => prev.map(c =>
+      c.id === confirmationId
+        ? { ...c, remittance_settings: newSettings }
+        : c
+    ))
+    // 同步更新 ref（讓同一 tick 內的後續呼叫讀到最新值）
+    confirmationsRef.current = confirmationsRef.current.map(c =>
+      c.id === confirmationId
+        ? { ...c, remittance_settings: newSettings }
+        : c
+    )
+
+    // 儲存到 DB
+    const { error } = await supabase.rpc('update_remittance_settings', {
+      p_confirmation_id: confirmationId,
+      p_settings: newSettings,
+    })
+    if (error) {
+      toast.error('儲存匯費設定失敗: ' + error.message)
+    }
+  }, [setConfirmations])
+
   // 操作函數
   const toggleExpansion = (id: string) => {
     setConfirmations(prev => prev.map(item =>
@@ -203,20 +339,36 @@ export default function ConfirmedPaymentsPage() {
 
     const ok = await confirm({
       title: '確認退回',
-      description: '確定要將此清單中的 ' + itemsToRevert.length + ' 筆項目退回到「請款申請」頁面嗎？',
+      description: '確定要將此清單中的 ' + itemsToRevert.length + ' 筆項目全部退回嗎？',
       confirmLabel: '退回',
+      variant: 'destructive',
     })
     if (!ok) return
 
     try {
-      const projectItems = itemsToRevert.filter(item => item.payment_request_id && item.source_type !== 'personal')
+      const quotationItems = itemsToRevert.filter(item => item.source_type === 'quotation' || item.quotation_item_id)
+      const projectItems = itemsToRevert.filter(item => item.payment_request_id && item.source_type !== 'personal' && item.source_type !== 'quotation')
       const personalItems = itemsToRevert.filter(item => item.expense_claim_id || item.source_type === 'personal')
 
-      const { error: itemsError } = await supabase
-        .from('payment_confirmation_items')
-        .delete()
-        .eq('payment_confirmation_id', confirmation.id)
-      if (itemsError) throw new Error('刪除確認項目失敗: ' + itemsError.message)
+      // 報價單來源：使用 RPC 逐筆駁回（RPC 內部會清理 confirmation_items + expenses）
+      for (const qItem of quotationItems) {
+        if (!qItem.quotation_item_id) continue
+        const { error: rpcErr } = await supabase.rpc('revert_quotation_item', {
+          p_item_id: qItem.quotation_item_id,
+          p_reason: '整批退回',
+        })
+        if (rpcErr) console.warn('駁回報價單項目失敗:', rpcErr.message)
+      }
+
+      // 舊流程項目：先刪除非報價單的 confirmation_items
+      const nonQuotationItemIds = [...projectItems, ...personalItems].map(i => i.id)
+      if (nonQuotationItemIds.length > 0) {
+        const { error: itemsError } = await supabase
+          .from('payment_confirmation_items')
+          .delete()
+          .in('id', nonQuotationItemIds)
+        if (itemsError) throw new Error('刪除確認項目失敗: ' + itemsError.message)
+      }
 
       // 清理匯費 accounting_expenses（必須在刪除 confirmation 之前，因為有 FK）
       const { error: feeError } = await supabase
@@ -225,16 +377,23 @@ export default function ConfirmedPaymentsPage() {
         .eq('payment_confirmation_id', confirmation.id)
       if (feeError) console.warn('清理匯費記錄失敗:', feeError.message)
 
-      const { error: confirmationError } = await supabase
-        .from('payment_confirmations')
-        .delete()
-        .eq('id', confirmation.id)
-      if (confirmationError) throw new Error('刪除確認主記錄失敗: ' + confirmationError.message)
+      // 檢查 confirmation 是否還有剩餘項目（可能被 RPC 已清理一部分）
+      const { data: remaining } = await supabase
+        .from('payment_confirmation_items')
+        .select('id')
+        .eq('payment_confirmation_id', confirmation.id)
+
+      if (!remaining || remaining.length === 0) {
+        const { error: confirmationError } = await supabase
+          .from('payment_confirmations')
+          .delete()
+          .eq('id', confirmation.id)
+        if (confirmationError) console.warn('刪除確認主記錄失敗:', confirmationError.message)
+      }
 
       if (projectItems.length > 0) {
         const requestIds = projectItems.map(item => item.payment_request_id).filter(Boolean) as string[]
         if (requestIds.length > 0) {
-          // 清理專案請款對應的 accounting_expenses 記錄
           const { error: projExpenseError } = await supabase
             .from('accounting_expenses')
             .delete()
@@ -264,7 +423,6 @@ export default function ConfirmedPaymentsPage() {
             .in('expense_claim_id', claimIds)
           if (expenseError) console.warn('清理進項記錄失敗:', expenseError.message)
 
-          // 同時清理代扣代繳 settlement 記錄（避免重新核准時產生重複）
           const { error: settlementError } = await supabase
             .from('withholding_settlements')
             .delete()
@@ -273,13 +431,16 @@ export default function ConfirmedPaymentsPage() {
         }
       }
 
-      toast.success('清單已退回，相關項目已回到「請款申請」頁面。')
+      toast.success('清單已退回，相關記錄已清除。')
       refresh()
       queryClient.invalidateQueries({ queryKey: [...queryKeys.paymentRequests] })
       queryClient.invalidateQueries({ queryKey: [...queryKeys.pendingPayments] })
       queryClient.invalidateQueries({ queryKey: [...queryKeys.dashboardStats] })
       queryClient.invalidateQueries({ queryKey: ['monthly-settlement'] })
       queryClient.invalidateQueries({ queryKey: ['accounting-expenses'] })
+      if (quotationItems.length > 0) {
+        queryClient.invalidateQueries({ queryKey: [...queryKeys.quotations] })
+      }
       if (personalItems.length > 0) {
         queryClient.invalidateQueries({ queryKey: ['expense-claims'] })
         queryClient.invalidateQueries({ queryKey: [...queryKeys.expenseClaimsPending] })
@@ -295,22 +456,55 @@ export default function ConfirmedPaymentsPage() {
 
   // ====== 單筆退回 ======
   const handleRevertItem = async (itemId: string) => {
+    // 先查詢 item 來判斷 source_type
+    const { data: item, error: fetchErr } = await supabase
+      .from('payment_confirmation_items')
+      .select('id, payment_confirmation_id, payment_request_id, expense_claim_id, quotation_item_id, source_type, amount_at_confirmation')
+      .eq('id', itemId)
+      .single()
+    if (fetchErr || !item) {
+      toast.error('找不到該確認項目')
+      return
+    }
+
+    // 報價單來源：使用 RPC 統一處理
+    if (item.source_type === 'quotation' && item.quotation_item_id) {
+      const ok = await confirm({
+        title: '確認駁回此項目',
+        description: '此項目將駁回，進項記錄和確認記錄將被刪除，報價單項目狀態回到「待請款」。',
+        confirmLabel: '駁回',
+        variant: 'destructive',
+      })
+      if (!ok) return
+
+      try {
+        const { error } = await supabase.rpc('revert_quotation_item', {
+          p_item_id: item.quotation_item_id,
+          p_reason: '已確認請款清單駁回',
+        })
+        if (error) throw error
+
+        toast.success('已駁回此項目，報價單狀態已回到「待請款」')
+        refresh()
+        queryClient.invalidateQueries({ queryKey: [...queryKeys.dashboardStats] })
+        queryClient.invalidateQueries({ queryKey: ['accounting-expenses'] })
+        queryClient.invalidateQueries({ queryKey: [...queryKeys.quotations] })
+      } catch (error: unknown) {
+        console.error('駁回失敗:', error)
+        toast.error('操作失敗: ' + (error instanceof Error ? error.message : String(error)))
+      }
+      return
+    }
+
+    // 舊流程：專案/個人來源
     const ok = await confirm({
       title: '確認退回此項目',
-      description: '此項目將退回到「請款申請」頁面，是否繼續？',
+      description: '此項目將退回，相關記錄將被清除。',
       confirmLabel: '退回',
     })
     if (!ok) return
 
     try {
-      // 1. 查詢 item 詳情
-      const { data: item, error: fetchErr } = await supabase
-        .from('payment_confirmation_items')
-        .select('id, payment_confirmation_id, payment_request_id, expense_claim_id, source_type, amount_at_confirmation')
-        .eq('id', itemId)
-        .single()
-      if (fetchErr || !item) throw new Error('找不到該確認項目')
-
       const confirmationId = item.payment_confirmation_id
       const amount = item.amount_at_confirmation || 0
 
@@ -404,6 +598,7 @@ export default function ConfirmedPaymentsPage() {
       queryClient.invalidateQueries({ queryKey: ['accounting-expenses'] })
       queryClient.invalidateQueries({ queryKey: ['expense-claims'] })
       queryClient.invalidateQueries({ queryKey: [...queryKeys.expenseClaimsPending] })
+      queryClient.invalidateQueries({ queryKey: [...queryKeys.quotations] })
     } catch (error: unknown) {
       console.error('單筆退回失敗:', error)
       toast.error('操作失敗: ' + (error instanceof Error ? error.message : String(error)))
@@ -466,6 +661,10 @@ export default function ConfirmedPaymentsPage() {
           confirmations={confirmations}
           withholdingRates={withholdingRates}
           payrollData={payrollData}
+          expensesData={expensesData}
+          onUpdateSettings={handleOverviewSettingsChange}
+          onRevertItem={handleRevertItem}
+          isAdmin={hasRole('Admin')}
         />
       )}
 
@@ -480,9 +679,6 @@ export default function ConfirmedPaymentsPage() {
         <ConfirmationHistoryTab
           confirmations={confirmations}
           onToggleExpansion={toggleExpansion}
-          onRevert={handleRevert}
-          onRevertItem={handleRevertItem}
-          onSettingsChange={handleSettingsChange}
           withholdingRates={withholdingRates}
         />
       )}

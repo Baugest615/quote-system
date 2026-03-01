@@ -6,7 +6,7 @@ import { usePermission } from '@/lib/permissions'
 import supabase from '@/lib/supabase/client'
 import { queryKeys } from '@/lib/queryKeys'
 import { toast } from 'sonner'
-import { Plus, Search, TrendingDown, Pencil, Trash2, ChevronLeft, Table2 } from 'lucide-react'
+import { Plus, Search, TrendingDown, Pencil, Trash2, ChevronLeft, Table2, Lock } from 'lucide-react'
 import AccountingLoadingGuard from '@/components/accounting/AccountingLoadingGuard'
 import AccountingModal from '@/components/accounting/AccountingModal'
 import Pagination from '@/components/accounting/Pagination'
@@ -119,12 +119,11 @@ export default function AccountingExpensesPage() {
 
   const currentQueryKey = queryKeys.accountingExpenses(year)
 
-  /** 失效進項快取 + 月結總覽快取（所有年度） */
+  /** 失效進項快取 + 月結總覽 + 已確認請款清單快取 */
   const invalidateExpenseCaches = useCallback(() => {
-    // 失效所有年度的進項快取（編輯時可能跨年搬移記錄）
     queryClient.invalidateQueries({ queryKey: ['accounting-expenses'] })
-    // 月結總覽也查 accounting_expenses，需同步失效
     queryClient.invalidateQueries({ queryKey: ['monthly-settlement'] })
+    queryClient.invalidateQueries({ queryKey: [...queryKeys.confirmedPayments] })
   }, [queryClient])
 
   const { data: records = [], isLoading: loading } = useQuery({
@@ -166,9 +165,31 @@ export default function AccountingExpensesPage() {
     }
 
     for (const { id, data } of toUpdate) {
-      const { error } = await supabase.from('accounting_expenses').update({ ...data, created_by: user?.id }).eq('id', id)
+      // 移除關聯物件與自動管理欄位，避免 PostgREST 400
+      const { payment_requests: _pr, id: _id, created_at: _ca, updated_at: _ua, ...updateData } = data as Record<string, unknown>
+      const { error } = await supabase.from('accounting_expenses').update({ ...updateData, created_by: user?.id }).eq('id', id)
       if (error) errors.push({ tempId: id, message: error.message })
       else successCount++
+    }
+
+    // 同步金額變更到 payment_confirmation_items（即時連動）
+    for (const { id, data } of toUpdate) {
+      if (data.total_amount === undefined) continue
+      const original = records.find(r => r.id === id)
+      if (!original) continue
+
+      const fkColumn = original.quotation_item_id ? 'quotation_item_id'
+        : original.expense_claim_id ? 'expense_claim_id'
+        : original.payment_request_id ? 'payment_request_id'
+        : null
+      const fkValue = original.quotation_item_id || original.expense_claim_id || original.payment_request_id
+
+      if (fkColumn && fkValue) {
+        await supabase
+          .from('payment_confirmation_items')
+          .update({ amount_at_confirmation: data.total_amount })
+          .eq(fkColumn, fkValue)
+      }
     }
 
     if (toDelete.length > 0) {
@@ -347,6 +368,10 @@ export default function AccountingExpensesPage() {
 
   const fmt = (n: number) => new Intl.NumberFormat('zh-TW').format(n)
 
+  // 判斷進項記錄是否由系統自動建立（有來源 FK）
+  const hasSourceLink = (r: AccountingExpense) =>
+    !!(r.payment_request_id || r.expense_claim_id || r.quotation_item_id)
+
   if (permLoading || loading) return <AccountingLoadingGuard loading={true} hasAccess={true} />
   if (!hasRole('Editor')) return <AccountingLoadingGuard loading={false} hasAccess={false} />
 
@@ -441,6 +466,7 @@ export default function AccountingExpensesPage() {
           emptyRow={emptyForm}
           onAutoCalc={handleAutoCalcExpenses}
           onBatchSave={handleBatchSave}
+          canDelete={(r) => !hasSourceLink(r)}
           accentColor="red"
           onClose={() => setIsSpreadsheetMode(false)}
         />
@@ -511,7 +537,9 @@ export default function AccountingExpensesPage() {
                     <td className="px-4 py-3 text-muted-foreground">{r.accounting_subject || '-'}</td>
                     <td className="px-4 py-3 font-medium text-foreground">
                       {r.vendor_name || '-'}
-                      {r.payment_request_id && <span className="ml-1.5 text-[10px] text-destructive bg-destructive/10 px-1 py-0.5 rounded" title="由請款核准自動建立">自動</span>}
+                      {r.quotation_item_id && <span className="ml-1.5 text-[10px] text-info bg-info/10 px-1 py-0.5 rounded" title="由報價單核准自動建立">報價</span>}
+                      {r.payment_request_id && !r.quotation_item_id && <span className="ml-1.5 text-[10px] text-chart-4 bg-chart-4/10 px-1 py-0.5 rounded" title="由專案請款核准自動建立">請款</span>}
+                      {r.expense_claim_id && <span className="ml-1.5 text-[10px] text-warning bg-warning/10 px-1 py-0.5 rounded" title="由個人報帳核准自動建立">報帳</span>}
                       {mgId && mgLabel && <span className={`ml-1.5 inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium ${mgBadgeClass}`}>合併 {mgLabel}</span>}
                     </td>
                     <td className="px-4 py-3 text-right text-foreground">
@@ -519,6 +547,16 @@ export default function AccountingExpensesPage() {
                       {(r.remittance_fee || 0) > 0 && (
                         <span className="block text-[10px] text-warning" title={`含匯費扣除 NT$${fmt(r.remittance_fee)}`}>
                           匯費 -{fmt(r.remittance_fee)}
+                        </span>
+                      )}
+                      {(r.withholding_tax || 0) > 0 && (
+                        <span className="block text-[10px] text-warning" title={`代扣所得稅 NT$${fmt(r.withholding_tax)}`}>
+                          所得稅 -{fmt(r.withholding_tax)}
+                        </span>
+                      )}
+                      {(r.withholding_nhi || 0) > 0 && (
+                        <span className="block text-[10px] text-warning" title={`代扣二代健保 NT$${fmt(r.withholding_nhi)}`}>
+                          健保 -{fmt(r.withholding_nhi)}
                         </span>
                       )}
                     </td>
@@ -533,9 +571,15 @@ export default function AccountingExpensesPage() {
                         <button onClick={() => { setEditing(r); setForm({ ...r }); setIsModalOpen(true) }} className="p-1.5 text-muted-foreground/60 hover:text-primary rounded hover:bg-primary/10">
                           <Pencil className="w-4 h-4" />
                         </button>
-                        <button onClick={() => handleDelete(r.id)} className="p-1.5 text-muted-foreground/60 hover:text-destructive rounded hover:bg-destructive/10">
-                          <Trash2 className="w-4 h-4" />
-                        </button>
+                        {hasSourceLink(r) ? (
+                          <span className="p-1.5 text-muted-foreground/30 cursor-not-allowed" title="此記錄由系統自動建立，如需移除請至已確認請款頁面進行駁回">
+                            <Lock className="w-4 h-4" />
+                          </span>
+                        ) : (
+                          <button onClick={() => handleDelete(r.id)} className="p-1.5 text-muted-foreground/60 hover:text-destructive rounded hover:bg-destructive/10">
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -656,7 +700,7 @@ export default function AccountingExpensesPage() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-medium text-muted-foreground mb-1">匯款日</label>
-                  <input type="date" value={form.payment_date || ''} onChange={(e) => setForm(f => ({ ...f, payment_date: e.target.value }))}
+                  <input type="date" value={form.payment_date || ''} onChange={(e) => setForm(f => ({ ...f, payment_date: e.target.value || null }))}
                     className="w-full border border-border rounded-lg px-3 py-2 text-sm bg-card focus:outline-none focus:ring-2 focus:ring-ring" />
                 </div>
                 <div>
@@ -674,7 +718,7 @@ export default function AccountingExpensesPage() {
               </div>
               <div>
                 <label className="block text-xs font-medium text-muted-foreground mb-1">發票日期</label>
-                <input type="date" value={form.invoice_date || ''} onChange={(e) => setForm(f => ({ ...f, invoice_date: e.target.value }))}
+                <input type="date" value={form.invoice_date || ''} onChange={(e) => setForm(f => ({ ...f, invoice_date: e.target.value || null }))}
                   className="w-full border border-border rounded-lg px-3 py-2 text-sm bg-card focus:outline-none focus:ring-2 focus:ring-ring" />
               </div>
               <div>
