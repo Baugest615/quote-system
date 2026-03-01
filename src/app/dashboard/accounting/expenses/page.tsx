@@ -12,6 +12,10 @@ import AccountingModal from '@/components/accounting/AccountingModal'
 import Pagination from '@/components/accounting/Pagination'
 import SpreadsheetEditor from '@/components/accounting/SpreadsheetEditor'
 import { EmptyState } from '@/components/ui/EmptyState'
+import { SortableHeader } from '@/components/ui/SortableHeader'
+import { ColumnFilterPopover } from '@/components/ui/ColumnFilterPopover'
+import { useTableSort } from '@/hooks/useTableSort'
+import { useColumnFilters, type FilterValue } from '@/hooks/useColumnFilters'
 import Link from 'next/link'
 import type { AccountingExpense, PaymentTargetType, ExpenseType } from '@/types/custom.types'
 import { PAYMENT_TARGET_LABELS, PAYMENT_TARGET_TYPES, PAYMENT_STATUS, PAYMENT_STATUS_LABELS } from '@/types/custom.types'
@@ -46,6 +50,22 @@ const MERGE_BADGE_COLORS: Record<string, string> = {
 
 type ExpenseWithMerge = AccountingExpense & {
   payment_requests: { merge_group_id: string | null; merge_color: string | null } | null
+}
+
+type ExpenseSortKey = 'expense_month' | 'expense_type' | 'accounting_subject' | 'vendor_name' | 'total_amount' | 'project_name' | 'note' | 'payment_date' | 'payment_status'
+
+function getExpenseSortValue(r: ExpenseWithMerge, key: ExpenseSortKey): string | number | null {
+  switch (key) {
+    case 'expense_month': return r.expense_month ?? null
+    case 'expense_type': return r.expense_type ?? null
+    case 'accounting_subject': return r.accounting_subject ?? null
+    case 'vendor_name': return r.vendor_name ?? null
+    case 'total_amount': return r.total_amount ?? 0
+    case 'project_name': return r.project_name ?? null
+    case 'note': return r.note ?? null
+    case 'payment_date': return r.payment_date ?? null
+    case 'payment_status': return r.payment_status ?? 'unpaid'
+  }
 }
 
 const EXPENSE_TYPE_COLORS: Record<string, string> = {
@@ -94,6 +114,10 @@ export default function AccountingExpensesPage() {
   const [currentPage, setCurrentPage] = useState(1)
   const [isSpreadsheetMode, setIsSpreadsheetMode] = useState(false)
   const { projectNameOptions, suggestionOptions: quotationSuggestionOptions, quotationMap } = useQuotationOptions()
+  const { sortState, toggleSort } = useTableSort<ExpenseSortKey>()
+  const { filters, setFilter } = useColumnFilters<Record<ExpenseSortKey, unknown>>()
+  const getFilter = (key: ExpenseSortKey): FilterValue | null => filters.get(key as keyof Record<ExpenseSortKey, unknown>) ?? null
+  const setFilterByKey = (key: ExpenseSortKey, value: FilterValue | null) => setFilter(key as keyof Record<ExpenseSortKey, unknown>, value)
 
   const spreadsheetColumns = useMemo<SpreadsheetColumn<AccountingExpense>[]>(() => [
     { key: 'expense_month', label: '支出月份', type: 'select',
@@ -208,7 +232,7 @@ export default function AccountingExpensesPage() {
 
   const filtered = useMemo(() => {
     const q = search.toLowerCase()
-    return records.filter(r => {
+    let result = records.filter(r => {
       const matchesType = typeFilter === 'all' || r.expense_type === typeFilter
       const matchesTarget = targetFilter === 'all' || r.payment_target_type === targetFilter
       const matchesPaymentStatus = paymentStatusFilter === 'all' || r.payment_status === paymentStatusFilter
@@ -219,10 +243,49 @@ export default function AccountingExpensesPage() {
         (r.accounting_subject || '').toLowerCase().includes(q)
       return matchesType && matchesTarget && matchesPaymentStatus && matchesSearch
     })
-  }, [search, typeFilter, targetFilter, paymentStatusFilter, records])
+    // 欄位篩選
+    if (filters.size > 0) {
+      result = result.filter(r => {
+        let pass = true
+        filters.forEach((fv, key) => {
+          if (!pass) return
+          const val = getExpenseSortValue(r, String(key) as ExpenseSortKey)
+          if (fv.type === 'text') {
+            if (!String(val ?? '').toLowerCase().includes(fv.value.toLowerCase())) pass = false
+          } else if (fv.type === 'select') {
+            if (!fv.selected.includes(String(val ?? ''))) pass = false
+          } else if (fv.type === 'number') {
+            const num = typeof val === 'number' ? val : parseFloat(String(val ?? ''))
+            if (isNaN(num)) { if (fv.min != null || fv.max != null) pass = false; return }
+            if (fv.min != null && num < fv.min) pass = false
+            if (fv.max != null && num > fv.max) pass = false
+          } else if (fv.type === 'date') {
+            const str = String(val ?? '')
+            if (!str) { pass = false; return }
+            if (fv.start && str < fv.start) pass = false
+            if (fv.end && str > fv.end) pass = false
+          }
+        })
+        return pass
+      })
+    }
+    return result
+  }, [search, typeFilter, targetFilter, paymentStatusFilter, records, filters])
 
-  // 合併群組排序：同群組排在一起，方便檢視
+  // 排序：有排序鍵時依欄位排序，否則合併群組排序
   const sorted = useMemo(() => {
+    if (sortState.key && sortState.direction) {
+      const dir = sortState.direction === 'asc' ? 1 : -1
+      return [...filtered].sort((a, b) => {
+        const aVal = getExpenseSortValue(a, sortState.key as ExpenseSortKey)
+        const bVal = getExpenseSortValue(b, sortState.key as ExpenseSortKey)
+        if (aVal == null && bVal == null) return 0
+        if (aVal == null) return 1
+        if (bVal == null) return -1
+        if (typeof aVal === 'number' && typeof bVal === 'number') return (aVal - bVal) * dir
+        return String(aVal).localeCompare(String(bVal), 'zh-Hant') * dir
+      })
+    }
     return [...filtered].sort((a, b) => {
       const aGroup = a.payment_requests?.merge_group_id
       const bGroup = b.payment_requests?.merge_group_id
@@ -231,7 +294,7 @@ export default function AccountingExpensesPage() {
       if (!aGroup && bGroup) return 1
       return 0
     })
-  }, [filtered])
+  }, [filtered, sortState])
 
   // 合併群組標籤映射（A, B, ..., Z, AA, AB...）
   const mergeGroupLabelMap = useMemo(() => {
@@ -509,15 +572,42 @@ export default function AccountingExpensesPage() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="bg-muted text-muted-foreground text-xs">
-                  <th className="text-left px-4 py-3">支出月份</th>
-                  <th className="text-left px-4 py-3">支出種類</th>
-                  <th className="text-left px-4 py-3">會計科目</th>
-                  <th className="text-left px-4 py-3">廠商/對象</th>
-                  <th className="text-right px-4 py-3">實付金額</th>
-                  <th className="text-left px-4 py-3">專案名稱</th>
-                  <th className="text-left px-4 py-3">備註</th>
-                  <th className="text-left px-4 py-3">匯款日</th>
-                  <th className="text-center px-4 py-3">付款狀態</th>
+                  <th className="text-left px-4 py-2">
+                    <SortableHeader<ExpenseSortKey> label="支出月份" sortKey="expense_month" sortState={sortState} onToggleSort={toggleSort}
+                      filterContent={<ColumnFilterPopover filterType="select" options={MONTH_OPTIONS.map(m => `${year}年${m}`)} value={getFilter('expense_month')} onChange={v => setFilterByKey('expense_month', v)} />} />
+                  </th>
+                  <th className="text-left px-4 py-2">
+                    <SortableHeader<ExpenseSortKey> label="支出種類" sortKey="expense_type" sortState={sortState} onToggleSort={toggleSort}
+                      filterContent={<ColumnFilterPopover filterType="select" options={expenseTypeNames} value={getFilter('expense_type')} onChange={v => setFilterByKey('expense_type', v)} />} />
+                  </th>
+                  <th className="text-left px-4 py-2">
+                    <SortableHeader<ExpenseSortKey> label="會計科目" sortKey="accounting_subject" sortState={sortState} onToggleSort={toggleSort}
+                      filterContent={<ColumnFilterPopover filterType="select" options={accountingSubjectNames} value={getFilter('accounting_subject')} onChange={v => setFilterByKey('accounting_subject', v)} />} />
+                  </th>
+                  <th className="text-left px-4 py-2">
+                    <SortableHeader<ExpenseSortKey> label="廠商/對象" sortKey="vendor_name" sortState={sortState} onToggleSort={toggleSort}
+                      filterContent={<ColumnFilterPopover filterType="text" value={getFilter('vendor_name')} onChange={v => setFilterByKey('vendor_name', v)} />} />
+                  </th>
+                  <th className="text-right px-4 py-2">
+                    <SortableHeader<ExpenseSortKey> label="實付金額" sortKey="total_amount" sortState={sortState} onToggleSort={toggleSort}
+                      filterContent={<ColumnFilterPopover filterType="number" value={getFilter('total_amount')} onChange={v => setFilterByKey('total_amount', v)} />} />
+                  </th>
+                  <th className="text-left px-4 py-2">
+                    <SortableHeader<ExpenseSortKey> label="專案名稱" sortKey="project_name" sortState={sortState} onToggleSort={toggleSort}
+                      filterContent={<ColumnFilterPopover filterType="text" value={getFilter('project_name')} onChange={v => setFilterByKey('project_name', v)} />} />
+                  </th>
+                  <th className="text-left px-4 py-2">
+                    <SortableHeader<ExpenseSortKey> label="備註" sortKey="note" sortState={sortState} onToggleSort={toggleSort}
+                      filterContent={<ColumnFilterPopover filterType="text" value={getFilter('note')} onChange={v => setFilterByKey('note', v)} />} />
+                  </th>
+                  <th className="text-left px-4 py-2">
+                    <SortableHeader<ExpenseSortKey> label="匯款日" sortKey="payment_date" sortState={sortState} onToggleSort={toggleSort}
+                      filterContent={<ColumnFilterPopover filterType="date" value={getFilter('payment_date')} onChange={v => setFilterByKey('payment_date', v)} />} />
+                  </th>
+                  <th className="text-center px-4 py-2">
+                    <SortableHeader<ExpenseSortKey> label="付款狀態" sortKey="payment_status" sortState={sortState} onToggleSort={toggleSort}
+                      filterContent={<ColumnFilterPopover filterType="select" options={['paid', 'unpaid']} value={getFilter('payment_status')} onChange={v => setFilterByKey('payment_status', v)} />} />
+                  </th>
                   <th className="text-center px-4 py-3">操作</th>
                 </tr>
               </thead>

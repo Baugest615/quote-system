@@ -12,6 +12,10 @@ import AccountingModal from '@/components/accounting/AccountingModal'
 import Pagination from '@/components/accounting/Pagination'
 import SpreadsheetEditor from '@/components/accounting/SpreadsheetEditor'
 import { EmptyState } from '@/components/ui/EmptyState'
+import { SortableHeader } from '@/components/ui/SortableHeader'
+import { ColumnFilterPopover } from '@/components/ui/ColumnFilterPopover'
+import { useTableSort } from '@/hooks/useTableSort'
+import { useColumnFilters, type FilterValue } from '@/hooks/useColumnFilters'
 import Link from 'next/link'
 import type { AccountingSale } from '@/types/custom.types'
 import type { SpreadsheetColumn, BatchSaveResult, RowError } from '@/lib/spreadsheet-utils'
@@ -21,6 +25,21 @@ import { CURRENT_YEAR, MONTH_OPTIONS } from '@/lib/constants'
 import { useConfirm } from '@/components/ui/ConfirmDialog'
 
 const PAGE_SIZE = 20
+
+type SalesSortKey = 'invoice_month' | 'project_name' | 'client_name' | 'sales_amount' | 'tax_amount' | 'total_amount' | 'invoice_number' | 'actual_receipt_date'
+
+function getSalesSortValue(r: AccountingSale, key: SalesSortKey): string | number | null {
+  switch (key) {
+    case 'invoice_month': return r.invoice_month ?? null
+    case 'project_name': return r.project_name ?? null
+    case 'client_name': return r.client_name ?? null
+    case 'sales_amount': return r.sales_amount ?? 0
+    case 'tax_amount': return r.tax_amount ?? 0
+    case 'total_amount': return r.total_amount ?? 0
+    case 'invoice_number': return r.invoice_number ?? null
+    case 'actual_receipt_date': return r.actual_receipt_date ?? null
+  }
+}
 
 const emptyForm = (): Partial<AccountingSale> => ({
   year: CURRENT_YEAR,
@@ -49,6 +68,10 @@ export default function AccountingSalesPage() {
   const [currentPage, setCurrentPage] = useState(1)
   const [isSpreadsheetMode, setIsSpreadsheetMode] = useState(false)
   const { options: quotationOptions, suggestionOptions: quotationSuggestionOptions } = useQuotationOptions()
+  const { sortState, toggleSort } = useTableSort<SalesSortKey>()
+  const { filters, setFilter } = useColumnFilters<Record<SalesSortKey, unknown>>()
+  const getFilter = (key: SalesSortKey): FilterValue | null => filters.get(key as keyof Record<SalesSortKey, unknown>) ?? null
+  const setFilterByKey = (key: SalesSortKey, value: FilterValue | null) => setFilter(key as keyof Record<SalesSortKey, unknown>, value)
 
   // 試算表欄位定義
   const spreadsheetColumns = useMemo<SpreadsheetColumn<AccountingSale>[]>(() => [
@@ -121,14 +144,54 @@ export default function AccountingSalesPage() {
 
   const filtered = useMemo(() => {
     const q = search.toLowerCase()
-    return q
+    let result = q
       ? records.filter(r =>
           r.project_name.toLowerCase().includes(q) ||
           (r.client_name || '').toLowerCase().includes(q) ||
           (r.invoice_number || '').toLowerCase().includes(q)
         )
-      : records
-  }, [search, records])
+      : [...records]
+    // 欄位篩選
+    if (filters.size > 0) {
+      result = result.filter(r => {
+        let pass = true
+        filters.forEach((fv, key) => {
+          if (!pass) return
+          const val = getSalesSortValue(r, String(key) as SalesSortKey)
+          if (fv.type === 'text') {
+            if (!String(val ?? '').toLowerCase().includes(fv.value.toLowerCase())) pass = false
+          } else if (fv.type === 'select') {
+            if (!fv.selected.includes(String(val ?? ''))) pass = false
+          } else if (fv.type === 'number') {
+            const num = typeof val === 'number' ? val : parseFloat(String(val ?? ''))
+            if (isNaN(num)) { if (fv.min != null || fv.max != null) pass = false; return }
+            if (fv.min != null && num < fv.min) pass = false
+            if (fv.max != null && num > fv.max) pass = false
+          } else if (fv.type === 'date') {
+            const str = String(val ?? '')
+            if (!str) { pass = false; return }
+            if (fv.start && str < fv.start) pass = false
+            if (fv.end && str > fv.end) pass = false
+          }
+        })
+        return pass
+      })
+    }
+    // 排序
+    if (sortState.key && sortState.direction) {
+      const dir = sortState.direction === 'asc' ? 1 : -1
+      result.sort((a, b) => {
+        const aVal = getSalesSortValue(a, sortState.key as SalesSortKey)
+        const bVal = getSalesSortValue(b, sortState.key as SalesSortKey)
+        if (aVal == null && bVal == null) return 0
+        if (aVal == null) return 1
+        if (bVal == null) return -1
+        if (typeof aVal === 'number' && typeof bVal === 'number') return (aVal - bVal) * dir
+        return String(aVal).localeCompare(String(bVal), 'zh-Hant') * dir
+      })
+    }
+    return result
+  }, [search, records, filters, sortState])
 
   const openCreate = () => {
     setEditing(null)
@@ -302,14 +365,38 @@ export default function AccountingSalesPage() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="bg-muted text-muted-foreground text-xs">
-                  <th className="text-left px-4 py-3">報價年月</th>
-                  <th className="text-left px-4 py-3">案件名稱</th>
-                  <th className="text-left px-4 py-3">開立對象</th>
-                  <th className="text-right px-4 py-3">銷售額</th>
-                  <th className="text-right px-4 py-3">稅額</th>
-                  <th className="text-right px-4 py-3">發票總額</th>
-                  <th className="text-left px-4 py-3">發票號碼</th>
-                  <th className="text-left px-4 py-3">實際入帳日</th>
+                  <th className="text-left px-4 py-2">
+                    <SortableHeader<SalesSortKey> label="報價年月" sortKey="invoice_month" sortState={sortState} onToggleSort={toggleSort}
+                      filterContent={<ColumnFilterPopover filterType="select" options={MONTH_OPTIONS.map(m => `${year}年${m}`)} value={getFilter('invoice_month')} onChange={v => setFilterByKey('invoice_month', v)} />} />
+                  </th>
+                  <th className="text-left px-4 py-2">
+                    <SortableHeader<SalesSortKey> label="案件名稱" sortKey="project_name" sortState={sortState} onToggleSort={toggleSort}
+                      filterContent={<ColumnFilterPopover filterType="text" value={getFilter('project_name')} onChange={v => setFilterByKey('project_name', v)} />} />
+                  </th>
+                  <th className="text-left px-4 py-2">
+                    <SortableHeader<SalesSortKey> label="開立對象" sortKey="client_name" sortState={sortState} onToggleSort={toggleSort}
+                      filterContent={<ColumnFilterPopover filterType="text" value={getFilter('client_name')} onChange={v => setFilterByKey('client_name', v)} />} />
+                  </th>
+                  <th className="text-right px-4 py-2">
+                    <SortableHeader<SalesSortKey> label="銷售額" sortKey="sales_amount" sortState={sortState} onToggleSort={toggleSort}
+                      filterContent={<ColumnFilterPopover filterType="number" value={getFilter('sales_amount')} onChange={v => setFilterByKey('sales_amount', v)} />} />
+                  </th>
+                  <th className="text-right px-4 py-2">
+                    <SortableHeader<SalesSortKey> label="稅額" sortKey="tax_amount" sortState={sortState} onToggleSort={toggleSort}
+                      filterContent={<ColumnFilterPopover filterType="number" value={getFilter('tax_amount')} onChange={v => setFilterByKey('tax_amount', v)} />} />
+                  </th>
+                  <th className="text-right px-4 py-2">
+                    <SortableHeader<SalesSortKey> label="發票總額" sortKey="total_amount" sortState={sortState} onToggleSort={toggleSort}
+                      filterContent={<ColumnFilterPopover filterType="number" value={getFilter('total_amount')} onChange={v => setFilterByKey('total_amount', v)} />} />
+                  </th>
+                  <th className="text-left px-4 py-2">
+                    <SortableHeader<SalesSortKey> label="發票號碼" sortKey="invoice_number" sortState={sortState} onToggleSort={toggleSort}
+                      filterContent={<ColumnFilterPopover filterType="text" value={getFilter('invoice_number')} onChange={v => setFilterByKey('invoice_number', v)} />} />
+                  </th>
+                  <th className="text-left px-4 py-2">
+                    <SortableHeader<SalesSortKey> label="實際入帳日" sortKey="actual_receipt_date" sortState={sortState} onToggleSort={toggleSort}
+                      filterContent={<ColumnFilterPopover filterType="date" value={getFilter('actual_receipt_date')} onChange={v => setFilterByKey('actual_receipt_date', v)} />} />
+                  </th>
                   <th className="text-center px-4 py-3">操作</th>
                 </tr>
               </thead>
