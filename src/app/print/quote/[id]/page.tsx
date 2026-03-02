@@ -134,7 +134,7 @@ export default async function PrintQuotePage({ params, searchParams }: PageProps
                 <style>{`
           * { margin: 0; padding: 0; box-sizing: border-box; }
           body, #printable-quote, #printable-quote * {
-            font-family: 'PingFang TC', 'Noto Sans TC', 'Microsoft JhengHei', 'Apple LiGothic', system-ui, sans-serif !important;
+            font-family: 'Noto Sans TC', 'Microsoft JhengHei', 'PingFang TC', 'Heiti TC', 'Apple LiGothic', system-ui, sans-serif !important;
           }
           body { font-size: 13px; line-height: 1.5; color: #1f2937; }
           .container { padding: 0; background: white; max-width: 100%; overflow: hidden; }

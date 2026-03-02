@@ -161,7 +161,16 @@ export async function POST(request: NextRequest) {
             }
         });
 
-        // 注入 PDF 專用樣式：白底 + CJK 字體
+        // 載入 Google Fonts Noto Sans TC（確保所有平台都能渲染 CJK 字元）
+        try {
+            await page.addStyleTag({
+                url: 'https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;600;700&display=swap'
+            });
+        } catch (fontError) {
+            console.warn('[PDF API] Failed to load Google Fonts, falling back to system fonts:', fontError);
+        }
+
+        // 注入 PDF 專用樣式：白底 + CJK 字體（Noto Sans TC 優先，其次系統字體）
         await page.addStyleTag({
             content: `
                 html, body {
@@ -177,13 +186,13 @@ export async function POST(request: NextRequest) {
                     margin: 0 !important;
                 }
                 body, body *, #printable-quote, #printable-quote * {
-                    font-family: 'Heiti TC', 'Apple LiGothic', 'STHeiti', 'PingFang TC',
-                                 'Noto Sans TC', 'Microsoft JhengHei', system-ui, sans-serif !important;
+                    font-family: 'Noto Sans TC', 'Microsoft JhengHei', 'PingFang TC',
+                                 'Heiti TC', 'Apple LiGothic', system-ui, sans-serif !important;
                 }
             `
         });
 
-        // 等待字體載入完成
+        // 等待字體載入完成（包含 Google Fonts 的 WOFF2 檔案）
         await page.evaluate(() => document.fonts.ready);
 
         // 生成 PDF
