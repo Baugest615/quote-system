@@ -1,4 +1,4 @@
-'use client'
+"use client";
 
 import {
   Briefcase,
@@ -8,25 +8,41 @@ import {
   UserPlus,
   Star,
   FolderKanban,
-} from 'lucide-react'
-import Link from 'next/link'
+} from "lucide-react";
+import Link from "next/link";
 
-import dynamic from 'next/dynamic'
-import { useDashboardDataV2 } from '@/hooks/dashboard/useDashboardDataV2'
-import { usePermission } from '@/lib/permissions'
-import { KpiCard } from '@/components/dashboard/KpiCard'
-import { ActionItems } from '@/components/dashboard/ActionItems'
-import { ProjectPipelineChart } from '@/components/dashboard/ProjectPipelineChart'
-import { ActivityTimeline } from '@/components/dashboard/ActivityTimeline'
+import dynamic from "next/dynamic";
+import { useDashboardDataV2 } from "@/hooks/dashboard/useDashboardDataV2";
+import { usePermission } from "@/lib/permissions";
+import { KpiCard } from "@/components/dashboard/KpiCard";
+import { ActionItems } from "@/components/dashboard/ActionItems";
+import { ProjectPipelineChart } from "@/components/dashboard/ProjectPipelineChart";
+import { ActivityTimeline } from "@/components/dashboard/ActivityTimeline";
 
 const CaseTrendChart = dynamic(
-  () => import('@/components/dashboard/CaseTrendChart').then(m => ({ default: m.CaseTrendChart })),
-  { loading: () => <div className="h-64 bg-muted/50 animate-pulse rounded-lg" />, ssr: false }
-)
+  () =>
+    import("@/components/dashboard/CaseTrendChart").then((m) => ({
+      default: m.CaseTrendChart,
+    })),
+  {
+    loading: () => (
+      <div className="h-64 bg-muted/50 animate-pulse rounded-lg" />
+    ),
+    ssr: false,
+  },
+);
 const QuoteStatusChart = dynamic(
-  () => import('@/components/dashboard/QuoteStatusChart').then(m => ({ default: m.QuoteStatusChart })),
-  { loading: () => <div className="h-64 bg-muted/50 animate-pulse rounded-lg" />, ssr: false }
-)
+  () =>
+    import("@/components/dashboard/QuoteStatusChart").then((m) => ({
+      default: m.QuoteStatusChart,
+    })),
+  {
+    loading: () => (
+      <div className="h-64 bg-muted/50 animate-pulse rounded-lg" />
+    ),
+    ssr: false,
+  },
+);
 
 // 快速功能按鈕
 function QuickAction({
@@ -34,9 +50,9 @@ function QuickAction({
   icon: Icon,
   text,
 }: {
-  href: string
-  icon: React.ElementType
-  text: string
+  href: string;
+  icon: React.ElementType;
+  text: string;
 }) {
   return (
     <Link
@@ -46,7 +62,7 @@ function QuickAction({
       <Icon className="h-5 w-5 text-muted-foreground group-hover:text-emerald-400 transition-colors" />
       <span className="text-sm font-medium text-foreground">{text}</span>
     </Link>
-  )
+  );
 }
 
 // 載入骨架
@@ -59,7 +75,10 @@ function DashboardSkeleton() {
       </div>
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         {[...Array(4)].map((_, i) => (
-          <div key={i} className="bg-card border border-border rounded-xl p-5 h-20" />
+          <div
+            key={i}
+            className="bg-card border border-border rounded-xl p-5 h-20"
+          />
         ))}
       </div>
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
@@ -75,15 +94,15 @@ function DashboardSkeleton() {
         <div className="bg-card border border-border rounded-xl p-6 h-64" />
       </div>
     </div>
-  )
+  );
 }
 
 export default function DashboardPage() {
-  const { loading: permLoading } = usePermission()
-  const { data, isLoading: dataLoading } = useDashboardDataV2()
+  const { loading: permLoading } = usePermission();
+  const { data, isLoading: dataLoading } = useDashboardDataV2();
 
   if (permLoading || dataLoading || !data) {
-    return <DashboardSkeleton />
+    return <DashboardSkeleton />;
   }
 
   return (
@@ -154,9 +173,7 @@ export default function DashboardPage() {
           <ActivityTimeline items={data.activityTimeline} />
         </div>
         <div className="bg-card border border-border rounded-xl p-5 sm:p-6">
-          <h3 className="text-base font-bold text-foreground mb-4">
-            快速功能
-          </h3>
+          <h3 className="text-base font-bold text-foreground mb-4">快速功能</h3>
           <div className="space-y-1">
             <QuickAction
               href="/dashboard/quotes/new"
@@ -173,14 +190,10 @@ export default function DashboardPage() {
               icon={UserPlus}
               text="管理客戶"
             />
-            <QuickAction
-              href="/dashboard/kols"
-              icon={Star}
-              text="管理 KOL"
-            />
+            <QuickAction href="/dashboard/kols" icon={Star} text="管理 KOL" />
           </div>
         </div>
       </div>
     </div>
-  )
+  );
 }

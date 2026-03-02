@@ -1,7 +1,7 @@
 # 開發進度追蹤
 
 > 最後更新：2026-03-02
-> 分支：`main`（已合併 `feature/kol-inline-create`）
+> 分支：`feat/dashboard-optimization`（開發中）
 > 詳細變更歷程請見 Git commit history
 
 ## 回滾資訊
@@ -26,15 +26,21 @@
 - ✅ 進項/銷項管理表格標題排序與篩選（SortableHeader + ColumnFilterPopover）
 - ✅ 匯款總覽批次設定匯款日期（RPC 擴充 + 薪資/進項/個人報帳三路徑同步）
 - ✅ `npx tsc --noEmit` 通過，零型別錯誤
+- ✅ 儀表板重新設計：專案 Pipeline 導向 + 舊付款頁面封存（`feat/dashboard-optimization`）
+- ✅ 待辦事項修正：報價待簽約 / 專案請款待審核 / 個人報帳待審核
+- ✅ Claude Agent SDK 0.1.77 安裝完成，agents 框架可正常使用
 
 ## 待辦事項
 
 ### 優先
-- [ ] 手動驗證報價編號整合：各表單選擇器 + 列表顯示 + 試算表 autocomplete
+- [ ] 手動驗證儀表板新版佈局（KPI / Pipeline / 趨勢圖 / 時間軸 / 待辦事項）
 - [ ] 全面功能回歸測試（各頁面 CRUD + 權限分級 Admin/Editor/Member）
 - [ ] 部署至正式環境
 
 ### 功能擴充
 - [ ] 銷項管理反向同步（修改金額同步回報價單）— 目前為單向流
-- [ ] 儀表板依角色顯示不同內容
 - [ ] 清理 useProjectNames hook（已被 useQuotationOptions 取代）
+
+### 技術債
+- [ ] Claude Agent SDK 升級 0.1.77 → 0.2.x（需同步升級 zod 3.x → 4.x，影響 5 個表單驗證元件）
+- [ ] `@hookform/resolvers/zod` 需配合 zod 4 升級
