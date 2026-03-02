@@ -56,6 +56,12 @@ src/types/database.types.ts # Supabase 自動生成（勿手動改）
 - PDF/列印元件（`src/components/pdf/`、`src/app/print/`）故意使用淺色，**勿修改**
 - KPI 卡片色彩：`chart-1`（綠）、`chart-3`（紅）、`chart-4`（藍）、`chart-5`（紫）
 
+### PDF 生成（Puppeteer）注意事項
+- **字型必須使用 Web Font**：Puppeteer headless 模式下系統字體不可靠（macOS 有 PingFang TC 但 Windows 沒有，反之 Microsoft JhengHei 在 headless 下也不保證可用）。目前透過 Google Fonts CDN 載入 Noto Sans TC 作為主要 CJK 字型，**勿移除**
+- **字型優先順序**：`Noto Sans TC`（Web Font）→ `Microsoft JhengHei`（Windows）→ `PingFang TC`（macOS）→ 其餘 fallback
+- **跨平台測試**：PDF 輸出涉及瀏覽器引擎 + 字型 + 作業系統三層依賴，修改後務必在目標環境實際匯出 PDF 驗證，不能只看網頁預覽
+- 相關檔案：`src/app/api/pdf/generate/route.ts`（Puppeteer 渲染）、`src/app/print/quote/[id]/page.tsx`（列印模板）
+
 ### 型別注意
 - JSONB 欄位（bank_info）使用 camelCase（`bankType`、`bankName`、`branchName`、`accountNumber`）
 - Supabase JSONB 查詢結果是 `Json` 型別，需要手動 cast（如 `as KolBankInfo`）
