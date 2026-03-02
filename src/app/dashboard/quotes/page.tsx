@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback, useMemo, useEffect } from 'react'
+import { useState, useCallback, useMemo, useEffect, Suspense } from 'react'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import { useQueryClient } from '@tanstack/react-query'
@@ -20,6 +20,14 @@ import { ModuleErrorBoundary } from '@/components/ModuleErrorBoundary'
 export type QuotationWithClient = QuotationWithItemsSummary
 
 export default function QuotesV2Page() {
+  return (
+    <Suspense fallback={<SkeletonTable rows={10} columns={7} />}>
+      <QuotesV2Content />
+    </Suspense>
+  )
+}
+
+function QuotesV2Content() {
     const queryClient = useQueryClient()
     const searchParams = useSearchParams()
     const initialStatus = searchParams.get('status')
