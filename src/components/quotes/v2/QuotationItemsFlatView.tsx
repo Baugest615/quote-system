@@ -104,12 +104,12 @@ function isVerificationPassed(item: FlatQuotationItem): boolean {
   return hasAttachments || hasValidInvoice
 }
 
-// 資料欄位鎖定（類別、KOL、執行內容、數量、單價、成本）
+// 資料欄位鎖定（類別、KOL、執行內容、數量、單價）
 function isDataLocked(item: FlatQuotationItem): boolean {
   return !!item.approved_at || (item.quotations?.status === '已簽約' && !item.is_supplement)
 }
 
-// 付款流程鎖定（發票、附件、請款、審核）— 僅已核准才鎖
+// 流程欄位鎖定（成本、檢核、發票、附件、請款、審核）— 僅已核准才鎖
 function isPaymentLocked(item: FlatQuotationItem): boolean {
   return !!item.approved_at
 }
@@ -936,10 +936,10 @@ export function QuotationItemsFlatView({ onClose }: QuotationItemsFlatViewProps)
                       </td>
                     )}
 
-                    {/* ── 成本 (可編輯) ── */}
+                    {/* ── 成本 (可編輯，簽約後仍可修改，僅審核通過才鎖) ── */}
                     {isColVisible('cost') && (
                       <td className="w-24 p-1 text-right">
-                        {locked ? (
+                        {paymentLocked ? (
                           <span className="text-xs font-mono px-2">{Number(item.cost).toLocaleString()}</span>
                         ) : (
                           <EditableCell

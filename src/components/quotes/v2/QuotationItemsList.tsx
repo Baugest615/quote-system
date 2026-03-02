@@ -960,9 +960,10 @@ export function QuotationItemsList({ quotationId, onUpdate, readOnly = false, qu
                             const statusConfig = PAYMENT_STATUS_CONFIG[status]
                             const verified = isVerificationPassed(item)
                             const isItemLoading = actionLoading.has(item.id)
-                            // 追加模式下：原始項目也鎖定編輯
+                            // 追加模式下：原始項目的「資料欄位」鎖定，但「成本/檢核/請款」仍可操作
                             const isOriginalInSupplement = isSupplementMode && !item.is_supplement
-                            const isLocked = !!item.approved_at || isOriginalInSupplement
+                            const isLocked = !!item.approved_at || isOriginalInSupplement  // 資料欄位鎖定（類別、KOL、執行內容、數量、單價）
+                            const isApproved = !!item.approved_at  // 流程欄位鎖定（成本、檢核）— 只有審核通過才鎖
                             const canDelete = !isOriginalInSupplement
                                 && !item.requested_at && !item.approved_at
                                 && !item.payment_requests?.some(pr => pr.verification_status !== 'rejected')
@@ -1052,7 +1053,7 @@ export function QuotationItemsList({ quotationId, onUpdate, readOnly = false, qu
                                         )}
                                     </td>
                                     <td className="border-r border-border/50 p-0">
-                                        {isLocked ? (
+                                        {isApproved ? (
                                             <div className="px-3 py-2 text-right text-muted-foreground">{(item.cost ?? 0).toLocaleString()}</div>
                                         ) : (
                                             <EditableCell
@@ -1078,7 +1079,7 @@ export function QuotationItemsList({ quotationId, onUpdate, readOnly = false, qu
 
                                     {/* 檢核 */}
                                     <td className="px-2 py-2 text-center">
-                                        {isLocked ? (
+                                        {isApproved ? (
                                             <CheckCircle2 className="h-4 w-4 text-success mx-auto" />
                                         ) : (
                                             <button
