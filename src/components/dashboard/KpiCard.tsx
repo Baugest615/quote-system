@@ -1,19 +1,21 @@
-'use client'
+"use client";
 
-import { Area, AreaChart, ResponsiveContainer } from 'recharts'
+import { Area, AreaChart, ResponsiveContainer } from "recharts";
 
 interface KpiCardProps {
-  title: string
-  value: string
-  icon: React.ElementType
-  accentColor: string
-  accentBg: string
-  sparklineData: number[]
-  sparklineColor: string
+  title: string;
+  subtitle?: string;
+  value: string;
+  icon: React.ElementType;
+  accentColor: string;
+  accentBg: string;
+  sparklineData: number[];
+  sparklineColor: string;
 }
 
 export function KpiCard({
   title,
+  subtitle,
   value,
   icon: Icon,
   accentColor,
@@ -21,7 +23,7 @@ export function KpiCard({
   sparklineData,
   sparklineColor,
 }: KpiCardProps) {
-  const chartData = sparklineData.map((v, i) => ({ v, i }))
+  const chartData = sparklineData.map((v, i) => ({ v, i }));
 
   return (
     <div className="bg-card border border-border rounded-xl p-4 sm:p-5 hover:border-emerald-500/30 transition-all duration-300">
@@ -34,6 +36,9 @@ export function KpiCard({
           <div className="min-w-0">
             <p className="text-xs sm:text-sm text-muted-foreground font-medium truncate">
               {title}
+              {subtitle && (
+                <span className="text-[10px] ml-1 opacity-60">{subtitle}</span>
+              )}
             </p>
             <p className="text-xl sm:text-2xl font-bold text-foreground font-mono tracking-tight">
               {value}
@@ -46,9 +51,23 @@ export function KpiCard({
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart data={chartData}>
               <defs>
-                <linearGradient id={`gradient-${title}`} x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor={sparklineColor} stopOpacity={0.3} />
-                  <stop offset="100%" stopColor={sparklineColor} stopOpacity={0} />
+                <linearGradient
+                  id={`gradient-${title}`}
+                  x1="0"
+                  y1="0"
+                  x2="0"
+                  y2="1"
+                >
+                  <stop
+                    offset="0%"
+                    stopColor={sparklineColor}
+                    stopOpacity={0.3}
+                  />
+                  <stop
+                    offset="100%"
+                    stopColor={sparklineColor}
+                    stopOpacity={0}
+                  />
                 </linearGradient>
               </defs>
               <Area
@@ -65,5 +84,5 @@ export function KpiCard({
         </div>
       </div>
     </div>
-  )
+  );
 }
