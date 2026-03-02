@@ -1,28 +1,26 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
-import supabase from '@/lib/supabase/client'
-import { User } from '@supabase/supabase-js'
 import {
-  DollarSign,
-  TrendingUp,
-  Clock,
   Briefcase,
   FileText,
+  CheckCircle,
+  Clock,
   UserPlus,
   Star,
+  FolderKanban,
 } from 'lucide-react'
 import Link from 'next/link'
 
 import dynamic from 'next/dynamic'
-import { formatCurrency } from '@/lib/utils'
-import { useDashboardData } from '@/hooks/dashboard/useDashboardData'
+import { useDashboardDataV2 } from '@/hooks/dashboard/useDashboardDataV2'
+import { usePermission } from '@/lib/permissions'
 import { KpiCard } from '@/components/dashboard/KpiCard'
 import { ActionItems } from '@/components/dashboard/ActionItems'
+import { ProjectPipelineChart } from '@/components/dashboard/ProjectPipelineChart'
+import { ActivityTimeline } from '@/components/dashboard/ActivityTimeline'
 
-const RevenueChart = dynamic(
-  () => import('@/components/dashboard/RevenueChart').then(m => ({ default: m.RevenueChart })),
+const CaseTrendChart = dynamic(
+  () => import('@/components/dashboard/CaseTrendChart').then(m => ({ default: m.CaseTrendChart })),
   { loading: () => <div className="h-64 bg-muted/50 animate-pulse rounded-lg" />, ssr: false }
 )
 const QuoteStatusChart = dynamic(
@@ -68,38 +66,23 @@ function DashboardSkeleton() {
         <div className="bg-card border border-border rounded-xl p-6 h-72" />
         <div className="bg-card border border-border rounded-xl p-6 h-72" />
       </div>
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <div className="bg-card border border-border rounded-xl p-6 h-48 lg:col-span-2" />
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <div className="bg-card border border-border rounded-xl p-6 h-72" />
         <div className="bg-card border border-border rounded-xl p-6 h-48" />
+      </div>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <div className="bg-card border border-border rounded-xl p-6 h-64 lg:col-span-2" />
+        <div className="bg-card border border-border rounded-xl p-6 h-64" />
       </div>
     </div>
   )
 }
 
 export default function DashboardPage() {
-  const [user, setUser] = useState<User | null>(null)
-  const [authLoading, setAuthLoading] = useState(true)
-  const router = useRouter()
+  const { loading: permLoading } = usePermission()
+  const { data, isLoading: dataLoading } = useDashboardDataV2()
 
-  const { data, isLoading: dataLoading } = useDashboardData()
-
-  useEffect(() => {
-    async function checkAuth() {
-      const {
-        data: { session },
-        error,
-      } = await supabase.auth.getSession()
-      if (error || !session?.user) {
-        router.push('/auth/login')
-        return
-      }
-      setUser(session.user)
-      setAuthLoading(false)
-    }
-    checkAuth()
-  }, [router])
-
-  if (authLoading || dataLoading || !data) {
+  if (permLoading || dataLoading || !data) {
     return <DashboardSkeleton />
   }
 
@@ -109,60 +92,66 @@ export default function DashboardPage() {
       <div>
         <h1 className="text-2xl sm:text-3xl font-bold text-foreground">總覽</h1>
         <p className="text-muted-foreground mt-1 text-sm">
-          歡迎，{user?.email}
+          公司專案與案件執行狀況
         </p>
       </div>
 
       {/* Section 1: KPI Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         <KpiCard
-          title="本月營收"
-          value={formatCurrency(data.kpiCards.monthlyRevenue)}
-          icon={DollarSign}
+          title="執行中案件"
+          value={`${data.kpiCards.activeProjects}`}
+          icon={Briefcase}
           accentColor="text-emerald-400"
           accentBg="bg-emerald-500/15"
-          sparklineData={data.sparklines.revenue}
+          sparklineData={data.sparklines.activeProjects}
           sparklineColor="#10b981"
         />
         <KpiCard
-          title="簽約率"
-          value={`${data.kpiCards.conversionRate}%`}
-          icon={TrendingUp}
+          title="本月新建"
+          value={`${data.kpiCards.newProjectsThisMonth}`}
+          icon={FileText}
           accentColor="text-sky-400"
           accentBg="bg-sky-500/15"
-          sparklineData={data.sparklines.conversionRate}
+          sparklineData={data.sparklines.newProjects}
           sparklineColor="#0ea5e9"
         />
         <KpiCard
-          title="待收款"
-          value={formatCurrency(data.kpiCards.outstandingPayments.amount)}
-          icon={Clock}
+          title="本月簽約"
+          value={`${data.kpiCards.signedThisMonth}`}
+          icon={CheckCircle}
           accentColor="text-amber-400"
           accentBg="bg-amber-500/15"
-          sparklineData={data.sparklines.outstandingPayments}
+          sparklineData={data.sparklines.signed}
           sparklineColor="#f59e0b"
         />
         <KpiCard
-          title="活躍專案"
-          value={`${data.kpiCards.activeProjects}`}
-          icon={Briefcase}
+          title="待處理事項"
+          value={`${data.kpiCards.pendingActions}`}
+          icon={Clock}
           accentColor="text-rose-400"
           accentBg="bg-rose-500/15"
-          sparklineData={data.sparklines.activeProjects}
+          sparklineData={data.sparklines.pendingActions}
           sparklineColor="#f43f5e"
         />
       </div>
 
-      {/* Section 2: Charts */}
+      {/* Section 2: Pipeline + Quote Status */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <RevenueChart data={data.revenueChartData} />
+        <ProjectPipelineChart data={data.projectPipeline} />
         <QuoteStatusChart data={data.quoteStatusDistribution} />
       </div>
 
-      {/* Section 3: Action Items + Quick Actions */}
+      {/* Section 3: Case Trend + Action Items */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <CaseTrendChart data={data.caseTrend} />
+        <ActionItems {...data.actionItems} />
+      </div>
+
+      {/* Section 4: Activity Timeline + Quick Actions */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <div className="lg:col-span-2">
-          <ActionItems {...data.actionItems} />
+          <ActivityTimeline items={data.activityTimeline} />
         </div>
         <div className="bg-card border border-border rounded-xl p-5 sm:p-6">
           <h3 className="text-base font-bold text-foreground mb-4">
@@ -173,6 +162,11 @@ export default function DashboardPage() {
               href="/dashboard/quotes/new"
               icon={FileText}
               text="建立新報價單"
+            />
+            <QuickAction
+              href="/dashboard/projects"
+              icon={FolderKanban}
+              text="專案進度看板"
             />
             <QuickAction
               href="/dashboard/clients"

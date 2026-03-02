@@ -102,6 +102,7 @@ export const PAGE_PERMISSIONS: Record<string, PageConfig> = {
     route: '/dashboard/reports',
     icon: 'TrendingUp'
   },
+  // [已封存] 舊流程頁面 — 功能已整合至報價單頁面與 expense-claims 頁面
   [PAGE_KEYS.PENDING_PAYMENTS]: {
     key: PAGE_KEYS.PENDING_PAYMENTS,
     name: '待請款專案管理',

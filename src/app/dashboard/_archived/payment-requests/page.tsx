@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useCallback, useMemo } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -118,7 +119,9 @@ export default function PaymentRequestsPage() {
   const hasAccess = checkPageAccess('payment_requests')
 
   const queryClient = useQueryClient()
-  const [activeTab, setActiveTab] = useState<TabType>('project')
+  const searchParams = useSearchParams()
+  const initialTab = searchParams.get('tab') === 'personal' ? 'personal' : 'project'
+  const [activeTab, setActiveTab] = useState<TabType>(initialTab)
 
   // ==========================================
   // 專案請款 Tab

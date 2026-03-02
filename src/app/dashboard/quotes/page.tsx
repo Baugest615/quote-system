@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useMemo, useEffect } from 'react'
 import Link from 'next/link'
+import { useSearchParams } from 'next/navigation'
 import { useQueryClient } from '@tanstack/react-query'
 import { Database } from '@/types/database.types'
 import { Button } from '@/components/ui/button'
@@ -20,7 +21,9 @@ export type QuotationWithClient = QuotationWithItemsSummary
 
 export default function QuotesV2Page() {
     const queryClient = useQueryClient()
-    const [searchTerm, setSearchTerm] = useState('')
+    const searchParams = useSearchParams()
+    const initialStatus = searchParams.get('status')
+    const [searchTerm, setSearchTerm] = useState(initialStatus ?? '')
     const [isFlatMode, setIsFlatMode] = useState(false)
 
     // 分頁狀態

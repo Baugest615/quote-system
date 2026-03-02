@@ -4,6 +4,7 @@ import { Area, AreaChart, ResponsiveContainer } from 'recharts'
 
 interface KpiCardProps {
   title: string
+  subtitle?: string
   value: string
   icon: React.ElementType
   accentColor: string
@@ -14,6 +15,7 @@ interface KpiCardProps {
 
 export function KpiCard({
   title,
+  subtitle,
   value,
   icon: Icon,
   accentColor,
@@ -34,6 +36,7 @@ export function KpiCard({
           <div className="min-w-0">
             <p className="text-xs sm:text-sm text-muted-foreground font-medium truncate">
               {title}
+              {subtitle && <span className="text-[10px] ml-1 opacity-60">{subtitle}</span>}
             </p>
             <p className="text-xl sm:text-2xl font-bold text-foreground font-mono tracking-tight">
               {value}

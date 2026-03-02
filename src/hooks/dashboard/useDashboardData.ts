@@ -23,9 +23,9 @@ export interface DashboardData {
   revenueChartData: Array<{ month: string; revenue: number }>
   quoteStatusDistribution: Array<{ name: string; value: number; color: string }>
   actionItems: {
-    pendingReview: number
     pendingSignature: number
     approvedPendingConfirm: number
+    pendingExpenseClaims: number
   }
 }
 
@@ -71,7 +71,7 @@ async function fetchDashboardData(): Promise<DashboardData> {
   const sixMonthsAgo = buckets[0].start.toISOString()
 
   // 平行查詢（限制近 6 個月，避免全表掃描）
-  const [quotationsRes, paymentRes, , ] =
+  const [quotationsRes, paymentRes, expenseClaimsRes] =
     await Promise.all([
       supabase
         .from('quotations')
@@ -81,15 +81,19 @@ async function fetchDashboardData(): Promise<DashboardData> {
         .from('payment_requests')
         .select('verification_status, cost_amount, created_at')
         .gte('created_at', sixMonthsAgo),
-      supabase.from('clients').select('*', { count: 'exact', head: true }),
-      supabase.from('kols').select('*', { count: 'exact', head: true }),
+      supabase
+        .from('expense_claims')
+        .select('id', { count: 'exact', head: true })
+        .eq('status', 'submitted'),
     ])
 
   if (quotationsRes.error) throw quotationsRes.error
   if (paymentRes.error) throw paymentRes.error
+  if (expenseClaimsRes.error) throw expenseClaimsRes.error
 
   const quotations = quotationsRes.data ?? []
   const payments = paymentRes.data ?? []
+  const pendingExpenseClaims = expenseClaimsRes.count ?? 0
 
   // ---- 月份分組計算 ----
 
@@ -168,9 +172,6 @@ async function fetchDashboardData(): Promise<DashboardData> {
 
   // ---- 待辦事項 ----
 
-  const pendingReview = payments.filter(
-    (p) => p.verification_status === 'pending'
-  ).length
   const pendingSignature = quotations.filter(
     (q) => q.status === '待簽約'
   ).length
@@ -203,9 +204,9 @@ async function fetchDashboardData(): Promise<DashboardData> {
     revenueChartData,
     quoteStatusDistribution,
     actionItems: {
-      pendingReview,
       pendingSignature,
       approvedPendingConfirm,
+      pendingExpenseClaims,
     },
   }
 }

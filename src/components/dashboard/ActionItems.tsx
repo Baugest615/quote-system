@@ -1,47 +1,44 @@
 'use client'
 
 import Link from 'next/link'
-import { FileCheck, FileText, ChevronRight, CheckCircle } from 'lucide-react'
+import { FileText, ChevronRight, Receipt, ClipboardCheck } from 'lucide-react'
 
 interface ActionItemsProps {
-  pendingReview: number
   pendingSignature: number
-  approvedPendingConfirm: number
+  pendingProjectReview: number
+  pendingExpenseReview: number
 }
 
 const items = [
   {
-    key: 'pendingReview' as const,
-    label: '筆請款待審核',
-    href: '/dashboard/payment-requests',
-    icon: FileCheck,
-    activeColor: 'text-rose-400 bg-rose-500/15',
-    badgeColor: 'bg-rose-500',
-  },
-  {
     key: 'pendingSignature' as const,
     label: '筆報價待簽約',
-    href: '/dashboard/quotes',
+    href: '/dashboard/quotes?status=待簽約',
     icon: FileText,
     activeColor: 'text-amber-400 bg-amber-500/15',
-    badgeColor: 'bg-amber-500',
   },
   {
-    key: 'approvedPendingConfirm' as const,
-    label: '筆請款已核准待確認',
-    href: '/dashboard/payment-requests',
-    icon: CheckCircle,
+    key: 'pendingProjectReview' as const,
+    label: '筆專案請款待審核',
+    href: '/dashboard/quotes',
+    icon: ClipboardCheck,
     activeColor: 'text-sky-400 bg-sky-500/15',
-    badgeColor: 'bg-sky-500',
+  },
+  {
+    key: 'pendingExpenseReview' as const,
+    label: '筆個人報帳待審核',
+    href: '/dashboard/expense-claims',
+    icon: Receipt,
+    activeColor: 'text-violet-400 bg-violet-500/15',
   },
 ]
 
 export function ActionItems({
-  pendingReview,
   pendingSignature,
-  approvedPendingConfirm,
+  pendingProjectReview,
+  pendingExpenseReview,
 }: ActionItemsProps) {
-  const counts = { pendingReview, pendingSignature, approvedPendingConfirm }
+  const counts = { pendingSignature, pendingProjectReview, pendingExpenseReview }
 
   return (
     <div className="bg-card border border-border rounded-xl p-5 sm:p-6">
