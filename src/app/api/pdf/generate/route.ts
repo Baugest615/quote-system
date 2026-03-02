@@ -121,7 +121,6 @@ export async function POST(request: NextRequest) {
         }
 
         console.log(`[PDF API] Received HTML length: ${html.length}`);
-        console.log(`[PDF API] HTML Preview: ${sanitizedHtml.substring(0, 200)}...`);
 
         // 啟動瀏覽器
         browser = await getBrowser();

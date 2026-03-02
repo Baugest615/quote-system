@@ -44,3 +44,19 @@
 ### 技術債
 - [ ] Claude Agent SDK 升級 0.1.77 → 0.2.x（需同步升級 zod 3.x → 4.x，影響 5 個表單驗證元件）
 - [ ] `@hookform/resolvers/zod` 需配合 zod 4 升級
+
+### 安全稽核發現（2026-03-02）
+
+**Critical**
+- [ ] PDF HTML sanitization 使用 regex blacklist，應改用 `sanitize-html` whitelist 模式（`src/app/api/pdf/generate/route.ts`）
+- [x] `.env.local` URL 曝露 — 已在 `.gitignore`，無需額外處理
+
+**Warning**
+- [ ] `projects` 全量查詢缺少 `.limit()`（`src/hooks/dashboard/useDashboardDataV2.ts`）
+- [ ] Middleware + invite-member API 直接查 `profiles` 取 role，應改用 `get_my_role()` RPC
+- [ ] 部分 API 路徑被 middleware 跳過（`/api/pdf/generate` 等已有自行驗證，但模式不統一）
+- [ ] PDF filename 未驗證（可能含路徑穿越字元）
+- [ ] console.log 洩漏業務資訊：
+  - ~~`src/app/api/pdf/generate/route.ts` L124 — server-side 記錄 HTML preview 含客戶/金額~~ ✅ 已移除
+  - `src/components/quotes/FileModal.tsx` — 約 16 處 log 暴露檔案路徑與 DB payload
+  - `src/components/pending-payments/PendingPaymentFileModal.tsx` — 約 15 處 log 暴露檔案路徑
