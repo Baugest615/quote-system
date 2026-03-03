@@ -117,18 +117,18 @@ export function useWorkbenchItems() {
     [remitteeGroups]
   )
 
-  // 按狀態分類
+  // 按狀態分類（使用篩選後資料，讓 Tab 計數與內容一致）
   const pendingItems = useMemo(
-    () => rawItems.filter((i) => i.status === 'pending'),
-    [rawItems]
+    () => filteredItems.filter((i) => i.status === 'pending'),
+    [filteredItems]
   )
   const requestedItems = useMemo(
-    () => rawItems.filter((i) => i.status === 'requested'),
-    [rawItems]
+    () => filteredItems.filter((i) => i.status === 'requested'),
+    [filteredItems]
   )
   const rejectedItems = useMemo(
-    () => rawItems.filter((i) => i.status === 'rejected'),
-    [rawItems]
+    () => filteredItems.filter((i) => i.status === 'rejected'),
+    [filteredItems]
   )
 
   // 可用的篩選選項

@@ -202,9 +202,13 @@ export function QuotationItemsList({ quotationId, onUpdate, readOnly = false, qu
                 toast.error('追加模式下不可刪除原始項目。');
                 return;
             }
-            // 新流程：已進入請款流程的項目不可刪除
+            // 新流程：已進入請款流程或在合併組中的項目不可刪除
             if (item.requested_at || item.approved_at) {
                 toast.error('此項目已進入請款流程，無法刪除。');
+                return;
+            }
+            if (item.merge_group_id) {
+                toast.error('此項目在合併組中，請先拆分合併組再刪除。');
                 return;
             }
             // 舊流程：檢查是否有關聯的付款申請
@@ -850,7 +854,7 @@ export function QuotationItemsList({ quotationId, onUpdate, readOnly = false, qu
                             const isLocked = !!item.approved_at || isOriginalInSupplement  // 資料欄位鎖定（類別、KOL、執行內容、數量、單價）
                             const isApproved = !!item.approved_at  // 流程欄位鎖定（成本、檢核）— 只有審核通過才鎖
                             const canDelete = !isOriginalInSupplement
-                                && !item.requested_at && !item.approved_at
+                                && !item.requested_at && !item.approved_at && !item.merge_group_id
                                 && !item.payment_requests?.some(pr => pr.verification_status !== 'rejected')
 
                             return (

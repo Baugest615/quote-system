@@ -40,6 +40,13 @@
   - MergeGroupCard 主項可編輯發票/附件，成員自動繼承
   - 進項管理 merge 指標雙路徑修正（quotation_items 優先、payment_requests fallback）
 - ✅ Hotfix：被駁回項目消失 — get_workbench_items WHERE 條件擴展（rejected_at IS NOT NULL 不受報價單狀態限制）
+- ✅ v1.2 RPC 一致性修復（6 個 RPC）：
+  - submit_single_item：被駁回項目可重新送出（不受報價單狀態限制）
+  - submit_merge_group：新增報價單狀態檢查（含相同豁免邏輯）
+  - revert_quotation_item：撤回時總是設定 rejected_at（預設「已撤回」），防止項目消失
+  - approve/reject_quotation_item：新增 merge_group_id 防護，防止部分核准/駁回死鎖
+  - approve_merge_group：傳遞 bypass 參數繞過合併組防護
+  - 前端：Tab 計數改用篩選後資料、canDelete 新增 merge_group_id 檢查
 - `npx tsc --noEmit` 通過，零型別錯誤
 
 ## 待辦事項
