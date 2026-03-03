@@ -1,6 +1,9 @@
 // src/lib/utils/seal-stamp-utils.ts
 // 騎縫章相關工具函數
 
+import type { SupabaseClient } from '@supabase/supabase-js'
+import type { SealStampConfig } from '@/components/pdf/SealStampManager'
+
 export interface SealStampTemplate {
   id: string;
   name: string;
@@ -252,7 +255,7 @@ export function calculateSealStampPosition(
   return { x, y };
 }
 
-export function validateSealStampConfig(config: any): string[] {
+export function validateSealStampConfig(config: SealStampConfig): string[] {
   const errors: string[] = [];
   if (!config.stampImage) errors.push('請選擇印章圖片');
   if (config.size < 0.5 || config.size > 3.0) errors.push('印章大小必須在 0.5 到 3.0 英吋之間');
@@ -261,15 +264,15 @@ export function validateSealStampConfig(config: any): string[] {
   return errors;
 }
 
-export function exportSealStampConfig(config: any): string {
+export function exportSealStampConfig(config: SealStampConfig): string {
   return JSON.stringify({ version: '1.0', timestamp: new Date().toISOString(), config }, null, 2);
 }
 
-export function importSealStampConfig(jsonString: string): any {
+export function importSealStampConfig(jsonString: string): SealStampConfig {
   try {
     const importData = JSON.parse(jsonString);
     if (!importData.config) throw new Error('無效的設定檔格式');
-    return importData.config;
+    return importData.config as SealStampConfig;
   } catch (error) {
     throw new Error('設定檔解析失敗：' + (error as Error).message);
   }
@@ -277,8 +280,8 @@ export function importSealStampConfig(jsonString: string): any {
 
 // 上傳印章圖片到 Supabase
 export async function uploadSealStampImage(
-  file: File, // 【關鍵修正】明確指定 file 的類型為 File
-  supabaseClient: any
+  file: File,
+  supabaseClient: SupabaseClient
 ): Promise<string> {
   if (!file.type.startsWith('image/')) throw new Error('只能上傳圖片檔案');
   if (file.size > 5 * 1024 * 1024) throw new Error('檔案大小不得超過 5MB');
@@ -295,7 +298,7 @@ export async function uploadSealStampImage(
 
 // 清理舊的印章檔案
 export async function cleanupOldSealStamps(
-  supabaseClient: any,
+  supabaseClient: SupabaseClient,
   daysOld: number = 30
 ): Promise<void> {
   const cutoffDate = new Date();
@@ -305,16 +308,16 @@ export async function cleanupOldSealStamps(
     const { data: files, error } = await supabaseClient.storage.from('attachments').list('seal-stamps');
     if (error) throw error;
 
-    const oldFiles = files?.filter((file: any) => { // 【關鍵修正】明確指定 file 的類型為 any
+    const oldFiles = files?.filter((file) => {
       const fileDate = new Date(file.created_at);
       return fileDate < cutoffDate;
     });
 
     if (oldFiles && oldFiles.length > 0) {
-      const filePaths = oldFiles.map((file: any) => `seal-stamps/${file.name}`); // 【關鍵修正】明確指定 file 的類型為 any
+      const filePaths = oldFiles.map((file) => `seal-stamps/${file.name}`);
       const { error: deleteError } = await supabaseClient.storage.from('attachments').remove(filePaths);
       if (deleteError) throw deleteError;
-      console.log(`清理了 ${oldFiles.length} 個舊的印章檔案`);
+      // 清理完成（${oldFiles.length} 個舊印章檔案）
     }
   } catch (error) {
     console.error('清理舊印章檔案失敗:', error);

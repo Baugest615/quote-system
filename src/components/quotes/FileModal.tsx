@@ -19,7 +19,7 @@ interface Attachment {
 interface FileModalProps {
   isOpen: boolean;
   onClose: () => void;
-  quote: { id: string; project_name: string; attachments: any; } | null;
+  quote: { id: string; project_name: string; attachments: Attachment[] | unknown[] | null; } | null;
   onUpdate: () => void;
 }
 
@@ -36,7 +36,7 @@ export function FileModal({ isOpen, onClose, quote, onUpdate }: FileModalProps) 
     quote.attachments &&
     Array.isArray(quote.attachments) &&
     quote.attachments.length > 0
-  ) ? quote.attachments[0] : null;
+  ) ? quote.attachments[0] as Attachment : null;
 
   // 徹底的檔名清理函數 - 只保留英數字和點
   const createSafeFileName = (originalName: string): string => {

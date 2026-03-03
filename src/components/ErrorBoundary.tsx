@@ -7,6 +7,7 @@ import { isDev } from '@/lib/env'
 interface ErrorBoundaryProps {
   children: ReactNode
   fallback?: ReactNode
+  module?: string
 }
 
 interface ErrorBoundaryState {
@@ -25,7 +26,10 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
   }
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
-    console.error('[ErrorBoundary] 元件錯誤:', error, errorInfo)
+    const prefix = this.props.module
+      ? `[ErrorBoundary] 「${this.props.module}」模組錯誤:`
+      : '[ErrorBoundary] 元件錯誤:'
+    console.error(prefix, error, errorInfo)
   }
 
   handleReset = () => {
@@ -43,7 +47,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
           <div className="flex items-center gap-3 mb-4">
             <AlertTriangle className="h-8 w-8 text-amber-400" />
             <h2 className="text-xl font-semibold text-foreground">
-              頁面發生錯誤
+              {this.props.module ? `「${this.props.module}」模組發生錯誤` : '頁面發生錯誤'}
             </h2>
           </div>
           <p className="text-muted-foreground mb-6 text-center max-w-md">

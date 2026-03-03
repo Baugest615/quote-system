@@ -5,7 +5,7 @@ import { usePermission } from '@/lib/permissions'
 import { Landmark, ChevronLeft, Users, Building2, Receipt, CheckCircle2, Circle, ChevronDown, ChevronRight, Save, ShieldCheck } from 'lucide-react'
 import AccountingLoadingGuard from '@/components/accounting/AccountingLoadingGuard'
 import { EmptyState } from '@/components/ui/EmptyState'
-import { PaymentStatusBadge } from '@/components/accounting/monthly-settlement/PaymentStatusBadge'
+import { AccountingPaymentBadge } from '@/components/accounting/monthly-settlement/AccountingPaymentBadge'
 import Link from 'next/link'
 import { PAYMENT_TARGET_LABELS } from '@/types/custom.types'
 import type { PaymentTargetType, AccountingSale } from '@/types/custom.types'
@@ -444,7 +444,7 @@ function EmployeeGroupRow({
                 <div className="text-right text-sm font-medium">NT$ {fmt(g.payroll.net_salary || 0)}</div>
               </td>
               <td className="px-3 py-2 text-center">
-                <PaymentStatusBadge status={g.payroll.payment_status || 'unpaid'} />
+                <AccountingPaymentBadge status={g.payroll.payment_status || 'unpaid'} />
               </td>
             </tr>
           )}
@@ -490,7 +490,7 @@ function EmployeeGroupRow({
                 <div className="text-right text-sm font-medium">NT$ {fmt(e.total_amount || 0)}</div>
               </td>
               <td className="px-3 py-2 text-center">
-                <PaymentStatusBadge status={e.payment_status || 'unpaid'} />
+                <AccountingPaymentBadge status={e.payment_status || 'unpaid'} />
               </td>
             </tr>
           ))}
@@ -523,7 +523,7 @@ function EmployeeGroupRow({
                 <div className="text-right text-sm font-medium">NT$ {fmt(c.total_amount || 0)}</div>
               </td>
               <td className="px-3 py-2 text-center">
-                <PaymentStatusBadge status={c.payment_status || 'unpaid'} />
+                <AccountingPaymentBadge status={c.payment_status || 'unpaid'} />
               </td>
             </tr>
           ))}
@@ -661,7 +661,7 @@ function ExternalTab({
                       </span>
                     </td>
                     <td className="px-3 py-3 text-center">
-                      <PaymentStatusBadge status={e.payment_status || 'unpaid'} />
+                      <AccountingPaymentBadge status={e.payment_status || 'unpaid'} />
                     </td>
                   </tr>
                 ))}

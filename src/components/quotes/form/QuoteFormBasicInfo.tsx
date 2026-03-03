@@ -31,8 +31,7 @@ export function QuoteFormBasicInfo({ form, formData, initialData }: QuoteFormBas
   const isClientFieldsEditable = !!watchIsNewClient
   const isContactFieldsEditable = !!watchIsNewClient || !!watchIsNewContact
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const hasAttachment = (attachments: any): boolean => attachments && Array.isArray(attachments) && attachments.length > 0
+  const hasAttachment = (attachments: unknown): boolean => attachments != null && Array.isArray(attachments) && attachments.length > 0
   const handleStatusChange = (newStatus: QuotationStatus) => {
     if (newStatus === '已簽約' && !hasAttachment(initialData?.attachments)) {
       toast.error('請上傳雙方用印的委刊報價單')

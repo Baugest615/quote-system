@@ -32,7 +32,7 @@ async function getBrowser(): Promise<Browser> {
         if (!executablePath) {
             throw new Error(`找不到 Chromium 核心瀏覽器。請安裝 Chrome、Brave 或 Edge，或設定 PUPPETEER_EXECUTABLE_PATH 環境變數。`);
         }
-        console.log(`[PDF API] Using local browser: ${executablePath}`);
+        console.debug(`[PDF API] Using local browser: ${executablePath}`);
 
         return puppeteer.launch({
             headless: true,
@@ -43,7 +43,7 @@ async function getBrowser(): Promise<Browser> {
 
     // Railway Docker 環境：使用系統安裝的 Chromium
     if (puppeteerPath) {
-        console.log('[PDF API] Using system Chromium from:', puppeteerPath);
+        console.debug('[PDF API] Using system Chromium from:', puppeteerPath);
         return puppeteer.launch({
             headless: true,
             executablePath: puppeteerPath,
@@ -120,7 +120,7 @@ export async function POST(request: NextRequest) {
             sanitizedHtml = sanitizedHtml.replace(pattern, '<!-- removed -->');
         }
 
-        console.log(`[PDF API] Received HTML length: ${html.length}`);
+        console.debug(`[PDF API] Received HTML length: ${html.length}`);
 
         // 啟動瀏覽器
         browser = await getBrowser();
@@ -210,10 +210,10 @@ export async function POST(request: NextRequest) {
         let finalPdf = Buffer.from(pdfBuffer as any);
 
         if (sealStampEnabled && sealStampImage) {
-            console.log('[PDF API] Adding seal stamp...');
+            console.debug('[PDF API] Adding seal stamp...');
             finalPdf = await addSealStampToPdf(finalPdf, sealStampImage);
         } else {
-            console.log('[PDF API] Seal stamp skipped. Enabled:', sealStampEnabled, 'Image provided:', !!sealStampImage);
+            console.debug('[PDF API] Seal stamp skipped. Enabled:', sealStampEnabled, 'Image provided:', !!sealStampImage);
         }
 
         // 返回 PDF
@@ -267,7 +267,7 @@ async function addSealStampToPdf(pdfBuffer: Buffer, stampImageBase64: string): P
             // 嘗試作為 PNG 加載
             stampImage = await pdfDoc.embedPng(imageBytes);
         } catch (e) {
-            console.log('[PDF API] Failed to embed as PNG, trying JPG...');
+            console.debug('[PDF API] Failed to embed as PNG, trying JPG...');
             try {
                 stampImage = await pdfDoc.embedJpg(imageBytes);
             } catch (e2) {

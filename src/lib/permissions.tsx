@@ -131,12 +131,12 @@ export function PermissionProvider({ children }: { children: React.ReactNode }) 
 
         const { data: profile, error: profileError } = await supabase
           .rpc('get_my_profile')
-          .single() as { data: { role: UserRole; user_id: string } | null; error: any }
+          .single()
 
         if (profileError) throw profileError
 
         setAuthState({
-          userRole: (profile as any)?.role || null,
+          userRole: (profile as { role: UserRole; user_id: string } | null)?.role || null,
           userId: user.id,
           loading: false,
           error: null,

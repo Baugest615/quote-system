@@ -1,7 +1,7 @@
 import React from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { PaymentStatusBadge } from '../shared/PaymentStatusBadge'
+import { StatusBadge } from '@/components/ui/StatusBadge'
 import { CheckCircle, XCircle, FileText, Paperclip, Settings2, ChevronDown, ChevronRight } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { PaymentRequestItem } from '@/lib/payments/types'
@@ -223,7 +223,7 @@ export function RequestItemRow({
 
                 {/* 狀態 */}
                 <td className="px-4 py-4 align-top">
-                    <PaymentStatusBadge status={item.verification_status || 'pending'} />
+                    <StatusBadge status={item.verification_status || 'pending'} variant="payment" />
                 </td>
 
                 {/* 操作 */}

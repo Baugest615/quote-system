@@ -47,9 +47,9 @@ export async function checkServerPermission(
     // 使用 SECURITY DEFINER RPC 取得角色，避免直查 profiles 觸發 RLS 遞迴
     const { data: profile } = await supabase
       .rpc('get_my_profile')
-      .single() as { data: { role: UserRole; user_id: string } | null; error: any }
+      .single()
 
-    const userRole = (profile as any)?.role || null
+    const userRole = (profile as { role: UserRole; user_id: string } | null)?.role || null
     const pageConfig = PAGE_PERMISSIONS[pageKey]
 
     return {
@@ -87,9 +87,9 @@ export async function getCurrentUserRole(): Promise<UserRole | null> {
 
     const { data: profile } = await supabase
       .rpc('get_my_profile')
-      .single() as { data: { role: UserRole; user_id: string } | null; error: any }
+      .single()
 
-    return (profile as any)?.role || null
+    return (profile as { role: UserRole; user_id: string } | null)?.role || null
   } catch (error) {
     console.error('Error getting current user role:', error)
     return null

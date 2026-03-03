@@ -22,7 +22,7 @@ import {
 } from "@/hooks/useQuotations";
 import { useClients } from "@/hooks/useClients";
 import { queryKeys } from "@/lib/queryKeys";
-import { ModuleErrorBoundary } from "@/components/ModuleErrorBoundary";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 
 // 類型定義：使用含項目摘要的型別（支援 KOL/執行內容搜尋）
 export type QuotationWithClient = QuotationWithItemsSummary;
@@ -92,7 +92,7 @@ function QuotesV2Content() {
   }, []);
 
   return (
-    <ModuleErrorBoundary module="報價單管理">
+    <ErrorBoundary module="報價單管理">
       <div className="h-[calc(100vh-4rem)] flex flex-col space-y-4 p-6 bg-secondary">
         {/* 頂部工具列 */}
         <div className="flex justify-between items-center bg-card p-4 rounded-lg shadow-sm border">
@@ -200,6 +200,6 @@ function QuotesV2Content() {
           </>
         )}
       </div>
-    </ModuleErrorBoundary>
+    </ErrorBoundary>
   );
 }
