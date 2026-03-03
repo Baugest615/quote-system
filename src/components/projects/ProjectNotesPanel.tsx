@@ -105,6 +105,7 @@ export function ProjectNotesPanel({ projectId, isAdmin, currentUserId }: Project
                     className="h-6 w-6 opacity-0 group-hover/note:opacity-100 transition-opacity text-destructive hover:text-destructive flex-shrink-0 mt-0.5"
                     onClick={() => handleDelete(note.id)}
                     disabled={deleteNote.isPending}
+                    aria-label="刪除備註"
                   >
                     <Trash2 className="h-3 w-3" />
                   </Button>
@@ -129,6 +130,7 @@ export function ProjectNotesPanel({ projectId, isAdmin, currentUserId }: Project
           size="icon"
           className="h-8 w-8 flex-shrink-0"
           disabled={!newContent.trim() || createNote.isPending}
+          aria-label="送出備註"
         >
           {createNote.isPending ? (
             <Loader2 className="h-3.5 w-3.5 animate-spin" />

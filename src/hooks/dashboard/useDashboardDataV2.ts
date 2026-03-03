@@ -99,7 +99,8 @@ async function fetchDashboardDataV2(): Promise<DashboardDataV2> {
     supabase
       .from("projects")
       .select("id, project_name, client_name, status, created_at, updated_at")
-      .order("updated_at", { ascending: false }),
+      .order("updated_at", { ascending: false })
+      .limit(500),
     supabase
       .from("quotations")
       .select("id, project_name, status, created_at, updated_at, clients(name)")

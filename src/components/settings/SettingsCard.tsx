@@ -65,19 +65,19 @@ export default function SettingsCard({ title, items, onAddItem, onUpdateItem, on
             <div className="space-x-1">
               {editingItemId === item.id ? (
                 <>
-                  <Button variant="ghost" size="icon" onClick={() => handleUpdateItem(item.id)}>
+                  <Button variant="ghost" size="icon" onClick={() => handleUpdateItem(item.id)} aria-label="儲存">
                     <Save className="h-4 w-4 text-success" />
                   </Button>
-                  <Button variant="ghost" size="icon" onClick={handleCancelEdit}>
+                  <Button variant="ghost" size="icon" onClick={handleCancelEdit} aria-label="取消編輯">
                     <span className="text-sm">取消</span>
                   </Button>
                 </>
               ) : (
                 <>
-                  <Button variant="ghost" size="icon" onClick={() => handleEdit(item)}>
+                  <Button variant="ghost" size="icon" onClick={() => handleEdit(item)} aria-label="編輯">
                     <Edit className="h-4 w-4" />
                   </Button>
-                  <Button variant="ghost" size="icon" className="text-destructive" onClick={() => onDeleteItem(item.id)}>
+                  <Button variant="ghost" size="icon" className="text-destructive" onClick={() => onDeleteItem(item.id)} aria-label="刪除">
                     <Trash2 className="h-4 w-4" />
                   </Button>
                 </>

@@ -1,3 +1,4 @@
+import React from 'react'
 import { Paperclip, Save, AlertTriangle, ChevronDown, ChevronRight } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -38,7 +39,7 @@ interface CompactItemRowProps {
     mergeGroupItems: PendingPaymentItem[]
 }
 
-export function CompactItemRow({
+export const CompactItemRow = React.memo(function CompactItemRow({
     item,
     displayItem,
     isExpanded,
@@ -284,4 +285,4 @@ export function CompactItemRow({
             </td>
         </tr>
     )
-}
+})

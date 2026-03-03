@@ -25,8 +25,8 @@ export function LoadingState({
     className
 }: LoadingStateProps) {
     const content = (
-        <div className={cn('flex flex-col items-center justify-center', className)}>
-            <Loader2 className={cn('animate-spin text-primary', SIZE_CONFIG[size])} />
+        <div className={cn('flex flex-col items-center justify-center', className)} role="status" aria-live="polite">
+            <Loader2 className={cn('animate-spin text-primary', SIZE_CONFIG[size])} aria-hidden="true" />
             {message && (
                 <p className="mt-4 text-sm text-muted-foreground">{message}</p>
             )}

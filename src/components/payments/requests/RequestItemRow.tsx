@@ -39,7 +39,7 @@ interface RequestItemRowProps {
     mergeGroupItems?: PaymentRequestItem[]
 }
 
-export function RequestItemRow({
+export const RequestItemRow = React.memo(function RequestItemRow({
     item,
     isSelected,
     onSelect,
@@ -364,4 +364,4 @@ export function RequestItemRow({
             )}
         </>
     )
-}
+})

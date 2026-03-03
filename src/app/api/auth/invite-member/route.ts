@@ -24,13 +24,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: '未登入' }, { status: 401 })
     }
 
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('role')
-      .eq('id', user.id)
-      .single()
+    // 使用 get_my_role() RPC 避免 RLS 遞迴
+    const { data: roleData } = await supabase.rpc('get_my_role')
 
-    if (!profile || profile.role !== 'Admin') {
+    if (!roleData || roleData !== 'Admin') {
       return NextResponse.json({ error: '僅管理員可邀請新成員' }, { status: 403 })
     }
 

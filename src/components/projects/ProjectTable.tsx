@@ -243,6 +243,7 @@ export function ProjectTable({
                             className="h-7 w-7 text-primary hover:text-primary"
                             onClick={() => handleCreateQuotation(project)}
                             title="新增報價單"
+                            aria-label="新增報價單"
                           >
                             <FilePlus className="h-4 w-4" />
                           </Button>
@@ -253,6 +254,7 @@ export function ProjectTable({
                           className="h-7 w-7"
                           onClick={() => onEdit(project)}
                           title="編輯"
+                          aria-label="編輯專案"
                         >
                           <Pencil className="h-3.5 w-3.5" />
                         </Button>
@@ -263,6 +265,7 @@ export function ProjectTable({
                             className="h-7 w-7 text-destructive hover:text-destructive"
                             onClick={() => onDelete(project)}
                             title="刪除"
+                            aria-label="刪除專案"
                           >
                             <Trash2 className="h-3.5 w-3.5" />
                           </Button>
