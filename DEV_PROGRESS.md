@@ -47,6 +47,9 @@
   - approve/reject_quotation_item：新增 merge_group_id 防護，防止部分核准/駁回死鎖
   - approve_merge_group：傳遞 bypass 參數繞過合併組防護
   - 前端：Tab 計數改用篩選後資料、canDelete 新增 merge_group_id 檢查
+- ✅ 撤回修復：withdraw_single_item / withdraw_merge_group 撤回後設定 rejected 狀態，防止項目消失
+- ✅ 工作台納入「待簽約」報價單項目（q.status IN 新增 '待簽約'）
+- ✅ 已確認請款清單三類分組：勞報(個人戶) / 公司行號 / 員工
 - `npx tsc --noEmit` 通過，零型別錯誤
 
 ## 待辦事項

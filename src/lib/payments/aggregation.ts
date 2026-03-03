@@ -223,24 +223,29 @@ export function aggregateMonthlyRemittanceGroups(
 }
 
 /**
- * 將合併群組分為個人/公司
+ * 將合併群組分為勞報(個人戶)/公司行號/員工三類
  */
 export function splitRemittanceGroups(groups: MergedRemittanceGroup[]): {
-  personalGroups: MergedRemittanceGroup[]
+  individualGroups: MergedRemittanceGroup[]
   companyGroups: MergedRemittanceGroup[]
+  employeeGroups: MergedRemittanceGroup[]
 } {
-  const personalGroups: MergedRemittanceGroup[] = []
+  const individualGroups: MergedRemittanceGroup[] = []
   const companyGroups: MergedRemittanceGroup[] = []
+  const employeeGroups: MergedRemittanceGroup[] = []
 
   for (const group of groups) {
     if (group.isCompanyAccount) {
       companyGroups.push(group)
+    } else if (group.isPersonalClaim || (group.payrollItems.length > 0 && group.items.length === 0 && group.expenseItems.length === 0)) {
+      // 個人報帳 或 純薪資群組 → 員工
+      employeeGroups.push(group)
     } else {
-      personalGroups.push(group)
+      individualGroups.push(group)
     }
   }
 
-  return { personalGroups, companyGroups }
+  return { individualGroups, companyGroups, employeeGroups }
 }
 
 /**

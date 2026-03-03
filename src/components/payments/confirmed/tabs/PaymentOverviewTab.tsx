@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useMemo, useCallback, useEffect, useRef } from 'react'
-import { DollarSign, Download, Users, Building2 } from 'lucide-react'
+import { DollarSign, Download, Users, Building2, Briefcase } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import type { PaymentConfirmation, RemittanceSettings } from '@/lib/payments/types'
 import type { WithholdingSettings, AccountingPayroll, AccountingExpense } from '@/types/custom.types'
@@ -54,7 +54,7 @@ export function PaymentOverviewTab({
         [confirmations, selectedMonth, withholdingRates, expensesData, payrollData]
     )
 
-    const { personalGroups, companyGroups } = useMemo(
+    const { individualGroups, companyGroups, employeeGroups } = useMemo(
         () => splitRemittanceGroups(groups),
         [groups]
     )
@@ -276,15 +276,15 @@ export function PaymentOverviewTab({
                 <SummaryCard label="實付總額" value={summary.netTotal} color="text-info" highlight />
             </div>
 
-            {/* 個人匯款區塊（含薪資） */}
-            {personalGroups.length > 0 && (
+            {/* 勞報(個人戶) 區塊 */}
+            {individualGroups.length > 0 && (
                 <div className="space-y-3">
                     <div className="flex items-center gap-2 text-foreground font-medium">
                         <Users className="h-5 w-5 text-info" />
-                        個人匯款（{personalGroups.length} 人）
+                        勞報／個人戶（{individualGroups.length} 人）
                     </div>
                     <div className="space-y-3">
-                        {personalGroups.map((group) => (
+                        {individualGroups.map((group) => (
                             <RemittanceGroupCard
                                 key={group.remittanceName}
                                 group={group}
@@ -298,15 +298,37 @@ export function PaymentOverviewTab({
                 </div>
             )}
 
-            {/* 公司匯款區塊 */}
+            {/* 公司行號區塊 */}
             {companyGroups.length > 0 && (
                 <div className="space-y-3">
                     <div className="flex items-center gap-2 text-foreground font-medium">
                         <Building2 className="h-5 w-5 text-success" />
-                        公司匯款（{companyGroups.length} 筆）
+                        公司行號（{companyGroups.length} 筆）
                     </div>
                     <div className="space-y-3">
                         {companyGroups.map((group) => (
+                            <RemittanceGroupCard
+                                key={group.remittanceName}
+                                group={group}
+                                settings={getSettings(group.remittanceName)}
+                                onUpdateSettings={onUpdateSettings ? handleUpdateSettings : undefined}
+                                onRevertItem={onRevertItem}
+                                isAdmin={isAdmin}
+                            />
+                        ))}
+                    </div>
+                </div>
+            )}
+
+            {/* 員工區塊（個人報帳 + 薪資） */}
+            {employeeGroups.length > 0 && (
+                <div className="space-y-3">
+                    <div className="flex items-center gap-2 text-foreground font-medium">
+                        <Briefcase className="h-5 w-5 text-warning" />
+                        員工（{employeeGroups.length} 人）
+                    </div>
+                    <div className="space-y-3">
+                        {employeeGroups.map((group) => (
                             <RemittanceGroupCard
                                 key={group.remittanceName}
                                 group={group}
