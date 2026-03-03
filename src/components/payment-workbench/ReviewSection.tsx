@@ -9,6 +9,7 @@ import { useWorkbenchReview, useWorkbenchSubmission } from '@/hooks/payment-work
 import type { WorkbenchItem, AccountCategory } from '@/hooks/payment-workbench/types'
 import { itemsToCategorySections } from '@/hooks/payment-workbench/grouping'
 import { MergeGroupCard } from './MergeGroupCard'
+import { AttachmentChips } from './AttachmentChips'
 
 const CATEGORY_ICONS: Record<AccountCategory, React.ReactNode> = {
   individual: <User className="w-4 h-4" />,
@@ -117,9 +118,7 @@ export function ReviewSection({ items, isReviewer }: ReviewSectionProps) {
                     <div className="flex items-center gap-3 text-xs text-muted-foreground mt-0.5">
                       <span>{item.expected_payment_month || '未指定月份'}</span>
                       {item.invoice_number && <span>發票: {item.invoice_number}</span>}
-                      {(item.attachments?.length || 0) > 0 && (
-                        <span>附件: {item.attachments.length}</span>
-                      )}
+                      <AttachmentChips attachments={item.attachments} />
                     </div>
                   </div>
                   <span className="text-sm font-semibold text-foreground tabular-nums">

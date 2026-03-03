@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import type { MergeGroupInfo } from '@/hooks/payment-workbench/types'
 import { InlineItemEditor } from './InlineItemEditor'
+import { AttachmentChips } from './AttachmentChips'
 
 interface MergeGroupCardProps {
   group: MergeGroupInfo
@@ -74,8 +75,12 @@ export function MergeGroupCard({
               {status.label}
             </span>
           </div>
-          <div className="text-xs text-muted-foreground mt-0.5">
-            {allItems.map((i) => i.project_name).filter((v, idx, arr) => arr.indexOf(v) === idx).join('、')}
+          <div className="text-xs text-muted-foreground mt-0.5 flex items-center gap-2 flex-wrap">
+            <span>{allItems.map((i) => i.project_name).filter((v, idx, arr) => arr.indexOf(v) === idx).join('、')}</span>
+            {group.leader_item.invoice_number && (
+              <span>發票: {group.leader_item.invoice_number}</span>
+            )}
+            <AttachmentChips attachments={group.leader_item.attachments} />
           </div>
         </div>
         <span className="text-sm font-semibold text-foreground tabular-nums">
