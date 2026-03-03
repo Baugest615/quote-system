@@ -50,6 +50,8 @@
 - ✅ 撤回修復：withdraw_single_item / withdraw_merge_group 撤回後設定 rejected 狀態，防止項目消失
 - ✅ 工作台納入「待簽約」報價單項目（q.status IN 新增 '待簽約'）
 - ✅ 已確認請款清單三類分組：勞報(個人戶) / 公司行號 / 員工
+- ✅ RLS 修正：service_types / kol_services INSERT 開放 Member（內聯建立功能完整化）
+- ✅ cost_amount 自動計算：handleSave 自動填入 cost*quantity + RPC COALESCE fallback + 資料回補
 - `npx tsc --noEmit` 通過，零型別錯誤
 
 ## 待辦事項

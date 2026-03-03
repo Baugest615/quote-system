@@ -363,14 +363,18 @@ export function QuotationItemsList({ quotationId, onUpdate, readOnly = false, qu
                     merge_group_id: _mgId, is_merge_leader: _iml, merge_color: _mc,
                     ...rest
                 } = item
+                const cost = Number(item.cost) || 0
+                const quantity = Number(item.quantity) || 1
                 return {
                     ...rest,
                     kol_id: resolveKolId(rest.kol_id),
                     quotation_id: quotationId,
                     price: Number(item.price) || 0,
-                    cost: Number(item.cost) || 0,
-                    quantity: Number(item.quantity) || 1,
-                    service: item.service || ''
+                    cost,
+                    quantity,
+                    service: item.service || '',
+                    // cost_amount 未設定時自動計算（已手動調整過的不覆蓋）
+                    ...(!_costAmt ? { cost_amount: cost * quantity } : {}),
                 }
             })
 

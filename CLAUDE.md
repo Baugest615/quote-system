@@ -44,7 +44,7 @@ src/types/database.types.ts # Supabase 自動生成（勿手動改）
 | 表類型 | SELECT | INSERT/UPDATE | DELETE |
 |--------|--------|---------------|--------|
 | 核心業務表（kols, quotations, clients） | 全部 | Admin+Editor+Member | Admin |
-| 字典表（kol_services, service_types 等） | 全部 | Admin+Editor | Admin |
+| 字典表（kol_services, service_types 等） | 全部 | Admin+Editor+Member | Admin |
 | 財務表（payment_requests 等） | 全部 | Admin+Editor | Admin+Editor |
 | 人事表（employees）| 分級* | Admin | Admin |
 | 會計表（accounting_*） | 全部 | 全部 | 全部 |
