@@ -5,14 +5,13 @@ import supabase from '@/lib/supabase/client'
 import { Database } from '@/types/database.types'
 import { QuotationItemWithPayments } from '@/types/custom.types'
 import { Button } from '@/components/ui/button'
-import { Plus, Trash2, Loader2, Save, XCircle, ClipboardPaste, ArrowUp, ArrowDown, ArrowUpDown, CheckCircle2, AlertTriangle, Paperclip, Lock, Info } from 'lucide-react'
+import { Plus, Trash2, Loader2, Save, XCircle, ClipboardPaste, ArrowUp, ArrowDown, ArrowUpDown, CheckCircle2, AlertTriangle, Paperclip, Lock, Info, Link2 } from 'lucide-react'
 import { EditableCell } from './EditableCell'
 import { SearchableSelectCell } from './SearchableSelectCell'
 import { toast } from 'sonner'
 import { Modal } from '@/components/ui/modal'
 import { Textarea } from "@/components/ui/textarea"
 import { useConfirm } from '@/components/ui/ConfirmDialog'
-import { usePermission } from '@/lib/permissions'
 import type { PaymentAttachment } from '@/lib/payments/types'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -35,8 +34,6 @@ interface QuotationItemsListProps {
 
 export function QuotationItemsList({ quotationId, onUpdate, readOnly = false, quotationStatus }: QuotationItemsListProps) {
     const confirm = useConfirm()
-    const { hasRole, userId } = usePermission()
-    const isEditor = hasRole('Editor')
 
     // 追加模式：已簽約報價單鎖定原始項目，只允許新增追加項目
     const isSupplementMode = quotationStatus === '已簽約'
@@ -55,8 +52,6 @@ export function QuotationItemsList({ quotationId, onUpdate, readOnly = false, qu
     const [verificationItemId, setVerificationItemId] = useState<string | null>(null)
     const [verificationInvoice, setVerificationInvoice] = useState('')
     const [actionLoading, setActionLoading] = useState<Set<string>>(new Set())
-    const [rejectingItemId, setRejectingItemId] = useState<string | null>(null)
-    const [rejectionReason, setRejectionReason] = useState('')
 
     // 🆕 資料狀態
     const [kols, setKols] = useState<KolWithServices[]>([])
@@ -714,114 +709,6 @@ export function QuotationItemsList({ quotationId, onUpdate, readOnly = false, qu
         }
     }
 
-    // 勾選請款
-    const handleRequestPayment = async (item: QuotationItemWithPayments) => {
-        if (!isVerificationPassed(item)) {
-            toast.error('請先完成文件檢核（上傳附件或輸入有效發票號碼）')
-            return
-        }
-
-        // 如果尚未設定 cost_amount，使用 cost 作為預設值
-        const costAmount = item.cost_amount ?? item.cost ?? 0
-
-        setItemActionLoading(item.id, true)
-        try {
-            const { error } = await supabase
-                .from('quotation_items')
-                .update({
-                    requested_at: new Date().toISOString(),
-                    requested_by: userId,
-                    cost_amount: costAmount,
-                    rejection_reason: null,
-                    rejected_at: null,
-                    rejected_by: null,
-                })
-                .eq('id', item.id)
-
-            if (error) throw error
-
-            // 更新本地狀態
-            setItems(prev => prev.map(i =>
-                i.id === item.id
-                    ? {
-                        ...i,
-                        requested_at: new Date().toISOString(),
-                        requested_by: userId,
-                        cost_amount: costAmount,
-                        rejection_reason: null,
-                        rejected_at: null,
-                        rejected_by: null,
-                    }
-                    : i
-            ))
-            setOriginalItems(prev => prev.map(i =>
-                i.id === item.id
-                    ? { ...i, requested_at: new Date().toISOString(), requested_by: userId, cost_amount: costAmount }
-                    : i
-            ))
-            toast.success('已送出請款申請')
-        } catch (error) {
-            toast.error('請款失敗: ' + (error instanceof Error ? error.message : String(error)))
-        } finally {
-            setItemActionLoading(item.id, false)
-        }
-    }
-
-    // 審核通過（呼叫 RPC）
-    const handleApprovePayment = async (item: QuotationItemWithPayments) => {
-        if (!isEditor) {
-            toast.error('僅 Editor 以上角色可審核')
-            return
-        }
-
-        const ok = await confirm({
-            title: '審核請款',
-            description: `確定要核准「${item.service || '未命名服務'}」的請款嗎？核准後將自動建立進項記錄和確認記錄。`,
-        })
-        if (!ok) return
-
-        setItemActionLoading(item.id, true)
-        try {
-            const { error } = await supabase.rpc('approve_quotation_item', {
-                p_item_id: item.id,
-            })
-
-            if (error) throw error
-
-            // 重新載入項目以取得最新狀態
-            await fetchItems()
-            toast.success('已核准請款，進項記錄已自動建立')
-        } catch (error) {
-            toast.error('核准失敗: ' + (error instanceof Error ? error.message : String(error)))
-        } finally {
-            setItemActionLoading(item.id, false)
-        }
-    }
-
-    // 駁回請款
-    const handleRejectPayment = async () => {
-        if (!rejectingItemId) return
-
-        setItemActionLoading(rejectingItemId, true)
-        try {
-            const { error } = await supabase.rpc('reject_quotation_item', {
-                p_item_id: rejectingItemId,
-                p_reason: rejectionReason.trim() || '未提供原因',
-            })
-
-            if (error) throw error
-
-            await fetchItems()
-            toast.success('已駁回請款')
-        } catch (error) {
-            toast.error('駁回失敗: ' + (error instanceof Error ? error.message : String(error)))
-        } finally {
-            setItemActionLoading(rejectingItemId, false)
-            setRejectingItemId(null)
-            setRejectionReason('')
-        }
-    }
-
     // 選項準備
     const categoryOptions = useMemo(() =>
         categories.map(c => ({ label: c.name, value: c.name })),
@@ -941,8 +828,6 @@ export function QuotationItemsList({ quotationId, onUpdate, readOnly = false, qu
                             {/* 請款管理欄位 */}
                             <th className="px-3 py-2 text-center w-20 border-l-2 border-border">狀態</th>
                             <th className="px-3 py-2 text-center w-16">檢核</th>
-                            <th className="px-3 py-2 text-center w-16">請款</th>
-                            {isEditor && <th className="px-3 py-2 text-center w-16">審核</th>}
                             {!readOnly && <th className="px-3 py-2 text-center w-10"></th>}
                         </tr>
                     </thead>
@@ -1070,11 +955,26 @@ export function QuotationItemsList({ quotationId, onUpdate, readOnly = false, qu
 
                                     {/* ===== 請款管理欄位 ===== */}
 
-                                    {/* 狀態 */}
+                                    {/* 狀態 + 合併標記 */}
                                     <td className="px-2 py-2 text-center border-l-2 border-border">
-                                        <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium ${statusConfig.className}`}>
-                                            {statusConfig.label}
-                                        </span>
+                                        <div className="flex items-center justify-center gap-1">
+                                            <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium ${statusConfig.className}`}>
+                                                {statusConfig.label}
+                                            </span>
+                                            {item.merge_group_id && (
+                                                <a
+                                                    href="/dashboard/payment-workbench"
+                                                    className="inline-flex items-center gap-0.5 text-[10px] text-info hover:text-info/80 transition-colors"
+                                                    title="已加入合併組 — 點擊前往請款工作台"
+                                                >
+                                                    <span
+                                                        className="w-2 h-2 rounded-full flex-shrink-0"
+                                                        style={{ backgroundColor: item.merge_color || 'var(--info)' }}
+                                                    />
+                                                    <Link2 className="h-3 w-3" />
+                                                </a>
+                                            )}
+                                        </div>
                                     </td>
 
                                     {/* 檢核 */}
@@ -1096,65 +996,6 @@ export function QuotationItemsList({ quotationId, onUpdate, readOnly = false, qu
                                         )}
                                     </td>
 
-                                    {/* 請款 */}
-                                    <td className="px-2 py-2 text-center">
-                                        {status === 'approved' ? (
-                                            <CheckCircle2 className="h-4 w-4 text-success mx-auto" />
-                                        ) : status === 'requested' ? (
-                                            <CheckCircle2 className="h-4 w-4 text-warning mx-auto" />
-                                        ) : verified ? (
-                                            <button
-                                                onClick={() => handleRequestPayment(item)}
-                                                disabled={isItemLoading}
-                                                className="p-1 rounded hover:bg-accent transition-colors mx-auto flex items-center justify-center disabled:opacity-50"
-                                                title="勾選送出請款"
-                                            >
-                                                {isItemLoading ? (
-                                                    <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-                                                ) : (
-                                                    <div className="h-4 w-4 border-2 border-muted-foreground/40 rounded" />
-                                                )}
-                                            </button>
-                                        ) : (
-                                            <span className="text-muted-foreground/30">—</span>
-                                        )}
-                                    </td>
-
-                                    {/* 審核（Editor+ only） */}
-                                    {isEditor && (
-                                        <td className="px-2 py-2 text-center">
-                                            {status === 'approved' ? (
-                                                <CheckCircle2 className="h-4 w-4 text-success mx-auto" />
-                                            ) : status === 'requested' ? (
-                                                <div className="flex items-center justify-center gap-0.5">
-                                                    <button
-                                                        onClick={() => handleApprovePayment(item)}
-                                                        disabled={isItemLoading}
-                                                        className="p-1 rounded hover:bg-success/10 transition-colors disabled:opacity-50"
-                                                        title="核准"
-                                                    >
-                                                        {isItemLoading ? (
-                                                            <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-                                                        ) : (
-                                                            <div className="h-4 w-4 border-2 border-muted-foreground/40 rounded" />
-                                                        )}
-                                                    </button>
-                                                    <button
-                                                        onClick={() => setRejectingItemId(item.id)}
-                                                        disabled={isItemLoading}
-                                                        className="p-0.5 rounded hover:bg-destructive/10 transition-colors disabled:opacity-50"
-                                                        title="駁回"
-                                                    >
-                                                        <XCircle className="h-3.5 w-3.5 text-destructive/70" />
-                                                    </button>
-                                                </div>
-                                            ) : status === 'rejected' ? (
-                                                <span className="text-[10px] text-destructive" title={item.rejection_reason || '已駁回'}>✗</span>
-                                            ) : (
-                                                <span className="text-muted-foreground/30">—</span>
-                                            )}
-                                        </td>
-                                    )}
 
                                     {!readOnly && (
                                         <td className="px-1 py-1 text-center">
@@ -1185,7 +1026,7 @@ export function QuotationItemsList({ quotationId, onUpdate, readOnly = false, qu
                         })}
                         {items.length === 0 && (
                             <tr>
-                                <td colSpan={11 + (isEditor ? 1 : 0)} className="px-3 py-8 text-center text-muted-foreground italic">
+                                <td colSpan={10} className="px-3 py-8 text-center text-muted-foreground italic">
                                     尚無項目，請點擊上方按鈕新增，或直接貼上 Excel 資料 (Ctrl+V)
                                 </td>
                             </tr>
@@ -1255,32 +1096,6 @@ export function QuotationItemsList({ quotationId, onUpdate, readOnly = false, qu
                 </div>
             </Modal>
 
-            {/* 駁回原因 Modal */}
-            <Modal
-                isOpen={!!rejectingItemId}
-                onClose={() => { setRejectingItemId(null); setRejectionReason('') }}
-                title="駁回請款"
-            >
-                <div className="space-y-4">
-                    <p className="text-sm text-muted-foreground">
-                        請輸入駁回原因，申請人可依據原因修改後重新送出請款。
-                    </p>
-                    <Textarea
-                        placeholder="駁回原因..."
-                        value={rejectionReason}
-                        onChange={(e) => setRejectionReason(e.target.value)}
-                        rows={3}
-                    />
-                    <div className="flex justify-end gap-2">
-                        <Button variant="outline" onClick={() => { setRejectingItemId(null); setRejectionReason('') }}>
-                            取消
-                        </Button>
-                        <Button variant="destructive" onClick={handleRejectPayment}>
-                            確認駁回
-                        </Button>
-                    </div>
-                </div>
-            </Modal>
         </div>
     )
 }
