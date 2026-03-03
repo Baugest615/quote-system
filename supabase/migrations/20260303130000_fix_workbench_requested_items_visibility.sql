@@ -1,13 +1,11 @@
 -- ============================================================
--- Migration: 修復已送出/被駁回項目在工作台消失的 Bug
+-- Migration: 修復已送出（待審核）項目在工作台消失的 Bug
 --
--- 問題：get_workbench_items() 用 q.status IN ('已簽約', '已歸檔') 過濾，
---       但使用者可以自由變更報價單狀態。當項目送出或被駁回後、報價單狀態
---       被改回 '草稿'/'待簽約'，這些項目就從工作台消失了。
+-- 問題：前一個 hotfix 只修了 rejected_at 的情況，漏了 requested_at。
+--       當項目已送出待審核、但報價單狀態被改回草稿/待簽約，
+--       待審核項目也會從工作台消失。
 --
--- 修復：擴展 WHERE 條件，讓已進入請款流程的項目不受報價單狀態限制：
---       - requested_at IS NOT NULL：已送出待審核
---       - rejected_at IS NOT NULL：曾被駁回待重送
+-- 修復：WHERE 條件再加 OR qi.requested_at IS NOT NULL
 -- ============================================================
 
 CREATE OR REPLACE FUNCTION public.get_workbench_items()
@@ -100,4 +98,4 @@ END;
 $$;
 
 COMMENT ON FUNCTION public.get_workbench_items()
-IS '請款工作台：取得所有需處理的項目（v1.1 hotfix: 已送出/被駁回的項目不受報價單狀態限制）';
+IS '請款工作台：取得所有需處理的項目（已送出/被駁回的項目不受報價單狀態限制）';
