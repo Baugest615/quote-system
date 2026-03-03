@@ -72,8 +72,8 @@ async function fetchPendingItemsData(): Promise<PendingPaymentItem[]> {
             invoice_number_input: null,
             attachments: [],
             payment_request_id: null,
-            cost_amount_input: (cost !== null && cost !== undefined) ? (cost * (item.quantity || 1)) : 0,
-            original_cost: (cost !== null && cost !== undefined) ? (cost * (item.quantity || 1)) : 0,
+            cost_amount_input: (cost !== null && cost !== undefined) ? cost : 0,
+            original_cost: (cost !== null && cost !== undefined) ? cost : 0,
             remittance_name: null,
             remittance_name_input: null,
             rejected_by: null,
@@ -88,7 +88,7 @@ async function fetchPendingItemsData(): Promise<PendingPaymentItem[]> {
     // Process rejected items
     rejectedRequests.forEach(req => {
         if (req.quotation_items) {
-            const rejectedCost = req.cost_amount ?? ((req.quotation_items.cost !== null && req.quotation_items.cost !== undefined) ? (req.quotation_items.cost * (req.quotation_items.quantity || 1)) : 0);
+            const rejectedCost = req.cost_amount ?? ((req.quotation_items.cost !== null && req.quotation_items.cost !== undefined) ? req.quotation_items.cost : 0);
             const rejDefaults = getDefaultExpenseByBankType(req.quotation_items.kols);
             processedItems.push({
                 ...(req.quotation_items as QuotationItemWithDetails),

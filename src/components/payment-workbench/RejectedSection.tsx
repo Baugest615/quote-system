@@ -99,8 +99,18 @@ export function RejectedSection({ items }: RejectedSectionProps) {
                           onClick={() => setExpandedItemId(isOpen ? null : item.id)}
                         >
                           <div className="flex items-center gap-2">
+                            <span className="text-sm text-foreground truncate">
+                              {item.project_name}
+                            </span>
+                            {item.kol_name && (
+                              <>
+                                <span className="text-xs text-muted-foreground">·</span>
+                                <span className="text-sm text-info truncate">{item.kol_name}</span>
+                              </>
+                            )}
+                            <span className="text-xs text-muted-foreground">—</span>
                             <span className="text-sm text-muted-foreground truncate">
-                              {item.project_name} · {item.service}
+                              {item.service}
                             </span>
                           </div>
                           <div className="flex items-center gap-3 text-xs text-muted-foreground mt-0.5">

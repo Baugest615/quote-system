@@ -132,6 +132,7 @@ export function MergeGroupCard({
             <thead>
               <tr className="text-xs text-muted-foreground border-b border-border">
                 <th className="text-left px-4 py-2 font-normal">專案</th>
+                <th className="text-left px-4 py-2 font-normal">KOL</th>
                 <th className="text-left px-4 py-2 font-normal">服務</th>
                 <th className="text-right px-4 py-2 font-normal">金額</th>
                 <th className="text-left px-4 py-2 font-normal">月份</th>
@@ -149,6 +150,7 @@ export function MergeGroupCard({
                       <span className="text-foreground">{item.project_name || '未命名'}</span>
                     </div>
                   </td>
+                  <td className="px-4 py-2 text-info text-xs">{item.kol_name || '-'}</td>
                   <td className="px-4 py-2 text-muted-foreground">{item.service}</td>
                   <td className="px-4 py-2 text-right text-foreground tabular-nums">
                     ${(item.cost_amount || 0).toLocaleString()}

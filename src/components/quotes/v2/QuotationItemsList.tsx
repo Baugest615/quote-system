@@ -373,8 +373,8 @@ export function QuotationItemsList({ quotationId, onUpdate, readOnly = false, qu
                     cost,
                     quantity,
                     service: item.service || '',
-                    // cost_amount 未設定時自動計算（已手動調整過的不覆蓋）
-                    ...(!_costAmt ? { cost_amount: cost * quantity } : {}),
+                    // cost_amount 未設定時自動帶入 cost（不乘 quantity）
+                    ...(!_costAmt ? { cost_amount: cost } : {}),
                 }
             })
 

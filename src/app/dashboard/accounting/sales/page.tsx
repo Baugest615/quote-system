@@ -212,7 +212,9 @@ export default function AccountingSalesPage() {
     mutationFn: async () => {
       if (!editing) return
       const { data: { user } } = await supabase.auth.getUser()
-      const payload = { ...form, created_by: user?.id }
+      // 排除 JOIN 欄位（quotations）與主鍵，只保留實際 DB 欄位
+      const { id: _id, quotations: _q, ...dbFields } = form as Partial<AccountingSale> & { quotations?: unknown }
+      const payload = { ...dbFields, created_by: user?.id }
       const { error } = await supabase.from('accounting_sales').update(payload).eq('id', editing.id)
       if (error) throw error
     },

@@ -199,6 +199,12 @@ export function PendingSection({ items }: PendingSectionProps) {
                           <span className="text-sm text-foreground truncate">
                             {item.project_name || '未命名'}
                           </span>
+                          {item.kol_name && (
+                            <>
+                              <span className="text-xs text-muted-foreground">·</span>
+                              <span className="text-sm text-info truncate">{item.kol_name}</span>
+                            </>
+                          )}
                           <span className="text-xs text-muted-foreground">—</span>
                           <span className="text-sm text-muted-foreground truncate">
                             {item.service}

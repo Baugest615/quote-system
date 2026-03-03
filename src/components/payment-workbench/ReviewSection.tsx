@@ -100,13 +100,26 @@ export function ReviewSection({ items, isReviewer }: ReviewSectionProps) {
                 >
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
+                      <span className="text-sm text-foreground truncate">
+                        {item.project_name}
+                      </span>
+                      {item.kol_name && (
+                        <>
+                          <span className="text-xs text-muted-foreground">·</span>
+                          <span className="text-sm text-info truncate">{item.kol_name}</span>
+                        </>
+                      )}
+                      <span className="text-xs text-muted-foreground">—</span>
                       <span className="text-sm text-muted-foreground truncate">
-                        {item.project_name} · {item.service}
+                        {item.service}
                       </span>
                     </div>
                     <div className="flex items-center gap-3 text-xs text-muted-foreground mt-0.5">
                       <span>{item.expected_payment_month || '未指定月份'}</span>
                       {item.invoice_number && <span>發票: {item.invoice_number}</span>}
+                      {(item.attachments?.length || 0) > 0 && (
+                        <span>附件: {item.attachments.length}</span>
+                      )}
                     </div>
                   </div>
                   <span className="text-sm font-semibold text-foreground tabular-nums">
