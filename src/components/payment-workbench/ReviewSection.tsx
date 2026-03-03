@@ -1,13 +1,20 @@
 'use client'
 
 import { useState, useMemo } from 'react'
-import { Inbox, Send, Undo2, Check, X } from 'lucide-react'
+import { Inbox, Undo2, Check, X, User, Building2, AlertCircle, AlertTriangle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Modal } from '@/components/ui/modal'
 import { Textarea } from '@/components/ui/textarea'
 import { useWorkbenchReview, useWorkbenchSubmission } from '@/hooks/payment-workbench'
-import type { WorkbenchItem, MergeGroupInfo } from '@/hooks/payment-workbench/types'
+import type { WorkbenchItem, AccountCategory } from '@/hooks/payment-workbench/types'
+import { itemsToCategorySections } from '@/hooks/payment-workbench/grouping'
 import { MergeGroupCard } from './MergeGroupCard'
+
+const CATEGORY_ICONS: Record<AccountCategory, React.ReactNode> = {
+  individual: <User className="w-4 h-4" />,
+  company: <Building2 className="w-4 h-4" />,
+  unknown: <AlertCircle className="w-4 h-4 text-warning" />,
+}
 
 interface ReviewSectionProps {
   items: WorkbenchItem[]
@@ -21,35 +28,8 @@ export function ReviewSection({ items, isReviewer }: ReviewSectionProps) {
   const [rejectTarget, setRejectTarget] = useState<{ type: 'group' | 'single'; id: string } | null>(null)
   const [rejectReason, setRejectReason] = useState('')
 
-  // 分離合併組和單筆項目
-  const { mergeGroups, singleItems } = useMemo(() => {
-    const mergeMap = new Map<string, WorkbenchItem[]>()
-    const singles: WorkbenchItem[] = []
-
-    for (const item of items) {
-      if (item.merge_group_id) {
-        if (!mergeMap.has(item.merge_group_id)) mergeMap.set(item.merge_group_id, [])
-        mergeMap.get(item.merge_group_id)!.push(item)
-      } else {
-        singles.push(item)
-      }
-    }
-
-    const groups: MergeGroupInfo[] = Array.from(mergeMap.entries()).map(([groupId, mgItems]) => {
-      const leader = mgItems.find((i) => i.is_merge_leader) || mgItems[0]
-      return {
-        group_id: groupId,
-        leader_item: leader,
-        member_items: mgItems.filter((i) => !i.is_merge_leader),
-        merge_color: leader.merge_color,
-        total_amount: mgItems.reduce((s, i) => s + (i.cost_amount || 0), 0),
-        item_count: mgItems.length,
-        status: 'requested' as const,
-      }
-    })
-
-    return { mergeGroups: groups, singleItems: singles }
-  }, [items])
+  // v1.1: 按帳戶類型分組
+  const categorySections = useMemo(() => itemsToCategorySections(items), [items])
 
   const handleRejectConfirm = async () => {
     if (!rejectTarget || !rejectReason.trim()) return
@@ -77,74 +57,95 @@ export function ReviewSection({ items, isReviewer }: ReviewSectionProps) {
 
   return (
     <div className="space-y-3">
-      {/* 合併組 */}
-      {mergeGroups.map((mg) => (
-        <MergeGroupCard
-          key={mg.group_id}
-          group={mg}
-          showReviewActions={isReviewer}
-          showWithdrawAction
-          onApprove={approveMergeGroup}
-          onReject={(id) => setRejectTarget({ type: 'group', id })}
-          onWithdraw={withdrawMergeGroup}
-          isLoading={isLoading}
-        />
-      ))}
+      {/* v1.1: 按帳戶類型分區 */}
+      {categorySections.map((section) => (
+        <div key={section.category} className="space-y-3">
+          <div className="flex items-center gap-2 px-1 pt-2">
+            {CATEGORY_ICONS[section.category]}
+            <h2 className="text-sm font-semibold text-foreground">{section.label}</h2>
+            <span className="text-xs text-muted-foreground">
+              {section.item_count} 筆 · ${section.total_amount.toLocaleString()}
+            </span>
+          </div>
+          {section.category === 'unknown' && (
+            <div className="flex items-start gap-2 px-3 py-2 bg-warning/5 border border-warning/20 rounded-md text-xs text-warning">
+              <AlertTriangle className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" />
+              請先至 KOL 管理填寫銀行資訊，才能正確匯款
+            </div>
+          )}
 
-      {/* 單筆項目 */}
-      {singleItems.map((item) => (
-        <div
-          key={item.id}
-          className="flex items-center gap-3 px-4 py-3 border border-border rounded-lg"
-        >
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2">
-              <span className="text-sm font-medium text-foreground truncate">
-                {item.remittance_name || item.kol_name || '未指定'}
-              </span>
-              <span className="text-xs text-muted-foreground">—</span>
-              <span className="text-sm text-muted-foreground truncate">
-                {item.project_name} · {item.service}
-              </span>
-            </div>
-            <div className="flex items-center gap-3 text-xs text-muted-foreground mt-0.5">
-              <span>{item.expected_payment_month || '未指定月份'}</span>
-              {item.invoice_number && <span>發票: {item.invoice_number}</span>}
-            </div>
-          </div>
-          <span className="text-sm font-semibold text-foreground tabular-nums">
-            ${(item.cost_amount || 0).toLocaleString()}
-          </span>
-          <div className="flex items-center gap-1.5">
-            <Button size="sm" variant="outline" disabled={isLoading} onClick={() => withdrawSingleItem(item.id)}>
-              <Undo2 className="w-3.5 h-3.5 mr-1" />
-              撤回
-            </Button>
-            {isReviewer && (
-              <>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="text-emerald-400 border-emerald-400/30 hover:bg-emerald-400/10"
-                  disabled={isLoading}
-                  onClick={() => approveSingleItem(item.id)}
+          {section.groups.map((group) => (
+            <div key={group.remittance_name} className="space-y-2 ml-1">
+              <h3 className="text-sm font-medium text-foreground px-1">{group.remittance_name}</h3>
+
+              {/* 合併組 */}
+              {group.merge_groups.map((mg) => (
+                <MergeGroupCard
+                  key={mg.group_id}
+                  group={mg}
+                  showReviewActions={isReviewer}
+                  showWithdrawAction
+                  onApprove={approveMergeGroup}
+                  onReject={(id) => setRejectTarget({ type: 'group', id })}
+                  onWithdraw={withdrawMergeGroup}
+                  isLoading={isLoading}
+                />
+              ))}
+
+              {/* 單筆項目 */}
+              {group.items.filter((i) => !i.merge_group_id).map((item) => (
+                <div
+                  key={item.id}
+                  className="flex items-center gap-3 px-4 py-3 border border-border rounded-lg"
                 >
-                  <Check className="w-3.5 h-3.5 mr-1" />
-                  核准
-                </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="text-destructive border-destructive/30 hover:bg-destructive/10"
-                  disabled={isLoading}
-                  onClick={() => setRejectTarget({ type: 'single', id: item.id })}
-                >
-                  <X className="w-3.5 h-3.5 mr-1" />
-                  駁回
-                </Button>
-              </>
-            )}
-          </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm text-muted-foreground truncate">
+                        {item.project_name} · {item.service}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-3 text-xs text-muted-foreground mt-0.5">
+                      <span>{item.expected_payment_month || '未指定月份'}</span>
+                      {item.invoice_number && <span>發票: {item.invoice_number}</span>}
+                    </div>
+                  </div>
+                  <span className="text-sm font-semibold text-foreground tabular-nums">
+                    ${(item.cost_amount || 0).toLocaleString()}
+                  </span>
+                  <div className="flex items-center gap-1.5">
+                    <Button size="sm" variant="outline" disabled={isLoading} onClick={() => withdrawSingleItem(item.id)}>
+                      <Undo2 className="w-3.5 h-3.5 mr-1" />
+                      撤回
+                    </Button>
+                    {isReviewer && (
+                      <>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="text-emerald-400 border-emerald-400/30 hover:bg-emerald-400/10"
+                          disabled={isLoading}
+                          onClick={() => approveSingleItem(item.id)}
+                        >
+                          <Check className="w-3.5 h-3.5 mr-1" />
+                          核准
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="text-destructive border-destructive/30 hover:bg-destructive/10"
+                          disabled={isLoading}
+                          onClick={() => setRejectTarget({ type: 'single', id: item.id })}
+                        >
+                          <X className="w-3.5 h-3.5 mr-1" />
+                          駁回
+                        </Button>
+                      </>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          ))}
         </div>
       ))}
 

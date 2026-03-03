@@ -9,9 +9,11 @@ import type {
   WorkbenchItemRaw,
   WorkbenchItemStatus,
   WorkbenchFilters,
-  RemitteeGroup,
-  MergeGroupInfo,
 } from './types'
+import {
+  groupByRemittee as groupByRemitteeUtil,
+  groupByCategory as groupByCategoryUtil,
+} from './grouping'
 
 /** 推導項目的請款狀態 */
 function deriveStatus(item: WorkbenchItemRaw): WorkbenchItemStatus {
@@ -27,61 +29,6 @@ function toWorkbenchItem(raw: WorkbenchItemRaw): WorkbenchItem {
     status: deriveStatus(raw),
     is_selected: false,
   }
-}
-
-/** 按匯款對象分組 */
-function groupByRemittee(items: WorkbenchItem[]): RemitteeGroup[] {
-  const groups = new Map<string, WorkbenchItem[]>()
-
-  for (const item of items) {
-    const key = item.remittance_name || item.kol_name || '未指定匯款對象'
-    if (!groups.has(key)) groups.set(key, [])
-    groups.get(key)!.push(item)
-  }
-
-  return Array.from(groups.entries()).map(([name, groupItems]) => {
-    // 找出合併組
-    const mergeGroupMap = new Map<string, WorkbenchItem[]>()
-    for (const item of groupItems) {
-      if (item.merge_group_id) {
-        if (!mergeGroupMap.has(item.merge_group_id)) {
-          mergeGroupMap.set(item.merge_group_id, [])
-        }
-        mergeGroupMap.get(item.merge_group_id)!.push(item)
-      }
-    }
-
-    const merge_groups: MergeGroupInfo[] = Array.from(
-      mergeGroupMap.entries()
-    ).map(([groupId, mgItems]) => {
-      const leader = mgItems.find((i) => i.is_merge_leader) || mgItems[0]
-      const members = mgItems.filter((i) => !i.is_merge_leader)
-      return {
-        group_id: groupId,
-        leader_item: leader,
-        member_items: members,
-        merge_color: leader.merge_color,
-        total_amount: mgItems.reduce(
-          (sum, i) => sum + (i.cost_amount || 0),
-          0
-        ),
-        item_count: mgItems.length,
-        status: leader.status,
-      }
-    })
-
-    return {
-      remittance_name: name,
-      bank_info: groupItems[0]?.kol_bank_info || null,
-      items: groupItems,
-      merge_groups,
-      total_amount: groupItems.reduce(
-        (sum, i) => sum + (i.cost_amount || 0),
-        0
-      ),
-      item_count: groupItems.length,
-    }
-  })
 }
 
 /** 篩選項目 */
@@ -160,8 +107,14 @@ export function useWorkbenchItems() {
 
   // 按匯款對象分組
   const remitteeGroups = useMemo(
-    () => groupByRemittee(filteredItems),
+    () => groupByRemitteeUtil(filteredItems),
     [filteredItems]
+  )
+
+  // v1.1: 按帳戶類型歸類
+  const categorySections = useMemo(
+    () => groupByCategoryUtil(remitteeGroups),
+    [remitteeGroups]
   )
 
   // 按狀態分類
@@ -200,6 +153,7 @@ export function useWorkbenchItems() {
     items: rawItems,
     filteredItems,
     remitteeGroups,
+    categorySections,
     pendingItems,
     requestedItems,
     rejectedItems,

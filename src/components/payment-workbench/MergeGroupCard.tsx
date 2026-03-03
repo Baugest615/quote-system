@@ -5,6 +5,7 @@ import { ChevronDown, Crown, Link2, Send, Undo2, Check, X, Unlink } from 'lucide
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import type { MergeGroupInfo } from '@/hooks/payment-workbench/types'
+import { InlineItemEditor } from './InlineItemEditor'
 
 interface MergeGroupCardProps {
   group: MergeGroupInfo
@@ -16,6 +17,8 @@ interface MergeGroupCardProps {
   showWithdrawAction?: boolean
   /** 拆分模式：顯示拆分按鈕 */
   showDissolveAction?: boolean
+  /** 主項可編輯發票/附件 */
+  editable?: boolean
   onApprove?: (groupId: string) => void
   onReject?: (groupId: string) => void
   onSubmit?: (groupId: string) => void
@@ -30,6 +33,7 @@ export function MergeGroupCard({
   showSubmitAction,
   showWithdrawAction,
   showDissolveAction,
+  editable,
   onApprove,
   onReject,
   onSubmit,
@@ -121,7 +125,7 @@ export function MergeGroupCard({
       {/* 展開的明細 */}
       <div className={cn(
         'overflow-hidden transition-all duration-200',
-        isExpanded ? 'max-h-[500px]' : 'max-h-0'
+        isExpanded ? 'max-h-[800px]' : 'max-h-0'
       )}>
         <div className="border-t border-border bg-muted/30">
           <table className="w-full text-sm">
@@ -153,12 +157,29 @@ export function MergeGroupCard({
                     {item.expected_payment_month || '-'}
                   </td>
                   <td className="px-4 py-2 text-muted-foreground text-xs">
-                    {item.invoice_number || '-'}
+                    {item.is_merge_leader
+                      ? (item.invoice_number || (editable ? '點擊下方編輯' : '-'))
+                      : <span className="italic text-muted-foreground/60">繼承主項</span>
+                    }
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
+
+          {/* 主項編輯區 */}
+          {editable && isExpanded && (
+            <div className="border-t border-border">
+              <div className="px-4 py-2">
+                <div className="flex items-center gap-1.5 mb-2">
+                  <Crown className="w-3.5 h-3.5 text-warning" />
+                  <span className="text-xs font-medium text-foreground">主項發票與附件</span>
+                  <span className="text-xs text-muted-foreground">（送出時成員自動繼承）</span>
+                </div>
+              </div>
+              <InlineItemEditor item={group.leader_item} />
+            </div>
+          )}
         </div>
       </div>
     </div>

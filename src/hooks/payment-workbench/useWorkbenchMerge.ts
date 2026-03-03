@@ -84,7 +84,7 @@ export function useWorkbenchMerge() {
 
   /** 建立合併組 */
   const createMergeGroup = useCallback(
-    async (leaderId: string) => {
+    async (leaderId: string, paymentMonth?: string) => {
       setIsMerging(true)
       try {
         const itemIds = Array.from(selectedIds)
@@ -93,6 +93,7 @@ export function useWorkbenchMerge() {
           {
             p_item_ids: itemIds,
             p_leader_id: leaderId,
+            ...(paymentMonth ? { p_payment_month: paymentMonth } : {}),
           }
         )
 

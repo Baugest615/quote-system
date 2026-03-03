@@ -51,12 +51,26 @@ export interface WorkbenchItem extends WorkbenchItemRaw {
   is_selected: boolean
 }
 
+/** 帳戶類型分類 */
+export type AccountCategory = 'individual' | 'company' | 'unknown'
+
 /** 按匯款對象分組 */
 export interface RemitteeGroup {
   remittance_name: string
   bank_info: KolBankInfo | null
   items: WorkbenchItem[]
   merge_groups: MergeGroupInfo[]
+  total_amount: number
+  item_count: number
+  /** 帳戶類型分類（v1.1） */
+  category: AccountCategory
+}
+
+/** 按帳戶類型歸類的區塊 */
+export interface CategorySection {
+  category: AccountCategory
+  label: string
+  groups: RemitteeGroup[]
   total_amount: number
   item_count: number
 }

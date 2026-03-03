@@ -168,6 +168,56 @@ PaymentWorkbenchPage
     └── RejectDialog (駁回原因輸入)
 ```
 
+## v1.1 新增設計決策
+
+### 決策 6: 工作台行內上傳範圍
+- **選擇**：只支援「發票號碼 + 附件上傳」，不支援成本金額等資料面欄位
+- **原因**：工作台定位是「請款流程終端」，資料面編輯留在報價單 DataGrid
+- **替代方案**：全欄位編輯 → UI 過於複雜，與 DataGrid 功能重疊
+
+### 決策 7: 依帳戶類型分組
+- **選擇**：依 `bankType` 分三區（勞報/公司行號/未填寫），以對應戶名為分組標題
+- **原因**：
+  - 完全對齊下游匯款邏輯（已確認清單的 `isCompanyAccount` 分流）
+  - 使用者一眼看出「個人匯款」和「公司匯款」兩大類
+  - 「未填寫資料」區塊提醒補齊，避免送出後匯款時才發現缺資訊
+- **替代方案**：用 `remittance_name` 分組（v1.0）→ 空值多、不反映帳戶類型
+
+### 決策 8: 合併 dialog 增加月份步驟
+- **選擇**：選主項 → 選月份 → 確認，三步合併
+- **原因**：讓「已確認請款清單」能按月份正確歸類，解決大量「未指定月份」問題
+- **UI 規則**：組內月份若已一致 → 自動帶入；全部為空或不一致 → 必須手動選
+
+### v1.1 分組資料流
+
+```
+kols.bank_info (JSONB)
+  ├─ bankType = 'individual'
+  │   └─ personalAccountName → 「勞報（個人戶）」區塊標題
+  ├─ bankType = 'company'
+  │   └─ companyAccountName → 「公司行號」區塊標題
+  └─ bankType = null / 戶名為空
+      └─ 「未填寫資料」區塊（提醒補齊）
+
+get_workbench_items() 已回傳 kol_bank_info，前端 parse 即可。
+```
+
+### v1.1 進項管理合併標示
+
+```
+accounting_expenses 查詢：
+  .select('*, payment_requests(...), quotation_items(...)')
+           ↓                           ↓
+     舊流程 merge info           新流程 merge info
+           ↓                           ↓
+           └──── fallback 合併 ────────┘
+                       ↓
+              mgId = qi?.merge_group_id || pr?.merge_group_id
+              isLeader = qi?.is_merge_leader
+                       ↓
+              渲染：色帶 + 合併標籤 + ★主項
+```
+
 ## 依賴關係
 
 ```

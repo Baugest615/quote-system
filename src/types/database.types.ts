@@ -1810,7 +1810,11 @@ export type Database = {
         Returns: undefined
       }
       create_quotation_merge_group: {
-        Args: { p_item_ids: string[]; p_leader_id: string }
+        Args: {
+          p_item_ids: string[]
+          p_leader_id: string
+          p_payment_month?: string
+        }
         Returns: string
       }
       dissolve_quotation_merge_group: {
