@@ -6,6 +6,10 @@
       "Bash(npx supabase:*)",
       "Bash(npx supabase db push)",
       "Bash(npx supabase db execute:*)"
+    ],
+    "additionalDirectories": [
+      "\\tmp",
+      "c:\\Users\\franky_wu\\quote-system"
     ]
   }
 }
