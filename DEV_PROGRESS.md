@@ -82,6 +82,19 @@
 - ✅ Accessibility：`<th>` 預設 `scope="col"`、SortableHeader `aria-sort`、LoadingState `aria-live`、6 個元件 icon-only 按鈕加 `aria-label`
 - 總計：修改 19 個檔案、淨減少 ~695 LOC
 
+### 核心商業邏輯單元測試（2026-03-04）
+
+- ✅ 測試覆蓋率從 90 → 238 test cases（+148 cases，+164%）
+- ✅ 7 個純函數模組全覆蓋：
+  - `payments/aggregation.ts`（21 cases）：月彙總、分組分類、代扣判斷
+  - `payments/grouping.ts`（40 cases）：專案/帳戶/匯款戶名/KOL/客戶/狀態/日期分組、合併工具
+  - `payments/withholding-export.ts`（18 cases）：所得稅/健保/綜合明細 CSV 匯出
+  - `payments/billingPeriod.ts`（9 cases）：10 日切點規則、YYYY-MM key
+  - `accounting/insurance-calculator.ts`（15 cases）：薪資計算、公司負擔、Supabase mock
+  - `spreadsheet-utils.ts`（13 cases）：TSV 解析、欄位型別轉換、標題偵測
+  - `types/schemas.ts`（30 cases）：6 個 Zod schema 驗證、safe parse、完整性檢查
+- 驗證：`tsc --noEmit` 零錯誤 + `npm test` 238 tests 全通過
+
 ### 基礎設施強化（2026-03-04）
 
 - ✅ CLAUDE.md 擴充：新增 `/db-verify`、`/security-review`、`/rbac-supabase` + Skills 自動觸發規則
@@ -125,8 +138,9 @@
 - [ ] Recharts 圖表元件：CaseTrendChart/QuoteStatusChart 已動態載入，KpiCard 為首屏保持靜態
 - [ ] 執行 `npm run analyze` 檢查 bundle 大小
 
-**測試覆蓋率**（目前 1.2%，僅 3 個測試檔案）
-- [ ] 支付驗證邏輯單元測試（`src/lib/payments/validation.ts` 已有，需擴充）
+**測試覆蓋率**（90 → 238 cases，10 個測試檔案）
+- [x] ~~支付驗證邏輯~~ ✅ validation.ts（50 cases，原有）
+- [x] ~~核心商業邏輯~~ ✅ 7 個模組 148 cases（2026-03-04）
 - [ ] 權限邏輯單元測試（`permissions.tsx`、`server-permissions.ts`）
 - [ ] React Hook 整合測試（React Query hooks）
 - [ ] E2E 關鍵業務流程測試
