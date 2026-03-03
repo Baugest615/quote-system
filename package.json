@@ -23,7 +23,10 @@
     "agents": "tsx scripts/agents/orchestrate.ts",
     "agents:quality": "tsx scripts/agents/orchestrate.ts quality",
     "agents:develop": "tsx scripts/agents/orchestrate.ts develop",
-    "agents:review": "tsx scripts/agents/orchestrate.ts review"
+    "agents:review": "tsx scripts/agents/orchestrate.ts review",
+    "agents:migrate": "tsx scripts/agents/orchestrate.ts migrate",
+    "agents:performance": "tsx scripts/agents/orchestrate.ts performance",
+    "agents:security-cleanup": "tsx scripts/agents/orchestrate.ts security-cleanup"
   },
   "dependencies": {
     "@headlessui/react": "^2.2.7",

@@ -8,12 +8,18 @@
  *   npm run agents:develop                               — 功能開發（互動輸入）
  *   npm run agents:develop -- --spec .claude/specs/xx.md — 功能開發（讀取規格檔）
  *   npm run agents:review                                — Code Review + 測試
+ *   npm run agents:migrate                               — DB Migration 驗證
+ *   npm run agents:performance                           — 性能審計
+ *   npm run agents:security-cleanup                      — 安全問題修復
  */
 import readline from 'readline';
 import { logger } from './utils';
 import { runQualityWorkflow } from './workflows/quality';
 import { runDevelopWorkflow } from './workflows/develop';
 import { runReviewWorkflow } from './workflows/review';
+import { runMigrateWorkflow } from './workflows/migrate';
+import { runPerformanceWorkflow } from './workflows/performance';
+import { runSecurityCleanupWorkflow } from './workflows/security-cleanup';
 
 const MENU = `
 ╔══════════════════════════════════════╗
@@ -22,15 +28,21 @@ const MENU = `
 ║  1. 品質驗證 (Quality Check)         ║
 ║  2. 功能開發 (Feature Development)   ║
 ║  3. Code Review + 測試               ║
+║  4. DB Migration 驗證                ║
+║  5. 性能審計 (Performance Audit)     ║
+║  6. 安全修復 (Security Cleanup)      ║
 ║  q. 離開                             ║
 ╚══════════════════════════════════════╝`;
 
-type WorkflowName = 'quality' | 'develop' | 'review';
+type WorkflowName = 'quality' | 'develop' | 'review' | 'migrate' | 'performance' | 'security-cleanup';
 
 const WORKFLOWS: Record<WorkflowName, () => Promise<void>> = {
   quality: runQualityWorkflow,
   develop: runDevelopWorkflow,
   review: runReviewWorkflow,
+  migrate: runMigrateWorkflow,
+  performance: runPerformanceWorkflow,
+  'security-cleanup': runSecurityCleanupWorkflow,
 };
 
 /** 從命令列參數解析工作流名稱 */
@@ -43,6 +55,9 @@ function parseArgs(): WorkflowName | null {
   if (arg === '1') return 'quality';
   if (arg === '2') return 'develop';
   if (arg === '3') return 'review';
+  if (arg === '4') return 'migrate';
+  if (arg === '5') return 'performance';
+  if (arg === '6') return 'security-cleanup';
   return null;
 }
 
@@ -74,6 +89,18 @@ async function interactiveMenu(): Promise<void> {
     case '3':
     case 'review':
       await runReviewWorkflow();
+      break;
+    case '4':
+    case 'migrate':
+      await runMigrateWorkflow();
+      break;
+    case '5':
+    case 'performance':
+      await runPerformanceWorkflow();
+      break;
+    case '6':
+    case 'security-cleanup':
+      await runSecurityCleanupWorkflow();
       break;
     case 'q':
     case 'quit':

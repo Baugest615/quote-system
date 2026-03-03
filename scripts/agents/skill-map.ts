@@ -46,4 +46,26 @@ export const AGENT_SKILL_MAP: Record<string, AgentSkillConfig> = {
     ],
     maxTotalBytes: 40_000,
   },
+  'db-migrator': {
+    skills: [
+      'supabase-postgres-best-practices',
+      'db-migration',
+    ],
+    maxTotalBytes: 40_000,
+  },
+  'security-cleanup': {
+    skills: ['security-review'],
+    maxTotalBytes: 30_000,
+  },
+  'performance-auditor': {
+    skills: [
+      'supabase-postgres-best-practices',
+      'frontend-patterns',
+    ],
+    maxTotalBytes: 50_000,
+  },
+  'e2e-tester': {
+    skills: ['tdd-workflow'],
+    maxTotalBytes: 25_000,
+  },
 };

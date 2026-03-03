@@ -10,12 +10,30 @@
 | PR | `/pr` |
 | code review | `/review` |
 | migration | `/db-migration` |
+| 資料完整性驗證 | `/db-verify` |
 | UI 設計 | `/ui-ux-pro-max` |
 | Postgres 優化 | `/supabase-postgres-best-practices` |
 | 編碼規範 | `/coding-standards` |
 | 前端模式 | `/frontend-patterns` |
 | 品質驗證 | `/verification-loop` |
 | TDD | `/tdd-workflow` |
+| 安全檢查 | `/security-review` |
+| RBAC 權限架構 | `/rbac-supabase` |
+| Agent 協作 | 見 `scripts/agents/` |
+
+### Skills 自動觸發規則
+
+以下場景 AI 應**主動建議**對應 Skill，不需使用者手動觸發：
+
+| 場景 | 自動觸發 | 理由 |
+|------|----------|------|
+| 修完 bug / 改完 RPC | `/db-verify` | 驗證資料完整性，防止回歸 |
+| 改 RLS 政策 / 權限邏輯 | `/rbac-supabase` + `/security-review` | 權限是核心，必須雙重檢查 |
+| 改 API route (`src/app/api/`) | `/security-review` | 確認認證和輸入驗證 |
+| 跨模組 bug（影響 2+ 模組） | `/systematic-debugging` | 結構化四階段追蹤根因 |
+| 新增 DB migration | `/db-migration` + `/supabase-postgres-best-practices` | 確保 RLS、索引、命名規範 |
+| 改完程式碼 | 主動問是否 `/commit` | 防止忘記提交 |
+| 改 PDF 相關元件 | 提醒跨平台測試 | Puppeteer + CJK 字型有陷阱 |
 
 ## 關鍵路徑
 

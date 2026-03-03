@@ -1,7 +1,7 @@
 # 開發進度追蹤
 
-> 最後更新：2026-03-03
-> 分支：`feat/merged-payment-requests`（開發中）
+> 最後更新：2026-03-04
+> 分支：`main`
 > 詳細變更歷程請見 Git commit history
 
 ## 回滾資訊
@@ -55,7 +55,22 @@
 - ✅ 所有工作台 RPC 統一納入「待簽約」（create_merge_group、submit_single_item、submit_merge_group）
 - ✅ 資料完整性驗證：verify_data_integrity() RPC — 9 項 invariant checks（DC×4、WB×2、RLS×1、DQ×2），全部 PASS
 - ✅ `/db-verify` skill 建立（跨專案通用資料庫驗證框架）
+- ✅ cost_amount 修正：移除 quantity 乘數（前端 + RPC + 舊頁面三處修復）
+- ✅ 工作台 KOL 名稱顯示修復（PendingSection / ReviewSection / RejectedSection）
 - `npx tsc --noEmit` 通過，零型別錯誤
+
+### 基礎設施強化（2026-03-04）
+
+- ✅ CLAUDE.md 擴充：新增 `/db-verify`、`/security-review`、`/rbac-supabase` + Skills 自動觸發規則
+- ✅ 新增 2 個專案級 Skill：`agents-orchestration`（協作框架使用指南）、`puppeteer-pdf-cjk`（CJK 字型配置防護）
+- ✅ Agent 協作系統擴展：6 → 10 個 Agent
+  - 新增 `db-migrator`（Opus, readonly）— Migration 預檢查 + verify_data_integrity()
+  - 新增 `security-cleanup`（Sonnet, writable）— 已知安全問題批量修復
+  - 新增 `performance-auditor`（Sonnet, readonly）— React Query / bundle / DB 性能審計
+  - 新增 `e2e-tester`（Sonnet, readonly）— Playwright E2E 測試
+- ✅ 新增 3 個工作流：`migrate`、`performance`、`security-cleanup`
+- ✅ 互動式選單擴展為 6 個選項（含新增工作流）
+- ✅ npm scripts：`agents:migrate`、`agents:performance`、`agents:security-cleanup`
 
 ## 待辦事項
 
@@ -71,6 +86,7 @@
 ### 技術債
 - [ ] Claude Agent SDK 升級 0.1.77 → 0.2.x（需同步升級 zod 3.x → 4.x，影響 5 個表單驗證元件）
 - [ ] `@hookform/resolvers/zod` 需配合 zod 4 升級
+- [ ] E2E 測試基礎設施建立（Playwright config + 第一批關鍵業務流程測試）
 
 ### 安全稽核發現（2026-03-02）
 
