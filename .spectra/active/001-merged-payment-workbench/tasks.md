@@ -37,73 +37,49 @@ spec-id: 001-merged-payment-workbench
 ### Phase 5: DB — RPC 修改
 > 放寬驗證 + 新增月份參數
 
-- [P] ( ) T-17: 修改 `create_quotation_merge_group` — 新增 `p_payment_month TEXT DEFAULT NULL` 參數
-  — `supabase/migrations/新檔案`
-  — 若 `p_payment_month` 不為空，`UPDATE expected_payment_month` 給所有成員
+- [P] (✓) T-17: 修改 `create_quotation_merge_group` — 新增 `p_payment_month TEXT DEFAULT NULL` 參數
+  — `supabase/migrations/20260303100000_workbench_v1_1_rpc_updates.sql`
   — AC-28, AC-29
 
-- [P] ( ) T-18: 修改 `submit_merge_group` + `submit_single_item` — 放寬成本驗證
-  — `supabase/migrations/新檔案`（可與 T-17 同檔）
-  — 原本 `cost_amount IS NULL OR cost_amount <= 0` → 改為 `cost_amount IS NULL`
-  — 允許 `cost_amount = 0` 送出
+- [P] (✓) T-18: 修改 `submit_merge_group` + `submit_single_item` — 放寬成本驗證
+  — `supabase/migrations/20260303100000_workbench_v1_1_rpc_updates.sql`
   — AC-27
 
 ### Phase 6: 前端 — 分組重構 + 合併 dialog
 > 帳戶類型分組 + 月份選擇步驟
 
-- [S] ( ) T-19: 重構分組邏輯 — `useWorkbenchItems.ts` 的 `groupByRemittee()`（依賴 T-17）
-  — `src/hooks/payment-workbench/useWorkbenchItems.ts`
-  — parse `kol_bank_info` → `bankType` + 對應戶名
-  — 分三區：勞報（individual + personalAccountName）、公司行號（company + companyAccountName）、未填寫
-  — 回傳結構調整：`RemitteeGroup` 新增 `category: 'individual' | 'company' | 'unknown'`
+- [S] (✓) T-19: 重構分組邏輯 — `grouping.ts` 的 `groupByRemittee()`
+  — `src/hooks/payment-workbench/grouping.ts`（deriveAccountInfo + 三類分組）
   — AC-24, AC-25, AC-26
 
-- [S] ( ) T-20: 更新三個 Section 元件的分組渲染（依賴 T-19）
-  — `src/components/payment-workbench/PendingSection.tsx`
-  — `src/components/payment-workbench/ReviewSection.tsx`
-  — `src/components/payment-workbench/RejectedSection.tsx`
-  — 每個 Section 按三區塊渲染（勞報標頭/公司行號標頭/未填寫提示）
+- [S] (✓) T-20: 更新三個 Section 元件的分組渲染
+  — PendingSection / ReviewSection / RejectedSection 按帳戶類型三區塊渲染
   — AC-24, AC-25, AC-26
 
-- [S] ( ) T-21: 合併 dialog 增加月份步驟 + hook 修改（依賴 T-17）
-  — `src/components/payment-workbench/PendingSection.tsx`（合併確認 Modal 部分）
-  — `src/hooks/payment-workbench/useWorkbenchMerge.ts`（`createMergeGroup` 新增 `paymentMonth` 參數）
-  — dialog 流程：選主項 → 選月份（預設帶入組內一致月份）→ 確認
-  — RPC 呼叫加上 `p_payment_month` 參數
+- [S] (✓) T-21: 合併 dialog 增加月份步驟 + hook 修改
+  — PendingSection merge dialog 兩步驟（選主項 → 選月份）
   — AC-28, AC-29
 
 ### Phase 7: 前端 — 行內上傳
 > 工作台的發票/附件編輯能力
 
-- [S] ( ) T-22: PendingSection 行內上傳（依賴 T-20）
-  — `src/components/payment-workbench/PendingSection.tsx`
-  — 單筆項目行：展開區域含「發票號碼」input + `AttachmentUploader` 元件
-  — 儲存：直接 update `quotation_items` 的 `invoice_number` / `attachments`
-  — 送出按鈕 disabled 條件放寬（`cost_amount !== null` 而非 `> 0`）
+- [S] (✓) T-22: PendingSection 行內上傳
+  — `src/components/payment-workbench/InlineItemEditor.tsx`（共用元件）
   — AC-20, AC-21, AC-27
 
-- [S] ( ) T-23: MergeGroupCard 主項上傳（依賴 T-22）
-  — `src/components/payment-workbench/MergeGroupCard.tsx`
-  — 展開詳情時，主項行顯示發票 input + AttachmentUploader
-  — 非主項行顯示「送出時自動繼承主項發票/附件」提示文字
+- [S] (✓) T-23: MergeGroupCard 主項上傳
+  — MergeGroupCard 展開時主項顯示 InlineItemEditor
   — AC-22
 
-- [S] ( ) T-24: RejectedSection 行內上傳（依賴 T-22）
-  — `src/components/payment-workbench/RejectedSection.tsx`
-  — 被駁回項目同樣支援發票 + 附件編輯（修正後重送）
+- [S] (✓) T-24: RejectedSection 行內上傳
+  — RejectedSection 展開列含 InlineItemEditor
   — AC-23
 
 ### Phase 8: 進項管理 — 合併標示修復
 > 讓新流程核准的合併組在進項管理中可辨識
 
-- [P] ( ) T-25: 進項管理查詢 + 渲染修復（可與 Phase 5-7 平行）
-  — `src/app/dashboard/accounting/expenses/page.tsx`
-  — 查詢：`.select('*, payment_requests(merge_group_id, merge_color), quotation_items!accounting_expenses_quotation_item_id_fkey(merge_group_id, merge_color, is_merge_leader)')`
-  — 型別：`ExpenseWithMerge` 新增 `quotation_items` 欄位
-  — 合併標示：雙路徑 fallback `qi?.merge_group_id || pr?.merge_group_id`
-  — 主項標記：`is_merge_leader === true` → 顯示 `★主項` badge
-  — 預設排序：新路徑的 `merge_group_id` 也納入分組排序
-  — `mergeGroupLabelMap` 建立也加入新路徑
+- [P] (✓) T-25: 進項管理查詢 + 渲染修復
+  — `src/app/dashboard/accounting/expenses/page.tsx`（雙路徑 fallback + merge_color 視覺指示）
   — AC-30, AC-31, AC-32
 
 ## 標記說明
