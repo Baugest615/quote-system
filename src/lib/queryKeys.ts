@@ -28,6 +28,7 @@ export const queryKeys = {
   pendingPayments: ['pending-payments'] as const,
   paymentRequests: ['payment-requests'] as const,
   confirmedPayments: ['confirmed-payments'] as const,
+  workbenchItems: ['workbench-items'] as const,
 
   // 儀表板 + 報表
   dashboardStats: ['dashboard-stats'] as const,

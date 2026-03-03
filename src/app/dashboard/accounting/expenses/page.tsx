@@ -50,6 +50,7 @@ const MERGE_BADGE_COLORS: Record<string, string> = {
 
 type ExpenseWithMerge = AccountingExpense & {
   payment_requests: { merge_group_id: string | null; merge_color: string | null } | null
+  quotation_items: { merge_group_id: string | null; merge_color: string | null; is_merge_leader: boolean | null } | null
 }
 
 type ExpenseSortKey = 'expense_month' | 'expense_type' | 'accounting_subject' | 'vendor_name' | 'total_amount' | 'project_name' | 'note' | 'payment_date' | 'payment_status'
@@ -151,7 +152,7 @@ export default function AccountingExpensesPage() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('accounting_expenses')
-        .select('*, payment_requests(merge_group_id, merge_color)')
+        .select('*, payment_requests(merge_group_id, merge_color), quotation_items!accounting_expenses_quotation_item_id_fkey(merge_group_id, merge_color, is_merge_leader)')
         .eq('year', year)
         .order('created_at', { ascending: false })
       if (error) throw error
@@ -287,8 +288,8 @@ export default function AccountingExpensesPage() {
       })
     }
     return [...filtered].sort((a, b) => {
-      const aGroup = a.payment_requests?.merge_group_id
-      const bGroup = b.payment_requests?.merge_group_id
+      const aGroup = a.quotation_items?.merge_group_id || a.payment_requests?.merge_group_id
+      const bGroup = b.quotation_items?.merge_group_id || b.payment_requests?.merge_group_id
       if (aGroup && bGroup && aGroup === bGroup) return 0
       if (aGroup && !bGroup) return -1
       if (!aGroup && bGroup) return 1
@@ -301,7 +302,7 @@ export default function AccountingExpensesPage() {
     const map = new Map<string, string>()
     let index = 0
     sorted.forEach(r => {
-      const mgId = r.payment_requests?.merge_group_id
+      const mgId = r.quotation_items?.merge_group_id || r.payment_requests?.merge_group_id
       if (mgId && !map.has(mgId)) {
         map.set(mgId, getMergeLabel(index))
         index++
@@ -615,8 +616,9 @@ export default function AccountingExpensesPage() {
                 {sorted.length === 0 ? (
                   <tr><td colSpan={10}><EmptyState type="no-data" icon={TrendingDown} title="尚無支出記錄" description="新增第一筆支出記錄開始追蹤" /></td></tr>
                 ) : sorted.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE).map(r => {
-                  const mgId = r.payment_requests?.merge_group_id
-                  const mgColor = r.payment_requests?.merge_color
+                  const mgId = r.quotation_items?.merge_group_id || r.payment_requests?.merge_group_id
+                  const mgColor = r.quotation_items?.merge_color || r.payment_requests?.merge_color
+                  const isLeader = r.quotation_items?.is_merge_leader === true
                   const mgBorderColor = mgId && mgColor ? MERGE_BORDER_COLORS[mgColor] || 'hsl(var(--info))' : undefined
                   const mgBadgeClass = mgId && mgColor ? MERGE_BADGE_COLORS[mgColor] || 'bg-info/15 text-info' : ''
                   const mgLabel = mgId ? mergeGroupLabelMap.get(mgId) : undefined
@@ -635,6 +637,7 @@ export default function AccountingExpensesPage() {
                       {r.payment_request_id && !r.quotation_item_id && <span className="ml-1.5 text-[10px] text-chart-4 bg-chart-4/10 px-1 py-0.5 rounded" title="由專案請款核准自動建立">請款</span>}
                       {r.expense_claim_id && <span className="ml-1.5 text-[10px] text-warning bg-warning/10 px-1 py-0.5 rounded" title="由個人報帳核准自動建立">報帳</span>}
                       {mgId && mgLabel && <span className={`ml-1.5 inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium ${mgBadgeClass}`}>合併 {mgLabel}</span>}
+                      {mgId && isLeader && <span className="ml-1 text-[10px] text-warning">★主項</span>}
                     </td>
                     <td className="px-4 py-3 text-right text-foreground">
                       NT$ {fmt(r.total_amount || 0)}

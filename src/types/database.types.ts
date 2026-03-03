@@ -7,30 +7,10 @@ export type Json =
   | Json[]
 
 export type Database = {
-  graphql_public: {
-    Tables: {
-      [_ in never]: never
-    }
-    Views: {
-      [_ in never]: never
-    }
-    Functions: {
-      graphql: {
-        Args: {
-          extensions?: Json
-          operationName?: string
-          query?: string
-          variables?: Json
-        }
-        Returns: Json
-      }
-    }
-    Enums: {
-      [_ in never]: never
-    }
-    CompositeTypes: {
-      [_ in never]: never
-    }
+  // Allows to automatically instantiate createClient with right options
+  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
+  __InternalSupabase: {
+    PostgrestVersion: "12.2.12 (cd3cf9e)"
   }
   public: {
     Tables: {
@@ -1788,6 +1768,7 @@ export type Database = {
         Args: { approver_id?: string; claim_id: string }
         Returns: undefined
       }
+      approve_merge_group: { Args: { p_group_id: string }; Returns: undefined }
       approve_payment_request: {
         Args: {
           p_accounting_subject?: string
@@ -1826,6 +1807,18 @@ export type Database = {
       }
       create_payment_request_group: {
         Args: { p_merge_type: string; p_quotation_item_ids: string[] }
+        Returns: undefined
+      }
+      create_quotation_merge_group: {
+        Args: {
+          p_item_ids: string[]
+          p_leader_id: string
+          p_payment_month?: string
+        }
+        Returns: string
+      }
+      dissolve_quotation_merge_group: {
+        Args: { p_group_id: string }
         Returns: undefined
       }
       get_available_pending_payments: {
@@ -1886,6 +1879,42 @@ export type Database = {
         }[]
       }
       get_user_role: { Args: { user_id: string }; Returns: string }
+      get_workbench_items: {
+        Args: never
+        Returns: {
+          accounting_subject: string
+          approved_at: string
+          approved_by: string
+          attachments: Json
+          category: string
+          client_name: string
+          cost: number
+          cost_amount: number
+          created_at: string
+          expected_payment_month: string
+          expense_type: string
+          id: string
+          invoice_number: string
+          is_merge_leader: boolean
+          kol_bank_info: Json
+          kol_id: string
+          kol_name: string
+          merge_color: string
+          merge_group_id: string
+          price: number
+          project_name: string
+          quantity: number
+          quotation_id: string
+          rejected_at: string
+          rejected_by: string
+          rejection_reason: string
+          remark: string
+          remittance_name: string
+          requested_at: string
+          requested_by: string
+          service: string
+        }[]
+      }
       is_admin: { Args: never; Returns: boolean }
       process_payment_confirmation: {
         Args: { p_approved_request_ids: string[]; p_user_id: string }
@@ -1900,6 +1929,10 @@ export type Database = {
         Args: { claim_id: string; reason?: string; rejector_id?: string }
         Returns: undefined
       }
+      reject_merge_group: {
+        Args: { p_group_id: string; p_reason?: string }
+        Returns: undefined
+      }
       reject_quotation_item: {
         Args: { p_item_id: string; p_reason?: string }
         Returns: undefined
@@ -1912,6 +1945,8 @@ export type Database = {
         Args: { p_item_id: string; p_reason?: string }
         Returns: undefined
       }
+      submit_merge_group: { Args: { p_group_id: string }; Returns: undefined }
+      submit_single_item: { Args: { p_item_id: string }; Returns: undefined }
       sync_kol_service_prices_from_quotation: {
         Args: { p_quotation_id: string }
         Returns: Json
@@ -1925,6 +1960,8 @@ export type Database = {
         Args: { p_confirmation_id: string; p_settings: Json }
         Returns: Json
       }
+      withdraw_merge_group: { Args: { p_group_id: string }; Returns: undefined }
+      withdraw_single_item: { Args: { p_item_id: string }; Returns: undefined }
     }
     Enums: {
       payment_method: "電匯" | "ATM轉帳"
@@ -2055,9 +2092,6 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
-  graphql_public: {
-    Enums: {},
-  },
   public: {
     Enums: {
       payment_method: ["電匯", "ATM轉帳"],

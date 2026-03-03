@@ -25,12 +25,12 @@ export function RemittanceGroupCard({
 }: RemittanceGroupCardProps) {
     const [isExpanded, setIsExpanded] = useState(false)
 
-    // 合併群組標籤映射
+    // 合併群組標籤映射（支援舊流程 payment_requests 和新流程 quotation_items）
     const mergeGroupLabelMap = useMemo(() => {
         const map = new Map<string, string>()
         let index = 0
         group.items.forEach(item => {
-            const mgId = item.payment_requests?.merge_group_id
+            const mgId = item.payment_requests?.merge_group_id || item.quotation_items?.merge_group_id
             if (mgId && !map.has(mgId)) {
                 map.set(mgId, getMergeLabel(index))
                 index++
@@ -206,7 +206,10 @@ export function RemittanceGroupCard({
                                     <PaymentRecordRow
                                         key={item.id}
                                         item={item}
-                                        groupLabel={item.payment_requests?.merge_group_id ? mergeGroupLabelMap.get(item.payment_requests.merge_group_id) : undefined}
+                                        groupLabel={(() => {
+                                            const mgId = item.payment_requests?.merge_group_id || item.quotation_items?.merge_group_id
+                                            return mgId ? mergeGroupLabelMap.get(mgId) : undefined
+                                        })()}
                                         onRevertItem={showRevert ? onRevertItem : undefined}
                                     />
                                 ))}

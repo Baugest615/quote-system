@@ -157,82 +157,6 @@ export default function ExpenseClaimsPage() {
     onError: (err: Error) => toast.error(`刪除失敗：${err.message}`),
   })
 
-  // 送出審核
-  const submitMutation = useMutation({
-    mutationFn: async (ids: string[]) => {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) throw new Error('未登入，請重新登入')
-      const { error } = await supabase
-        .from('expense_claims')
-        .update({
-          status: 'submitted',
-          submitted_by: user?.id,
-          submitted_at: new Date().toISOString(),
-          rejected_by: null,
-          rejected_at: null,
-          rejection_reason: null,
-        })
-        .in('id', ids)
-        .in('status', ['draft', 'rejected'])
-      if (error) throw error
-    },
-    onSuccess: () => {
-      invalidateCaches()
-      queryClient.invalidateQueries({ queryKey: [...queryKeys.paymentRequests] })
-      toast.success('已送出審核')
-    },
-    onError: () => toast.error('送出失敗，請重試'),
-  })
-
-  // 核准
-  const approveMutation = useMutation({
-    mutationFn: async (claimId: string) => {
-      const { error } = await supabase.rpc('approve_expense_claim', {
-        claim_id: claimId,
-      })
-      if (error) throw error
-    },
-    onSuccess: () => {
-      invalidateCaches()
-      queryClient.invalidateQueries({ queryKey: [...queryKeys.confirmedPayments] })
-      queryClient.invalidateQueries({ queryKey: ['accounting-expenses'] })
-      queryClient.invalidateQueries({ queryKey: [...queryKeys.dashboardStats] })
-      toast.success('已核准，進項記錄已自動建立')
-    },
-    onError: (err: Error) => toast.error(`核准失敗：${err.message}`),
-  })
-
-  // 駁回
-  const rejectMutation = useMutation({
-    mutationFn: async ({ claimId, reason }: { claimId: string; reason: string }) => {
-      const { error } = await supabase.rpc('reject_expense_claim', {
-        claim_id: claimId,
-        reason,
-      })
-      if (error) throw error
-    },
-    onSuccess: () => {
-      invalidateCaches()
-      toast.success('已駁回')
-    },
-    onError: (err: Error) => toast.error(`駁回失敗：${err.message}`),
-  })
-
-  // 追蹤 loading 狀態
-  const actionLoading = useMemo(() => {
-    const set = new Set<string>()
-    if (submitMutation.isPending && submitMutation.variables) {
-      submitMutation.variables.forEach((id: string) => set.add(id))
-    }
-    if (approveMutation.isPending && approveMutation.variables) {
-      set.add(approveMutation.variables)
-    }
-    if (rejectMutation.isPending && rejectMutation.variables) {
-      set.add(rejectMutation.variables.claimId)
-    }
-    return set
-  }, [submitMutation.isPending, submitMutation.variables, approveMutation.isPending, approveMutation.variables, rejectMutation.isPending, rejectMutation.variables])
-
   // ==================== Handlers ====================
 
   const handleOpenModal = useCallback((claim?: ExpenseClaim) => {
@@ -254,31 +178,6 @@ export default function ExpenseClaimsPage() {
     if (!ok) return
     deleteMutation.mutate(id)
   }, [deleteMutation, confirm])
-
-  const handleSubmit = useCallback(async (ids: string[]) => {
-    if (ids.length === 0) return
-    const ok = await confirm({
-      title: '確認送出',
-      description: `確定要送出 ${ids.length} 筆報帳申請進行審核嗎？`,
-      confirmLabel: '送出',
-    })
-    if (!ok) return
-    submitMutation.mutate(ids)
-  }, [submitMutation, confirm])
-
-  const handleApprove = useCallback(async (claimId: string) => {
-    const claim = records.find(r => r.id === claimId)
-    const ok = await confirm({
-      title: '核准報帳',
-      description: `確定要核准「${claim?.vendor_name || '未命名'}」的報帳（${claim?.expense_type}，NT$ ${new Intl.NumberFormat('zh-TW').format(claim?.total_amount || 0)}）？核准後將自動建立進項記錄和確認記錄。`,
-    })
-    if (!ok) return
-    approveMutation.mutate(claimId)
-  }, [approveMutation, confirm, records])
-
-  const handleReject = useCallback((claimId: string, reason: string) => {
-    rejectMutation.mutate({ claimId, reason })
-  }, [rejectMutation])
 
   // ==================== Filtering ====================
 
@@ -335,7 +234,7 @@ export default function ExpenseClaimsPage() {
         <div>
           <h1 className="text-2xl font-bold text-foreground">個人請款申請</h1>
           <p className="text-sm text-muted-foreground">
-            {isEditor ? '所有員工報帳申請管理' : '員工報帳申請，送出後進入請款審核'}
+            建立與編輯報帳項目，送出審核請至請款工作台操作
           </p>
         </div>
       </div>
@@ -409,33 +308,20 @@ export default function ExpenseClaimsPage() {
         </button>
       </div>
 
-      {/* 全部送出提示 */}
-      {(() => {
-        const submittableCount = filtered.filter(r => r.status === 'draft' || r.status === 'rejected').length
-        if (submittableCount === 0) return null
-        return (
-          <div className="flex items-center gap-3 bg-card border border-border rounded-xl px-4 py-3">
-            <AlertCircle className="w-4 h-4 text-info" />
-            <span className="text-sm text-muted-foreground">
-              有 {submittableCount} 筆可送出的報帳項目
-            </span>
-            <div className="flex-1" />
-            <button
-              onClick={() => {
-                const ids = filtered
-                  .filter(r => r.status === 'draft' || r.status === 'rejected')
-                  .map(r => r.id)
-                handleSubmit(ids)
-              }}
-              disabled={submitMutation.isPending}
-              className="flex items-center gap-2 px-4 py-2 bg-info text-white rounded-lg text-sm font-medium hover:bg-info/90 transition-colors disabled:opacity-50"
-            >
-              <Send className="w-4 h-4" />
-              {submitMutation.isPending ? '送出中...' : `全部送出審核 (${submittableCount})`}
-            </button>
-          </div>
-        )
-      })()}
+      {/* 工作台提示 */}
+      <div className="flex items-center gap-3 bg-card border border-border rounded-xl px-4 py-3">
+        <AlertCircle className="w-4 h-4 text-info" />
+        <span className="text-sm text-muted-foreground">
+          送出審核、合併請款等操作請至請款工作台進行
+        </span>
+        <div className="flex-1" />
+        <a
+          href="/dashboard/payment-workbench"
+          className="flex items-center gap-2 px-4 py-2 bg-info text-white rounded-lg text-sm font-medium hover:bg-info/90 transition-colors"
+        >
+          前往請款工作台
+        </a>
+      </div>
 
       {/* 手風琴群組 */}
       <ExpenseClaimGroups
@@ -444,10 +330,6 @@ export default function ExpenseClaimsPage() {
         nameMap={nameMap}
         onEdit={handleOpenModal}
         onDelete={handleDelete}
-        onSubmit={handleSubmit}
-        onApprove={handleApprove}
-        onReject={handleReject}
-        actionLoading={actionLoading}
       />
 
       {/* Modal */}

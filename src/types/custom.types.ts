@@ -53,6 +53,7 @@ export const PAGE_KEYS = {
   EXPENSE_CLAIMS: 'expense_claims',
   ACCOUNTING: 'accounting',
   MY_SALARY: 'my_salary',
+  PAYMENT_WORKBENCH: 'payment_workbench',
 } as const
 
 /**
@@ -166,6 +167,14 @@ export const PAGE_PERMISSIONS: Record<string, PageConfig> = {
     allowedFunctions: ['view'],
     route: '/dashboard/my-salary',
     icon: 'User'
+  },
+  [PAGE_KEYS.PAYMENT_WORKBENCH]: {
+    key: PAGE_KEYS.PAYMENT_WORKBENCH,
+    name: '請款工作台',
+    allowedRoles: [USER_ROLES.ADMIN, USER_ROLES.EDITOR, USER_ROLES.MEMBER],
+    allowedFunctions: ['view', 'submit', 'merge', 'approve', 'reject', 'withdraw'],
+    route: '/dashboard/payment-workbench',
+    icon: 'Wallet'
   },
 }
 

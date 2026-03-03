@@ -3,7 +3,7 @@
 import { useState, useMemo } from 'react'
 import {
   ChevronDown, ChevronRight, Receipt,
-  CheckCircle2, Loader2, Pencil, Trash2,
+  Pencil, Trash2,
 } from 'lucide-react'
 import type { ExpenseClaim } from '@/types/custom.types'
 
@@ -12,9 +12,7 @@ import {
   CLAIM_STATUS_LABELS, CLAIM_STATUS_COLORS,
   PAYMENT_STATUS_LABELS, PAYMENT_STATUS_COLORS,
 } from '@/types/custom.types'
-import { Modal } from '@/components/ui/modal'
 import { Button } from '@/components/ui/button'
-import { Textarea } from '@/components/ui/textarea'
 import { EmptyState } from '@/components/ui/EmptyState'
 
 // ==================== Types ====================
@@ -37,9 +35,9 @@ interface ExpenseClaimGroupsProps {
   nameMap: Map<string, string>
   onEdit: (claim: ExpenseClaimWithQuotation) => void
   onDelete: (id: string) => void
-  onSubmit: (ids: string[]) => void
-  onApprove: (claimId: string) => void
-  onReject: (claimId: string, reason: string) => void
+  onSubmit?: (ids: string[]) => void
+  onApprove?: (claimId: string) => void
+  onReject?: (claimId: string, reason: string) => void
   actionLoading?: Set<string>
 }
 
@@ -113,9 +111,6 @@ export function ExpenseClaimGroups({
     return new Set(groups.length > 0 ? [groups[0].key] : [])
   })
 
-  // 駁回 dialog 狀態
-  const [rejectingClaimId, setRejectingClaimId] = useState<string | null>(null)
-  const [rejectionReason, setRejectionReason] = useState('')
 
   const groups = useMemo(
     () => groupClaims(claims, isEditor, nameMap),
@@ -131,12 +126,6 @@ export function ExpenseClaimGroups({
     })
   }
 
-  const handleRejectSubmit = () => {
-    if (!rejectingClaimId) return
-    onReject(rejectingClaimId, rejectionReason.trim() || '未提供原因')
-    setRejectingClaimId(null)
-    setRejectionReason('')
-  }
 
   if (groups.length === 0) {
     return (
@@ -201,7 +190,7 @@ export function ExpenseClaimGroups({
             {isExpanded && (
               <div className="border-t border-border">
                 {/* 群組操作列 */}
-                {group.draftCount > 0 && (
+                {onSubmit && group.draftCount > 0 && (
                   <div className="px-4 py-2 bg-muted/20 border-b border-border flex items-center justify-between">
                     <span className="text-xs text-muted-foreground">
                       {group.draftCount} 筆可送出
@@ -237,10 +226,6 @@ export function ExpenseClaimGroups({
                         <th className="px-3 py-2 text-left text-xs font-medium text-muted-foreground">發票號碼</th>
                         <th className="px-3 py-2 text-left text-xs font-medium text-muted-foreground">備註</th>
                         <th className="px-2 py-2 text-center text-xs font-medium text-muted-foreground border-l-2 border-border">狀態</th>
-                        <th className="px-2 py-2 text-center text-xs font-medium text-muted-foreground">請款</th>
-                        {isEditor && (
-                          <th className="px-2 py-2 text-center text-xs font-medium text-muted-foreground">審核</th>
-                        )}
                         <th className="px-2 py-2 text-center text-xs font-medium text-muted-foreground">操作</th>
                       </tr>
                     </thead>
@@ -249,16 +234,9 @@ export function ExpenseClaimGroups({
                         <ClaimRow
                           key={claim.id}
                           claim={claim}
-                          isEditor={isEditor}
                           isLoading={actionLoading.has(claim.id)}
                           onEdit={onEdit}
                           onDelete={onDelete}
-                          onSubmit={onSubmit}
-                          onApprove={onApprove}
-                          onRejectOpen={(id) => {
-                            setRejectingClaimId(id)
-                            setRejectionReason('')
-                          }}
                         />
                       ))}
                     </tbody>
@@ -268,7 +246,7 @@ export function ExpenseClaimGroups({
                         <td className="px-3 py-2 text-right font-bold">
                           NT$ {fmt(group.totalAmount)}
                         </td>
-                        <td colSpan={isEditor ? 7 : 6} />
+                        <td colSpan={5} />
                       </tr>
                     </tfoot>
                   </table>
@@ -279,38 +257,6 @@ export function ExpenseClaimGroups({
         )
       })}
 
-      {/* 駁回原因 Modal */}
-      <Modal
-        isOpen={!!rejectingClaimId}
-        onClose={() => { setRejectingClaimId(null); setRejectionReason('') }}
-        title="駁回報帳"
-      >
-        <div className="space-y-4">
-          <p className="text-sm text-muted-foreground">
-            請輸入駁回原因，申請人可依據原因修改後重新送出。
-          </p>
-          <Textarea
-            placeholder="駁回原因..."
-            value={rejectionReason}
-            onChange={(e) => setRejectionReason(e.target.value)}
-            rows={3}
-          />
-          <div className="flex justify-end gap-2">
-            <Button
-              variant="outline"
-              onClick={() => { setRejectingClaimId(null); setRejectionReason('') }}
-            >
-              取消
-            </Button>
-            <Button
-              variant="destructive"
-              onClick={handleRejectSubmit}
-            >
-              確認駁回
-            </Button>
-          </div>
-        </div>
-      </Modal>
     </div>
   )
 }
@@ -319,26 +265,16 @@ export function ExpenseClaimGroups({
 
 function ClaimRow({
   claim,
-  isEditor,
   isLoading,
   onEdit,
   onDelete,
-  onSubmit,
-  onApprove,
-  onRejectOpen,
 }: {
   claim: ExpenseClaimWithQuotation
-  isEditor: boolean
   isLoading: boolean
   onEdit: (claim: ExpenseClaimWithQuotation) => void
   onDelete: (id: string) => void
-  onSubmit: (ids: string[]) => void
-  onApprove: (claimId: string) => void
-  onRejectOpen: (claimId: string) => void
 }) {
   const canEdit = claim.status === 'draft' || claim.status === 'rejected'
-  const canSubmit = claim.status === 'draft' || claim.status === 'rejected'
-  const canApprove = claim.status === 'submitted'
 
   return (
     <tr className="text-sm hover:bg-secondary group">
@@ -415,65 +351,6 @@ function ClaimRow({
         )}
       </td>
 
-      {/* 請款 */}
-      <td className="px-2 py-2.5 text-center">
-        {claim.status === 'approved' ? (
-          <CheckCircle2 className="h-4 w-4 text-success mx-auto" />
-        ) : claim.status === 'submitted' ? (
-          <CheckCircle2 className="h-4 w-4 text-warning mx-auto" />
-        ) : canSubmit ? (
-          <button
-            onClick={() => onSubmit([claim.id])}
-            disabled={isLoading}
-            className="p-1 rounded hover:bg-accent transition-colors mx-auto flex items-center justify-center disabled:opacity-50"
-            title="點擊送出審核"
-          >
-            {isLoading ? (
-              <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-            ) : (
-              <div className="h-4 w-4 border-2 border-muted-foreground/40 rounded" />
-            )}
-          </button>
-        ) : (
-          <span className="text-muted-foreground/30">—</span>
-        )}
-      </td>
-
-      {/* 審核（Editor+ only） */}
-      {isEditor && (
-        <td className="px-2 py-2.5 text-center">
-          {claim.status === 'approved' ? (
-            <CheckCircle2 className="h-4 w-4 text-success mx-auto" />
-          ) : canApprove ? (
-            <div className="flex items-center justify-center gap-1">
-              <button
-                onClick={() => onApprove(claim.id)}
-                disabled={isLoading}
-                className="p-1 rounded hover:bg-success/10 transition-colors disabled:opacity-50"
-                title="核准"
-              >
-                {isLoading ? (
-                  <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-                ) : (
-                  <div className="h-4 w-4 border-2 border-muted-foreground/40 rounded" />
-                )}
-              </button>
-              <button
-                onClick={() => onRejectOpen(claim.id)}
-                disabled={isLoading}
-                className="p-0.5 rounded hover:bg-destructive/10 transition-colors disabled:opacity-50"
-                title="駁回"
-              >
-                <span className="text-[10px] text-destructive font-medium">✗</span>
-              </button>
-            </div>
-          ) : claim.status === 'rejected' ? (
-            <span className="text-destructive text-xs" title={claim.rejection_reason || ''}>✗</span>
-          ) : (
-            <span className="text-muted-foreground/30">—</span>
-          )}
-        </td>
-      )}
 
       {/* 操作 */}
       <td className="px-2 py-2.5 text-center">

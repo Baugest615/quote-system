@@ -23,7 +23,8 @@ import {
   X,
   Menu,
   FolderKanban,
-  Landmark
+  Landmark,
+  Wallet
 } from 'lucide-react'
 import { usePermission } from '@/lib/permissions'
 import supabase from '@/lib/supabase/client'
@@ -131,6 +132,7 @@ export default function Sidebar() {
     BookOpen,
     FolderKanban,
     Receipt,
+    Wallet,
   }
 
   // 漢堡選單按鈕（行動裝置用）
