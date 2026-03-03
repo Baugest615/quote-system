@@ -70,6 +70,18 @@
 - ✅ Phase 5：清理 `next.config.js` lodash webpack alias，`tsc --noEmit` + `npm run build` 驗證通過
 - 總計：刪除 10 個檔案、修改 24 個檔案、淨減少 ~3,800 LOC
 
+### 安全修復 + 效能優化 + Accessibility 補強（2026-03-04）
+
+- ✅ PDF HTML sanitization：regex blacklist → `sanitize-html` whitelist 模式
+- ✅ PDF filename 路徑穿越驗證（移除 `..`、`/`、`\` 等危險字元）
+- ✅ FileModal 移除 11 處 `console.log`（暴露檔案路徑與 DB payload）
+- ✅ middleware / invite-member / PDF route 統一改用 `get_my_role()` RPC（避免 RLS 遞迴）
+- ✅ projects 全量查詢加 `.limit(500)` 防止過大回傳
+- ✅ React.memo：`RequestItemRow`、`CompactItemRow`、`PaymentRecordRow`（減少不必要重渲染）
+- ✅ 刪除未使用死碼：`RevenueChart.tsx`、`useProjectNames.ts`
+- ✅ Accessibility：`<th>` 預設 `scope="col"`、SortableHeader `aria-sort`、LoadingState `aria-live`、6 個元件 icon-only 按鈕加 `aria-label`
+- 總計：修改 19 個檔案、淨減少 ~695 LOC
+
 ### 基礎設施強化（2026-03-04）
 
 - ✅ CLAUDE.md 擴充：新增 `/db-verify`、`/security-review`、`/rbac-supabase` + Skills 自動觸發規則
@@ -92,7 +104,7 @@
 
 ### 功能擴充
 - [ ] 銷項管理反向同步（修改金額同步回報價單）— 目前為單向流
-- [ ] 清理 useProjectNames hook（已被 useQuotationOptions 取代）
+- [x] ~~清理 useProjectNames hook~~ ✅ 已刪除（2026-03-04）
 
 ### 技術債
 - [ ] Claude Agent SDK 升級 0.1.77 → 0.2.x（需同步升級 zod 3.x → 4.x，影響 5 個表單驗證元件）
@@ -107,9 +119,10 @@
 - [ ] `WithholdingReport.tsx`（594 行）、`QuotesDataGrid.tsx`（586 行）、`SpreadsheetEditor.tsx`（538 行）
 
 **效能優化**（需 profiling 數據支撐）
-- [ ] DataGrid 列元件加入 `React.memo`（目前 0 個元件使用）
-- [ ] 會計模組 9 個子頁面改用 `next/dynamic` 動態載入
-- [ ] Recharts 圖表元件改為動態載入
+- [x] ~~DataGrid 列元件加入 `React.memo`~~ ✅ RequestItemRow、CompactItemRow、PaymentRecordRow（2026-03-04）
+- [x] ~~刪除未使用 RevenueChart 死碼~~ ✅（2026-03-04）
+- [ ] 會計模組 9 個子頁面已由 Next.js route 自動分割（無需額外處理）
+- [ ] Recharts 圖表元件：CaseTrendChart/QuoteStatusChart 已動態載入，KpiCard 為首屏保持靜態
 - [ ] 執行 `npm run analyze` 檢查 bundle 大小
 
 **測試覆蓋率**（目前 1.2%，僅 3 個測試檔案）
@@ -118,24 +131,22 @@
 - [ ] React Hook 整合測試（React Query hooks）
 - [ ] E2E 關鍵業務流程測試
 
-**Accessibility**（目前僅 9/107 元件使用 ARIA）
-- [ ] Modal 元件加入 `aria-modal`、`aria-labelledby`
-- [ ] icon-only 按鈕加入 `aria-label`
-- [ ] 表格加入 `scope="col"`、sorting 加入 `aria-sort`
-- [ ] Loading 狀態加入 `aria-live="polite"`
+**Accessibility**
+- [x] ~~Modal 元件~~ ✅ HeadlessUI Dialog 已自動處理 `aria-modal`/`aria-labelledby`
+- [x] ~~icon-only 按鈕加入 `aria-label`~~ ✅ 6 個元件已補強（2026-03-04）
+- [x] ~~表格加入 `scope="col"`、sorting 加入 `aria-sort`~~ ✅ table.tsx + SortableHeader（2026-03-04）
+- [x] ~~Loading 狀態加入 `aria-live="polite"`~~ ✅ LoadingState（2026-03-04）
+- [ ] 剩餘 icon-only 按鈕補強（ReferenceDictCard、SpreadsheetEditor 等）
 
 ### 安全稽核發現（2026-03-02）
 
 **Critical**
-- [ ] PDF HTML sanitization 使用 regex blacklist，應改用 `sanitize-html` whitelist 模式（`src/app/api/pdf/generate/route.ts`）
+- [x] ~~PDF HTML sanitization~~ ✅ 改用 `sanitize-html` whitelist 模式（2026-03-04）
 - [x] `.env.local` URL 曝露 — 已在 `.gitignore`，無需額外處理
 
 **Warning**
-- [ ] `projects` 全量查詢缺少 `.limit()`（`src/hooks/dashboard/useDashboardDataV2.ts`）
-- [ ] Middleware + invite-member API 直接查 `profiles` 取 role，應改用 `get_my_role()` RPC
+- [x] ~~`projects` 全量查詢缺少 `.limit()`~~ ✅ 加入 `.limit(500)`（2026-03-04）
+- [x] ~~Middleware + invite-member API 直接查 `profiles` 取 role~~ ✅ 統一改用 `get_my_role()` RPC（2026-03-04）
 - [ ] 部分 API 路徑被 middleware 跳過（`/api/pdf/generate` 等已有自行驗證，但模式不統一）
-- [ ] PDF filename 未驗證（可能含路徑穿越字元）
-- [ ] console.log 洩漏業務資訊：
-  - ~~`src/app/api/pdf/generate/route.ts` L124~~ ✅ 已改為 `console.debug`（2026-03-04 優化）
-  - `src/components/quotes/FileModal.tsx` — 約 16 處 log 暴露檔案路徑與 DB payload
-  - ~~`src/components/pending-payments/PendingPaymentFileModal.tsx`~~ ✅ 已隨 `_archived/` 刪除（2026-03-04 優化）
+- [x] ~~PDF filename 未驗證~~ ✅ 加入路徑穿越防護（2026-03-04）
+- [x] ~~console.log 洩漏業務資訊~~ ✅ FileModal 11 處已清理、PDF route 已改 `console.debug`、PendingPaymentFileModal 已刪除
