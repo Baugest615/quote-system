@@ -29,11 +29,18 @@
 - ✅ 待辦事項修正：報價待簽約 / 專案請款待審核 / 個人報帳待審核
 
 開發中（feat/merged-payment-requests）：
-- ✅ 合併請款工作台（SDD spec: 001-merged-payment-workbench）
+- ✅ 合併請款工作台 v1.0（SDD spec: 001-merged-payment-workbench）
   - DB：9 個 RPC（get_workbench_items、create/dissolve merge group、submit/withdraw、approve/reject）已部署
   - UI：PendingSection（勾選合併 + 送出）、ReviewSection（審核/駁回）、RejectedSection（重送/拆分）
   - 整合：QuotationItemsList 移除舊請款按鈕改為狀態顯示 + 合併標記、expense-claims 引導至工作台
-  - `npx tsc --noEmit` 通過，零型別錯誤
+- ✅ 合併請款工作台 v1.1 增強
+  - 帳戶類型分組（individual / company / unknown），三區塊顯示含 unknown 警告
+  - 合併 dialog 兩步驟化（選主項 → 選月份），支援跨月合併
+  - 行內編輯（InlineItemEditor）：發票號碼即時存 + AttachmentUploader 附件上傳
+  - MergeGroupCard 主項可編輯發票/附件，成員自動繼承
+  - 進項管理 merge 指標雙路徑修正（quotation_items 優先、payment_requests fallback）
+- ✅ Hotfix：被駁回項目消失 — get_workbench_items WHERE 條件擴展（rejected_at IS NOT NULL 不受報價單狀態限制）
+- `npx tsc --noEmit` 通過，零型別錯誤
 
 ## 待辦事項
 
