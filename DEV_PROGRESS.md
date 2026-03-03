@@ -59,6 +59,17 @@
 - ✅ 工作台 KOL 名稱顯示修復（PendingSection / ReviewSection / RejectedSection）
 - `npx tsc --noEmit` 通過，零型別錯誤
 
+### 全面程式碼審查與優化（2026-03-04，分支：feature/comprehensive-review-optimization）
+
+- ✅ Phase 1：移除死碼 — 刪除 `_archived/` 目錄、3 個死掉的 PDF 生成器、`useDashboardData` v1
+- ✅ Phase 1：移除 7 個未使用 npm 依賴（`@react-pdf/renderer`, `jspdf`, `jspdf-autotable`, `pdf-lib`, `html2canvas`, `html2pdf.js`, `lodash`）
+- ✅ Phase 2：合併 `ErrorBoundary` 2→1（增加可選 `module` prop）
+- ✅ Phase 2：合併 `PaymentStatusBadge` 3→2（統一使用 `StatusBadge variant="payment"`，會計模組重命名為 `AccountingPaymentBadge`）
+- ✅ Phase 3：修復 ~20 處 `any` 型別（permissions、EditableCell、seal-stamp-utils、FileModal 等）
+- ✅ Phase 4：清理無用 `console.log`，PDF API route 改為 `console.debug`
+- ✅ Phase 5：清理 `next.config.js` lodash webpack alias，`tsc --noEmit` + `npm run build` 驗證通過
+- 總計：刪除 10 個檔案、修改 24 個檔案、淨減少 ~3,800 LOC
+
 ### 基礎設施強化（2026-03-04）
 
 - ✅ CLAUDE.md 擴充：新增 `/db-verify`、`/security-review`、`/rbac-supabase` + Skills 自動觸發規則
@@ -88,6 +99,31 @@
 - [ ] `@hookform/resolvers/zod` 需配合 zod 4 升級
 - [ ] E2E 測試基礎設施建立（Playwright config + 第一批關鍵業務流程測試）
 
+### 優化後續建議（2026-03-04 審查結果）
+
+**大型元件拆分**（建議走 SDD 流程，風險較高）
+- [ ] `QuotationItemsFlatView.tsx`（1195 行）→ 拆為 Table + Header + PaymentManager + AttachmentManager + hook
+- [ ] `QuotationItemsList.tsx`（1109 行）→ 拆為 EditTable + EditingLogic hook + ModalManager + PaymentActions
+- [ ] `WithholdingReport.tsx`（594 行）、`QuotesDataGrid.tsx`（586 行）、`SpreadsheetEditor.tsx`（538 行）
+
+**效能優化**（需 profiling 數據支撐）
+- [ ] DataGrid 列元件加入 `React.memo`（目前 0 個元件使用）
+- [ ] 會計模組 9 個子頁面改用 `next/dynamic` 動態載入
+- [ ] Recharts 圖表元件改為動態載入
+- [ ] 執行 `npm run analyze` 檢查 bundle 大小
+
+**測試覆蓋率**（目前 1.2%，僅 3 個測試檔案）
+- [ ] 支付驗證邏輯單元測試（`src/lib/payments/validation.ts` 已有，需擴充）
+- [ ] 權限邏輯單元測試（`permissions.tsx`、`server-permissions.ts`）
+- [ ] React Hook 整合測試（React Query hooks）
+- [ ] E2E 關鍵業務流程測試
+
+**Accessibility**（目前僅 9/107 元件使用 ARIA）
+- [ ] Modal 元件加入 `aria-modal`、`aria-labelledby`
+- [ ] icon-only 按鈕加入 `aria-label`
+- [ ] 表格加入 `scope="col"`、sorting 加入 `aria-sort`
+- [ ] Loading 狀態加入 `aria-live="polite"`
+
 ### 安全稽核發現（2026-03-02）
 
 **Critical**
@@ -100,6 +136,6 @@
 - [ ] 部分 API 路徑被 middleware 跳過（`/api/pdf/generate` 等已有自行驗證，但模式不統一）
 - [ ] PDF filename 未驗證（可能含路徑穿越字元）
 - [ ] console.log 洩漏業務資訊：
-  - ~~`src/app/api/pdf/generate/route.ts` L124 — server-side 記錄 HTML preview 含客戶/金額~~ ✅ 已移除
+  - ~~`src/app/api/pdf/generate/route.ts` L124~~ ✅ 已改為 `console.debug`（2026-03-04 優化）
   - `src/components/quotes/FileModal.tsx` — 約 16 處 log 暴露檔案路徑與 DB payload
-  - `src/components/pending-payments/PendingPaymentFileModal.tsx` — 約 15 處 log 暴露檔案路徑
+  - ~~`src/components/pending-payments/PendingPaymentFileModal.tsx`~~ ✅ 已隨 `_archived/` 刪除（2026-03-04 優化）
