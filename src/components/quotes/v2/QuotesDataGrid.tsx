@@ -279,6 +279,7 @@ export function QuotesDataGrid({ data, clients, onRefresh }: QuotesDataGridProps
                     setFileModalOpen(true)
                 }}
                 title={hasFile ? "已上傳 (點擊管理)" : "上傳檔案"}
+                aria-label={hasFile ? "已上傳 (點擊管理)" : "上傳檔案"}
             >
                 {hasFile ? <CheckCircle className="h-4 w-4" /> : <UploadCloud className="h-4 w-4" />}
             </Button>
@@ -529,6 +530,7 @@ export function QuotesDataGrid({ data, clients, onRefresh }: QuotesDataGridProps
                                         className="h-8 w-8 p-0"
                                         onClick={() => router.push(`/dashboard/quotes/view/${quote.id}`)}
                                         title="檢視詳情"
+                                        aria-label="檢視詳情"
                                     >
                                         <ExternalLink className="h-4 w-4 text-info" />
                                     </Button>
@@ -539,6 +541,7 @@ export function QuotesDataGrid({ data, clients, onRefresh }: QuotesDataGridProps
                                             className="h-8 w-8 p-0"
                                             onClick={() => handleDelete(quote.id)}
                                             title="刪除"
+                                            aria-label="刪除"
                                         >
                                             <Trash2 className="h-4 w-4 text-destructive" />
                                         </Button>

@@ -165,6 +165,7 @@ export const ItemsListRow = memo(function ItemsListRow({
             onClick={() => onOpenVerification(item)}
             className="p-1 rounded hover:bg-accent transition-colors mx-auto flex items-center justify-center"
             title={verified ? `發票: ${item.invoice_number || '附件已上傳'}` : '點擊檢核文件'}
+            aria-label={verified ? `發票: ${item.invoice_number || '附件已上傳'}` : '點擊檢核文件'}
           >
             {verified ? <CheckCircle2 className="h-4 w-4 text-success" /> : <AlertTriangle className="h-4 w-4 text-warning" />}
           </button>
@@ -185,6 +186,7 @@ export const ItemsListRow = memo(function ItemsListRow({
               onClick={() => onDeleteItem(item.id)}
               disabled={!canDelete}
               title={!canDelete ? '此項目已進入請款流程，無法刪除' : '刪除項目'}
+              aria-label={!canDelete ? '此項目已進入請款流程，無法刪除' : '刪除項目'}
             >
               <Trash2 className="h-3 w-3" />
             </Button>

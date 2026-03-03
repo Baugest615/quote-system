@@ -494,6 +494,7 @@ export default function SpreadsheetEditor<T extends { id: string }>({
                           onClick={() => toggleDelete(origIdx)}
                           className="p-1 text-muted-foreground hover:text-destructive rounded hover:bg-destructive/10 transition-colors"
                           title="刪除此列"
+                          aria-label="刪除此列"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
                         </button>

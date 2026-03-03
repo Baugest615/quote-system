@@ -113,9 +113,9 @@
 
 ### 優化後續建議（2026-03-04 審查結果）
 
-**大型元件拆分**（建議走 SDD 流程，風險較高）
-- [ ] `QuotationItemsFlatView.tsx`（1195 行）→ 拆為 Table + Header + PaymentManager + AttachmentManager + hook
-- [ ] `QuotationItemsList.tsx`（1109 行）→ 拆為 EditTable + EditingLogic hook + ModalManager + PaymentActions
+**大型元件拆分**（SDD spec: 002-large-component-split）
+- [x] ~~`QuotationItemsFlatView.tsx`（1195→375 行）~~ ✅ 拆為 shared/ + flat-view/ 7 個模組（2026-03-04）
+- [x] ~~`QuotationItemsList.tsx`（1109→343 行）~~ ✅ 拆為 shared/ + items-list/ 7 個模組（2026-03-04）
 - [ ] `WithholdingReport.tsx`（594 行）、`QuotesDataGrid.tsx`（586 行）、`SpreadsheetEditor.tsx`（538 行）
 
 **效能優化**（需 profiling 數據支撐）
@@ -136,7 +136,7 @@
 - [x] ~~icon-only 按鈕加入 `aria-label`~~ ✅ 6 個元件已補強（2026-03-04）
 - [x] ~~表格加入 `scope="col"`、sorting 加入 `aria-sort`~~ ✅ table.tsx + SortableHeader（2026-03-04）
 - [x] ~~Loading 狀態加入 `aria-live="polite"`~~ ✅ LoadingState（2026-03-04）
-- [ ] 剩餘 icon-only 按鈕補強（ReferenceDictCard、SpreadsheetEditor 等）
+- [x] ~~剩餘 icon-only 按鈕補強~~ ✅ ReferenceDictCard（4 個）、SpreadsheetEditor、QuotesDataGrid（3 個）、FlatViewRow（5 個）、ItemsListRow（2 個）— 共 15 處補強（2026-03-04）
 
 ### 安全稽核發現（2026-03-02）
 
@@ -147,6 +147,6 @@
 **Warning**
 - [x] ~~`projects` 全量查詢缺少 `.limit()`~~ ✅ 加入 `.limit(500)`（2026-03-04）
 - [x] ~~Middleware + invite-member API 直接查 `profiles` 取 role~~ ✅ 統一改用 `get_my_role()` RPC（2026-03-04）
-- [ ] 部分 API 路徑被 middleware 跳過（`/api/pdf/generate` 等已有自行驗證，但模式不統一）
+- [x] ~~部分 API 路徑被 middleware 跳過~~ ✅ 稽核確認（2026-03-04）：`/api/pdf/generate` 與 `/api/auth/invite-member` 均已自行實作 `auth.getUser()` + `get_my_role()` RPC，模式與 middleware 一致
 - [x] ~~PDF filename 未驗證~~ ✅ 加入路徑穿越防護（2026-03-04）
 - [x] ~~console.log 洩漏業務資訊~~ ✅ FileModal 11 處已清理、PDF route 已改 `console.debug`、PendingPaymentFileModal 已刪除

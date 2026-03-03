@@ -235,6 +235,7 @@ export const FlatViewRow = memo(function FlatViewRow({
                 : 'text-muted-foreground hover:bg-muted'
             )}
             title={attachments.length > 0 ? `${attachments.length} 個附件` : '上傳附件'}
+            aria-label={attachments.length > 0 ? `${attachments.length} 個附件` : '上傳附件'}
           >
             <Paperclip className="h-3.5 w-3.5" />
             {attachments.length > 0 && <span>{attachments.length}</span>}
@@ -278,6 +279,7 @@ export const FlatViewRow = memo(function FlatViewRow({
               disabled={isActionLoading || paymentLocked}
               className="p-1 rounded hover:bg-accent transition-colors mx-auto flex items-center justify-center disabled:opacity-50"
               title={`駁回原因：${item.rejection_reason || '未提供'}（點擊重新請款）`}
+              aria-label={`駁回原因：${item.rejection_reason || '未提供'}（點擊重新請款）`}
             >
               {isActionLoading ? <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" /> : <XCircle className="h-4 w-4 text-destructive/70" />}
             </button>
@@ -287,6 +289,7 @@ export const FlatViewRow = memo(function FlatViewRow({
               disabled={isActionLoading || paymentLocked}
               className="p-1 rounded hover:bg-accent transition-colors mx-auto flex items-center justify-center disabled:opacity-50"
               title="勾選送出請款"
+              aria-label="送出請款"
             >
               {isActionLoading ? <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" /> : <div className="h-4 w-4 border-2 border-muted-foreground/40 rounded" />}
             </button>
@@ -306,6 +309,7 @@ export const FlatViewRow = memo(function FlatViewRow({
                 disabled={isActionLoading}
                 className="p-1 rounded hover:bg-success/10 transition-colors disabled:opacity-50"
                 title="核准"
+                aria-label="核准"
               >
                 {isActionLoading ? <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" /> : <div className="h-4 w-4 border-2 border-muted-foreground/40 rounded" />}
               </button>
@@ -314,6 +318,7 @@ export const FlatViewRow = memo(function FlatViewRow({
                 disabled={isActionLoading}
                 className="p-0.5 rounded hover:bg-destructive/10 transition-colors disabled:opacity-50"
                 title="駁回"
+                aria-label="駁回"
               >
                 <XCircle className="h-3.5 w-3.5 text-destructive/70" />
               </button>
