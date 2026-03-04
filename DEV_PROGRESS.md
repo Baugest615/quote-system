@@ -150,12 +150,12 @@
 - [ ] Recharts 圖表元件：CaseTrendChart/QuoteStatusChart 已動態載入，KpiCard 為首屏保持靜態
 - [ ] 執行 `npm run analyze` 檢查 bundle 大小
 
-**測試覆蓋率**（90 → 238 cases，10 個測試檔案）
+**測試覆蓋率**（90 → 310 cases，13 個測試檔案）
 - [x] ~~支付驗證邏輯~~ ✅ validation.ts（50 cases，原有）
 - [x] ~~核心商業邏輯~~ ✅ 7 個模組 148 cases（2026-03-04）
-- [ ] 權限邏輯單元測試（`permissions.tsx`、`server-permissions.ts`）
-- [ ] React Hook 整合測試（React Query hooks）
-- [ ] E2E 關鍵業務流程測試
+- [x] ~~權限邏輯單元測試~~ ✅ `permissions.tsx` 42 cases（hasRole/checkPageAccess/checkFunctionAccess/getAllowedPages/getRoleDisplayName）（2026-03-05）
+- [x] ~~React Hook 整合測試~~ ✅ `usePaymentFilters` 21 cases + `usePaymentGrouping` 9 cases（2026-03-05）
+- [x] ~~E2E 測試基礎建設~~ ✅ Playwright config + `e2e/smoke.spec.ts`（登入頁/重導向 smoke tests）+ `e2e/auth.setup.ts`（有帳號時 auth setup 模板）（2026-03-05）
 
 **Accessibility**
 - [x] ~~Modal 元件~~ ✅ HeadlessUI Dialog 已自動處理 `aria-modal`/`aria-labelledby`
