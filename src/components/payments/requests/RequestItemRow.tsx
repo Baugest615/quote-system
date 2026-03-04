@@ -312,7 +312,7 @@ export const RequestItemRow = React.memo(function RequestItemRow({
                                         {item.quantity || 1} × NT$ {fmt(item.price || 0)} = NT$ {fmt((item.quantity || 1) * (item.price || 0))}
                                     </div>
                                     <div className="text-xs text-muted-foreground">
-                                        請款金額: <span className="text-foreground font-medium">NT$ {fmt(item.cost_amount || 0)}</span>
+                                        請款金額（含稅）: <span className="text-foreground font-medium">NT$ {fmt(item.cost_amount || 0)}</span>
                                     </div>
                                     {item.quotations?.clients?.name && (
                                         <div className="text-xs text-muted-foreground">

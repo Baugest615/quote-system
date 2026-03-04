@@ -251,7 +251,7 @@ export function QuotationItemsList({ quotationId, onUpdate, readOnly = false, qu
                 <span className="inline-flex items-center justify-end">單價<SortIcon columnKey="price" /></span>
               </th>
               <th className="px-3 py-2 text-right w-24 group/th cursor-pointer select-none hover:text-foreground transition-colors" onClick={() => handleSort('cost')}>
-                <span className="inline-flex items-center justify-end">成本<SortIcon columnKey="cost" /></span>
+                <span className="inline-flex items-center justify-end">成本（未稅）<SortIcon columnKey="cost" /></span>
               </th>
               <th className="px-3 py-2 text-right w-24 group/th cursor-pointer select-none hover:text-foreground transition-colors" onClick={() => handleSort('subtotal')}>
                 <span className="inline-flex items-center justify-end">小計<SortIcon columnKey="subtotal" /></span>

@@ -27,6 +27,7 @@ import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import { Search, X, FileText, ChevronLeft, ChevronRight } from 'lucide-react'
 import type { PaymentAttachment } from '@/lib/payments/types'
+import { calculatePaymentAmount } from '@/lib/tax-utils'
 import { isVerificationPassed } from './shared/payment-status'
 import { isDataLocked } from './shared/quotation-item-utils'
 import { useReferenceData } from './shared/useReferenceData'
@@ -152,11 +153,13 @@ export function QuotationItemsFlatView({ onClose }: QuotationItemsFlatViewProps)
       return
     }
     if (!userId) return
-    const costAmount = item.cost_amount ?? item.cost ?? 0
+    const baseCost = item.cost_amount ?? item.cost ?? 0
+    const bankType = (item.kols?.bank_info as { bankType?: string } | null)?.bankType
+    const costAmount = calculatePaymentAmount(Number(baseCost), bankType)
     const defaults = (!item.expense_type || item.expense_type === '勞務報酬') ? getSmartDefaults(item.kols) : undefined
     setActionLoading(item.id, true)
     requestPayment.mutate(
-      { itemId: item.id, userId, costAmount: Number(costAmount), expenseType: defaults?.expenseType, accountingSubject: defaults?.accountingSubject },
+      { itemId: item.id, userId, costAmount, expenseType: defaults?.expenseType, accountingSubject: defaults?.accountingSubject },
       { onSettled: () => setActionLoading(item.id, false) }
     )
   }, [userId, requestPayment, getSmartDefaults])

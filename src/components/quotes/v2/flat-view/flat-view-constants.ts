@@ -23,7 +23,7 @@ export const COLUMN_DEFS: { key: ColumnKey; label: string; hideable: boolean }[]
   { key: 'service', label: '執行內容', hideable: true },
   { key: 'quantity', label: '數量', hideable: true },
   { key: 'price', label: '單價', hideable: true },
-  { key: 'cost', label: '成本', hideable: true },
+  { key: 'cost', label: '成本（未稅）', hideable: true },
   { key: 'subtotal', label: '小計', hideable: true },
   { key: 'invoice_number', label: '發票號碼', hideable: true },
   { key: 'attachments', label: '附件', hideable: true },

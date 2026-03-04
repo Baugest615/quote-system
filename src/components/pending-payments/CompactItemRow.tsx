@@ -192,7 +192,7 @@ export const CompactItemRow = React.memo(function CompactItemRow({
                         value={item.cost_amount_input || ''}
                         onChange={(e) => onCostAmountChange(item.id, e.target.value)}
                         className={`w-20 text-right h-7 text-xs ${isCostModified ? 'border-warning/50 bg-warning/5' : ''}`}
-                        placeholder="成本"
+                        placeholder="成本（含稅）"
                         onClick={(e) => e.stopPropagation()}
                     />
                     <Button
