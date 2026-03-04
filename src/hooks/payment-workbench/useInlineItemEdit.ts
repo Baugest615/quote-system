@@ -43,5 +43,31 @@ export function useInlineItemEdit() {
     queryClient.invalidateQueries({ queryKey: queryKeys.workbenchItems })
   }, [queryClient])
 
-  return { updateInvoiceNumber, onAttachmentsChange }
+  /** Debounced 更新預計請款月份 */
+  const updatePaymentMonth = useCallback(
+    (itemId: string, month: string) => {
+      const key = `month_${itemId}`
+      if (timerRef.current[key]) {
+        clearTimeout(timerRef.current[key])
+      }
+
+      timerRef.current[key] = setTimeout(async () => {
+        const { error } = await supabase
+          .from('quotation_items')
+          .update({ expected_payment_month: month || null })
+          .eq('id', itemId)
+
+        if (error) {
+          toast.error('請款月份儲存失敗')
+          console.error('updatePaymentMonth error:', error)
+        } else {
+          queryClient.invalidateQueries({ queryKey: queryKeys.workbenchItems })
+        }
+        delete timerRef.current[key]
+      }, DEBOUNCE_MS)
+    },
+    [queryClient]
+  )
+
+  return { updateInvoiceNumber, updatePaymentMonth, onAttachmentsChange }
 }

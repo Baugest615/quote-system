@@ -85,6 +85,9 @@ export function MergeGroupCard({
         </div>
         <span className="text-sm font-semibold text-foreground tabular-nums">
           ${group.total_amount.toLocaleString()}
+          {group.leader_item.kol_bank_info?.bankType === 'company' && (
+            <span className="text-[10px] text-muted-foreground ml-1 font-normal">（含稅）</span>
+          )}
         </span>
 
         {/* 操作按鈕 */}
@@ -159,6 +162,9 @@ export function MergeGroupCard({
                   <td className="px-4 py-2 text-muted-foreground">{item.service}</td>
                   <td className="px-4 py-2 text-right text-foreground tabular-nums">
                     ${(item.cost_amount || 0).toLocaleString()}
+                    {item.kol_bank_info?.bankType === 'company' && (
+                      <span className="text-[10px] text-muted-foreground ml-1">（含稅）</span>
+                    )}
                   </td>
                   <td className="px-4 py-2 text-muted-foreground text-xs">
                     {item.expected_payment_month || '-'}

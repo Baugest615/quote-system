@@ -230,6 +230,9 @@ export function PendingSection({ items }: PendingSectionProps) {
                       </button>
                       <span className="text-sm font-medium text-foreground tabular-nums whitespace-nowrap">
                         ${(item.cost_amount || 0).toLocaleString()}
+                        {item.kol_bank_info?.bankType === 'company' && (
+                          <span className="text-[10px] text-muted-foreground ml-1">（含稅）</span>
+                        )}
                       </span>
                       <Button
                         size="sm"

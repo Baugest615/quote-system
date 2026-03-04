@@ -123,6 +123,9 @@ export function ReviewSection({ items, isReviewer }: ReviewSectionProps) {
                   </div>
                   <span className="text-sm font-semibold text-foreground tabular-nums">
                     ${(item.cost_amount || 0).toLocaleString()}
+                    {item.kol_bank_info?.bankType === 'company' && (
+                      <span className="text-[10px] text-muted-foreground ml-1 font-normal">（含稅）</span>
+                    )}
                   </span>
                   <div className="flex items-center gap-1.5">
                     <Button size="sm" variant="outline" disabled={isLoading} onClick={() => withdrawSingleItem(item.id)}>
