@@ -115,13 +115,23 @@
 - [ ] 全面功能回歸測試（各頁面 CRUD + 權限分級 Admin/Editor/Member）
 - [ ] 部署至正式環境
 
+### 營業稅計算改革（2026-03-05，SDD spec: 003-tax-reform）
+- ✅ 成本統一存放未稅金額，公司行號請款自動加 5% 營業稅
+- ✅ 資料遷移：ej@ 帳號 17 筆公司行號成本反算為未稅
+- ✅ UI 標示：報價單成本欄「（未稅）」、請款金額欄「（含稅）」
+- ✅ 新增 `src/lib/tax-utils.ts` 稅率計算工具函數
+
+### Zod 3→4 升級（2026-03-05，SDD spec: 004-zod-upgrade）
+- ✅ zod 3.22.4 → 4.3.6，零 breaking change
+- ✅ tsc 零錯誤、238 tests 全通過
+
 ### 功能擴充
-- [ ] 銷項管理反向同步（修改金額同步回報價單）— 目前為單向流
+- [x] ~~銷項管理反向同步~~ — 決定不做，銷項保持獨立金額（2026-03-05 討論結案）
 - [x] ~~清理 useProjectNames hook~~ ✅ 已刪除（2026-03-04）
 
 ### 技術債
-- [ ] Claude Agent SDK 升級 0.1.77 → 0.2.x（需同步升級 zod 3.x → 4.x，影響 5 個表單驗證元件）
-- [ ] `@hookform/resolvers/zod` 需配合 zod 4 升級
+- [x] ~~Zod 3.x → 4.x 升級~~ ✅（2026-03-05）
+- [ ] Claude Agent SDK 升級 0.1.77 → 0.2.x（Zod 已升級，可以進行）
 - [ ] E2E 測試基礎設施建立（Playwright config + 第一批關鍵業務流程測試）
 
 ### 優化後續建議（2026-03-04 審查結果）
@@ -129,7 +139,9 @@
 **大型元件拆分**（SDD spec: 002-large-component-split）
 - [x] ~~`QuotationItemsFlatView.tsx`（1195→375 行）~~ ✅ 拆為 shared/ + flat-view/ 7 個模組（2026-03-04）
 - [x] ~~`QuotationItemsList.tsx`（1109→343 行）~~ ✅ 拆為 shared/ + items-list/ 7 個模組（2026-03-04）
-- [ ] `WithholdingReport.tsx`（594 行）、`QuotesDataGrid.tsx`（586 行）、`SpreadsheetEditor.tsx`（538 行）
+- [x] ~~`WithholdingReport.tsx`（595→286 行）~~ ✅ 拆為 withholding/ 5 個模組（2026-03-05）
+- [x] ~~`QuotesDataGrid.tsx`（590→226 行）~~ ✅ 拆為 data-grid/ 2 個模組（2026-03-05）
+- [x] ~~`SpreadsheetEditor.tsx`（540→235 行）~~ ✅ 拆為 spreadsheet/ 3 個模組（2026-03-05）
 
 **效能優化**（需 profiling 數據支撐）
 - [x] ~~DataGrid 列元件加入 `React.memo`~~ ✅ RequestItemRow、CompactItemRow、PaymentRecordRow（2026-03-04）
