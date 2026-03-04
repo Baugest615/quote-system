@@ -176,18 +176,35 @@ export function PaymentOverviewTab({
                 }
             }
 
-            // 手動進項：直接更新 accounting_expenses（不經 RPC，因無 FK 關聯）
+            // 進項 payment_date 更新：手動進項 + KOL請款 + 個人報帳（自動建立的 accounting_expenses）
             if (updates.paymentDate !== undefined && onSetExpensePaymentDate) {
                 const group = groups.find(g => g.remittanceName === remittanceName)
-                if (group?.expenseItems.length) {
-                    onSetExpensePaymentDate(
-                        group.expenseItems.map(e => e.id),
-                        updates.paymentDate || null
-                    )
+                const expenseIds: string[] = []
+
+                // 手動建立的進項（無 FK，直接在 expenseItems 中）
+                for (const e of group?.expenseItems || []) expenseIds.push(e.id)
+
+                // approve_quotation_item / approve_expense_claim 自動建立的 accounting_expenses：
+                // 這些記錄有 quotation_item_id / expense_claim_id，被 aggregateMonthlyRemittanceGroups
+                // 排除在 expenseItems 外（避免重複計算），需從 expensesData 另行查找並更新 payment_date
+                const quotationItemIds = (group?.items || [])
+                    .map(i => i.quotation_item_id).filter(Boolean) as string[]
+                const claimIds = (group?.items || [])
+                    .map(i => i.expense_claim_id).filter(Boolean) as string[]
+
+                for (const e of expensesData || []) {
+                    if (e.quotation_item_id && quotationItemIds.includes(e.quotation_item_id))
+                        expenseIds.push(e.id)
+                    else if (e.expense_claim_id && claimIds.includes(e.expense_claim_id))
+                        expenseIds.push(e.id)
+                }
+
+                if (expenseIds.length) {
+                    onSetExpensePaymentDate(expenseIds, updates.paymentDate || null)
                 }
             }
         }
-    }, [onUpdateSettings, getConfirmationIdsForName, onSetPayrollPaymentDate, onSetExpensePaymentDate, groups])
+    }, [onUpdateSettings, getConfirmationIdsForName, onSetPayrollPaymentDate, onSetExpensePaymentDate, expensesData, groups])
 
     const getSettings = useCallback((remittanceName: string) => {
         return localSettings[remittanceName] || undefined
