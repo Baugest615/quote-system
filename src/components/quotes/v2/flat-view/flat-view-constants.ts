@@ -1,16 +1,14 @@
 import type { FlatQuotationItem } from '@/hooks/useQuotationItemsFlat'
-import { PAYMENT_STATUS_CONFIG, getPaymentStatus } from '../shared/payment-status'
 
 // ─── 欄位定義 ───────────────────────────────────────────────
-// 對齊明細表欄位順序：..., 小計, 發票號碼, 附件, 狀態, 檢核, 請款, 審核
+// 對齊明細表欄位順序：..., 小計, 發票號碼, 附件
 export type ColumnKey =
   | 'checkbox' | 'quote_number' | 'project_name' | 'client_name'
   | 'quotation_status' | 'category' | 'kol_name' | 'service'
   | 'quantity' | 'price' | 'cost' | 'subtotal'
   | 'invoice_number' | 'attachments'
-  | 'payment_status' | 'verification' | 'payment_request' | 'approval'
 
-export type FlatSortKey = Exclude<ColumnKey, 'checkbox' | 'attachments' | 'verification' | 'payment_request' | 'approval'>
+export type FlatSortKey = Exclude<ColumnKey, 'checkbox' | 'attachments'>
 
 export const COLUMN_DEFS: { key: ColumnKey; label: string; hideable: boolean }[] = [
   { key: 'checkbox', label: '選取', hideable: false },
@@ -27,10 +25,6 @@ export const COLUMN_DEFS: { key: ColumnKey; label: string; hideable: boolean }[]
   { key: 'subtotal', label: '小計', hideable: true },
   { key: 'invoice_number', label: '發票號碼', hideable: true },
   { key: 'attachments', label: '附件', hideable: true },
-  { key: 'payment_status', label: '狀態', hideable: true },
-  { key: 'verification', label: '檢核', hideable: true },
-  { key: 'payment_request', label: '請款', hideable: true },
-  { key: 'approval', label: '審核', hideable: true },
 ]
 
 // ─── 排序值提取 ─────────────────────────────────────────────
@@ -48,7 +42,6 @@ export function getSortValue(item: FlatQuotationItem, key: FlatSortKey): string 
     case 'price': return Number(item.price) || 0
     case 'cost': return Number(item.cost) || 0
     case 'subtotal': return (item.quantity || 0) * (Number(item.price) || 0)
-    case 'payment_status': return PAYMENT_STATUS_CONFIG[getPaymentStatus(item)].label
     case 'invoice_number': return item.invoice_number ?? null
   }
 }

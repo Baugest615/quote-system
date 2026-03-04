@@ -4,31 +4,22 @@ import { useState, useCallback } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Modal } from '@/components/ui/modal'
-import { Textarea } from '@/components/ui/textarea'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { SortableHeader } from '@/components/ui/SortableHeader'
 import { ColumnFilterPopover } from '@/components/ui/ColumnFilterPopover'
-import { useConfirm } from '@/components/ui/ConfirmDialog'
 import { BatchInvoicePopover } from './BatchInvoicePopover'
 import { AttachmentUploader } from './AttachmentUploader'
 import {
   useQuotationItemsFlat,
   useUpdateQuotationItem,
   useBatchUpdateInvoice,
-  useRequestPayment,
-  useApprovePayment,
-  useRejectPayment,
   type FlatQuotationItem,
 } from '@/hooks/useQuotationItemsFlat'
 import { autoCreateKolIfNeeded, autoCreateServiceIfNeeded } from '@/lib/kol/auto-create-kol'
-import { usePermission } from '@/lib/permissions'
-import { useExpenseDefaults } from '@/hooks/useExpenseDefaults'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import { Search, X, FileText, ChevronLeft, ChevronRight } from 'lucide-react'
 import type { PaymentAttachment } from '@/lib/payments/types'
-import { calculatePaymentAmount } from '@/lib/tax-utils'
-import { isVerificationPassed } from './shared/payment-status'
 import { isDataLocked } from './shared/quotation-item-utils'
 import { useReferenceData } from './shared/useReferenceData'
 import { type FlatSortKey, STICKY_LEFT, STICKY_COLS, type ColumnKey } from './flat-view/flat-view-constants'
@@ -55,18 +46,10 @@ interface QuotationItemsFlatViewProps {
 // Main Component (Assembly Layer)
 // ═══════════════════════════════════════════════════════════════
 export function QuotationItemsFlatView({ onClose }: QuotationItemsFlatViewProps) {
-  const { hasRole, userId } = usePermission()
-  const isEditor = hasRole('Editor')
-  const confirm = useConfirm()
-
   // 資料
   const { data: items = [], isLoading } = useQuotationItemsFlat()
   const updateItem = useUpdateQuotationItem()
   const batchUpdateInvoice = useBatchUpdateInvoice()
-  const requestPayment = useRequestPayment()
-  const approvePayment = useApprovePayment()
-  const rejectPayment = useRejectPayment()
-  const { getSmartDefaults } = useExpenseDefaults()
 
   // 參考資料
   const { kols, categoryOptions, kolOptions, getServiceOptionsForKol } = useReferenceData()
@@ -76,20 +59,6 @@ export function QuotationItemsFlatView({ onClose }: QuotationItemsFlatViewProps)
 
   // 附件 Modal
   const [attachmentItem, setAttachmentItem] = useState<FlatQuotationItem | null>(null)
-
-  // 駁回 Modal
-  const [rejectingItemId, setRejectingItemId] = useState<string | null>(null)
-  const [rejectionReason, setRejectionReason] = useState('')
-
-  // 操作中 loading
-  const [actionLoadingIds, setActionLoadingIds] = useState<Set<string>>(new Set())
-  const setActionLoading = (id: string, loading: boolean) => {
-    setActionLoadingIds(prev => {
-      const next = new Set(prev)
-      loading ? next.add(id) : next.delete(id)
-      return next
-    })
-  }
 
   // ─── 選取邏輯 ────────────────────────────────────────────
   const toggleSelect = (id: string) => {
@@ -146,40 +115,6 @@ export function QuotationItemsFlatView({ onClose }: QuotationItemsFlatViewProps)
     updateItem.mutate({ id: attachmentItem.id, updates: { attachments: JSON.parse(JSON.stringify(attachments)) } })
     setAttachmentItem(null)
   }, [attachmentItem, updateItem])
-
-  const handleRequestPayment = useCallback(async (item: FlatQuotationItem) => {
-    if (!isVerificationPassed(item)) {
-      toast.error('請先完成文件檢核（上傳附件或輸入有效發票號碼）')
-      return
-    }
-    if (!userId) return
-    const baseCost = item.cost_amount ?? item.cost ?? 0
-    const bankType = (item.kols?.bank_info as { bankType?: string } | null)?.bankType
-    const costAmount = calculatePaymentAmount(Number(baseCost), bankType)
-    const defaults = (!item.expense_type || item.expense_type === '勞務報酬') ? getSmartDefaults(item.kols) : undefined
-    setActionLoading(item.id, true)
-    requestPayment.mutate(
-      { itemId: item.id, userId, costAmount, expenseType: defaults?.expenseType, accountingSubject: defaults?.accountingSubject },
-      { onSettled: () => setActionLoading(item.id, false) }
-    )
-  }, [userId, requestPayment, getSmartDefaults])
-
-  const handleApprovePayment = useCallback(async (item: FlatQuotationItem) => {
-    if (!isEditor) { toast.error('僅 Editor 以上角色可審核'); return }
-    const ok = await confirm({ title: '審核請款', description: `確定要核准「${item.service || '未命名服務'}」的請款嗎？核准後將自動建立進項記錄和確認記錄。` })
-    if (!ok) return
-    setActionLoading(item.id, true)
-    approvePayment.mutate({ itemId: item.id }, { onSettled: () => setActionLoading(item.id, false) })
-  }, [isEditor, confirm, approvePayment])
-
-  const handleRejectPayment = useCallback(async () => {
-    if (!rejectingItemId) return
-    setActionLoading(rejectingItemId, true)
-    rejectPayment.mutate(
-      { itemId: rejectingItemId, reason: rejectionReason.trim() },
-      { onSettled: () => { setActionLoading(rejectingItemId, false); setRejectingItemId(null); setRejectionReason('') } }
-    )
-  }, [rejectingItemId, rejectionReason, rejectPayment])
 
   // ═══════════════════════════════════════════════════════════
   // Render
@@ -286,15 +221,6 @@ export function QuotationItemsFlatView({ onClose }: QuotationItemsFlatViewProps)
                   </th>
                 )}
                 {state.isColVisible('attachments') && <th className="w-16 p-2 text-center sticky top-0 z-20 bg-secondary/50">附件</th>}
-                {state.isColVisible('payment_status') && (
-                  <th className="w-20 p-2 sticky top-0 z-20 bg-secondary/50">
-                    <SortableHeader<FlatSortKey> label="狀態" sortKey="payment_status" sortState={state.sortState} onToggleSort={state.toggleSort}
-                      filterContent={<ColumnFilterPopover filterType="select" options={['待請款', '待審核', '已請款', '被駁回']} value={state.getFilter('payment_status')} onChange={(v) => state.setFilterByKey('payment_status', v)} />} />
-                  </th>
-                )}
-                {state.isColVisible('verification') && <th className="w-12 p-2 text-center sticky top-0 z-20 bg-secondary/50">檢核</th>}
-                {state.isColVisible('payment_request') && <th className="w-16 p-2 text-center sticky top-0 z-20 bg-secondary/50">請款</th>}
-                {state.isColVisible('approval') && isEditor && <th className="w-20 p-2 text-center sticky top-0 z-20 bg-secondary/50">審核</th>}
               </tr>
             </thead>
             <tbody>
@@ -303,17 +229,12 @@ export function QuotationItemsFlatView({ onClose }: QuotationItemsFlatViewProps)
                   key={item.id}
                   item={item}
                   selected={state.selectedIds.has(item.id)}
-                  isActionLoading={actionLoadingIds.has(item.id)}
-                  isEditor={isEditor}
                   isColVisible={state.isColVisible}
                   onToggleSelect={toggleSelect}
                   onUpdateField={handleUpdateField}
                   onKolChange={handleKolChange}
                   onServiceChange={handleServiceChange}
                   onOpenAttachment={setAttachmentItem}
-                  onRequestPayment={handleRequestPayment}
-                  onApprovePayment={handleApprovePayment}
-                  onOpenReject={setRejectingItemId}
                   categoryOptions={categoryOptions}
                   kolOptions={kolOptions}
                   getServiceOptionsForKol={getServiceOptionsForKol}
@@ -361,18 +282,6 @@ export function QuotationItemsFlatView({ onClose }: QuotationItemsFlatViewProps)
           </div>
         </Modal>
       )}
-
-      {/* 駁回原因 Modal */}
-      <Modal isOpen={!!rejectingItemId} onClose={() => { setRejectingItemId(null); setRejectionReason('') }} title="駁回請款">
-        <div className="space-y-4">
-          <p className="text-sm text-muted-foreground">請輸入駁回原因，申請人可依據原因修改後重新送出請款。</p>
-          <Textarea placeholder="駁回原因..." value={rejectionReason} onChange={(e) => setRejectionReason(e.target.value)} rows={3} />
-          <div className="flex justify-end gap-2">
-            <Button variant="outline" onClick={() => { setRejectingItemId(null); setRejectionReason('') }}>取消</Button>
-            <Button variant="destructive" onClick={handleRejectPayment}>確認駁回</Button>
-          </div>
-        </div>
-      </Modal>
     </div>
   )
 }

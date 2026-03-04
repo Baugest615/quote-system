@@ -8,12 +8,8 @@ import { Plus, Loader2, Save, XCircle, ClipboardPaste, ArrowUp, ArrowDown, Arrow
 import { toast } from 'sonner'
 import { Modal } from '@/components/ui/modal'
 import { Textarea } from '@/components/ui/textarea'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { Paperclip, Info } from 'lucide-react'
+import { Info } from 'lucide-react'
 import { useConfirm } from '@/components/ui/ConfirmDialog'
-import type { PaymentAttachment } from '@/lib/payments/types'
-import { AttachmentUploader } from './AttachmentUploader'
 import { useReferenceData } from './shared/useReferenceData'
 import { useItemsListState } from './items-list/useItemsListState'
 import { useSaveItems } from './items-list/useSaveItems'
@@ -51,20 +47,6 @@ export function QuotationItemsList({ quotationId, onUpdate, readOnly = false, qu
   // 貼上 Modal
   const [isPasteModalOpen, setIsPasteModalOpen] = useState(false)
   const [pasteContent, setPasteContent] = useState('')
-
-  // 檢核 Modal
-  const [verificationItemId, setVerificationItemId] = useState<string | null>(null)
-  const [verificationInvoice, setVerificationInvoice] = useState('')
-  const [actionLoading, setActionLoading] = useState<Set<string>>(new Set())
-
-  const setItemActionLoading = (itemId: string, loading: boolean) => {
-    setActionLoading(prev => {
-      const next = new Set(prev)
-      if (loading) next.add(itemId)
-      else next.delete(itemId)
-      return next
-    })
-  }
 
   // 排序
   type SortKey = 'category' | 'kol' | 'service' | 'quantity' | 'price' | 'cost' | 'subtotal'
@@ -107,37 +89,6 @@ export function QuotationItemsList({ quotationId, onUpdate, readOnly = false, qu
     if (sortConfig?.key !== columnKey) return <ArrowUpDown className="h-3 w-3 ml-1 opacity-0 group-hover/th:opacity-50" />
     if (sortConfig.direction === 'asc') return <ArrowUp className="h-3 w-3 ml-1 text-primary" />
     return <ArrowDown className="h-3 w-3 ml-1 text-primary" />
-  }
-
-  // ─── 檢核操作 ────────────────────────────────────────────
-  const handleOpenVerification = (item: QuotationItemWithPayments) => {
-    setVerificationItemId(item.id)
-    setVerificationInvoice(item.invoice_number || '')
-  }
-
-  const handleSaveVerification = async () => {
-    if (!verificationItemId) return
-    const trimmed = verificationInvoice.trim()
-    if (trimmed && !/^[A-Za-z]{2}-\d{8}$/.test(trimmed)) {
-      toast.error('發票號碼格式不正確（範例：AB-12345678）')
-      return
-    }
-    setItemActionLoading(verificationItemId, true)
-    try {
-      const { error } = await supabase
-        .from('quotation_items')
-        .update({ invoice_number: trimmed || null })
-        .eq('id', verificationItemId)
-      if (error) throw error
-      state.setItems(prev => prev.map(item => item.id === verificationItemId ? { ...item, invoice_number: trimmed || null } : item))
-      state.setOriginalItems(prev => prev.map(item => item.id === verificationItemId ? { ...item, invoice_number: trimmed || null } : item))
-      toast.success('發票號碼已更新')
-      setVerificationItemId(null)
-    } catch (error) {
-      toast.error('更新失敗: ' + (error instanceof Error ? error.message : String(error)))
-    } finally {
-      setItemActionLoading(verificationItemId, false)
-    }
   }
 
   // ─── 貼上處理 ────────────────────────────────────────────
@@ -256,8 +207,6 @@ export function QuotationItemsList({ quotationId, onUpdate, readOnly = false, qu
               <th className="px-3 py-2 text-right w-24 group/th cursor-pointer select-none hover:text-foreground transition-colors" onClick={() => handleSort('subtotal')}>
                 <span className="inline-flex items-center justify-end">小計<SortIcon columnKey="subtotal" /></span>
               </th>
-              <th className="px-3 py-2 text-center w-20 border-l-2 border-border">狀態</th>
-              <th className="px-3 py-2 text-center w-16">檢核</th>
               {!readOnly && <th className="px-3 py-2 text-center w-10"></th>}
             </tr>
           </thead>
@@ -284,13 +233,11 @@ export function QuotationItemsList({ quotationId, onUpdate, readOnly = false, qu
                   isApproved={isApproved}
                   canDelete={canDelete}
                   isOriginalInSupplement={isOriginalInSupplement}
-                  isItemLoading={actionLoading.has(item.id)}
                   readOnly={readOnly}
                   onUpdateItem={state.handleUpdateItem}
                   onKolChange={state.handleKolChange}
                   onServiceChange={state.handleServiceChange}
                   onDeleteItem={(id) => state.handleDeleteItem(id, isSupplementMode)}
-                  onOpenVerification={handleOpenVerification}
                   categoryOptions={categoryOptions}
                   kolOptions={kolOptions}
                   serviceOptions={serviceOptions}
@@ -300,7 +247,7 @@ export function QuotationItemsList({ quotationId, onUpdate, readOnly = false, qu
             })}
             {state.items.length === 0 && (
               <tr>
-                <td colSpan={10} className="px-3 py-8 text-center text-muted-foreground italic">
+                <td colSpan={8} className="px-3 py-8 text-center text-muted-foreground italic">
                   尚無項目，請點擊上方按鈕新增，或直接貼上 Excel 資料 (Ctrl+V)
                 </td>
               </tr>
@@ -309,35 +256,6 @@ export function QuotationItemsList({ quotationId, onUpdate, readOnly = false, qu
         </table>
       </div>
 
-      {/* 檢核 Modal */}
-      <Modal isOpen={!!verificationItemId} onClose={() => setVerificationItemId(null)} title="文件檢核">
-        <div className="space-y-4">
-          <div>
-            <Label htmlFor="invoice-number" className="text-sm font-medium">發票號碼</Label>
-            <Input id="invoice-number" placeholder="XX-12345678" value={verificationInvoice} onChange={(e) => setVerificationInvoice(e.target.value)} className="mt-1" />
-            <p className="text-xs text-muted-foreground mt-1">格式：2 碼英文 + 連字號 + 8 碼數字（如 AB-12345678）</p>
-          </div>
-          <div>
-            <Label className="text-sm font-medium flex items-center gap-1 mb-2"><Paperclip className="h-3.5 w-3.5" /> 附件</Label>
-            {verificationItemId && (
-              <AttachmentUploader
-                itemId={verificationItemId}
-                currentAttachments={(state.items.find(i => i.id === verificationItemId)?.attachments || []) as unknown as PaymentAttachment[]}
-                onUpdate={(newAttachments) => {
-                  const attJson = JSON.parse(JSON.stringify(newAttachments))
-                  state.setItems(prev => prev.map(item => item.id === verificationItemId ? { ...item, attachments: attJson } : item))
-                  state.setOriginalItems(prev => prev.map(item => item.id === verificationItemId ? { ...item, attachments: attJson } : item))
-                }}
-                readOnly={!!state.items.find(i => i.id === verificationItemId)?.approved_at}
-              />
-            )}
-          </div>
-          <div className="flex justify-end space-x-2">
-            <Button variant="outline" onClick={() => setVerificationItemId(null)}>取消</Button>
-            <Button onClick={handleSaveVerification}>儲存</Button>
-          </div>
-        </div>
-      </Modal>
     </div>
   )
 }

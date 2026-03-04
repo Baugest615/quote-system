@@ -6,8 +6,7 @@ import { QuotationItemWithPayments } from '@/types/custom.types'
 import { Button } from '@/components/ui/button'
 import { EditableCell } from '../EditableCell'
 import { SearchableSelectCell } from '../SearchableSelectCell'
-import { Trash2, Lock, CheckCircle2, AlertTriangle, Link2 } from 'lucide-react'
-import { PAYMENT_STATUS_CONFIG, getPaymentStatus, isVerificationPassed } from '../shared/payment-status'
+import { Trash2, Lock } from 'lucide-react'
 
 type QuotationItem = Database['public']['Tables']['quotation_items']['Row']
 
@@ -17,13 +16,11 @@ interface ItemsListRowProps {
   isApproved: boolean
   canDelete: boolean
   isOriginalInSupplement: boolean
-  isItemLoading: boolean
   readOnly: boolean
   onUpdateItem: (id: string, updates: Partial<QuotationItem>) => void
   onKolChange: (id: string, value: string) => void
   onServiceChange: (id: string, value: string, data?: { price: number; cost: number }) => void
   onDeleteItem: (id: string) => void
-  onOpenVerification: (item: QuotationItemWithPayments) => void
   categoryOptions: { label: string; value: string }[]
   kolOptions: { label: string; value: string; subLabel?: string }[]
   serviceOptions: { label: string; value: string; data?: { price: number; cost: number } }[]
@@ -31,13 +28,10 @@ interface ItemsListRowProps {
 }
 
 export const ItemsListRow = memo(function ItemsListRow({
-  item, isLocked, isApproved, canDelete, isOriginalInSupplement, isItemLoading, readOnly,
-  onUpdateItem, onKolChange, onServiceChange, onDeleteItem, onOpenVerification,
+  item, isLocked, isApproved, canDelete, isOriginalInSupplement, readOnly,
+  onUpdateItem, onKolChange, onServiceChange, onDeleteItem,
   categoryOptions, kolOptions, serviceOptions, selectedKolName,
 }: ItemsListRowProps) {
-  const status = getPaymentStatus(item)
-  const statusConfig = PAYMENT_STATUS_CONFIG[status]
-  const verified = isVerificationPassed(item)
 
   return (
     <tr className={`hover:bg-accent/30 group ${
@@ -135,41 +129,6 @@ export const ItemsListRow = memo(function ItemsListRow({
       {/* 小計 */}
       <td className="px-3 py-2 text-right font-medium text-foreground/70">
         {((item.quantity ?? 0) * item.price).toLocaleString()}
-      </td>
-
-      {/* 狀態 + 合併標記 */}
-      <td className="px-2 py-2 text-center border-l-2 border-border">
-        <div className="flex items-center justify-center gap-1">
-          <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium ${statusConfig.className}`}>
-            {statusConfig.label}
-          </span>
-          {item.merge_group_id && (
-            <a
-              href="/dashboard/payment-workbench"
-              className="inline-flex items-center gap-0.5 text-[10px] text-info hover:text-info/80 transition-colors"
-              title="已加入合併組 — 點擊前往請款工作台"
-            >
-              <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: item.merge_color || 'var(--info)' }} />
-              <Link2 className="h-3 w-3" />
-            </a>
-          )}
-        </div>
-      </td>
-
-      {/* 檢核 */}
-      <td className="px-2 py-2 text-center">
-        {isApproved ? (
-          <CheckCircle2 className="h-4 w-4 text-success mx-auto" />
-        ) : (
-          <button
-            onClick={() => onOpenVerification(item)}
-            className="p-1 rounded hover:bg-accent transition-colors mx-auto flex items-center justify-center"
-            title={verified ? `發票: ${item.invoice_number || '附件已上傳'}` : '點擊檢核文件'}
-            aria-label={verified ? `發票: ${item.invoice_number || '附件已上傳'}` : '點擊檢核文件'}
-          >
-            {verified ? <CheckCircle2 className="h-4 w-4 text-success" /> : <AlertTriangle className="h-4 w-4 text-warning" />}
-          </button>
-        )}
       </td>
 
       {/* 刪除 */}

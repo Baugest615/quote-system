@@ -1,6 +1,6 @@
 # 開發進度追蹤
 
-> 最後更新：2026-03-04
+> 最後更新：2026-03-05
 > 分支：`main`
 > 詳細變更歷程請見 Git commit history（`git log --oneline`）
 
@@ -75,6 +75,14 @@
 - [ ] 手動驗證請款工作台完整流程（合併→送出→審核→核准/駁回→重送）
 - [ ] 全面功能回歸測試（各頁面 CRUD + 權限分級 Admin/Editor/Member）
 - [ ] 部署至正式環境
+
+### FlatView 請款功能精簡 + pending-payments 移除（2026-03-05）
+- ✅ FlatView 移除 4 欄（狀態、檢核、請款、審核）— 請款流程統一由工作台處理
+- ✅ QuotationItemsList 移除狀態欄 + 檢核欄 + 檢核 Modal
+- ✅ `useQuotationItemsFlat` 移除 3 個 payment mutation hooks
+- ✅ 刪除 `src/components/pending-payments/`（9 檔）、`src/hooks/pending-payments/`（4 檔）、`src/lib/pending-payments/`（1 檔）
+- ✅ 保留發票號碼欄（BatchInvoicePopover 批次填入）和附件欄
+- ✅ `tsc --noEmit` 零錯誤、310 tests 全通過
 
 ### 營業稅計算改革（2026-03-05，SDD spec: 003-tax-reform）
 - ✅ 成本統一存放未稅金額，公司行號請款自動加 5% 營業稅
