@@ -39,7 +39,7 @@ export function useWorkbenchReview() {
         toast.success('合併組已核准')
         await invalidateAll()
       } catch (err) {
-        const message = err instanceof Error ? err.message : '核准失敗'
+        const message = (err as { message?: string })?.message || '核准失敗'
         toast.error(message)
       } finally {
         setIsApproving(false)
@@ -62,7 +62,7 @@ export function useWorkbenchReview() {
         toast.success('已核准請款')
         await invalidateAll()
       } catch (err) {
-        const message = err instanceof Error ? err.message : '核准失敗'
+        const message = (err as { message?: string })?.message || '核准失敗'
         toast.error(message)
       } finally {
         setIsApproving(false)
@@ -86,7 +86,7 @@ export function useWorkbenchReview() {
         toast.success('合併組已駁回')
         await invalidateAll()
       } catch (err) {
-        const message = err instanceof Error ? err.message : '駁回失敗'
+        const message = (err as { message?: string })?.message || '駁回失敗'
         toast.error(message)
       } finally {
         setIsRejecting(false)
@@ -110,7 +110,7 @@ export function useWorkbenchReview() {
         toast.success('已駁回請款')
         await invalidateAll()
       } catch (err) {
-        const message = err instanceof Error ? err.message : '駁回失敗'
+        const message = (err as { message?: string })?.message || '駁回失敗'
         toast.error(message)
       } finally {
         setIsRejecting(false)

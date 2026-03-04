@@ -31,7 +31,7 @@ export function useWorkbenchSubmission() {
         toast.success('合併組已送出請款')
         await invalidateAll()
       } catch (err) {
-        const message = err instanceof Error ? err.message : '送出失敗'
+        const message = (err as { message?: string })?.message || '送出失敗'
         toast.error(message)
       } finally {
         setIsSubmitting(false)
@@ -54,7 +54,7 @@ export function useWorkbenchSubmission() {
         toast.success('已送出請款')
         await invalidateAll()
       } catch (err) {
-        const message = err instanceof Error ? err.message : '送出失敗'
+        const message = (err as { message?: string })?.message || '送出失敗'
         toast.error(message)
       } finally {
         setIsSubmitting(false)
@@ -77,7 +77,7 @@ export function useWorkbenchSubmission() {
         toast.success('合併組已撤回')
         await invalidateAll()
       } catch (err) {
-        const message = err instanceof Error ? err.message : '撤回失敗'
+        const message = (err as { message?: string })?.message || '撤回失敗'
         toast.error(message)
       } finally {
         setIsWithdrawing(false)
@@ -100,7 +100,7 @@ export function useWorkbenchSubmission() {
         toast.success('已撤回請款')
         await invalidateAll()
       } catch (err) {
-        const message = err instanceof Error ? err.message : '撤回失敗'
+        const message = (err as { message?: string })?.message || '撤回失敗'
         toast.error(message)
       } finally {
         setIsWithdrawing(false)

@@ -103,8 +103,10 @@ export function useWorkbenchMerge() {
         clearSelection()
         queryClient.invalidateQueries({ queryKey: queryKeys.workbenchItems })
         return data as string
-      } catch (err) {
-        const message = err instanceof Error ? err.message : '合併失敗'
+      } catch (err: unknown) {
+        const message =
+          (err as { message?: string })?.message || '合併失敗'
+        console.error('[Merge Error]', err)
         toast.error(message)
         return null
       } finally {
@@ -127,8 +129,10 @@ export function useWorkbenchMerge() {
 
         toast.success('合併組已拆分')
         queryClient.invalidateQueries({ queryKey: queryKeys.workbenchItems })
-      } catch (err) {
-        const message = err instanceof Error ? err.message : '拆分失敗'
+      } catch (err: unknown) {
+        const message =
+          (err as { message?: string })?.message || '拆分失敗'
+        console.error('[Dissolve Error]', err)
         toast.error(message)
       }
     },
