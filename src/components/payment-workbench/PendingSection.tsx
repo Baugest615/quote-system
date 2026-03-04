@@ -165,18 +165,28 @@ export function PendingSection({ items }: PendingSectionProps) {
               <h3 className="text-sm font-medium text-foreground px-1">{group.remittance_name}</h3>
 
               {/* 已合併的組 */}
-              {group.merge_groups.map((mg) => (
-                <MergeGroupCard
-                  key={mg.group_id}
-                  group={mg}
-                  showSubmitAction
-                  showDissolveAction
-                  editable
-                  onSubmit={submitMergeGroup}
-                  onDissolve={dissolveMergeGroup}
-                  isLoading={isSubmitting || isMerging}
-                />
-              ))}
+              {group.merge_groups.map((mg) => {
+                const rejectionReason = mg.leader_item.rejection_reason
+                return (
+                  <div key={mg.group_id} className="space-y-1.5">
+                    <MergeGroupCard
+                      group={mg}
+                      showSubmitAction
+                      showDissolveAction
+                      editable
+                      onSubmit={submitMergeGroup}
+                      onDissolve={dissolveMergeGroup}
+                      isLoading={isSubmitting || isMerging}
+                    />
+                    {rejectionReason && (
+                      <div className="flex items-start gap-2 px-4 py-2 bg-destructive/5 border border-destructive/20 rounded-md ml-3">
+                        <AlertTriangle className="w-3.5 h-3.5 text-destructive mt-0.5 flex-shrink-0" />
+                        <p className="text-xs text-destructive">駁回原因：{rejectionReason}</p>
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
 
               {/* 未合併的單筆項目（可展開編輯） */}
               {group.items.filter((i) => !i.merge_group_id).map((item) => {
@@ -228,13 +238,20 @@ export function PendingSection({ items }: PendingSectionProps) {
                         onClick={() => submitSingleItem(item.id)}
                       >
                         <Send className="w-3.5 h-3.5 mr-1" />
-                        送出
+                        {item.rejection_reason ? '重新送出' : '送出'}
                       </Button>
                       <ChevronDown className={cn(
                         'w-4 h-4 text-muted-foreground transition-transform duration-200 cursor-pointer',
                         isOpen && 'rotate-180'
                       )} onClick={() => setExpandedItemId(isOpen ? null : item.id)} />
                     </div>
+                    {/* 駁回原因提示 */}
+                    {item.rejection_reason && (
+                      <div className="flex items-start gap-2 px-4 py-1.5 bg-destructive/5 border-t border-destructive/20">
+                        <AlertTriangle className="w-3.5 h-3.5 text-destructive mt-0.5 flex-shrink-0" />
+                        <p className="text-xs text-destructive">駁回原因：{item.rejection_reason}</p>
+                      </div>
+                    )}
                     {/* 展開的行內編輯區 */}
                     <div className={cn(
                       'overflow-hidden transition-all duration-200',

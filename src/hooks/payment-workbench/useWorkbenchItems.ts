@@ -15,9 +15,8 @@ import {
   groupByCategory as groupByCategoryUtil,
 } from './grouping'
 
-/** 推導項目的請款狀態 */
+/** 推導項目的請款狀態（被駁回/撤回的項目歸入 pending，由 UI 顯示駁回原因） */
 function deriveStatus(item: WorkbenchItemRaw): WorkbenchItemStatus {
-  if (item.rejected_at) return 'rejected'
   if (item.requested_at) return 'requested'
   return 'pending'
 }
@@ -126,10 +125,7 @@ export function useWorkbenchItems() {
     () => filteredItems.filter((i) => i.status === 'requested'),
     [filteredItems]
   )
-  const rejectedItems = useMemo(
-    () => filteredItems.filter((i) => i.status === 'rejected'),
-    [filteredItems]
-  )
+
 
   // 可用的篩選選項
   const projectOptions = useMemo(() => {
@@ -156,7 +152,6 @@ export function useWorkbenchItems() {
     categorySections,
     pendingItems,
     requestedItems,
-    rejectedItems,
 
     // 狀態
     isLoading,

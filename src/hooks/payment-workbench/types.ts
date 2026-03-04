@@ -5,7 +5,7 @@ import type { KolBankInfo } from '@/types/schemas'
 import type { PaymentAttachment } from '@/lib/payments/types'
 
 /** 工作台項目的請款狀態 */
-export type WorkbenchItemStatus = 'pending' | 'requested' | 'rejected'
+export type WorkbenchItemStatus = 'pending' | 'requested'
 
 /** RPC get_workbench_items() 回傳的原始型別 */
 export interface WorkbenchItemRaw {

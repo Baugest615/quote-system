@@ -12,9 +12,9 @@ export function useWorkbenchSubmission() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isWithdrawing, setIsWithdrawing] = useState(false)
 
-  const invalidateAll = useCallback(() => {
-    queryClient.invalidateQueries({ queryKey: queryKeys.workbenchItems })
-    queryClient.invalidateQueries({ queryKey: queryKeys.quotations })
+  const invalidateAll = useCallback(async () => {
+    await queryClient.invalidateQueries({ queryKey: queryKeys.workbenchItems })
+    await queryClient.invalidateQueries({ queryKey: queryKeys.quotations })
   }, [queryClient])
 
   /** 送出合併組（團進） */
@@ -29,7 +29,7 @@ export function useWorkbenchSubmission() {
         if (error) throw error
 
         toast.success('合併組已送出請款')
-        invalidateAll()
+        await invalidateAll()
       } catch (err) {
         const message = err instanceof Error ? err.message : '送出失敗'
         toast.error(message)
@@ -52,7 +52,7 @@ export function useWorkbenchSubmission() {
         if (error) throw error
 
         toast.success('已送出請款')
-        invalidateAll()
+        await invalidateAll()
       } catch (err) {
         const message = err instanceof Error ? err.message : '送出失敗'
         toast.error(message)
@@ -75,7 +75,7 @@ export function useWorkbenchSubmission() {
         if (error) throw error
 
         toast.success('合併組已撤回')
-        invalidateAll()
+        await invalidateAll()
       } catch (err) {
         const message = err instanceof Error ? err.message : '撤回失敗'
         toast.error(message)
@@ -98,7 +98,7 @@ export function useWorkbenchSubmission() {
         if (error) throw error
 
         toast.success('已撤回請款')
-        invalidateAll()
+        await invalidateAll()
       } catch (err) {
         const message = err instanceof Error ? err.message : '撤回失敗'
         toast.error(message)

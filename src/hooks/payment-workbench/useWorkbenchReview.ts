@@ -12,12 +12,12 @@ export function useWorkbenchReview() {
   const [isApproving, setIsApproving] = useState(false)
   const [isRejecting, setIsRejecting] = useState(false)
 
-  const invalidateAll = useCallback(() => {
-    queryClient.invalidateQueries({ queryKey: queryKeys.workbenchItems })
-    queryClient.invalidateQueries({ queryKey: queryKeys.confirmedPayments })
-    queryClient.invalidateQueries({ queryKey: queryKeys.quotations })
+  const invalidateAll = useCallback(async () => {
+    await queryClient.invalidateQueries({ queryKey: queryKeys.workbenchItems })
+    await queryClient.invalidateQueries({ queryKey: queryKeys.confirmedPayments })
+    await queryClient.invalidateQueries({ queryKey: queryKeys.quotations })
     // 帳務相關快取也需失效（核准會建立 accounting_expenses）
-    queryClient.invalidateQueries({
+    await queryClient.invalidateQueries({
       predicate: (query) =>
         Array.isArray(query.queryKey) &&
         typeof query.queryKey[0] === 'string' &&
@@ -37,7 +37,7 @@ export function useWorkbenchReview() {
         if (error) throw error
 
         toast.success('合併組已核准')
-        invalidateAll()
+        await invalidateAll()
       } catch (err) {
         const message = err instanceof Error ? err.message : '核准失敗'
         toast.error(message)
@@ -60,7 +60,7 @@ export function useWorkbenchReview() {
         if (error) throw error
 
         toast.success('已核准請款')
-        invalidateAll()
+        await invalidateAll()
       } catch (err) {
         const message = err instanceof Error ? err.message : '核准失敗'
         toast.error(message)
@@ -84,7 +84,7 @@ export function useWorkbenchReview() {
         if (error) throw error
 
         toast.success('合併組已駁回')
-        invalidateAll()
+        await invalidateAll()
       } catch (err) {
         const message = err instanceof Error ? err.message : '駁回失敗'
         toast.error(message)
@@ -108,7 +108,7 @@ export function useWorkbenchReview() {
         if (error) throw error
 
         toast.success('已駁回請款')
-        invalidateAll()
+        await invalidateAll()
       } catch (err) {
         const message = err instanceof Error ? err.message : '駁回失敗'
         toast.error(message)

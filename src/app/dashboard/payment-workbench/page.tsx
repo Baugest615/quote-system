@@ -1,21 +1,19 @@
 'use client'
 
 import { useState } from 'react'
-import { Shield, Wallet, ClipboardList, AlertCircle, Clock, Loader2 } from 'lucide-react'
+import { Shield, Wallet, ClipboardList, Clock, Loader2 } from 'lucide-react'
 import { usePermission } from '@/lib/permissions'
 import { ModuleErrorBoundary } from '@/components/ModuleErrorBoundary'
 import { useWorkbenchItems } from '@/hooks/payment-workbench'
 import { PendingSection } from '@/components/payment-workbench/PendingSection'
 import { ReviewSection } from '@/components/payment-workbench/ReviewSection'
-import { RejectedSection } from '@/components/payment-workbench/RejectedSection'
 import { WorkbenchFilters } from '@/components/payment-workbench/WorkbenchFilters'
 
-type TabKey = 'pending' | 'review' | 'rejected'
+type TabKey = 'pending' | 'review'
 
 const TABS: { key: TabKey; label: string; icon: React.ReactNode }[] = [
   { key: 'pending', label: '待處理', icon: <ClipboardList className="h-4 w-4" /> },
   { key: 'review', label: '審核中', icon: <Clock className="h-4 w-4" /> },
-  { key: 'rejected', label: '被駁回', icon: <AlertCircle className="h-4 w-4" /> },
 ]
 
 export default function PaymentWorkbenchPage() {
@@ -30,7 +28,6 @@ export default function PaymentWorkbenchPage() {
     remitteeGroups,
     pendingItems,
     requestedItems,
-    rejectedItems,
     isLoading,
     filters,
     setFilters,
@@ -81,10 +78,6 @@ export default function PaymentWorkbenchPage() {
               <span className="w-2 h-2 rounded-full bg-warning" />
               <span className="text-muted-foreground">審核中 {requestedItems.length}</span>
             </div>
-            <div className="flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full bg-destructive" />
-              <span className="text-muted-foreground">被駁回 {rejectedItems.length}</span>
-            </div>
           </div>
         </div>
 
@@ -103,9 +96,7 @@ export default function PaymentWorkbenchPage() {
               const count =
                 tab.key === 'pending'
                   ? pendingItems.length
-                  : tab.key === 'review'
-                    ? requestedItems.length
-                    : rejectedItems.length
+                  : requestedItems.length
               return (
                 <button
                   key={tab.key}
@@ -144,11 +135,6 @@ export default function PaymentWorkbenchPage() {
           <ReviewSection
             items={filteredItems.filter((i) => i.status === 'requested')}
             isReviewer={isReviewer}
-          />
-        )}
-        {activeTab === 'rejected' && (
-          <RejectedSection
-            items={filteredItems.filter((i) => i.status === 'rejected')}
           />
         )}
       </div>
