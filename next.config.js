@@ -101,13 +101,6 @@ const nextConfig = {
       use: ['@svgr/webpack'],
     });
 
-    if (!dev && !isServer) {
-      config.resolve.alias = {
-        ...config.resolve.alias,
-        lodash: 'lodash-es',
-      };
-    }
-
     return config;
   },
 

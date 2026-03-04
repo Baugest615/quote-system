@@ -92,7 +92,7 @@ export default function AccountingProjectsPage() {
           className="border border-border rounded-lg px-3 py-2 text-sm bg-card focus:outline-none focus:ring-2 focus:ring-ring">
           {[CURRENT_YEAR, CURRENT_YEAR - 1, CURRENT_YEAR - 2].map(y => <option key={y} value={y}>{y} 年</option>)}
         </select>
-        <select value={sortBy} onChange={(e) => setSortBy(e.target.value as any)}
+        <select value={sortBy} onChange={(e) => setSortBy(e.target.value as keyof Pick<ProjectSummary, 'total_sales' | 'profit' | 'margin'>)}
           className="border border-border rounded-lg px-3 py-2 text-sm bg-card focus:outline-none focus:ring-2 focus:ring-ring">
           <option value="total_sales">依銷售額排序</option>
           <option value="profit">依利潤排序</option>

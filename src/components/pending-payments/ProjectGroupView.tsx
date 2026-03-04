@@ -145,7 +145,7 @@ export function ProjectGroupView({
                                         <th className="px-2 py-2 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider w-8"></th>
                                         <th className="px-2 py-2 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider w-52">KOL/服務</th>
                                         <th className="px-2 py-2 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider w-40">合作項目</th>
-                                        <th className="px-2 py-2 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider w-56">匯款/成本</th>
+                                        <th className="px-2 py-2 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider w-56">匯款/成本（含稅）</th>
                                         {isMergeMode && (
                                             <th className="px-2 py-2 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider w-20">合併</th>
                                         )}

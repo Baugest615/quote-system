@@ -1,3 +1,4 @@
+import React from 'react'
 import { Undo2 } from 'lucide-react'
 import { PaymentConfirmationItem } from '@/lib/payments/types'
 import { type KolBankInfo } from '@/types/schemas'
@@ -27,7 +28,7 @@ interface PaymentRecordRowProps {
     onRevertItem?: (itemId: string) => void
 }
 
-export function PaymentRecordRow({ item, groupLabel, onRevertItem }: PaymentRecordRowProps) {
+export const PaymentRecordRow = React.memo(function PaymentRecordRow({ item, groupLabel, onRevertItem }: PaymentRecordRowProps) {
     const revertCell = onRevertItem ? (
         <td className="px-4 py-3 text-center">
             <button
@@ -214,4 +215,4 @@ export function PaymentRecordRow({ item, groupLabel, onRevertItem }: PaymentReco
             {revertCell}
         </tr>
     )
-}
+})

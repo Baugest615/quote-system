@@ -30,3 +30,8 @@ supabase/backups/data_*.sql
 
 # TypeScript 增量編譯快取
 *.tsbuildinfo
+
+# Playwright
+playwright-report/
+test-results/
+e2e/.auth/

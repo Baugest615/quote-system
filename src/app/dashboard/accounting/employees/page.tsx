@@ -230,7 +230,7 @@ export default function EmployeesPage() {
       setIsModalOpen(false)
       queryClient.invalidateQueries({ queryKey: [...queryKeys.employees] })
     },
-    onError: (err: any) => {
+    onError: (err: Error & { code?: string; error_description?: string }) => {
       console.error('員工儲存失敗:', err)
       const errorMessage = err.message || err.error_description || '儲存失敗，請重試'
       toast.error(`儲存失敗：${errorMessage}`)

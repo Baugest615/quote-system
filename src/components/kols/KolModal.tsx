@@ -245,7 +245,7 @@ export function KolModal({ isOpen, onClose, onSave, kol, kolTypes, serviceTypes 
                     </div>
                     <Input type="number" {...register(`services.${index}.price`, { valueAsNumber: true })} placeholder="報價" className="w-28" />
                     <Input type="number" {...register(`services.${index}.cost`, { valueAsNumber: true })} placeholder="成本" className="w-28" />
-                    <Button type="button" variant="ghost" size="icon" onClick={() => remove(index)}>
+                    <Button type="button" variant="ghost" size="icon" onClick={() => remove(index)} aria-label="刪除服務項目">
                       <Trash2 className="h-4 w-4 text-destructive" />
                     </Button>
                   </div>

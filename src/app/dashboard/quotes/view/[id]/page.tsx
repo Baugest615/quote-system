@@ -232,7 +232,6 @@ export default function ViewQuotePage() {
             reader.readAsDataURL(imageBlob);
           });
 
-          console.log('騎縫章圖片已轉換為 Base64');
         } catch (e) {
           console.error('轉換騎縫章圖片失敗:', e);
           // 失敗時不傳送圖片，避免後端報錯，或可選擇 alert 提示

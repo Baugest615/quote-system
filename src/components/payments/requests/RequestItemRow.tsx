@@ -1,7 +1,7 @@
 import React from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { PaymentStatusBadge } from '../shared/PaymentStatusBadge'
+import { StatusBadge } from '@/components/ui/StatusBadge'
 import { CheckCircle, XCircle, FileText, Paperclip, Settings2, ChevronDown, ChevronRight } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { PaymentRequestItem } from '@/lib/payments/types'
@@ -39,7 +39,7 @@ interface RequestItemRowProps {
     mergeGroupItems?: PaymentRequestItem[]
 }
 
-export function RequestItemRow({
+export const RequestItemRow = React.memo(function RequestItemRow({
     item,
     isSelected,
     onSelect,
@@ -223,7 +223,7 @@ export function RequestItemRow({
 
                 {/* 狀態 */}
                 <td className="px-4 py-4 align-top">
-                    <PaymentStatusBadge status={item.verification_status || 'pending'} />
+                    <StatusBadge status={item.verification_status || 'pending'} variant="payment" />
                 </td>
 
                 {/* 操作 */}
@@ -312,7 +312,7 @@ export function RequestItemRow({
                                         {item.quantity || 1} × NT$ {fmt(item.price || 0)} = NT$ {fmt((item.quantity || 1) * (item.price || 0))}
                                     </div>
                                     <div className="text-xs text-muted-foreground">
-                                        請款金額: <span className="text-foreground font-medium">NT$ {fmt(item.cost_amount || 0)}</span>
+                                        請款金額（含稅）: <span className="text-foreground font-medium">NT$ {fmt(item.cost_amount || 0)}</span>
                                     </div>
                                     {item.quotations?.clients?.name && (
                                         <div className="text-xs text-muted-foreground">
@@ -364,4 +364,4 @@ export function RequestItemRow({
             )}
         </>
     )
-}
+})

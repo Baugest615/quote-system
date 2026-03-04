@@ -5,8 +5,8 @@ import { Input } from '@/components/ui/input'
 import { cn } from '@/lib/utils'
 
 interface EditableCellProps {
-    value: any
-    onChange: (value: any) => void
+    value: string | number | null
+    onChange: (value: string | number | null) => void
     type?: 'text' | 'number' | 'date' | 'select'
     options?: { label: string; value: string; color?: string }[]
     className?: string

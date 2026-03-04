@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { Shield, Wallet, ClipboardList, Clock, Loader2 } from 'lucide-react'
 import { usePermission } from '@/lib/permissions'
-import { ModuleErrorBoundary } from '@/components/ModuleErrorBoundary'
+import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { useWorkbenchItems } from '@/hooks/payment-workbench'
 import { PendingSection } from '@/components/payment-workbench/PendingSection'
 import { ReviewSection } from '@/components/payment-workbench/ReviewSection'
@@ -54,7 +54,7 @@ export default function PaymentWorkbenchPage() {
   }
 
   return (
-    <ModuleErrorBoundary module="請款工作台">
+    <ErrorBoundary module="請款工作台">
       <div className="space-y-6">
         {/* 頁面標題 */}
         <div className="flex items-center justify-between">
@@ -138,6 +138,6 @@ export default function PaymentWorkbenchPage() {
           />
         )}
       </div>
-    </ModuleErrorBoundary>
+    </ErrorBoundary>
   )
 }

@@ -3,7 +3,7 @@
 
 import React from 'react'
 import { FolderOpen, ChevronDown, ChevronRight } from 'lucide-react'
-import { PaymentStatusBadge, PaymentStatusType } from './PaymentStatusBadge'
+import { StatusBadge } from '@/components/ui/StatusBadge'
 import { formatCurrency } from '@/lib/payments/formatting'
 import { getCompletionPercentage } from '@/lib/payments/grouping'
 import type { ProjectGroup } from '@/lib/payments/types'
@@ -27,7 +27,7 @@ export function ProjectHeader<T>({
     const completionPercentage = getCompletionPercentage(group)
 
     // 狀態映射
-    const statusMap: Record<typeof group.status, PaymentStatusType> = {
+    const statusMap: Record<typeof group.status, string> = {
         pending: 'incomplete',
         partial: 'pending',
         complete: 'ready',
@@ -89,7 +89,7 @@ export function ProjectHeader<T>({
                     </div>
 
                     {/* Status badge */}
-                    <PaymentStatusBadge status={statusMap[group.status]} size="sm" />
+                    <StatusBadge status={statusMap[group.status]} variant="payment" size="sm" />
 
                     {/* Actions */}
                     {actions && <div className="flex items-center space-x-2">{actions}</div>}

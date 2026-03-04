@@ -2,7 +2,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Controller } from 'react-hook-form'
+import { Controller, type Control, type FieldErrors, type FieldValues } from 'react-hook-form'
 import { Input } from '@/components/ui/input'
 import { Database } from '@/types/database.types'
 import { Building2, User, Star, Mail, Phone } from 'lucide-react'
@@ -31,8 +31,8 @@ interface QuoteContactsSelectorProps {
   selectedContact: Contact | null
   onClientChange: (clientId: string) => void
   onContactChange: (contact: Contact | null) => void
-  control: any
-  errors: any
+  control: Control<FieldValues>
+  errors: FieldErrors<FieldValues>
 }
 
 export function QuoteContactsSelector({
@@ -117,7 +117,7 @@ export function QuoteContactsSelector({
               )}
             />
             {errors.client_id && (
-              <p className="text-destructive text-xs mt-1">{errors.client_id.message}</p>
+              <p className="text-destructive text-xs mt-1">{errors.client_id.message as string}</p>
             )}
           </div>
 
@@ -170,7 +170,7 @@ export function QuoteContactsSelector({
             )}
             
             {errors.selected_contact && (
-              <p className="text-destructive text-xs mt-1">{errors.selected_contact.message}</p>
+              <p className="text-destructive text-xs mt-1">{errors.selected_contact.message as string}</p>
             )}
           </div>
         </div>

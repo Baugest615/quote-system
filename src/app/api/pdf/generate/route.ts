@@ -2,6 +2,7 @@
 // Puppeteer PDF 生成 API - 兼容 Vercel 部署
 import { NextRequest, NextResponse } from 'next/server';
 import puppeteer, { Browser, Page } from 'puppeteer-core';
+import sanitizeHtml from 'sanitize-html';
 import { createServerClient } from '@/lib/supabase/server';
 import { PAGE_PERMISSIONS, PAGE_KEYS, UserRole } from '@/types/custom.types';
 import { isDev, serverEnv } from '@/lib/env';
@@ -32,7 +33,7 @@ async function getBrowser(): Promise<Browser> {
         if (!executablePath) {
             throw new Error(`找不到 Chromium 核心瀏覽器。請安裝 Chrome、Brave 或 Edge，或設定 PUPPETEER_EXECUTABLE_PATH 環境變數。`);
         }
-        console.log(`[PDF API] Using local browser: ${executablePath}`);
+        console.debug(`[PDF API] Using local browser: ${executablePath}`);
 
         return puppeteer.launch({
             headless: true,
@@ -43,7 +44,7 @@ async function getBrowser(): Promise<Browser> {
 
     // Railway Docker 環境：使用系統安裝的 Chromium
     if (puppeteerPath) {
-        console.log('[PDF API] Using system Chromium from:', puppeteerPath);
+        console.debug('[PDF API] Using system Chromium from:', puppeteerPath);
         return puppeteer.launch({
             headless: true,
             executablePath: puppeteerPath,
@@ -76,14 +77,9 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: '未授權：請先登入' }, { status: 401 });
     }
 
-    // 權限檢查：確認使用者有報價單存取權限
-    const { data: profile } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('id', user.id)
-        .single();
-
-    const userRole = profile?.role as UserRole | null;
+    // 權限檢查：使用 get_my_role() RPC 避免 RLS 遞迴
+    const { data: roleData } = await supabase.rpc('get_my_role');
+    const userRole = roleData as UserRole | null;
     if (!userRole || !PAGE_PERMISSIONS[PAGE_KEYS.QUOTES]?.allowedRoles.includes(userRole)) {
         return NextResponse.json({ error: '無權限：您無法產生 PDF' }, { status: 403 });
     }
@@ -103,24 +99,49 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: '缺少 HTML 內容' }, { status: 400 });
         }
 
-        // HTML sanitization — 移除危險標籤與屬性
-        const dangerousPatterns = [
-            /<script[\s>]/gi,
-            /<\/script>/gi,
-            /<iframe[\s>]/gi,
-            /<\/iframe>/gi,
-            /<object[\s>]/gi,
-            /<\/object>/gi,
-            /<embed[\s>]/gi,
-            /javascript\s*:/gi,
-            /on\w+\s*=/gi,
-        ];
-        let sanitizedHtml = html;
-        for (const pattern of dangerousPatterns) {
-            sanitizedHtml = sanitizedHtml.replace(pattern, '<!-- removed -->');
-        }
+        // Filename 驗證 — 防止路徑穿越攻擊
+        const safeName = filename
+            .replace(/[/\\]/g, '')          // 移除路徑分隔符
+            .replace(/\.\./g, '')           // 移除上層目錄符號
+            .replace(/[<>:"|?*\x00-\x1f]/g, '') // 移除不安全字元
+            .trim() || 'quote.pdf';
+        const safeFilename = safeName.endsWith('.pdf') ? safeName : `${safeName}.pdf`;
 
-        console.log(`[PDF API] Received HTML length: ${html.length}`);
+        // HTML sanitization — 使用 sanitize-html whitelist 模式
+        const sanitizedHtml = sanitizeHtml(html, {
+            allowedTags: sanitizeHtml.defaults.allowedTags.concat([
+                'img', 'style', 'head', 'html', 'body', 'meta', 'link',
+                'section', 'header', 'footer', 'main', 'article', 'aside', 'nav',
+                'figure', 'figcaption', 'details', 'summary', 'mark',
+                'svg', 'path', 'circle', 'rect', 'line', 'polyline', 'polygon',
+                'g', 'defs', 'use', 'text', 'tspan',
+            ]),
+            allowedAttributes: {
+                '*': ['class', 'id', 'style', 'data-*', 'aria-*', 'role',
+                       'width', 'height', 'title', 'lang', 'dir'],
+                'img': ['src', 'alt', 'loading'],
+                'a': ['href', 'target', 'rel'],
+                'td': ['colspan', 'rowspan', 'scope'],
+                'th': ['colspan', 'rowspan', 'scope'],
+                'col': ['span'],
+                'colgroup': ['span'],
+                'meta': ['charset', 'name', 'content'],
+                'link': ['rel', 'href', 'type'],
+                'svg': ['viewBox', 'xmlns', 'fill', 'stroke', 'stroke-width'],
+                'path': ['d', 'fill', 'stroke', 'stroke-width', 'stroke-linecap', 'stroke-linejoin'],
+                'circle': ['cx', 'cy', 'r', 'fill', 'stroke'],
+                'rect': ['x', 'y', 'width', 'height', 'rx', 'ry', 'fill', 'stroke'],
+                'line': ['x1', 'y1', 'x2', 'y2', 'stroke'],
+                'text': ['x', 'y', 'dx', 'dy', 'text-anchor', 'font-size', 'fill'],
+            },
+            allowedSchemes: ['http', 'https', 'data'],
+            allowedSchemesByTag: {
+                img: ['http', 'https', 'data'],
+            },
+            allowVulnerableTags: false,
+        });
+
+        console.debug(`[PDF API] Received HTML length: ${html.length}`);
 
         // 啟動瀏覽器
         browser = await getBrowser();
@@ -210,10 +231,10 @@ export async function POST(request: NextRequest) {
         let finalPdf = Buffer.from(pdfBuffer as any);
 
         if (sealStampEnabled && sealStampImage) {
-            console.log('[PDF API] Adding seal stamp...');
+            console.debug('[PDF API] Adding seal stamp...');
             finalPdf = await addSealStampToPdf(finalPdf, sealStampImage);
         } else {
-            console.log('[PDF API] Seal stamp skipped. Enabled:', sealStampEnabled, 'Image provided:', !!sealStampImage);
+            console.debug('[PDF API] Seal stamp skipped. Enabled:', sealStampEnabled, 'Image provided:', !!sealStampImage);
         }
 
         // 返回 PDF
@@ -221,7 +242,7 @@ export async function POST(request: NextRequest) {
             status: 200,
             headers: {
                 'Content-Type': 'application/pdf',
-                'Content-Disposition': `attachment; filename="${encodeURIComponent(filename)}"`,
+                'Content-Disposition': `attachment; filename="${encodeURIComponent(safeFilename)}"`,
             },
         });
 
@@ -267,7 +288,7 @@ async function addSealStampToPdf(pdfBuffer: Buffer, stampImageBase64: string): P
             // 嘗試作為 PNG 加載
             stampImage = await pdfDoc.embedPng(imageBytes);
         } catch (e) {
-            console.log('[PDF API] Failed to embed as PNG, trying JPG...');
+            console.debug('[PDF API] Failed to embed as PNG, trying JPG...');
             try {
                 stampImage = await pdfDoc.embedJpg(imageBytes);
             } catch (e2) {

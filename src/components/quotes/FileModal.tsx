@@ -19,7 +19,7 @@ interface Attachment {
 interface FileModalProps {
   isOpen: boolean;
   onClose: () => void;
-  quote: { id: string; project_name: string; attachments: any; } | null;
+  quote: { id: string; project_name: string; attachments: Attachment[] | unknown[] | null; } | null;
   onUpdate: () => void;
 }
 
@@ -36,7 +36,7 @@ export function FileModal({ isOpen, onClose, quote, onUpdate }: FileModalProps) 
     quote.attachments &&
     Array.isArray(quote.attachments) &&
     quote.attachments.length > 0
-  ) ? quote.attachments[0] : null;
+  ) ? quote.attachments[0] as Attachment : null;
 
   // 徹底的檔名清理函數 - 只保留英數字和點
   const createSafeFileName = (originalName: string): string => {
@@ -168,13 +168,9 @@ export function FileModal({ isOpen, onClose, quote, onUpdate }: FileModalProps) 
       const safeFileName = createSafeFileName(file.name);
       const uploadPath = `quotations/${quote.id}/${safeFileName}`;
 
-      console.log('Original filename:', file.name);
-      console.log('Safe filename:', safeFileName);
-      console.log('Upload path:', uploadPath);
 
       // 如果已有附件，先刪除舊的
       if (currentAttachment?.path) {
-        console.log('Removing old attachment:', currentAttachment.path);
         const { error: deleteError } = await supabase.storage
           .from('attachments')
           .remove([currentAttachment.path]);
@@ -185,7 +181,6 @@ export function FileModal({ isOpen, onClose, quote, onUpdate }: FileModalProps) 
       }
 
       // 上傳新檔案
-      console.log('Uploading file...');
       const { error: uploadError, data: uploadData } = await supabase.storage
         .from('attachments')
         .upload(uploadPath, file, {
@@ -199,14 +194,10 @@ export function FileModal({ isOpen, onClose, quote, onUpdate }: FileModalProps) 
         return;
       }
 
-      console.log('Upload successful:', uploadData);
-
       // 獲取公開URL（備用，主要使用signed URL）
       const { data: urlData } = supabase.storage
         .from('attachments')
         .getPublicUrl(uploadPath);
-
-      console.log('Public URL:', urlData.publicUrl);
 
       const newAttachment = {
         name: file.name, // 保存原始檔名用於顯示
@@ -216,7 +207,6 @@ export function FileModal({ isOpen, onClose, quote, onUpdate }: FileModalProps) 
       };
 
       // 更新資料庫
-      console.log('Updating database with:', newAttachment);
       const { error: dbError } = await supabase
         .from('quotations')
         .update({ attachments: [newAttachment] })
@@ -230,7 +220,6 @@ export function FileModal({ isOpen, onClose, quote, onUpdate }: FileModalProps) 
         return;
       }
 
-      console.log('File upload completed successfully');
       toast.success('檔案已成功上傳');
 
       // 關閉modal並更新父組件
@@ -264,8 +253,6 @@ export function FileModal({ isOpen, onClose, quote, onUpdate }: FileModalProps) 
     if (!ok) return;
 
     try {
-      console.log('Deleting file:', currentAttachment.path);
-
       // 從儲存空間刪除檔案
       const { error: storageError } = await supabase.storage
         .from('attachments')
@@ -287,7 +274,6 @@ export function FileModal({ isOpen, onClose, quote, onUpdate }: FileModalProps) 
         return;
       }
 
-      console.log('File deletion completed successfully');
       toast.success('檔案已成功刪除');
 
       // 關閉modal並更新父組件
@@ -348,6 +334,7 @@ export function FileModal({ isOpen, onClose, quote, onUpdate }: FileModalProps) 
                   size="sm"
                   className="text-destructive hover:text-destructive/80 hover:bg-destructive/10 ml-3"
                   onClick={handleFileDelete}
+                  aria-label="刪除檔案"
                 >
                   <Trash2 className="h-4 w-4" />
                 </Button>

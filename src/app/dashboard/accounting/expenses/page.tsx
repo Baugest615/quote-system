@@ -21,7 +21,7 @@ import type { AccountingExpense, PaymentTargetType, ExpenseType } from '@/types/
 import { PAYMENT_TARGET_LABELS, PAYMENT_TARGET_TYPES, PAYMENT_STATUS, PAYMENT_STATUS_LABELS } from '@/types/custom.types'
 import { useExpenseDefaults } from '@/hooks/useExpenseDefaults'
 import { CURRENT_YEAR, MONTH_OPTIONS } from '@/lib/constants'
-import { PaymentStatusBadge } from '@/components/accounting/monthly-settlement/PaymentStatusBadge'
+import { AccountingPaymentBadge } from '@/components/accounting/monthly-settlement/AccountingPaymentBadge'
 import type { SpreadsheetColumn, BatchSaveResult, RowError } from '@/lib/spreadsheet-utils'
 import { useQuotationOptions } from '@/hooks/useQuotationOptions'
 import { SearchableSelect } from '@/components/ui/SearchableSelect'
@@ -664,7 +664,7 @@ export default function AccountingExpensesPage() {
                     <td className="px-4 py-3 text-muted-foreground max-w-40 truncate" title={r.note || ''}>{r.note || '-'}</td>
                     <td className="px-4 py-3 text-muted-foreground">{r.payment_date || '-'}</td>
                     <td className="px-4 py-3 text-center">
-                      <PaymentStatusBadge status={r.payment_status || 'unpaid'} />
+                      <AccountingPaymentBadge status={r.payment_status || 'unpaid'} />
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex items-center justify-center gap-2">

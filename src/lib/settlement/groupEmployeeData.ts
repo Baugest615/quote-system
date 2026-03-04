@@ -55,8 +55,19 @@ export function groupEmployeeData(input: GroupEmployeeDataInput): GroupEmployeeD
   }
 
   // 區分員工相關支出與外部支出
-  const employeeExpenses = expenses.filter(e => e.payment_target_type === 'employee')
-  const externalExpenses = expenses.filter(e => e.payment_target_type !== 'employee')
+  // 第一層：payment_target_type === 'employee'
+  // 第二層 fallback：vendor_name 匹配到員工姓名（處理外部導入資料未設定 payment_target_type 的情況）
+  const employeeExpenses: AccountingExpense[] = []
+  const externalExpenses: AccountingExpense[] = []
+  for (const e of expenses) {
+    if (e.payment_target_type === 'employee') {
+      employeeExpenses.push(e)
+    } else if (e.vendor_name && employeeNameToEmployee.has(e.vendor_name) && employeeNameToEmployee.get(e.vendor_name) !== null) {
+      employeeExpenses.push(e)
+    } else {
+      externalExpenses.push(e)
+    }
+  }
 
   // 以 empId 為鍵的分組 Map
   const groupMap = new Map<string, EmployeeSettlementGroup>()

@@ -125,13 +125,9 @@ export async function middleware(request: NextRequest) {
             pageConfig.allowedRoles.length < ALL_ROLES.length
 
           if (isRestricted) {
-            const { data: profile } = await supabase
-              .from('profiles')
-              .select('role')
-              .eq('id', user.id)
-              .single()
-
-            const userRole = (profile?.role || '') as UserRole
+            // 使用 get_my_role() RPC 避免 RLS 遞迴
+            const { data: roleData } = await supabase.rpc('get_my_role')
+            const userRole = (roleData || '') as UserRole
 
             if (!pageConfig.allowedRoles.includes(userRole)) {
               return NextResponse.redirect(
@@ -156,14 +152,9 @@ export async function middleware(request: NextRequest) {
           return NextResponse.redirect(new URL('/auth/login', request.url))
         }
 
-        // 確認使用者具有有效角色（防止已停用帳號存取）
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('role')
-          .eq('id', user.id)
-          .single()
-
-        const userRole = (profile?.role || '') as UserRole
+        // 使用 get_my_role() RPC 確認使用者具有有效角色
+        const { data: roleData } = await supabase.rpc('get_my_role')
+        const userRole = (roleData || '') as UserRole
         if (!ALL_ROLES.includes(userRole)) {
           return NextResponse.redirect(
             new URL('/dashboard?error=permission_denied', request.url)

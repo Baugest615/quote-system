@@ -9,6 +9,7 @@ import type { PendingPaymentItem } from '@/lib/payments/types'
 import { queryKeys } from '@/lib/queryKeys'
 import { staleTimes } from '@/lib/queryClient'
 import { getDefaultExpenseByBankType } from '@/types/custom.types'
+import { calculatePaymentAmount } from '@/lib/tax-utils'
 
 type QuotationItemWithDetails = (Database['public']['Tables']['quotation_items']['Row'] & {
     quotations: Database['public']['Tables']['quotations']['Row'] & {
@@ -72,8 +73,8 @@ async function fetchPendingItemsData(): Promise<PendingPaymentItem[]> {
             invoice_number_input: null,
             attachments: [],
             payment_request_id: null,
-            cost_amount_input: (cost !== null && cost !== undefined) ? cost : 0,
-            original_cost: (cost !== null && cost !== undefined) ? cost : 0,
+            cost_amount_input: (cost !== null && cost !== undefined) ? calculatePaymentAmount(cost, (item.kols?.bank_info as { bankType?: string } | null)?.bankType) : 0,
+            original_cost: (cost !== null && cost !== undefined) ? calculatePaymentAmount(cost, (item.kols?.bank_info as { bankType?: string } | null)?.bankType) : 0,
             remittance_name: null,
             remittance_name_input: null,
             rejected_by: null,

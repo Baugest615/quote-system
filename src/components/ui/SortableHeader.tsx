@@ -29,6 +29,7 @@ export function SortableHeader<K extends string = string>({
         type="button"
         className="flex items-center gap-1 hover:text-foreground transition-colors select-none"
         onClick={() => onToggleSort(sortKey)}
+        aria-sort={isActive ? (sortState.direction === 'asc' ? 'ascending' : 'descending') : 'none'}
       >
         <span className="truncate">{label}</span>
         {isActive && sortState.direction === 'asc' && (

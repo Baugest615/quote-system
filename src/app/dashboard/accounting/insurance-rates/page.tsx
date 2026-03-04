@@ -92,7 +92,7 @@ export default function InsuranceRatesPage() {
       setIsModalOpen(false)
       queryClient.invalidateQueries({ queryKey: [...queryKeys.insuranceRates] })
     },
-    onError: (err: any) => {
+    onError: (err: Error) => {
       console.error('費率儲存失敗:', err)
       toast.error(err.message || '儲存失敗，請重試')
     },

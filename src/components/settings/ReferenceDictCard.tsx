@@ -209,10 +209,10 @@ export default function ReferenceDictCard() {
                                 ))}
                               </select>
                             )}
-                            <Button variant="ghost" size="icon" className="h-7 w-7 flex-shrink-0" onClick={() => handleUpdate(key, item.id)}>
+                            <Button variant="ghost" size="icon" className="h-7 w-7 flex-shrink-0" onClick={() => handleUpdate(key, item.id)} aria-label="儲存">
                               <Save className="h-3.5 w-3.5 text-success" />
                             </Button>
-                            <Button variant="ghost" size="icon" className="h-7 w-7 flex-shrink-0" onClick={handleCancelEdit}>
+                            <Button variant="ghost" size="icon" className="h-7 w-7 flex-shrink-0" onClick={handleCancelEdit} aria-label="取消">
                               <span className="text-xs">取消</span>
                             </Button>
                           </>
@@ -231,6 +231,7 @@ export default function ReferenceDictCard() {
                               size="icon"
                               className="h-7 w-7 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
                               onClick={() => handleEdit(item)}
+                              aria-label="編輯"
                             >
                               <Edit className="h-3.5 w-3.5" />
                             </Button>
@@ -239,6 +240,7 @@ export default function ReferenceDictCard() {
                               size="icon"
                               className="h-7 w-7 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity text-destructive"
                               onClick={() => handleDelete(key, item.id)}
+                              aria-label="刪除"
                             >
                               <Trash2 className="h-3.5 w-3.5" />
                             </Button>
