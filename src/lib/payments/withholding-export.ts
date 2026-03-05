@@ -43,6 +43,23 @@ export function computeMonthlyWithholding(
         getBillingMonthKey(c.confirmation_date) === month
     )
 
+    // 第一階段：收集所有群組資料，按匯款戶名歸戶，記錄每筆的 paymentDate + subtotal
+    type GroupEntry = {
+        subtotal: number
+        paymentDate: string  // 實際匯款日期，或 fallback 到確認日期
+        confirmationDate: string
+        isExempt: boolean
+        isCompanyAccount: boolean
+        isWithholdingExempt: boolean
+        isPersonalClaim: boolean
+        hasSavedSettings: boolean
+        savedHasTax: boolean
+        savedHasInsurance: boolean
+        kolName: string
+        realName: string
+    }
+    const groupEntries = new Map<string, GroupEntry[]>()
+
     monthConfirmations.forEach(confirmation => {
         const groups = groupItemsByRemittance(confirmation.payment_confirmation_items)
         const savedSettings: RemittanceSettings = confirmation.remittance_settings || {}
@@ -54,47 +71,78 @@ export function computeMonthlyWithholding(
             )
             if (isPersonalClaim) return
 
-            const isExempt = group.isCompanyAccount || group.isWithholdingExempt
-            const subtotal = group.totalAmount
-
-            // 從 DB 讀取已儲存的設定；若無則根據門檻自動判斷
-            const settings = savedSettings[group.remittanceName] || {
-                hasRemittanceFee: false,
-                remittanceFeeAmount: 30,
-                hasTax: !isExempt && subtotal >= taxThreshold,
-                hasInsurance: !isExempt && subtotal >= nhiThreshold,
-            }
-
-            const tax = settings.hasTax ? Math.floor(subtotal * taxRate) : 0
-            const nhi = settings.hasInsurance ? Math.floor(subtotal * nhiRate) : 0
+            const settings = savedSettings[group.remittanceName]
+            const firstItem = group.items[0]
+            const kol = firstItem?.payment_requests?.quotation_items?.kols
+                || firstItem?.quotation_items?.kols
 
             const key = group.remittanceName
-            if (!personMap.has(key)) {
-                // 從第一筆項目取得 KOL 資訊
-                const firstItem = group.items[0]
-                const kol = firstItem?.payment_requests?.quotation_items?.kols
+            if (!groupEntries.has(key)) groupEntries.set(key, [])
+            groupEntries.get(key)!.push({
+                subtotal: group.totalAmount,
+                paymentDate: settings?.paymentDate || confirmation.confirmation_date,
+                confirmationDate: confirmation.confirmation_date,
+                isExempt: group.isCompanyAccount || group.isWithholdingExempt,
+                isCompanyAccount: group.isCompanyAccount,
+                isWithholdingExempt: group.isWithholdingExempt,
+                isPersonalClaim: false,
+                hasSavedSettings: !!settings,
+                savedHasTax: settings?.hasTax ?? false,
+                savedHasInsurance: settings?.hasInsurance ?? false,
+                kolName: kol?.name || group.remittanceName,
+                realName: kol?.real_name || '',
+            })
+        })
+    })
 
-                personMap.set(key, {
-                    remittanceName: group.remittanceName,
-                    kolName: kol?.name || group.remittanceName,
-                    realName: kol?.real_name || '',
-                    isCompanyAccount: group.isCompanyAccount,
-                    isExempt: group.isCompanyAccount || group.isWithholdingExempt,
-                    totalPayment: 0,
-                    incomeTaxWithheld: 0,
-                    nhiSupplement: 0,
-                    confirmationDates: []
-                })
-            }
+    // 第二階段：按匯款戶名計算代扣，分日判斷門檻
+    Array.from(groupEntries.entries()).forEach(([key, entries]: [string, GroupEntry[]]) => {
+        const first = entries[0]!
+        if (!personMap.has(key)) {
+            personMap.set(key, {
+                remittanceName: key,
+                kolName: first.kolName,
+                realName: first.realName,
+                isCompanyAccount: first.isCompanyAccount,
+                isExempt: first.isExempt,
+                totalPayment: 0,
+                incomeTaxWithheld: 0,
+                nhiSupplement: 0,
+                confirmationDates: []
+            })
+        }
 
-            const person = personMap.get(key)!
-            person.totalPayment += subtotal
-            person.incomeTaxWithheld += tax
-            person.nhiSupplement += nhi
-            if (!person.confirmationDates.includes(confirmation.confirmation_date)) {
-                person.confirmationDates.push(confirmation.confirmation_date)
+        const person = personMap.get(key)!
+        const totalPayment = entries.reduce((sum: number, e: GroupEntry) => sum + e.subtotal, 0)
+        person.totalPayment += totalPayment
+
+        // 收集確認日期
+        entries.forEach((e: GroupEntry) => {
+            if (!person.confirmationDates.includes(e.confirmationDate)) {
+                person.confirmationDates.push(e.confirmationDate)
             }
         })
+
+        // 若有手動設定，以手動設定為準
+        const hasManualSettings = entries.some((e: GroupEntry) => e.hasSavedSettings)
+        if (hasManualSettings) {
+            const hasTax = entries.some((e: GroupEntry) => e.savedHasTax)
+            const hasInsurance = entries.some((e: GroupEntry) => e.savedHasInsurance)
+            person.incomeTaxWithheld += hasTax ? Math.floor(totalPayment * taxRate) : 0
+            person.nhiSupplement += hasInsurance ? Math.floor(totalPayment * nhiRate) : 0
+        } else if (first.isExempt) {
+            // 免扣：不計算
+        } else {
+            // 自動判斷：按 paymentDate 分組，各自獨立判斷門檻
+            const byDate = new Map<string, number>()
+            entries.forEach((e: GroupEntry) => {
+                byDate.set(e.paymentDate, (byDate.get(e.paymentDate) || 0) + e.subtotal)
+            })
+            Array.from(byDate.values()).forEach(dateTotal => {
+                if (dateTotal >= taxThreshold) person.incomeTaxWithheld += Math.floor(dateTotal * taxRate)
+                if (dateTotal >= nhiThreshold) person.nhiSupplement += Math.floor(dateTotal * nhiRate)
+            })
+        }
     })
 
     return Array.from(personMap.values()).sort((a, b) => b.totalPayment - a.totalPayment)

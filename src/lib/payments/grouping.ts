@@ -230,7 +230,7 @@ export function groupItemsByRemittance(items: PaymentConfirmationItem[]): import
                     items: [],
                     totalAmount: 0,
                     isCompanyAccount: bankInfo.bankType === 'company',
-                    isWithholdingExempt: (kol as Record<string, unknown>)?.withholding_exempt === true,
+                    isWithholdingExempt: kol?.withholding_exempt === true,
                 })
             }
 
@@ -279,7 +279,7 @@ export function groupItemsByRemittance(items: PaymentConfirmationItem[]): import
                 items: [],
                 totalAmount: 0,
                 isCompanyAccount: bankInfo.bankType === 'company',
-                isWithholdingExempt: (kol as Record<string, unknown>)?.withholding_exempt === true,
+                isWithholdingExempt: kol?.withholding_exempt === true,
             })
         }
 

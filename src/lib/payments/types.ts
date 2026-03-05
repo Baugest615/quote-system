@@ -31,6 +31,7 @@ export interface BasePaymentItem {
         name: string
         real_name: string | null
         bank_info: Json
+        withholding_exempt?: boolean | null
     } | null
     service: string
     category: string | null
@@ -240,6 +241,8 @@ export interface ConfirmationBreakdown {
     tax: number
     insurance: number
     fee: number
+    /** 實際匯款日期（來自 remittance_settings.paymentDate），用於分日免扣判斷 */
+    paymentDate?: string
 }
 
 export interface MergedRemittanceGroup {

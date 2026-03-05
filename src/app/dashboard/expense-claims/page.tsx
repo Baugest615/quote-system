@@ -110,23 +110,30 @@ export default function ExpenseClaimsPage() {
     mutationFn: async ({ data, id }: { data: ExpenseClaimFormData; id?: string }) => {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) throw new Error('未登入，請重新登入')
+      // 清理空字串 → null（避免 PostgreSQL date/uuid 型別錯誤）
+      const cleanData = {
+        ...data,
+        vendor_name: data.vendor_name?.trim() || employeeName || null,
+        invoice_date: data.invoice_date || null,
+        quotation_id: data.quotation_id || null,
+        claim_month: data.claim_month || null,
+        withholding_month: data.withholding_month || null,
+        invoice_number: data.invoice_number || null,
+        note: data.note || null,
+      }
       if (id) {
         const { error } = await supabase
           .from('expense_claims')
-          .update({
-            ...data,
-            vendor_name: data.vendor_name?.trim() || employeeName || undefined,
-          })
+          .update(cleanData)
           .eq('id', id)
         if (error) throw error
       } else {
         const payload = {
-          ...data,
-          vendor_name: data.vendor_name?.trim() || employeeName || undefined,
+          ...cleanData,
           year,
           status: 'draft' as const,
-          created_by: user?.id,
-          submitted_by: user?.id,
+          created_by: user.id,
+          submitted_by: user.id,
         }
         const { error } = await supabase.from('expense_claims').insert(payload)
         if (error) throw error

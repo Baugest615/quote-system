@@ -76,6 +76,14 @@
 - ✅ PendingSection / ReviewSection 單筆項目顯示含稅金額 + 成本/稅拆解
 - ✅ 區塊小計、戶名小計均改為含稅金額
 
+### 個人請款修復 + 分日匯款免扣代扣 + 型別安全（2026-03-05）
+- ✅ 個人請款儲存 Bug 修復：空字串 → null 清理（`invoice_date`/`quotation_id`/`claim_month` 等 6 欄位）
+- ✅ 分日匯款免扣代扣邏輯：按 `paymentDate` 分組各自獨立判斷門檻（所得稅法§88 + 全民健康保險法§31）
+- ✅ `ConfirmationBreakdown` 新增 `paymentDate` 欄位，`aggregation.ts` + `withholding-export.ts` 同步更新
+- ✅ `BasePaymentItem.kols` 補上 `withholding_exempt` 型別定義，移除 `grouping.ts` 中的 type assertion
+- ✅ 職業工會免扣二代健保公式驗證通過（資料流完整：DB → query → grouping → aggregation → export → UI）
+- ✅ `tsc --noEmit` 零錯誤、144 payment tests 全通過
+
 ## 待辦事項
 
 ### 優先

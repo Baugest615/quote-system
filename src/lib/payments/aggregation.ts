@@ -109,6 +109,7 @@ export function aggregateMonthlyRemittanceGroups(
         tax: 0,
         insurance: 0,
         fee,
+        paymentDate: settings.paymentDate,
       })
       merged.totalAmount += subtotal
       merged.totalFee += fee
@@ -196,7 +197,9 @@ export function aggregateMonthlyRemittanceGroups(
     }
   }
 
-  // 計算代扣代繳（基於合併後的總額判斷，與 computeMonthlyWithholding 一致）
+  // 計算代扣代繳
+  // 法規：不同日期的給付各自獨立判斷門檻（所得稅法§88、全民健康保險法§31）
+  // 若同一人有多筆給付且 paymentDate 不同，按日分組各自判斷門檻
   const result = Array.from(mergedMap.values())
   result.forEach(group => {
     // 從 DB 設定中讀取（任一 confirmation 有設定即可）
@@ -207,15 +210,38 @@ export function aggregateMonthlyRemittanceGroups(
     // 代扣只適用於有 KOL 確認項目的勞報帳戶（排除薪資、進項、公司戶、免扣）
     const hasKolItems = group.items.length > 0
     const isExempt = !hasKolItems || group.isCompanyAccount || group.isWithholdingExempt || group.isPersonalClaim
-    const hasTax = savedSetting
-      ? savedSetting.hasTax
-      : (!isExempt && group.totalAmount >= taxThreshold)
-    const hasInsurance = savedSetting
-      ? savedSetting.hasInsurance
-      : (!isExempt && group.totalAmount >= nhiThreshold)
 
-    group.totalTax = hasTax ? Math.floor(group.totalAmount * taxRate) : 0
-    group.totalInsurance = hasInsurance ? Math.floor(group.totalAmount * nhiRate) : 0
+    // 若使用者已手動設定，以手動設定為準（不走分日邏輯）
+    if (savedSetting) {
+      group.totalTax = savedSetting.hasTax ? Math.floor(group.totalAmount * taxRate) : 0
+      group.totalInsurance = savedSetting.hasInsurance ? Math.floor(group.totalAmount * nhiRate) : 0
+    } else if (isExempt) {
+      group.totalTax = 0
+      group.totalInsurance = 0
+    } else {
+      // 自動判斷：按 paymentDate 分組計算門檻
+      const breakdownsByDate = new Map<string, number>()
+      for (const bd of group.confirmationBreakdowns) {
+        const dateKey = bd.paymentDate || bd.confirmationDate
+        breakdownsByDate.set(dateKey, (breakdownsByDate.get(dateKey) || 0) + bd.subtotal)
+      }
+      // 加上 expense items（手動進項，無 paymentDate，以 'manual' 歸類）
+      const manualExpenseTotal = group.expenseItems.reduce(
+        (sum, e) => sum + (e.total_amount || e.amount || 0), 0
+      )
+      if (manualExpenseTotal > 0) {
+        breakdownsByDate.set('_manual_', (breakdownsByDate.get('_manual_') || 0) + manualExpenseTotal)
+      }
+
+      let totalTax = 0
+      let totalInsurance = 0
+      Array.from(breakdownsByDate.values()).forEach(dateTotal => {
+        if (dateTotal >= taxThreshold) totalTax += Math.floor(dateTotal * taxRate)
+        if (dateTotal >= nhiThreshold) totalInsurance += Math.floor(dateTotal * nhiRate)
+      })
+      group.totalTax = totalTax
+      group.totalInsurance = totalInsurance
+    }
     group.netTotal = group.totalAmount - group.totalTax - group.totalInsurance - group.totalFee
   })
 
