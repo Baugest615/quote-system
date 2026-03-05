@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Modal } from '@/components/ui/modal'
 import { useWorkbenchMerge, useWorkbenchSubmission } from '@/hooks/payment-workbench'
 import type { WorkbenchItem, AccountCategory } from '@/hooks/payment-workbench/types'
-import { itemsToCategorySections } from '@/hooks/payment-workbench/grouping'
+import { itemsToCategorySections, calcItemTaxInfo } from '@/hooks/payment-workbench/grouping'
 import { MergeGroupCard } from './MergeGroupCard'
 import { InlineItemEditor } from './InlineItemEditor'
 import { cn } from '@/lib/utils'
@@ -228,12 +228,19 @@ export function PendingSection({ items }: PendingSectionProps) {
                           )}
                         </div>
                       </button>
-                      <span className="text-sm font-medium text-foreground tabular-nums whitespace-nowrap">
-                        ${(item.cost_amount || 0).toLocaleString()}
-                        {item.kol_bank_info?.bankType === 'company' && (
-                          <span className="text-[10px] text-muted-foreground ml-1">（含稅）</span>
-                        )}
-                      </span>
+                      {(() => {
+                        const taxInfo = calcItemTaxInfo(item)
+                        return (
+                          <span className="text-sm font-medium text-foreground tabular-nums whitespace-nowrap text-right">
+                            ${taxInfo.total.toLocaleString()}
+                            {taxInfo.tax > 0 && (
+                              <span className="block text-[10px] text-muted-foreground font-normal">
+                                成本 ${taxInfo.cost.toLocaleString()} + 稅 ${taxInfo.tax.toLocaleString()}
+                              </span>
+                            )}
+                          </span>
+                        )
+                      })()}
                       <Button
                         size="sm"
                         variant="outline"
@@ -319,7 +326,7 @@ export function PendingSection({ items }: PendingSectionProps) {
                   <div className="flex-1">
                     <span className="text-sm text-foreground">{item.project_name} — {item.service}</span>
                     <div className="text-xs text-muted-foreground mt-0.5">
-                      ${(item.cost_amount || 0).toLocaleString()} · {item.expected_payment_month || '未指定'}
+                      ${calcItemTaxInfo(item).total.toLocaleString()} · {item.expected_payment_month || '未指定'}
                     </div>
                   </div>
                 </label>

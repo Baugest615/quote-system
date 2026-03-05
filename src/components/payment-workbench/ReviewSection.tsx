@@ -7,7 +7,7 @@ import { Modal } from '@/components/ui/modal'
 import { Textarea } from '@/components/ui/textarea'
 import { useWorkbenchReview, useWorkbenchSubmission } from '@/hooks/payment-workbench'
 import type { WorkbenchItem, AccountCategory } from '@/hooks/payment-workbench/types'
-import { itemsToCategorySections } from '@/hooks/payment-workbench/grouping'
+import { itemsToCategorySections, calcItemTaxInfo } from '@/hooks/payment-workbench/grouping'
 import { MergeGroupCard } from './MergeGroupCard'
 import { AttachmentChips } from './AttachmentChips'
 
@@ -121,12 +121,19 @@ export function ReviewSection({ items, isReviewer }: ReviewSectionProps) {
                       <AttachmentChips attachments={item.attachments} />
                     </div>
                   </div>
-                  <span className="text-sm font-semibold text-foreground tabular-nums">
-                    ${(item.cost_amount || 0).toLocaleString()}
-                    {item.kol_bank_info?.bankType === 'company' && (
-                      <span className="text-[10px] text-muted-foreground ml-1 font-normal">（含稅）</span>
-                    )}
-                  </span>
+                  {(() => {
+                    const taxInfo = calcItemTaxInfo(item)
+                    return (
+                      <span className="text-sm font-semibold text-foreground tabular-nums text-right">
+                        ${taxInfo.total.toLocaleString()}
+                        {taxInfo.tax > 0 && (
+                          <span className="block text-[10px] text-muted-foreground font-normal">
+                            成本 ${taxInfo.cost.toLocaleString()} + 稅 ${taxInfo.tax.toLocaleString()}
+                          </span>
+                        )}
+                      </span>
+                    )
+                  })()}
                   <div className="flex items-center gap-1.5">
                     <Button size="sm" variant="outline" disabled={isLoading} onClick={() => withdrawSingleItem(item.id)}>
                       <Undo2 className="w-3.5 h-3.5 mr-1" />

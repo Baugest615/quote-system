@@ -5,6 +5,7 @@ import { ChevronDown, Crown, Link2, Send, Undo2, Check, X, Unlink } from 'lucide
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import type { MergeGroupInfo } from '@/hooks/payment-workbench/types'
+import { calcItemTaxInfo } from '@/hooks/payment-workbench/grouping'
 import { InlineItemEditor } from './InlineItemEditor'
 import { AttachmentChips } from './AttachmentChips'
 
@@ -83,10 +84,12 @@ export function MergeGroupCard({
             <AttachmentChips attachments={group.leader_item.attachments} />
           </div>
         </div>
-        <span className="text-sm font-semibold text-foreground tabular-nums">
+        <span className="text-sm font-semibold text-foreground tabular-nums text-right">
           ${group.total_amount.toLocaleString()}
-          {group.leader_item.kol_bank_info?.bankType === 'company' && (
-            <span className="text-[10px] text-muted-foreground ml-1 font-normal">（含稅）</span>
+          {group.total_tax > 0 && (
+            <span className="block text-[10px] text-muted-foreground font-normal">
+              成本 ${group.total_cost.toLocaleString()} + 稅 ${group.total_tax.toLocaleString()}
+            </span>
           )}
         </span>
 
@@ -142,41 +145,49 @@ export function MergeGroupCard({
                 <th className="text-left px-4 py-2 font-normal">專案</th>
                 <th className="text-left px-4 py-2 font-normal">KOL</th>
                 <th className="text-left px-4 py-2 font-normal">服務</th>
-                <th className="text-right px-4 py-2 font-normal">金額</th>
+                <th className="text-right px-4 py-2 font-normal">成本</th>
+                <th className="text-right px-4 py-2 font-normal">稅金</th>
+                <th className="text-right px-4 py-2 font-normal">含稅金額</th>
                 <th className="text-left px-4 py-2 font-normal">月份</th>
                 <th className="text-left px-4 py-2 font-normal">發票</th>
               </tr>
             </thead>
             <tbody>
-              {allItems.map((item) => (
-                <tr key={item.id} className="border-b border-border/50 last:border-0">
-                  <td className="px-4 py-2">
-                    <div className="flex items-center gap-1.5">
-                      {item.is_merge_leader && (
-                        <Crown className="w-3.5 h-3.5 text-warning flex-shrink-0" />
-                      )}
-                      <span className="text-foreground">{item.project_name || '未命名'}</span>
-                    </div>
-                  </td>
-                  <td className="px-4 py-2 text-info text-xs">{item.kol_name || '-'}</td>
-                  <td className="px-4 py-2 text-muted-foreground">{item.service}</td>
-                  <td className="px-4 py-2 text-right text-foreground tabular-nums">
-                    ${(item.cost_amount || 0).toLocaleString()}
-                    {item.kol_bank_info?.bankType === 'company' && (
-                      <span className="text-[10px] text-muted-foreground ml-1">（含稅）</span>
-                    )}
-                  </td>
-                  <td className="px-4 py-2 text-muted-foreground text-xs">
-                    {item.expected_payment_month || '-'}
-                  </td>
-                  <td className="px-4 py-2 text-muted-foreground text-xs">
-                    {item.is_merge_leader
-                      ? (item.invoice_number || (editable ? '點擊下方編輯' : '-'))
-                      : <span className="italic text-muted-foreground/60">繼承主項</span>
-                    }
-                  </td>
-                </tr>
-              ))}
+              {allItems.map((item) => {
+                const taxInfo = calcItemTaxInfo(item)
+                return (
+                  <tr key={item.id} className="border-b border-border/50 last:border-0">
+                    <td className="px-4 py-2">
+                      <div className="flex items-center gap-1.5">
+                        {item.is_merge_leader && (
+                          <Crown className="w-3.5 h-3.5 text-warning flex-shrink-0" />
+                        )}
+                        <span className="text-foreground">{item.project_name || '未命名'}</span>
+                      </div>
+                    </td>
+                    <td className="px-4 py-2 text-info text-xs">{item.kol_name || '-'}</td>
+                    <td className="px-4 py-2 text-muted-foreground">{item.service}</td>
+                    <td className="px-4 py-2 text-right text-foreground tabular-nums">
+                      ${taxInfo.cost.toLocaleString()}
+                    </td>
+                    <td className="px-4 py-2 text-right text-muted-foreground tabular-nums">
+                      {taxInfo.tax > 0 ? `$${taxInfo.tax.toLocaleString()}` : '-'}
+                    </td>
+                    <td className="px-4 py-2 text-right text-foreground tabular-nums font-medium">
+                      ${taxInfo.total.toLocaleString()}
+                    </td>
+                    <td className="px-4 py-2 text-muted-foreground text-xs">
+                      {item.expected_payment_month || '-'}
+                    </td>
+                    <td className="px-4 py-2 text-muted-foreground text-xs">
+                      {item.is_merge_leader
+                        ? (item.invoice_number || (editable ? '點擊下方編輯' : '-'))
+                        : <span className="italic text-muted-foreground/60">繼承主項</span>
+                      }
+                    </td>
+                  </tr>
+                )
+              })}
             </tbody>
           </table>
 

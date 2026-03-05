@@ -69,6 +69,13 @@
 - ✅ 互動式選單擴展為 6 個選項（含新增工作流）
 - ✅ npm scripts：`agents:migrate`、`agents:performance`、`agents:security-cleanup`
 
+### 請款工作台含稅計算修復（2026-03-05）
+- ✅ 新增 `calcItemTaxInfo()` 工具函式：公司行號自動加 5% 營業稅，個人戶不加
+- ✅ 合併組 `total_amount` 改為含稅加總，新增 `total_cost`/`total_tax` 欄位
+- ✅ MergeGroupCard 明細表拆為「成本」「稅金」「含稅金額」三欄
+- ✅ PendingSection / ReviewSection 單筆項目顯示含稅金額 + 成本/稅拆解
+- ✅ 區塊小計、戶名小計均改為含稅金額
+
 ## 待辦事項
 
 ### 優先

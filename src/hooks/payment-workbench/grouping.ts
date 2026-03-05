@@ -1,8 +1,19 @@
 // src/hooks/payment-workbench/grouping.ts
-// 工作台共用分組邏輯（v1.1: 帳戶類型分組）
+// 工作台共用分組邏輯（v1.2: 帳戶類型分組 + 含稅計算）
 
 import { parseKolBankInfo } from '@/types/schemas'
 import type { WorkbenchItem, MergeGroupInfo, RemitteeGroup, AccountCategory, CategorySection } from './types'
+
+/** 固定營業稅率 5% */
+const TAX_RATE = 0.05
+
+/** 計算單筆項目的含稅金額（公司行號加 5% 營業稅，個人戶不加） */
+export function calcItemTaxInfo(item: { cost_amount: number | null; kol_bank_info: { bankType?: string } | null }) {
+  const cost = item.cost_amount || 0
+  const isCompany = item.kol_bank_info?.bankType === 'company'
+  const tax = isCompany ? Math.round(cost * TAX_RATE) : 0
+  return { cost, tax, total: cost + tax, isCompany }
+}
 
 /** 從 kol_bank_info 推導帳戶類型與戶名 */
 export function deriveAccountInfo(bankInfo: unknown): {
@@ -39,7 +50,9 @@ export function extractMergeGroups(items: WorkbenchItem[]): MergeGroupInfo[] {
       leader_item: leader,
       member_items: members,
       merge_color: leader.merge_color,
-      total_amount: mgItems.reduce((sum, i) => sum + (i.cost_amount || 0), 0),
+      total_cost: mgItems.reduce((sum, i) => sum + calcItemTaxInfo(i).cost, 0),
+      total_tax: mgItems.reduce((sum, i) => sum + calcItemTaxInfo(i).tax, 0),
+      total_amount: mgItems.reduce((sum, i) => sum + calcItemTaxInfo(i).total, 0),
       item_count: mgItems.length,
       status: leader.status,
     }
@@ -66,7 +79,7 @@ export function groupByRemittee(items: WorkbenchItem[]): RemitteeGroup[] {
       bank_info: group.items[0]?.kol_bank_info || null,
       items: group.items,
       merge_groups,
-      total_amount: group.items.reduce((sum, i) => sum + (i.cost_amount || 0), 0),
+      total_amount: group.items.reduce((sum, i) => sum + calcItemTaxInfo(i).total, 0),
       item_count: group.items.length,
       category: group.category,
     }

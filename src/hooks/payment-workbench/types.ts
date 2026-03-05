@@ -81,6 +81,11 @@ export interface MergeGroupInfo {
   leader_item: WorkbenchItem
   member_items: WorkbenchItem[]
   merge_color: string | null
+  /** 成本小計（未稅） */
+  total_cost: number
+  /** 稅金小計（公司行號 5%） */
+  total_tax: number
+  /** 含稅總金額 */
   total_amount: number
   item_count: number
   status: WorkbenchItemStatus
