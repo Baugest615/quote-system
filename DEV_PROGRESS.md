@@ -1,6 +1,6 @@
 # 開發進度追蹤
 
-> 最後更新：2026-03-05
+> 最後更新：2026-03-06
 > 分支：`main`
 > 詳細變更歷程請見 Git commit history（`git log --oneline`）
 
@@ -91,6 +91,15 @@
 - ✅ `computeMonthlyWithholding()` 同步改為 item-level 篩選
 - ✅ `WithholdingReport` + `PaymentOverviewTab` UI 月份清單同步更新
 - ✅ Supabase 查詢加入 `expected_payment_month` 欄位（base + full select）
+- ✅ `tsc --noEmit` 零錯誤、144 payment tests 全通過
+
+### 請款資料流全面修復（2026-03-06）
+- ✅ `expenseMonthToYYYYMM()` 新增 ISO `YYYY-MM` 格式解析（修復混合模式月份判斷失效）
+- ✅ 月份格式統一為中文：新增 `yyyymmToChinese()` 工具函式，工作台寫入 DB 前自動轉為「2026年3月」格式
+- ✅ `InlineItemEditor` 讀取時反轉為 YYYY-MM 供 HTML month input 使用
+- ✅ 工作台月份篩選器正規化：支援中文/ISO 混合格式過渡期，去重顯示中文
+- ✅ 匯款日期自動預填：KOL 群組在匯款總覽自動帶入該月 10 日作為預設值
+- ✅ SQL Migration：三個核准 RPC（`approve_quotation_item`、`approve_expense_claim`、`approve_payment_request`）建立 `accounting_expenses` 時補齊 `payment_confirmation_id`
 - ✅ `tsc --noEmit` 零錯誤、144 payment tests 全通過
 
 ## 待辦事項
