@@ -21,6 +21,13 @@ export function expenseMonthToYYYYMM(expenseMonth: string): string | null {
   return null
 }
 
+/** 將 YYYY-MM 轉為中文格式（"2026年3月"，不補零，與 RPC 一致） */
+export function yyyymmToChinese(month: string): string | null {
+  const match = month.match(/^(\d{4})-(\d{1,2})$/)
+  if (!match) return null
+  return `${match[1]}年${parseInt(match[2], 10)}月`
+}
+
 /**
  * 取得單一 confirmation_item 的帳務月份（YYYY-MM）
  * 混合模式：優先使用 expected_payment_month / claim_month，無則 fallback 到確認日期 + 10 日切點

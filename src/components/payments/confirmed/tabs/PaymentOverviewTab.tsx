@@ -136,6 +136,11 @@ export function PaymentOverviewTab({
                     inits[group.remittanceName].paymentDate = dates[0]!
                 }
             }
+
+            // KOL 項目：從 selectedMonth 預填匯款日期（10 日）
+            if (group.items.length > 0 && !inits[group.remittanceName].paymentDate) {
+                inits[group.remittanceName].paymentDate = `${selectedMonth}-10`
+            }
         }
         setLocalSettings(inits)
     // eslint-disable-next-line react-hooks/exhaustive-deps

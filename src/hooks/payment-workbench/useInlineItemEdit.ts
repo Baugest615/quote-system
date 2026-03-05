@@ -5,6 +5,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import supabase from '@/lib/supabase/client'
 import { queryKeys } from '@/lib/queryKeys'
 import { toast } from 'sonner'
+import { yyyymmToChinese } from '@/lib/payments/aggregation'
 
 const DEBOUNCE_MS = 600
 
@@ -52,9 +53,10 @@ export function useInlineItemEdit() {
       }
 
       timerRef.current[key] = setTimeout(async () => {
+        const chineseMonth = month ? yyyymmToChinese(month) : null
         const { error } = await supabase
           .from('quotation_items')
-          .update({ expected_payment_month: month || null })
+          .update({ expected_payment_month: chineseMonth || null })
           .eq('id', itemId)
 
         if (error) {

@@ -14,6 +14,7 @@ import {
   groupByRemittee as groupByRemitteeUtil,
   groupByCategory as groupByCategoryUtil,
 } from './grouping'
+import { expenseMonthToYYYYMM, yyyymmToChinese } from '@/lib/payments/aggregation'
 
 /** 推導項目的請款狀態（被駁回/撤回的項目歸入 pending，由 UI 顯示駁回原因） */
 function deriveStatus(item: WorkbenchItemRaw): WorkbenchItemStatus {
@@ -46,10 +47,10 @@ function filterItems(
     )
       return false
 
-    // 月份篩選
+    // 月份篩選（正規化比對，支援中文/ISO 混合格式）
     if (
       filters.month !== 'all' &&
-      item.expected_payment_month !== filters.month
+      expenseMonthToYYYYMM(item.expected_payment_month || '') !== expenseMonthToYYYYMM(filters.month)
     )
       return false
 
@@ -134,10 +135,17 @@ export function useWorkbenchItems() {
   }, [rawItems])
 
   const monthOptions = useMemo(() => {
-    const months = new Set(
-      rawItems.map((i) => i.expected_payment_month).filter(Boolean)
-    )
-    return Array.from(months).sort() as string[]
+    const seen = new Map<string, string>()
+    rawItems.forEach(i => {
+      if (!i.expected_payment_month) return
+      const key = expenseMonthToYYYYMM(i.expected_payment_month)
+      if (key && !seen.has(key)) {
+        seen.set(key, yyyymmToChinese(key) || i.expected_payment_month)
+      }
+    })
+    return Array.from(seen.entries())
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([, display]) => display)
   }, [rawItems])
 
   const invalidate = () => {

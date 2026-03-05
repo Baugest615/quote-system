@@ -5,6 +5,7 @@ import { FileText, Calendar } from 'lucide-react'
 import { AttachmentUploader } from '@/components/quotes/v2/AttachmentUploader'
 import { useInlineItemEdit } from '@/hooks/payment-workbench'
 import type { WorkbenchItem } from '@/hooks/payment-workbench/types'
+import { expenseMonthToYYYYMM } from '@/lib/payments/aggregation'
 
 interface InlineItemEditorProps {
   item: WorkbenchItem
@@ -14,7 +15,10 @@ interface InlineItemEditorProps {
 export function InlineItemEditor({ item, readOnly = false }: InlineItemEditorProps) {
   const { updateInvoiceNumber, updatePaymentMonth, onAttachmentsChange } = useInlineItemEdit()
   const [invoice, setInvoice] = useState(item.invoice_number || '')
-  const [month, setMonth] = useState(item.expected_payment_month || '')
+  const [month, setMonth] = useState(() => {
+    if (!item.expected_payment_month) return ''
+    return expenseMonthToYYYYMM(item.expected_payment_month) || item.expected_payment_month
+  })
 
   const handleInvoiceChange = (value: string) => {
     setInvoice(value)
