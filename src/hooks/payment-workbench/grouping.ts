@@ -31,7 +31,7 @@ export function deriveAccountInfo(bankInfo: unknown): {
 }
 
 /** 將項目清單提取合併組 */
-export function extractMergeGroups(items: WorkbenchItem[]): MergeGroupInfo[] {
+export function extractMergeGroups(items: WorkbenchItem[], parentName?: string): MergeGroupInfo[] {
   const mergeGroupMap = new Map<string, WorkbenchItem[]>()
   for (const item of items) {
     if (item.merge_group_id) {
@@ -47,6 +47,7 @@ export function extractMergeGroups(items: WorkbenchItem[]): MergeGroupInfo[] {
     const members = mgItems.filter((i) => !i.is_merge_leader)
     return {
       group_id: groupId,
+      remittance_name: parentName || leader.remittance_name || leader.kol_name || '未指定',
       leader_item: leader,
       member_items: members,
       merge_color: leader.merge_color,
@@ -72,7 +73,7 @@ export function groupByRemittee(items: WorkbenchItem[]): RemitteeGroup[] {
 
   return Array.from(groups.entries()).map(([key, group]) => {
     const name = key.split('::')[1]
-    const merge_groups = extractMergeGroups(group.items)
+    const merge_groups = extractMergeGroups(group.items, name)
 
     return {
       remittance_name: name,

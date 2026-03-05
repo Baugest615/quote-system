@@ -78,6 +78,8 @@ export interface CategorySection {
 /** 合併組資訊 */
 export interface MergeGroupInfo {
   group_id: string
+  /** 統一顯示名稱（繼承自父層 RemitteeGroup.remittance_name） */
+  remittance_name: string
   leader_item: WorkbenchItem
   member_items: WorkbenchItem[]
   merge_color: string | null

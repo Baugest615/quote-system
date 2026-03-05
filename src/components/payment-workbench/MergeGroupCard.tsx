@@ -67,7 +67,7 @@ export function MergeGroupCard({
         <div className="flex-1 text-left">
           <div className="flex items-center gap-2">
             <span className="text-sm font-medium text-foreground">
-              {group.leader_item.remittance_name || group.leader_item.kol_name || '未指定'}
+              {group.remittance_name}
             </span>
             <span className="text-xs text-muted-foreground">
               {group.item_count} 筆合併
