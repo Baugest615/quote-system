@@ -16,6 +16,7 @@ import {
     downloadCsv,
 } from '@/lib/payments/withholding-export'
 import { getBillingMonthKey } from '@/lib/payments/billingPeriod'
+import { getItemBillingMonth } from '@/lib/payments/aggregation'
 import { SettlementCard } from './withholding/SettlementCard'
 import { SummaryCard } from './withholding/SummaryCard'
 import { PersonRow } from './withholding/PersonRow'
@@ -34,10 +35,17 @@ export function WithholdingReport({ confirmations, withholdingRates, alwaysExpan
     const [settleAmount, setSettleAmount] = useState('')
     const [settleNote, setSettleNote] = useState('')
 
-    // 取得所有可用帳務月份（使用 10 日切點規則）
+    // 取得所有可用帳務月份（混合模式：item 的 expected_payment_month 優先）
     const availableMonths = useMemo(() => {
         const months = new Set<string>()
-        confirmations.forEach(c => months.add(getBillingMonthKey(c.confirmation_date)))
+        confirmations.forEach(c => {
+            c.payment_confirmation_items?.forEach(item => {
+                months.add(getItemBillingMonth(item, c.confirmation_date))
+            })
+            if (!c.payment_confirmation_items?.length) {
+                months.add(getBillingMonthKey(c.confirmation_date))
+            }
+        })
         return Array.from(months).sort().reverse()
     }, [confirmations])
 
@@ -45,7 +53,11 @@ export function WithholdingReport({ confirmations, withholdingRates, alwaysExpan
     const [selectedMonth, setSelectedMonth] = useState(() => {
         const currentMonth = getBillingMonthKey(new Date())
         const months = new Set<string>()
-        confirmations.forEach(c => months.add(getBillingMonthKey(c.confirmation_date)))
+        confirmations.forEach(c => {
+            c.payment_confirmation_items?.forEach(item => {
+                months.add(getItemBillingMonth(item, c.confirmation_date))
+            })
+        })
         return months.has(currentMonth) ? currentMonth : (Array.from(months).sort().reverse()[0] || currentMonth)
     })
 

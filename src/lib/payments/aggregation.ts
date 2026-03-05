@@ -1,5 +1,6 @@
 import type {
   PaymentConfirmation,
+  PaymentConfirmationItem,
   MergedRemittanceGroup,
   WithholdingApplicability,
 } from './types'
@@ -10,15 +11,42 @@ import { downloadCsv } from './withholding-export'
 import { getBillingMonthKey } from './billingPeriod'
 
 /** 將 expense_month（"2026年2月" 或 "2026年02月"）轉換為 YYYY-MM 格式 */
-function expenseMonthToYYYYMM(expenseMonth: string): string | null {
+export function expenseMonthToYYYYMM(expenseMonth: string): string | null {
   const match = expenseMonth?.match(/(\d{4})年(\d{1,2})月/)
   if (!match) return null
   return `${match[1]}-${match[2].padStart(2, '0')}`
 }
 
 /**
+ * 取得單一 confirmation_item 的帳務月份（YYYY-MM）
+ * 混合模式：優先使用 expected_payment_month / claim_month，無則 fallback 到確認日期 + 10 日切點
+ */
+export function getItemBillingMonth(
+  item: PaymentConfirmationItem,
+  confirmationDate: string
+): string {
+  // 1. 報價單直接請款（新流程）
+  if (item.quotation_items?.expected_payment_month) {
+    const m = expenseMonthToYYYYMM(item.quotation_items.expected_payment_month)
+    if (m) return m
+  }
+  // 2. 專案請款（舊流程）
+  if (item.payment_requests?.quotation_items?.expected_payment_month) {
+    const m = expenseMonthToYYYYMM(item.payment_requests.quotation_items.expected_payment_month)
+    if (m) return m
+  }
+  // 3. 個人報帳
+  if (item.expense_claims?.claim_month) {
+    const m = expenseMonthToYYYYMM(item.expense_claims.claim_month)
+    if (m) return m
+  }
+  // 4. Fallback: 確認日期 + 10 日切點
+  return getBillingMonthKey(confirmationDate)
+}
+
+/**
  * 從確認清單提取所有可用帳務期間（YYYY-MM 降序）
- * 使用 10 日切點規則：10 日（含）前 → 當月，10 日後 → 次月
+ * 混合模式：優先取 item 的 expected_payment_month，否則用確認日期 + 10 日切點
  */
 export function getAvailableMonths(
   confirmations: PaymentConfirmation[],
@@ -26,7 +54,16 @@ export function getAvailableMonths(
   payrollData?: { payment_date: string | null }[]
 ): string[] {
   const months = new Set<string>()
-  confirmations.forEach(c => months.add(getBillingMonthKey(c.confirmation_date)))
+  confirmations.forEach(c => {
+    // 從每個 item 取帳務月份
+    c.payment_confirmation_items?.forEach(item => {
+      months.add(getItemBillingMonth(item, c.confirmation_date))
+    })
+    // 若無 items，至少加上 confirmation 本身的月份
+    if (!c.payment_confirmation_items?.length) {
+      months.add(getBillingMonthKey(c.confirmation_date))
+    }
+  })
   expenses?.forEach(e => {
     const m = expenseMonthToYYYYMM(e.expense_month || '')
     if (m) months.add(m)
@@ -56,12 +93,27 @@ export function aggregateMonthlyRemittanceGroups(
   const mergedMap = new Map<string, MergedRemittanceGroup>()
 
   // --- 1. 處理 payment_confirmation_items ---
-  const monthConfirmations = confirmations.filter(c =>
-    getBillingMonthKey(c.confirmation_date) === month
-  )
+  // 混合模式：遍歷所有 confirmation，只取帳務月份 === month 的 items
+  // 同一 confirmation 的 items 可能分屬不同月份（因 expected_payment_month 不同）
+  const monthConfirmations: PaymentConfirmation[] = []
 
-  for (const confirmation of monthConfirmations) {
-    const groups = groupItemsByRemittance(confirmation.payment_confirmation_items)
+  for (const confirmation of confirmations) {
+    const matchingItems = (confirmation.payment_confirmation_items || []).filter(
+      item => getItemBillingMonth(item, confirmation.confirmation_date) === month
+    )
+    if (matchingItems.length > 0) {
+      monthConfirmations.push(confirmation)
+    }
+  }
+
+  for (const confirmation of confirmations) {
+    // 只取該月份的 items
+    const monthItems = (confirmation.payment_confirmation_items || []).filter(
+      item => getItemBillingMonth(item, confirmation.confirmation_date) === month
+    )
+    if (monthItems.length === 0) continue
+
+    const groups = groupItemsByRemittance(monthItems)
     const savedSettings = confirmation.remittance_settings || {}
 
     for (const group of groups) {

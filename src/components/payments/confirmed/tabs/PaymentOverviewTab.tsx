@@ -14,6 +14,7 @@ import {
 } from '@/lib/payments/aggregation'
 import { DEFAULT_WITHHOLDING } from '@/hooks/useWithholdingSettings'
 import { getBillingMonthKey } from '@/lib/payments/billingPeriod'
+import { getItemBillingMonth } from '@/lib/payments/aggregation'
 import { RemittanceGroupCard } from '../RemittanceGroupCard'
 
 interface PaymentOverviewTabProps {
@@ -66,8 +67,11 @@ export function PaymentOverviewTab({
     // 從 confirmations 提取 settings 合併
     const mergedSettingsFromDb = useMemo(() => {
         const result: Record<string, RemittanceSettings[string]> = {}
+        // 混合模式：包含有該月份 items 的 confirmation
         const monthConfirmations = confirmations.filter(c =>
-            getBillingMonthKey(c.confirmation_date) === selectedMonth
+            (c.payment_confirmation_items || []).some(
+                item => getItemBillingMonth(item, c.confirmation_date) === selectedMonth
+            )
         )
         for (const c of monthConfirmations) {
             const rs = c.remittance_settings

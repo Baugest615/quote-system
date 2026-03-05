@@ -3,9 +3,9 @@
 
 import type { PaymentConfirmation, RemittanceSettings } from './types'
 import { groupItemsByRemittance } from './grouping'
+import { getItemBillingMonth } from './aggregation'
 import type { WithholdingSettings } from '@/types/custom.types'
 import { DEFAULT_WITHHOLDING } from '@/hooks/useWithholdingSettings'
-import { getBillingMonthKey } from './billingPeriod'
 
 // ==================== 型別定義 ====================
 
@@ -38,10 +38,8 @@ export function computeMonthlyWithholding(
 
     const personMap = new Map<string, WithholdingPersonSummary>()
 
-    // 篩選指定帳務月份的確認清單（使用 10 日切點規則）
-    const monthConfirmations = confirmations.filter(c =>
-        getBillingMonthKey(c.confirmation_date) === month
-    )
+    // 混合模式：遍歷所有 confirmation，只取帳務月份 === month 的 items
+    const monthConfirmations = confirmations
 
     // 第一階段：收集所有群組資料，按匯款戶名歸戶，記錄每筆的 paymentDate + subtotal
     type GroupEntry = {
@@ -61,7 +59,13 @@ export function computeMonthlyWithholding(
     const groupEntries = new Map<string, GroupEntry[]>()
 
     monthConfirmations.forEach(confirmation => {
-        const groups = groupItemsByRemittance(confirmation.payment_confirmation_items)
+        // 只取該月份的 items
+        const monthItems = (confirmation.payment_confirmation_items || []).filter(
+            item => getItemBillingMonth(item, confirmation.confirmation_date) === month
+        )
+        if (monthItems.length === 0) return
+
+        const groups = groupItemsByRemittance(monthItems)
         const savedSettings: RemittanceSettings = confirmation.remittance_settings || {}
 
         groups.forEach(group => {

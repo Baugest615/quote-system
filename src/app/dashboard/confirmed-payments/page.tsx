@@ -97,6 +97,7 @@ export default function ConfirmedPaymentsPage() {
               quantity,
               price,
               cost,
+              expected_payment_month,
               remittance_name,
               remark,
               created_at
@@ -140,6 +141,7 @@ export default function ConfirmedPaymentsPage() {
               quantity,
               price,
               cost,
+              expected_payment_month,
               remittance_name,
               remark,
               created_at
@@ -170,6 +172,7 @@ export default function ConfirmedPaymentsPage() {
             cost,
             cost_amount,
             invoice_number,
+            expected_payment_month,
             remittance_name,
             remark,
             merge_group_id,

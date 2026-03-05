@@ -84,6 +84,15 @@
 - ✅ 職業工會免扣二代健保公式驗證通過（資料流完整：DB → query → grouping → aggregation → export → UI）
 - ✅ `tsc --noEmit` 零錯誤、144 payment tests 全通過
 
+### 匯款總覽月份歸類改為混合模式（2026-03-05）
+- ✅ 新增 `getItemBillingMonth()` — item-level 帳務月份判斷（優先 `expected_payment_month` / `claim_month`，fallback 確認日期 + 10 日切點）
+- ✅ `getAvailableMonths()` 改為 item-level 收集月份
+- ✅ `aggregateMonthlyRemittanceGroups()` 改為遍歷所有 confirmation、按 item 帳務月份篩選（同一 confirmation 的 items 可分屬不同月份）
+- ✅ `computeMonthlyWithholding()` 同步改為 item-level 篩選
+- ✅ `WithholdingReport` + `PaymentOverviewTab` UI 月份清單同步更新
+- ✅ Supabase 查詢加入 `expected_payment_month` 欄位（base + full select）
+- ✅ `tsc --noEmit` 零錯誤、144 payment tests 全通過
+
 ## 待辦事項
 
 ### 優先

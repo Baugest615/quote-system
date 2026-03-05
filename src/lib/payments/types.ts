@@ -38,6 +38,7 @@ export interface BasePaymentItem {
     quantity: number
     price: number
     cost: number | null
+    expected_payment_month?: string | null
     remittance_name: string | null
     remark: string | null
     created_at: string | null
@@ -161,6 +162,7 @@ export interface PaymentConfirmationItem {
     quotation_items: (BasePaymentItem & {
         cost_amount: number | null
         invoice_number: string | null
+        expected_payment_month?: string | null
         merge_group_id: string | null
         merge_color: string | null
         withholding_exempt?: boolean
