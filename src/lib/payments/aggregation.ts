@@ -326,8 +326,8 @@ export function splitRemittanceGroups(groups: MergedRemittanceGroup[]): {
   for (const group of groups) {
     if (group.isCompanyAccount) {
       companyGroups.push(group)
-    } else if (group.isPersonalClaim || (group.payrollItems.length > 0 && group.items.length === 0 && group.expenseItems.length === 0)) {
-      // 個人報帳 或 純薪資群組 → 員工
+    } else if (group.isPersonalClaim || group.payrollItems.length > 0) {
+      // 個人報帳 或 有薪資紀錄 → 員工（含有進項的員工，避免被舊 accounting_expenses 拉到勞報區）
       employeeGroups.push(group)
     } else {
       individualGroups.push(group)
