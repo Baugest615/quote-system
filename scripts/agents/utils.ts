@@ -1,11 +1,13 @@
 /**
- * 共用工具 — Agent 執行、報告儲存
+ * 共用工具 — Agent 執行（via Claude Code CLI）、報告儲存
+ *
+ * 使用 `claude -p` 取代 @anthropic-ai/claude-agent-sdk，
+ * 直接用 Claude Code 訂閱授權，不需要額外 API key。
  */
-import { query, type SDKMessage, type SDKResultMessage } from '@anthropic-ai/claude-agent-sdk';
-import type { Options } from '@anthropic-ai/claude-agent-sdk';
+import { spawn } from 'child_process';
 import fs from 'fs';
 import path from 'path';
-import { PROJECT_ROOT, REPORTS_DIR, MODELS, SAFE_BASH_PATTERNS, AGENT_LIMITS } from './config';
+import { PROJECT_ROOT, REPORTS_DIR, MODELS, AGENT_LIMITS } from './config';
 import { AGENTS, type AgentName } from './agents';
 
 // Re-export logger（保持外部 API 不變）
@@ -23,12 +25,57 @@ export interface AgentResult {
   errors: string[];
 }
 
+// ─── 透過 Claude CLI 執行 ───
+
+function spawnClaude(
+  args: string[],
+  stdinData: string,
+  timeoutMs: number = 300_000,
+): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const proc = spawn('claude', args, {
+      cwd: PROJECT_ROOT,
+      stdio: ['pipe', 'pipe', 'pipe'],
+    });
+
+    let stdout = '';
+    let stderr = '';
+
+    proc.stdout.on('data', (chunk: Buffer) => { stdout += chunk.toString(); });
+    proc.stderr.on('data', (chunk: Buffer) => { stderr += chunk.toString(); });
+
+    // 透過 stdin 傳送 prompt（避免命令列長度限制）
+    proc.stdin.write(stdinData);
+    proc.stdin.end();
+
+    const timer = setTimeout(() => {
+      proc.kill();
+      reject(new Error(`Claude CLI 執行逾時 (${(timeoutMs / 1000).toFixed(0)}s)`));
+    }, timeoutMs);
+
+    proc.on('close', (code) => {
+      clearTimeout(timer);
+      if (code === 0) {
+        resolve(stdout.trim());
+      } else {
+        reject(new Error(
+          `Claude CLI 退出碼 ${code}${stderr ? '\n' + stderr.trim() : ''}`,
+        ));
+      }
+    });
+
+    proc.on('error', (err) => {
+      clearTimeout(timer);
+      reject(err);
+    });
+  });
+}
+
 // ─── 執行單一 Agent ───
 
 export async function runAgent(
   name: AgentName,
   taskPrompt: string,
-  options?: Partial<Options>,
 ): Promise<AgentResult> {
   const agentDef = AGENTS[name];
   const startTime = Date.now();
@@ -47,38 +94,35 @@ export async function runAgent(
   try {
     const modelTier = agentDef.model === 'opus' ? 'opus' : 'sonnet';
     const limits = AGENT_LIMITS[modelTier];
+    const model = agentDef.model === 'opus' ? MODELS.thinking : MODELS.execution;
 
-    const q = query({
-      prompt: taskPrompt,
-      options: {
-        cwd: PROJECT_ROOT,
-        model: agentDef.model === 'opus' ? MODELS.thinking : MODELS.execution,
-        systemPrompt: agentDef.prompt,
-        tools: agentDef.tools as string[],
-        allowedTools: [
-          ...(agentDef.tools as string[]),
-          ...SAFE_BASH_PATTERNS,
-        ],
-        permissionMode: 'dontAsk',
-        maxTurns: limits.maxTurns,
-        maxBudgetUsd: limits.maxBudgetUsd,
-        persistSession: false,
-        settingSources: ['project'],
-        ...options,
-      },
-    });
+    // 組合完整 prompt（角色指令 + 任務）
+    const fullPrompt = [
+      '## 角色與指令',
+      '',
+      agentDef.prompt,
+      '',
+      '## 任務',
+      '',
+      taskPrompt,
+    ].join('\n');
 
-    for await (const message of q) {
-      handleMessage(name, message, result);
-    }
+    const args = [
+      '--model', model,
+      '--max-turns', String(limits.maxTurns),
+      '--output-format', 'text',
+      '-p',  // 放最後，從 stdin 讀取 prompt
+    ];
 
+    const output = await spawnClaude(args, fullPrompt);
+
+    result.output = output;
+    result.success = true;
     result.durationMs = Date.now() - startTime;
-    if (result.errors.length === 0) {
-      result.success = true;
-      logger.success(`${name} 完成 (${(result.durationMs / 1000).toFixed(1)}s, $${result.costUsd.toFixed(4)})`);
-    } else {
-      logger.error(`${name} 完成但有錯誤 (${result.errors.length} 個)`);
-    }
+
+    logger.success(
+      `${name} 完成 (${(result.durationMs / 1000).toFixed(1)}s)`,
+    );
   } catch (err) {
     result.durationMs = Date.now() - startTime;
     const errorMsg = err instanceof Error ? err.message : String(err);
@@ -87,42 +131,6 @@ export async function runAgent(
   }
 
   return result;
-}
-
-/** 處理 SDK 訊息，萃取結果 */
-function handleMessage(agentName: string, message: SDKMessage, result: AgentResult): void {
-  switch (message.type) {
-    case 'assistant': {
-      // 萃取文字內容
-      const textBlocks = message.message.content.filter(
-        (block: { type: string; text?: string }): block is { type: 'text'; text: string } => block.type === 'text',
-      );
-      const text = textBlocks.map((b: { type: 'text'; text: string }) => b.text).join('\n');
-      if (text) {
-        result.output += text + '\n';
-      }
-      break;
-    }
-    case 'result': {
-      const resultMsg = message as SDKResultMessage;
-      result.costUsd = resultMsg.total_cost_usd;
-      if (resultMsg.subtype !== 'success') {
-        if ('errors' in resultMsg) {
-          result.errors.push(...resultMsg.errors);
-        }
-      } else if ('result' in resultMsg && resultMsg.result) {
-        // 最終結果可能包含結構化輸出
-        result.output += resultMsg.result + '\n';
-      }
-      break;
-    }
-    case 'system': {
-      if (message.subtype === 'init') {
-        logger.agent(agentName, `模型: ${message.model}, 工具: ${message.tools.length} 個`);
-      }
-      break;
-    }
-  }
 }
 
 // ─── 報告儲存 ───
@@ -146,7 +154,6 @@ export function formatSummaryReport(
   title: string,
   results: AgentResult[],
 ): string {
-  const totalCost = results.reduce((sum, r) => sum + r.costUsd, 0);
   const totalTime = Math.max(...results.map((r) => r.durationMs));
   const allPassed = results.every((r) => r.success);
 
@@ -156,13 +163,11 @@ export function formatSummaryReport(
   report += `| 指標 | 值 |\n|------|----|\n`;
   report += `| 狀態 | ${allPassed ? '✅ 全部通過' : '❌ 有失敗項目'} |\n`;
   report += `| Agent 數量 | ${results.length} |\n`;
-  report += `| 總耗時 | ${(totalTime / 1000).toFixed(1)}s |\n`;
-  report += `| 總成本 | $${totalCost.toFixed(4)} |\n\n`;
+  report += `| 總耗時 | ${(totalTime / 1000).toFixed(1)}s |\n\n`;
 
   for (const r of results) {
     report += `## ${r.success ? '✅' : '❌'} ${r.name}\n\n`;
-    report += `- 耗時: ${(r.durationMs / 1000).toFixed(1)}s\n`;
-    report += `- 成本: $${r.costUsd.toFixed(4)}\n\n`;
+    report += `- 耗時: ${(r.durationMs / 1000).toFixed(1)}s\n\n`;
     if (r.errors.length > 0) {
       report += `### 錯誤\n\n`;
       for (const err of r.errors) {

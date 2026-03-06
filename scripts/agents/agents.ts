@@ -9,10 +9,17 @@
  * 通用知識（coding 規範、設計模式、安全檢查清單等）由 skills 提供，
  * 此檔案只保留專案特有的知識（路徑、業務邏輯、反直覺設計決策等）。
  */
-import type { AgentDefinition } from '@anthropic-ai/claude-agent-sdk';
 import { TOOL_SETS } from './config';
 import { composePrompt } from './skills';
 import { AGENT_SKILL_MAP } from './skill-map';
+
+/** Agent 定義（本地介面，取代 SDK 的 AgentDefinition） */
+export interface AgentDefinition {
+  description: string;
+  model: 'opus' | 'sonnet';
+  tools: readonly string[];
+  prompt: string;
+}
 
 // ─── 專案特有 Prompts ───
 // 只包含 quote-system 獨有的知識，通用知識由 skills 自動注入。

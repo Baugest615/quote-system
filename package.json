@@ -70,7 +70,6 @@
     "zod": "^4.3.6"
   },
   "devDependencies": {
-    "@anthropic-ai/claude-agent-sdk": "^0.2.68",
     "@testing-library/jest-dom": "^6.1.6",
     "@testing-library/react": "^14.1.2",
     "@testing-library/user-event": "^14.5.1",

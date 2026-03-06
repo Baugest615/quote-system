@@ -71,10 +71,6 @@ ${diffContent.slice(0, REVIEW_CONFIG.maxDiffChars)}
 
 請專注在：邏輯正確性、型別安全、效能、安全性、可維護性。
 輸出問題清單，依嚴重程度排列。不要修改任何檔案，只做 review。`,
-    {
-      // Review 階段只需讀取權限
-      tools: ['Read', 'Grep', 'Glob', 'Bash'],
-    },
   );
 
   // 3. 啟動 tester Agent — 撰寫測試

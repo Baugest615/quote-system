@@ -133,7 +133,6 @@ export async function runDevelopWorkflow(): Promise<void> {
     const result = await runAgent(
       'frontend-dev',
       `請在此 worktree 中開發以下功能：\n\n${featureDesc}\n\n完成後請描述你做了哪些變更。`,
-      { cwd: worktreeDir },
     );
 
     logger.divider();
