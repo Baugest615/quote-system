@@ -334,6 +334,104 @@ describe('aggregateMonthlyRemittanceGroups', () => {
     const groups = aggregateMonthlyRemittanceGroups(confirmations, '2026-03', defaultRates)
     expect(groups[0].totalAmount).toBeGreaterThanOrEqual(groups[1]?.totalAmount ?? 0)
   })
+
+  it('員工合併：同名的 KOL + 個人報帳 + 薪資歸為一組', () => {
+    // KOL 項目（黃榆茜 as KOL）
+    const kolItem = makeConfirmationItem({
+      id: 'ci-kol',
+      amount: 15000,
+      source_type: 'project',
+      payment_requests: {
+        ...makeConfirmationItem().payment_requests!,
+        cost_amount: 15000,
+        quotation_items: {
+          ...makeConfirmationItem().payment_requests!.quotation_items,
+          kol_id: 'k-emp',
+          kols: {
+            id: 'k-emp', name: '黃榆茜', real_name: '黃榆茜',
+            bank_info: {
+              bankType: 'individual',
+              personalAccountName: '黃榆茜',
+              bankName: '台新銀行', branchName: '中山分行', accountNumber: '5555555555',
+            },
+          },
+          remittance_name: '黃榆茜',
+        },
+      },
+    })
+
+    // 個人報帳（黃榆茜 expense claim）
+    const claimItem = makeConfirmationItem({
+      id: 'ci-claim',
+      amount: 3000,
+      source_type: 'personal',
+      expense_claim_id: 'ec-1',
+      payment_request_id: null,
+      payment_requests: null,
+      expense_claims: {
+        id: 'ec-1',
+        submitted_by: 'user-emp',
+        submitter: { full_name: '黃榆茜' },
+        vendor_name: null,
+        claim_month: '2026年3月',
+        total_amount: 3000,
+      } as any,
+    })
+
+    const confirmations = [
+      makeConfirmation({
+        confirmation_date: '2026-03-05',
+        payment_confirmation_items: [kolItem, claimItem],
+      }),
+    ]
+
+    // 加上薪資
+    const payroll: AccountingPayroll[] = [{
+      id: 'p-1',
+      employee_name: '黃榆茜',
+      payment_date: '2026-03-05',
+      net_salary: 35000,
+    } as any]
+
+    const groups = aggregateMonthlyRemittanceGroups(confirmations, '2026-03', defaultRates, undefined, payroll)
+
+    // 應該合併為一組
+    const empGroups = groups.filter(g => g.remittanceName === '黃榆茜')
+    expect(empGroups).toHaveLength(1)
+    // 合併金額 = KOL 15000 + 個人報帳 3000 + 薪資 35000
+    expect(empGroups[0].totalAmount).toBe(15000 + 3000 + 35000)
+    // 員工免扣（isPersonalClaim → full exempt）
+    expect(empGroups[0].totalTax).toBe(0)
+    expect(empGroups[0].totalInsurance).toBe(0)
+  })
+
+  it('非員工的 KOL 不受合併影響', () => {
+    const kolItem = makeConfirmationItem({
+      id: 'ci-pure-kol',
+      amount: 25000,
+    })
+
+    const confirmations = [
+      makeConfirmation({
+        confirmation_date: '2026-03-05',
+        payment_confirmation_items: [kolItem],
+      }),
+    ]
+
+    const payroll: AccountingPayroll[] = [{
+      id: 'p-other',
+      employee_name: '其他員工',
+      payment_date: '2026-03-05',
+      net_salary: 30000,
+    } as any]
+
+    const groups = aggregateMonthlyRemittanceGroups(confirmations, '2026-03', defaultRates, undefined, payroll)
+    // KOL 王大明和員工各一組
+    expect(groups.length).toBe(2)
+    const kol = groups.find(g => g.remittanceName === '王大明')
+    expect(kol).toBeDefined()
+    expect(kol!.totalTax).toBe(2500) // 照常扣稅
+  })
 })
 
 // ==================== splitRemittanceGroups ====================

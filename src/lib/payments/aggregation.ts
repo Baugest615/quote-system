@@ -268,6 +268,10 @@ export function aggregateMonthlyRemittanceGroups(
     }
   }
 
+  // --- 4. 員工合併：同名的 payroll / personal claim / KOL items 歸為一組 ---
+  // 必須在代扣計算之前執行，確保合併後的金額用於門檻判斷
+  consolidateEmployeeGroups(mergedMap)
+
   // 計算代扣代繳
   // 法規：不同日期的給付各自獨立判斷門檻（所得稅法§88、全民健康保險法§31）
   // 若同一人有多筆給付且 paymentDate 不同，按日分組各自判斷門檻
@@ -406,4 +410,67 @@ export function exportBankTransferCsv(
 
   const csv = '\uFEFF' + rows.map(r => r.join(',')).join('\n')
   downloadCsv(csv, `匯款明細_${month}.csv`)
+}
+
+/**
+ * 員工合併：同一人在不同來源（KOL 項目 / 個人報帳 / 薪資）的群組
+ * 合併為單一群組，避免同名員工在 UI 上出現多次。
+ *
+ * 辨識邏輯：
+ * 1. 有 payrollItems 或 isPersonalClaim 的群組視為「已知員工」
+ * 2. 其他群組的 remittanceName 若匹配已知員工，也併入
+ * 3. 合併目標為同名的第一個群組（優先保留有銀行資訊的）
+ *
+ * 必須在代扣計算之前呼叫，確保合併後金額用於門檻判斷。
+ */
+function consolidateEmployeeGroups(
+  mergedMap: Map<string, MergedRemittanceGroup>
+): void {
+  // 1. 找出所有已知員工名稱 → 對應的 primary groupKey
+  const employeePrimaryKey = new Map<string, string>()
+  mergedMap.forEach((group, key) => {
+    if (group.payrollItems.length > 0 || group.isPersonalClaim) {
+      const name = group.remittanceName
+      if (!employeePrimaryKey.has(name)) {
+        employeePrimaryKey.set(name, key)
+      }
+    }
+  })
+
+  if (employeePrimaryKey.size === 0) return
+
+  // 2. 收集需要合併的 [sourceKey → targetKey]
+  const merges: [string, string][] = []
+  mergedMap.forEach((group, key) => {
+    const targetKey = employeePrimaryKey.get(group.remittanceName)
+    if (targetKey && targetKey !== key) {
+      merges.push([key, targetKey])
+    }
+  })
+
+  // 3. 執行合併
+  for (const [sourceKey, targetKey] of merges) {
+    const source = mergedMap.get(sourceKey)
+    const target = mergedMap.get(targetKey)
+    if (!source || !target) continue
+
+    target.items.push(...source.items)
+    target.expenseItems.push(...source.expenseItems)
+    target.payrollItems.push(...source.payrollItems)
+    target.confirmationBreakdowns.push(...source.confirmationBreakdowns)
+    target.totalAmount += source.totalAmount
+    target.totalFee += source.totalFee
+
+    // 保留有銀行資訊的版本
+    if (!target.bankName && source.bankName) {
+      target.bankName = source.bankName
+      target.branchName = source.branchName
+      target.accountNumber = source.accountNumber
+    }
+
+    // 任一來源是個人報帳 → 標記（影響代扣判斷：員工免扣）
+    if (source.isPersonalClaim) target.isPersonalClaim = true
+
+    mergedMap.delete(sourceKey)
+  }
 }
