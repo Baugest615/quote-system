@@ -48,7 +48,7 @@ export function RemittanceGroupCard({
 
     // 是否顯示退回按鈕（僅 Admin + 有 handler + confirmation items）
     const showRevert = isAdmin && onRevertItem
-    const colSpan = showRevert ? 6 : 5
+    const colSpan = showRevert ? 7 : 6
 
     return (
         <div className="bg-card border border-border rounded-lg overflow-hidden">
@@ -194,6 +194,7 @@ export function RemittanceGroupCard({
                                     <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">KOL/服務</th>
                                     <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">執行內容</th>
                                     <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">匯款戶名</th>
+                                    <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">發票</th>
                                     <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">備註</th>
                                     <th className="px-4 py-2 text-right text-xs font-medium text-muted-foreground uppercase tracking-wider">匯款金額</th>
                                     {showRevert && (
@@ -211,6 +212,7 @@ export function RemittanceGroupCard({
                                             return mgId ? mergeGroupLabelMap.get(mgId) : undefined
                                         })()}
                                         onRevertItem={showRevert ? onRevertItem : undefined}
+                                        isCompanyAccount={group.isCompanyAccount}
                                     />
                                 ))}
                                 {group.expenseItems.map((expense) => (
@@ -224,6 +226,7 @@ export function RemittanceGroupCard({
                                         <td className="px-4 py-3 text-foreground/70">{expense.vendor_name || '—'}</td>
                                         <td className="px-4 py-3 text-foreground/70">{expense.expense_type || '—'}</td>
                                         <td className="px-4 py-3 text-foreground/70">{group.remittanceName}</td>
+                                        <td className="px-4 py-3 text-foreground/70 text-xs">{expense.invoice_number || '—'}</td>
                                         <td className="px-4 py-3 text-foreground/70 max-w-40 truncate" title={expense.note || ''}>{expense.note || '—'}</td>
                                         <td className="px-4 py-3 text-right font-medium text-foreground">
                                             NT$ {(expense.total_amount || expense.amount || 0).toLocaleString()}
@@ -242,6 +245,7 @@ export function RemittanceGroupCard({
                                         <td className="px-4 py-3 text-foreground/70">{p.employee_name || '—'}</td>
                                         <td className="px-4 py-3 text-foreground/70">人事薪資</td>
                                         <td className="px-4 py-3 text-foreground/70">{group.remittanceName}</td>
+                                        <td className="px-4 py-3 text-foreground/70 text-xs">—</td>
                                         <td className="px-4 py-3 text-foreground/70 max-w-40 truncate" title={p.note || ''}>{p.note || '—'}</td>
                                         <td className="px-4 py-3 text-right font-medium text-foreground">
                                             NT$ {(p.net_salary || 0).toLocaleString()}

@@ -154,7 +154,9 @@ export function aggregateMonthlyRemittanceGroups(
             hasInsurance: false,
           }
 
-        const subtotal = bucketItems.reduce((s: number, i: PaymentConfirmationItem) => s + i.amount, 0)
+        const rawSubtotal = bucketItems.reduce((s: number, i: PaymentConfirmationItem) => s + (i.amount_at_confirmation || 0), 0)
+        // 公司行號：DB 存未稅成本，顯示時加 5% 營業稅（與工作台 calcItemTaxInfo 一致）
+        const subtotal = group.isCompanyAccount ? Math.round(rawSubtotal * 1.05) : rawSubtotal
         const fee = settings.hasRemittanceFee ? settings.remittanceFeeAmount : 0
 
         const isPersonalClaim = bucketItems.some(

@@ -123,11 +123,10 @@ export interface PaymentConfirmationItem {
     expense_claim_id: string | null
     quotation_item_id: string | null
     source_type: 'project' | 'personal' | 'quotation'
-    amount: number
     created_at: string
 
-    // snapshot 欄位（確認時快照）
-    amount_at_confirmation?: number
+    // snapshot 欄位（確認時快照）— DB 實際欄位名稱
+    amount_at_confirmation: number
     kol_name_at_confirmation?: string
     project_name_at_confirmation?: string
     service_at_confirmation?: string

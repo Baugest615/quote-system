@@ -126,7 +126,7 @@ export function PaymentOverviewTab({
                 inits[group.groupKey] = {
                     hasTax,
                     hasInsurance,
-                    hasRemittanceFee: !applicability.showWithholding && group.items.length > 0 && !group.isPersonalClaim,
+                    hasRemittanceFee: false,
                     remittanceFeeAmount: feeDefault,
                 }
             }

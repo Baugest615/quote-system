@@ -82,8 +82,10 @@ export function computeMonthlyWithholding(
 
             const key = group.remittanceName
             if (!groupEntries.has(key)) groupEntries.set(key, [])
+            // 公司行號：DB 存未稅成本，匯出時加 5% 營業稅
+            const subtotal = group.isCompanyAccount ? Math.round(group.totalAmount * 1.05) : group.totalAmount
             groupEntries.get(key)!.push({
-                subtotal: group.totalAmount,
+                subtotal,
                 paymentDate: settings?.paymentDate || confirmation.confirmation_date,
                 confirmationDate: confirmation.confirmation_date,
                 isExempt: group.isCompanyAccount || group.isWithholdingExempt,

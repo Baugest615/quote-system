@@ -71,9 +71,10 @@ export function ConfirmationDetails({ confirmation, settings, updateSettings, ge
                 return
             }
 
+            const groupSubtotal = group.isCompanyAccount ? Math.round(group.totalAmount * 1.05) : group.totalAmount
             updateSettings(group.remittanceName, {
-                hasTax: group.totalAmount >= taxThreshold,
-                hasInsurance: group.totalAmount >= nhiThreshold,
+                hasTax: groupSubtotal >= taxThreshold,
+                hasInsurance: groupSubtotal >= nhiThreshold,
                 hasRemittanceFee: false,
                 remittanceFeeAmount: feeDefault,
             })
@@ -96,9 +97,9 @@ export function ConfirmationDetails({ confirmation, settings, updateSettings, ge
     if (onRevertItem) {
         const totalAmount = allItems.reduce((sum, item) => {
             if (item.source_type === 'personal' || item.expense_claim_id) {
-                return sum + (item.amount || item.expense_claims?.total_amount || 0)
+                return sum + (item.amount_at_confirmation || item.expense_claims?.total_amount || 0)
             }
-            return sum + (item.amount || item.payment_requests?.cost_amount || 0)
+            return sum + (item.amount_at_confirmation || item.payment_requests?.cost_amount || 0)
         }, 0)
 
         return (
@@ -152,7 +153,8 @@ export function ConfirmationDetails({ confirmation, settings, updateSettings, ge
                 )
 
                 // 即時計算（匯費從 settings，代扣依門檻自動判斷——不依賴 DB 可能過期的值）
-                const subtotal = group.totalAmount
+                // 公司行號：DB 存未稅成本，顯示時加 5% 營業稅
+                const subtotal = group.isCompanyAccount ? Math.round(group.totalAmount * 1.05) : group.totalAmount
                 const fee = settings.hasRemittanceFee ? settings.remittanceFeeAmount : 0
                 const taxRate = withholdingRates?.income_tax_rate ?? DEFAULT_WITHHOLDING.income_tax_rate
                 const nhiRate = withholdingRates?.nhi_supplement_rate ?? DEFAULT_WITHHOLDING.nhi_supplement_rate
@@ -263,6 +265,7 @@ export function ConfirmationDetails({ confirmation, settings, updateSettings, ge
                                             key={item.id}
                                             item={item}
                                             groupLabel={item.payment_requests?.merge_group_id ? mergeGroupLabelMap.get(item.payment_requests.merge_group_id) : undefined}
+                                            isCompanyAccount={group.isCompanyAccount}
                                         />
                                     ))}
                                 </tbody>

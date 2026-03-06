@@ -31,7 +31,7 @@ function makeConfirmationItem(overrides: Partial<PaymentConfirmationItem> = {}):
     expense_claim_id: null,
     quotation_item_id: null,
     source_type: 'project',
-    amount: 5000,
+    amount_at_confirmation: 5000,
     created_at: '2026-03-05',
     payment_requests: {
       quotation_item_id: 'qi-1',
@@ -153,7 +153,7 @@ describe('aggregateMonthlyRemittanceGroups', () => {
       makeConfirmation({
         confirmation_date: '2026-03-05',
         payment_confirmation_items: [
-          makeConfirmationItem({ amount: 30000 }),
+          makeConfirmationItem({ amount_at_confirmation: 30000 }),
         ],
       }),
     ]
@@ -179,7 +179,7 @@ describe('aggregateMonthlyRemittanceGroups', () => {
       makeConfirmation({
         confirmation_date: '2026-03-05',
         payment_confirmation_items: [
-          makeConfirmationItem({ amount: 25000 }),
+          makeConfirmationItem({ amount_at_confirmation: 25000 }),
         ],
       }),
     ]
@@ -197,7 +197,7 @@ describe('aggregateMonthlyRemittanceGroups', () => {
       makeConfirmation({
         confirmation_date: '2026-03-05',
         payment_confirmation_items: [
-          makeConfirmationItem({ amount: 10000 }),
+          makeConfirmationItem({ amount_at_confirmation: 10000 }),
         ],
       }),
     ]
@@ -211,7 +211,7 @@ describe('aggregateMonthlyRemittanceGroups', () => {
       makeConfirmation({
         confirmation_date: '2026-03-05',
         payment_confirmation_items: [
-          makeConfirmationItem({ amount: 25000 }),
+          makeConfirmationItem({ amount_at_confirmation: 25000 }),
         ],
         remittance_settings: {
           '王大明': {
@@ -294,7 +294,7 @@ describe('aggregateMonthlyRemittanceGroups', () => {
       makeConfirmation({
         confirmation_date: '2026-03-05',
         payment_confirmation_items: [
-          makeConfirmationItem({ amount: 25000 }),
+          makeConfirmationItem({ amount_at_confirmation: 25000 }),
         ],
       }),
     ]
@@ -305,10 +305,10 @@ describe('aggregateMonthlyRemittanceGroups', () => {
   })
 
   it('按金額降序排序', () => {
-    const ci1 = makeConfirmationItem({ id: 'ci-1', amount: 3000 })
+    const ci1 = makeConfirmationItem({ id: 'ci-1', amount_at_confirmation: 3000 })
     const ci2 = makeConfirmationItem({
       id: 'ci-2',
-      amount: 8000,
+      amount_at_confirmation: 8000,
       payment_requests: {
         ...makeConfirmationItem().payment_requests!,
         quotation_items: {
@@ -335,11 +335,50 @@ describe('aggregateMonthlyRemittanceGroups', () => {
     expect(groups[0].totalAmount).toBeGreaterThanOrEqual(groups[1]?.totalAmount ?? 0)
   })
 
+  it('公司行號：totalAmount 自動加 5% 營業稅', () => {
+    const companyItem = makeConfirmationItem({
+      id: 'ci-company',
+      amount_at_confirmation: 10000,
+      payment_requests: {
+        ...makeConfirmationItem().payment_requests!,
+        cost_amount: 10000,
+        quotation_items: {
+          ...makeConfirmationItem().payment_requests!.quotation_items,
+          kol_id: 'k-corp',
+          kols: {
+            id: 'k-corp', name: '好棒公司', real_name: null,
+            bank_info: {
+              bankType: 'company',
+              companyAccountName: '好棒有限公司',
+              bankName: '台新銀行', branchName: '中山分行', accountNumber: '9999999999',
+            },
+          },
+          remittance_name: '好棒有限公司',
+        },
+      },
+    })
+    const confirmations = [
+      makeConfirmation({
+        confirmation_date: '2026-03-05',
+        payment_confirmation_items: [companyItem],
+      }),
+    ]
+    const groups = aggregateMonthlyRemittanceGroups(confirmations, '2026-03', defaultRates)
+    const companyGroup = groups.find(g => g.remittanceName === '好棒有限公司')
+    expect(companyGroup).toBeDefined()
+    // 10000 * 1.05 = 10500
+    expect(companyGroup!.totalAmount).toBe(10500)
+    expect(companyGroup!.isCompanyAccount).toBe(true)
+    // 公司戶免扣代繳
+    expect(companyGroup!.totalTax).toBe(0)
+    expect(companyGroup!.totalInsurance).toBe(0)
+  })
+
   it('員工合併：同名的 KOL + 個人報帳 + 薪資歸為一組', () => {
     // KOL 項目（黃榆茜 as KOL）
     const kolItem = makeConfirmationItem({
       id: 'ci-kol',
-      amount: 15000,
+      amount_at_confirmation: 15000,
       source_type: 'project',
       payment_requests: {
         ...makeConfirmationItem().payment_requests!,
@@ -363,7 +402,7 @@ describe('aggregateMonthlyRemittanceGroups', () => {
     // 個人報帳（黃榆茜 expense claim）
     const claimItem = makeConfirmationItem({
       id: 'ci-claim',
-      amount: 3000,
+      amount_at_confirmation: 3000,
       source_type: 'personal',
       expense_claim_id: 'ec-1',
       payment_request_id: null,
@@ -408,7 +447,7 @@ describe('aggregateMonthlyRemittanceGroups', () => {
   it('非員工的 KOL 不受合併影響', () => {
     const kolItem = makeConfirmationItem({
       id: 'ci-pure-kol',
-      amount: 25000,
+      amount_at_confirmation: 25000,
     })
 
     const confirmations = [
@@ -437,14 +476,14 @@ describe('aggregateMonthlyRemittanceGroups', () => {
 
   it('AC-3: 同一匯款對象不同匯款日 → 分為不同群組', () => {
     const item1 = makeConfirmationItem({
-      id: 'ci-1', amount: 15000,
+      id: 'ci-1', amount_at_confirmation: 15000,
       payment_requests: {
         ...makeConfirmationItem().payment_requests!,
         payment_date: '2026-03-10',
       },
     })
     const item2 = makeConfirmationItem({
-      id: 'ci-2', amount: 20000,
+      id: 'ci-2', amount_at_confirmation: 20000,
       payment_requests: {
         ...makeConfirmationItem().payment_requests!,
         payment_date: '2026-03-20',
@@ -463,8 +502,8 @@ describe('aggregateMonthlyRemittanceGroups', () => {
   })
 
   it('AC-4: 無匯款日的請款維持原行為（按月合併，key 不含日期後綴）', () => {
-    const item1 = makeConfirmationItem({ id: 'ci-1', amount: 10000 }) // payment_date: null (default)
-    const item2 = makeConfirmationItem({ id: 'ci-2', amount: 12000 })
+    const item1 = makeConfirmationItem({ id: 'ci-1', amount_at_confirmation: 10000 }) // payment_date: null (default)
+    const item2 = makeConfirmationItem({ id: 'ci-2', amount_at_confirmation: 12000 })
     const confirmation = makeConfirmation({
       confirmation_date: '2026-03-05',
       payment_confirmation_items: [item1, item2],
@@ -477,14 +516,14 @@ describe('aggregateMonthlyRemittanceGroups', () => {
 
   it('AC-8: 同一匯款對象同一日期的多筆 → 合併為一組', () => {
     const item1 = makeConfirmationItem({
-      id: 'ci-1', amount: 15000,
+      id: 'ci-1', amount_at_confirmation: 15000,
       payment_requests: {
         ...makeConfirmationItem().payment_requests!,
         payment_date: '2026-03-15',
       },
     })
     const item2 = makeConfirmationItem({
-      id: 'ci-2', amount: 8000,
+      id: 'ci-2', amount_at_confirmation: 8000,
       payment_requests: {
         ...makeConfirmationItem().payment_requests!,
         payment_date: '2026-03-15',

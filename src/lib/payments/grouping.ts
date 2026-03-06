@@ -148,7 +148,7 @@ export function groupItemsByAccount(items: PaymentConfirmationItem[]): AccountGr
 
         const group = accountMap.get(accountKey)!
         group.items.push(item)
-        group.totalAmount += item.amount || 0
+        group.totalAmount += item.amount_at_confirmation || 0
     })
 
     return Array.from(accountMap.values()).sort((a, b) =>
@@ -175,7 +175,7 @@ export function groupItemsByRemittance(items: PaymentConfirmationItem[]): Remitt
         let accountNumber = ''
         let isCompanyAccount = false
         let isWithholdingExempt = false
-        let amount = item.amount || 0
+        let amount = item.amount_at_confirmation || 0
 
         // --- Phase 1: normalize（依 source_type 取得 KOL 和 bankInfo）---
         if (item.source_type === 'personal' || item.expense_claim_id) {
@@ -188,7 +188,7 @@ export function groupItemsByRemittance(items: PaymentConfirmationItem[]): Remitt
             )
             groupKey = info.groupKey
             displayName = info.displayName
-            amount = item.amount || claim?.total_amount || 0
+            amount = item.amount_at_confirmation || claim?.total_amount || 0
         } else if (item.source_type === 'quotation' || item.quotation_item_id) {
             // 報價單直接請款（新流程）
             const kol = item.quotation_items?.kols
@@ -214,7 +214,7 @@ export function groupItemsByRemittance(items: PaymentConfirmationItem[]): Remitt
             accountNumber = info.accountNumber
             isCompanyAccount = info.isCompanyAccount
             isWithholdingExempt = info.isWithholdingExempt
-            amount = item.amount || item.payment_requests?.cost_amount || 0
+            amount = item.amount_at_confirmation || item.payment_requests?.cost_amount || 0
         }
 
         // --- Phase 2: group（按 groupKey 歸組）---

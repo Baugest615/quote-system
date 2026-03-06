@@ -48,7 +48,7 @@ function makeConfirmationItem(overrides: Partial<PaymentConfirmationItem> = {}):
     expense_claim_id: null,
     quotation_item_id: null,
     source_type: 'project',
-    amount: 5000,
+    amount_at_confirmation: 5000,
     created_at: '2026-01-01',
     payment_requests: {
       quotation_item_id: 'qi-1',
@@ -181,8 +181,8 @@ describe('getCompletionPercentage', () => {
 describe('groupItemsByAccount', () => {
   it('按銀行帳戶分組', () => {
     const items = [
-      makeConfirmationItem({ amount: 3000 }),
-      makeConfirmationItem({ id: 'ci-2', amount: 2000 }),
+      makeConfirmationItem({ amount_at_confirmation: 3000 }),
+      makeConfirmationItem({ id: 'ci-2', amount_at_confirmation: 2000 }),
     ]
     const groups = groupItemsByAccount(items)
     expect(groups).toHaveLength(1) // 同一帳戶
@@ -199,10 +199,10 @@ describe('groupItemsByAccount', () => {
   })
 
   it('按金額降序排序', () => {
-    const item1 = makeConfirmationItem({ id: 'ci-1', amount: 1000 })
+    const item1 = makeConfirmationItem({ id: 'ci-1', amount_at_confirmation: 1000 })
     const item2 = makeConfirmationItem({
       id: 'ci-2',
-      amount: 9000,
+      amount_at_confirmation: 9000,
       payment_requests: {
         quotation_item_id: 'qi-2',
         cost_amount: 9000,
@@ -350,8 +350,8 @@ describe('groupItemsByRemittance', () => {
 
   it('多項同帳戶合併金額', () => {
     const items = [
-      makeConfirmationItem({ id: 'ci-1', amount: 3000 }),
-      makeConfirmationItem({ id: 'ci-2', amount: 7000 }),
+      makeConfirmationItem({ id: 'ci-1', amount_at_confirmation: 3000 }),
+      makeConfirmationItem({ id: 'ci-2', amount_at_confirmation: 7000 }),
     ]
     const groups = groupItemsByRemittance(items)
     expect(groups).toHaveLength(1)

@@ -26,9 +26,10 @@ interface PaymentRecordRowProps {
     item: PaymentConfirmationItem
     groupLabel?: string
     onRevertItem?: (itemId: string) => void
+    isCompanyAccount?: boolean
 }
 
-export const PaymentRecordRow = React.memo(function PaymentRecordRow({ item, groupLabel, onRevertItem }: PaymentRecordRowProps) {
+export const PaymentRecordRow = React.memo(function PaymentRecordRow({ item, groupLabel, onRevertItem, isCompanyAccount }: PaymentRecordRowProps) {
     const revertCell = onRevertItem ? (
         <td className="px-4 py-3 text-center">
             <button
@@ -63,9 +64,10 @@ export const PaymentRecordRow = React.memo(function PaymentRecordRow({ item, gro
                 <td className="px-4 py-3 text-foreground/70">{claim?.vendor_name || '—'}</td>
                 <td className="px-4 py-3 text-foreground/70">{claim?.expense_type || '—'}</td>
                 <td className="px-4 py-3 text-foreground/70">{submitterName || claim?.vendor_name || '—'}</td>
+                <td className="px-4 py-3 text-foreground/70 text-xs">{claim?.invoice_number || '—'}</td>
                 <td className="px-4 py-3 text-foreground/70 max-w-40 truncate" title={claim?.note || ''}>{claim?.note || '—'}</td>
                 <td className="px-4 py-3 text-right font-medium text-foreground">
-                    NT$ {(item.amount || claim?.total_amount || 0).toLocaleString()}
+                    NT$ {(item.amount_at_confirmation || claim?.total_amount || 0).toLocaleString()}
                 </td>
                 {revertCell}
             </tr>
@@ -99,7 +101,8 @@ export const PaymentRecordRow = React.memo(function PaymentRecordRow({ item, gro
         // 最終 fallback：使用 KOL 名稱快照
         remittanceName = remittanceName || item.kol_name_at_confirmation || '未知匯款戶名'
 
-        const amount = item.amount_at_confirmation || qi?.cost_amount || qi?.cost || 0
+        const rawAmount = item.amount_at_confirmation || qi?.cost_amount || qi?.cost || 0
+        const amount = isCompanyAccount ? Math.round(rawAmount * 1.05) : rawAmount
         const remark = qi?.remark || null
 
         const mergeGroupId = qi?.merge_group_id
@@ -143,6 +146,7 @@ export const PaymentRecordRow = React.memo(function PaymentRecordRow({ item, gro
                 <td className="px-4 py-3 text-foreground/70">{kolName}</td>
                 <td className="px-4 py-3 text-foreground/70">{service}</td>
                 <td className="px-4 py-3 text-foreground/70">{remittanceName}</td>
+                <td className="px-4 py-3 text-foreground/70 text-xs">{qi?.invoice_number || '—'}</td>
                 <td className="px-4 py-3 text-foreground/70 max-w-40 truncate" title={remark || ''}>{remark || '—'}</td>
                 <td className="px-4 py-3 text-right font-medium text-foreground">
                     NT$ {amount.toLocaleString()}
@@ -179,7 +183,8 @@ export const PaymentRecordRow = React.memo(function PaymentRecordRow({ item, gro
 
     remittanceName = remittanceName || '未知匯款戶名'
 
-    const amount = item.amount || request?.cost_amount || 0
+    const rawAmount = item.amount_at_confirmation || request?.cost_amount || 0
+    const amount = isCompanyAccount ? Math.round(rawAmount * 1.05) : rawAmount
     const remark = quotationItem?.remark || null
 
     // 合併群組視覺標記
@@ -208,6 +213,7 @@ export const PaymentRecordRow = React.memo(function PaymentRecordRow({ item, gro
             <td className="px-4 py-3 text-foreground/70">{kolName}</td>
             <td className="px-4 py-3 text-foreground/70">{service}</td>
             <td className="px-4 py-3 text-foreground/70">{remittanceName}</td>
+            <td className="px-4 py-3 text-foreground/70 text-xs">{request?.invoice_number || '—'}</td>
             <td className="px-4 py-3 text-foreground/70 max-w-40 truncate" title={remark || ''}>{remark || '—'}</td>
             <td className="px-4 py-3 text-right font-medium text-foreground">
                 NT$ {amount.toLocaleString()}

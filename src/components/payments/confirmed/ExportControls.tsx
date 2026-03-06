@@ -41,7 +41,8 @@ export function ExportControls({ confirmation, settingsMap }: ExportControlsProp
                 }
 
                 // 計算邏輯（只計算匯費，代扣由 WithholdingTab 獨立處理）
-                const subtotal = group.totalAmount
+                // 公司行號：DB 存未稅成本，匯出時加 5% 營業稅
+                const subtotal = group.isCompanyAccount ? Math.round(group.totalAmount * 1.05) : group.totalAmount
                 const fee = settings.hasRemittanceFee ? settings.remittanceFeeAmount : 0
                 const netTotal = subtotal - fee
 
@@ -51,7 +52,8 @@ export function ExportControls({ confirmation, settingsMap }: ExportControlsProp
                     const quotation = quotationItem?.quotations
                     const kol = quotationItem?.kols
 
-                    const amount = item.amount_at_confirmation || item.amount || request?.cost_amount || 0
+                    const rawAmount = item.amount_at_confirmation || request?.cost_amount || 0
+                    const amount = group.isCompanyAccount ? Math.round(rawAmount * 1.05) : rawAmount
 
                     csvData.push([
                         confirmation.confirmation_date,
