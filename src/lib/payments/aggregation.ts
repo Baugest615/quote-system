@@ -282,9 +282,11 @@ export function aggregateMonthlyRemittanceGroups(
       group.totalTax = 0
       group.totalInsurance = 0
     } else if (savedSetting) {
-      // 使用者已手動設定，以手動設定為準（不走分日邏輯）
-      group.totalTax = savedSetting.hasTax ? Math.floor(group.totalAmount * taxRate) : 0
-      group.totalInsurance = isNhiExempt ? 0 : (savedSetting.hasInsurance ? Math.floor(group.totalAmount * nhiRate) : 0)
+      // 使用者已手動設定，但仍需尊重法定門檻（金額未達門檻不扣稅）
+      const meetsThreshold = group.totalAmount >= taxThreshold
+      const meetsNhiThreshold = group.totalAmount >= nhiThreshold
+      group.totalTax = (savedSetting.hasTax && meetsThreshold) ? Math.floor(group.totalAmount * taxRate) : 0
+      group.totalInsurance = isNhiExempt ? 0 : ((savedSetting.hasInsurance && meetsNhiThreshold) ? Math.floor(group.totalAmount * nhiRate) : 0)
     } else {
       // 自動判斷：按 paymentDate 分組計算門檻
       const breakdownsByDate = new Map<string, number>()
