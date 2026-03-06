@@ -275,13 +275,14 @@ export function aggregateMonthlyRemittanceGroups(
     const hasKolItems = group.items.length > 0
     const isExempt = !hasKolItems || group.isCompanyAccount || group.isWithholdingExempt || group.isPersonalClaim
 
-    // 若使用者已手動設定，以手動設定為準（不走分日邏輯）
-    if (savedSetting) {
-      group.totalTax = savedSetting.hasTax ? Math.floor(group.totalAmount * taxRate) : 0
-      group.totalInsurance = savedSetting.hasInsurance ? Math.floor(group.totalAmount * nhiRate) : 0
-    } else if (isExempt) {
+    // 免扣帳戶（公司戶、工會免扣、個人報帳、純薪資/進項）永遠不扣
+    if (isExempt) {
       group.totalTax = 0
       group.totalInsurance = 0
+    } else if (savedSetting) {
+      // 使用者已手動設定，以手動設定為準（不走分日邏輯）
+      group.totalTax = savedSetting.hasTax ? Math.floor(group.totalAmount * taxRate) : 0
+      group.totalInsurance = savedSetting.hasInsurance ? Math.floor(group.totalAmount * nhiRate) : 0
     } else {
       // 自動判斷：按 paymentDate 分組計算門檻
       const breakdownsByDate = new Map<string, number>()
