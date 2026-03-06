@@ -107,8 +107,9 @@ export function PaymentOverviewTab({
             const applicability = checkWithholdingApplicability(group, withholdingRates)
 
             // hasTax/hasInsurance：永遠依據門檻自動判斷（忽略 DB 可能的過期值）
+            // 工會免扣 (isWithholdingExempt) 只免健保，所得稅照扣
             const hasTax = applicability.showWithholding && group.totalAmount >= taxThreshold
-            const hasInsurance = applicability.showWithholding && group.totalAmount >= nhiThreshold
+            const hasInsurance = applicability.showWithholding && !group.isWithholdingExempt && group.totalAmount >= nhiThreshold
 
             if (dbSettings) {
                 // 已有 DB 設定：匯費/匯款日期用 DB 值，代扣重新計算

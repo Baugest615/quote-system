@@ -423,13 +423,13 @@ describe('checkWithholdingApplicability', () => {
     expect(result.reason).toBe('company_account')
   })
 
-  it('免扣 → 不顯示', () => {
+  it('工會免扣 → 仍顯示（所得稅照扣，只免健保）', () => {
     const result = checkWithholdingApplicability(
       { isCompanyAccount: false, isWithholdingExempt: true, totalAmount: 50000 },
       defaultRates
     )
-    expect(result.showWithholding).toBe(false)
-    expect(result.reason).toBe('exempt')
+    expect(result.showWithholding).toBe(true)
+    expect(result.reason).toBe('applicable')
   })
 
   it('低於門檻 → 不顯示', () => {

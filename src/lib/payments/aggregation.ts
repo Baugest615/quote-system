@@ -271,18 +271,20 @@ export function aggregateMonthlyRemittanceGroups(
       .map(c => c.remittance_settings?.[group.remittanceName])
       .find(s => s !== undefined)
 
-    // 代扣只適用於有 KOL 確認項目的勞報帳戶（排除薪資、進項、公司戶、免扣）
+    // 代扣判斷：
+    // - 公司戶 / 個人報帳 / 純薪資進項 → 全免（不扣所得稅、不扣健保）
+    // - 工會免扣 (isWithholdingExempt) → 只免二代健保，所得稅照扣
     const hasKolItems = group.items.length > 0
-    const isExempt = !hasKolItems || group.isCompanyAccount || group.isWithholdingExempt || group.isPersonalClaim
+    const isFullExempt = !hasKolItems || group.isCompanyAccount || group.isPersonalClaim
+    const isNhiExempt = isFullExempt || group.isWithholdingExempt
 
-    // 免扣帳戶（公司戶、工會免扣、個人報帳、純薪資/進項）永遠不扣
-    if (isExempt) {
+    if (isFullExempt) {
       group.totalTax = 0
       group.totalInsurance = 0
     } else if (savedSetting) {
       // 使用者已手動設定，以手動設定為準（不走分日邏輯）
       group.totalTax = savedSetting.hasTax ? Math.floor(group.totalAmount * taxRate) : 0
-      group.totalInsurance = savedSetting.hasInsurance ? Math.floor(group.totalAmount * nhiRate) : 0
+      group.totalInsurance = isNhiExempt ? 0 : (savedSetting.hasInsurance ? Math.floor(group.totalAmount * nhiRate) : 0)
     } else {
       // 自動判斷：按 paymentDate 分組計算門檻
       const breakdownsByDate = new Map<string, number>()
@@ -302,7 +304,7 @@ export function aggregateMonthlyRemittanceGroups(
       let totalInsurance = 0
       Array.from(breakdownsByDate.values()).forEach(dateTotal => {
         if (dateTotal >= taxThreshold) totalTax += Math.floor(dateTotal * taxRate)
-        if (dateTotal >= nhiThreshold) totalInsurance += Math.floor(dateTotal * nhiRate)
+        if (!isNhiExempt && dateTotal >= nhiThreshold) totalInsurance += Math.floor(dateTotal * nhiRate)
       })
       group.totalTax = totalTax
       group.totalInsurance = totalInsurance
@@ -357,9 +359,8 @@ export function checkWithholdingApplicability(
   if (group.isCompanyAccount) {
     return { showWithholding: false, reason: 'company_account' }
   }
-  if (group.isWithholdingExempt) {
-    return { showWithholding: false, reason: 'exempt' }
-  }
+  // 工會免扣只免二代健保，所得稅照扣 → 仍需顯示代扣設定
+  // （isWithholdingExempt 不再阻擋 showWithholding）
   const taxThreshold = rates?.income_tax_threshold ?? DEFAULT_WITHHOLDING.income_tax_threshold
   if (group.totalAmount < taxThreshold) {
     return { showWithholding: false, reason: 'below_threshold' }
