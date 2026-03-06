@@ -55,10 +55,10 @@ function filterItems(
     )
       return false
 
-    // 公司篩選（trim 防禦 DB 中可能的前後空格）
+    // 匯款戶名篩選（trim 防禦 DB 中可能的前後空格）
     if (
       filters.client !== 'all' &&
-      (item.client_name || '').trim() !== filters.client.trim()
+      (item.remittance_name || '').trim() !== filters.client.trim()
     )
       return false
 
@@ -153,8 +153,8 @@ export function useWorkbenchItems() {
   }, [rawItems])
 
   const clientOptions = useMemo(() => {
-    const clients = new Set(rawItems.map((i) => (i.client_name || '').trim()).filter(Boolean))
-    return Array.from(clients).sort() as string[]
+    const names = new Set(rawItems.map((i) => (i.remittance_name || '').trim()).filter(Boolean))
+    return Array.from(names).sort() as string[]
   }, [rawItems])
 
   const monthOptions = useMemo(() => {

@@ -128,7 +128,8 @@ export function aggregateMonthlyRemittanceGroups(
     const savedSettings = confirmation.remittance_settings || {}
 
     for (const group of groups) {
-      const settings = savedSettings[group.remittanceName] || {
+      // settings 查詢：優先用 groupKey，fallback 到 remittanceName（向下相容）
+      const settings = savedSettings[group.groupKey] || savedSettings[group.remittanceName] || {
         hasRemittanceFee: false,
         remittanceFeeAmount: 30,
         hasTax: false,
@@ -142,8 +143,10 @@ export function aggregateMonthlyRemittanceGroups(
         item => item.source_type === 'personal' || item.expense_claim_id
       )
 
-      if (!mergedMap.has(group.remittanceName)) {
-        mergedMap.set(group.remittanceName, {
+      // mergedMap key 改用 groupKey（帳號優先），確保同帳號跨確認清單也能合併
+      if (!mergedMap.has(group.groupKey)) {
+        mergedMap.set(group.groupKey, {
+          groupKey: group.groupKey,
           remittanceName: group.remittanceName,
           bankName: group.bankName,
           branchName: group.branchName,
@@ -163,7 +166,7 @@ export function aggregateMonthlyRemittanceGroups(
         })
       }
 
-      const merged = mergedMap.get(group.remittanceName)!
+      const merged = mergedMap.get(group.groupKey)!
       merged.items.push(...group.items)
       merged.confirmationBreakdowns.push({
         confirmationId: confirmation.id,
@@ -195,9 +198,11 @@ export function aggregateMonthlyRemittanceGroups(
     for (const expense of monthExpenses) {
       const vendorName = expense.vendor_name || '未命名支出'
       const isCompany = expense.payment_target_type === 'vendor'
+      const expenseKey = `vendor_${vendorName}`
 
-      if (!mergedMap.has(vendorName)) {
-        mergedMap.set(vendorName, {
+      if (!mergedMap.has(expenseKey)) {
+        mergedMap.set(expenseKey, {
+          groupKey: expenseKey,
           remittanceName: vendorName,
           bankName: '',
           branchName: '',
@@ -217,7 +222,7 @@ export function aggregateMonthlyRemittanceGroups(
         })
       }
 
-      const group = mergedMap.get(vendorName)!
+      const group = mergedMap.get(expenseKey)!
       group.expenseItems.push(expense)
       group.totalAmount += expense.total_amount || expense.amount || 0
       group.totalFee += expense.remittance_fee || 0
@@ -233,9 +238,11 @@ export function aggregateMonthlyRemittanceGroups(
 
     for (const p of monthPayroll) {
       const employeeName = p.employee_name || '未命名員工'
+      const payrollKey = `payroll_${employeeName}`
 
-      if (!mergedMap.has(employeeName)) {
-        mergedMap.set(employeeName, {
+      if (!mergedMap.has(payrollKey)) {
+        mergedMap.set(payrollKey, {
+          groupKey: payrollKey,
           remittanceName: employeeName,
           bankName: '',
           branchName: '',
@@ -255,7 +262,7 @@ export function aggregateMonthlyRemittanceGroups(
         })
       }
 
-      const group = mergedMap.get(employeeName)!
+      const group = mergedMap.get(payrollKey)!
       group.payrollItems.push(p)
       group.totalAmount += p.net_salary || 0
     }
@@ -266,9 +273,10 @@ export function aggregateMonthlyRemittanceGroups(
   // 若同一人有多筆給付且 paymentDate 不同，按日分組各自判斷門檻
   const result = Array.from(mergedMap.values())
   result.forEach(group => {
-    // 從 DB 設定中讀取（任一 confirmation 有設定即可）
+    // 從同一確認清單的 settings 讀取（不跨清單汙染）
+    // 優先用 groupKey 查詢，fallback 到 remittanceName（向下相容）
     const savedSetting = monthConfirmations
-      .map(c => c.remittance_settings?.[group.remittanceName])
+      .map(c => c.remittance_settings?.[group.groupKey] ?? c.remittance_settings?.[group.remittanceName])
       .find(s => s !== undefined)
 
     // 代扣判斷：

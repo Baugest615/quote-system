@@ -224,6 +224,7 @@ export interface AccountGroup {
 }
 
 export interface RemittanceGroup {
+    groupKey: string
     remittanceName: string
     bankName: string
     branchName: string
@@ -248,6 +249,7 @@ export interface ConfirmationBreakdown {
 }
 
 export interface MergedRemittanceGroup {
+    groupKey: string
     remittanceName: string
     bankName: string
     branchName: string
