@@ -164,6 +164,28 @@ export function groupItemsByAccount(items: PaymentConfirmationItem[]): AccountGr
 export function groupItemsByRemittance(items: PaymentConfirmationItem[]): import('./types').RemittanceGroup[] {
     const remittanceMap = new Map<string, import('./types').RemittanceGroup>()
 
+    // 預處理：為合併組建立統一名稱，避免同組項目因 remittance_name 不一致而分裂
+    // 名稱從 bank_info 推導（跳過個別 qi.remittance_name），確保同 KOL 一致
+    const mergeGroupCanonicalName = new Map<string, string>()
+    for (const item of items) {
+        // 新流程
+        const qi = item.quotation_items
+        const mgId = qi?.merge_group_id || item.payment_requests?.merge_group_id
+        if (!mgId || mergeGroupCanonicalName.has(mgId)) continue
+        const kol = qi?.kols || item.payment_requests?.quotation_items?.kols
+        const bankInfo = (kol?.bank_info || {}) as KolBankInfo
+        let name: string | undefined
+        if (kol) {
+            if (bankInfo.bankType === 'company') {
+                name = bankInfo.companyAccountName || kol.name
+            } else {
+                name = bankInfo.personalAccountName || kol.real_name || kol.name
+            }
+        }
+        name = name || item.kol_name_at_confirmation || '未知匯款戶名'
+        mergeGroupCanonicalName.set(mgId, name)
+    }
+
     items.forEach(item => {
         // 個人報帳項目：依付款對象分組
         if (item.source_type === 'personal' || item.expense_claim_id) {
@@ -206,9 +228,18 @@ export function groupItemsByRemittance(items: PaymentConfirmationItem[]): import
             const kol = qi?.kols
             const bankInfo = (kol?.bank_info || {}) as KolBankInfo
 
-            let remittanceName = qi?.remittance_name?.trim()
-            if (!remittanceName || remittanceName === '未知匯款戶名' || remittanceName === 'Unknown Remittance Name') {
-                remittanceName = undefined
+            // 合併組項目：跳過個別 remittance_name，直接從 bank_info 推導
+            // 避免合併組內項目因 remittance_name 不一致而被拆成多組
+            const mergeGroupId = qi?.merge_group_id
+            let remittanceName: string | undefined
+
+            if (mergeGroupId && mergeGroupCanonicalName.has(mergeGroupId)) {
+                remittanceName = mergeGroupCanonicalName.get(mergeGroupId)
+            } else {
+                remittanceName = qi?.remittance_name?.trim() || undefined
+                if (remittanceName === '未知匯款戶名' || remittanceName === 'Unknown Remittance Name') {
+                    remittanceName = undefined
+                }
             }
             if (!remittanceName && kol) {
                 if (bankInfo.bankType === 'company') {
@@ -219,6 +250,7 @@ export function groupItemsByRemittance(items: PaymentConfirmationItem[]): import
             }
             // 最終 fallback：使用 KOL 名稱快照
             remittanceName = remittanceName || item.kol_name_at_confirmation || '未知匯款戶名'
+
             const groupKey = remittanceName
 
             if (!remittanceMap.has(groupKey)) {
@@ -250,19 +282,23 @@ export function groupItemsByRemittance(items: PaymentConfirmationItem[]): import
         const kol = quotationItem.kols
         const bankInfo = (kol?.bank_info || {}) as KolBankInfo
 
-        let remittanceName = quotationItem.remittance_name?.trim()
+        // 合併組項目：優先使用統一名稱
+        const mergeGroupId = paymentRequest.merge_group_id
+        let remittanceName: string | undefined
 
-        // Treat '未知匯款戶名' or empty as missing to trigger fallback
-        if (!remittanceName || remittanceName === '未知匯款戶名' || remittanceName === 'Unknown Remittance Name') {
-            remittanceName = undefined
+        if (mergeGroupId && mergeGroupCanonicalName.has(mergeGroupId)) {
+            remittanceName = mergeGroupCanonicalName.get(mergeGroupId)
+        } else {
+            remittanceName = quotationItem.remittance_name?.trim() || undefined
+            if (remittanceName === '未知匯款戶名' || remittanceName === 'Unknown Remittance Name') {
+                remittanceName = undefined
+            }
         }
 
         if (!remittanceName && kol) {
             if (bankInfo.bankType === 'company') {
-                // Fallback to KOL name if company account name is missing
                 remittanceName = bankInfo.companyAccountName || kol.name
             } else {
-                // Default to individual if not specified or explicit individual
                 remittanceName = bankInfo.personalAccountName || kol.real_name || kol.name
             }
         }
