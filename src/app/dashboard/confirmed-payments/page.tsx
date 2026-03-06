@@ -87,7 +87,6 @@ export default function ConfirmedPaymentsPage() {
             invoice_number,
             merge_group_id,
             merge_color,
-            payment_date,
             quotation_items (
               id,
               quotation_id,
@@ -132,7 +131,6 @@ export default function ConfirmedPaymentsPage() {
             invoice_number,
             merge_group_id,
             merge_color,
-            payment_date,
             quotation_items (
               id,
               quotation_id,
@@ -343,6 +341,55 @@ export default function ConfirmedPaymentsPage() {
       queryClient.invalidateQueries({ queryKey: ['monthly-settlement'] })
     }
   }, [queryClient])
+
+  // Spec-007：逐筆更新 confirmation_item 的匯款日期，並同步到 accounting_expenses
+  const handleItemPaymentDate = useCallback(async (itemId: string, date: string | null) => {
+    // 1. 更新 payment_confirmation_items.payment_date
+    const { error } = await supabase
+      .from('payment_confirmation_items')
+      .update({ payment_date: date })
+      .eq('id', itemId)
+    if (error) {
+      toast.error('儲存匯款日期失敗: ' + error.message)
+      return
+    }
+
+    // 2. 找到該 item 的關聯資訊以同步 accounting_expenses
+    const { data: item } = await supabase
+      .from('payment_confirmation_items')
+      .select('quotation_item_id, expense_claim_id, payment_request_id')
+      .eq('id', itemId)
+      .single()
+    if (item) {
+      if (item.quotation_item_id) {
+        await supabase
+          .from('accounting_expenses')
+          .update({ payment_date: date })
+          .eq('quotation_item_id', item.quotation_item_id)
+      } else if (item.expense_claim_id) {
+        await supabase
+          .from('accounting_expenses')
+          .update({ payment_date: date })
+          .eq('expense_claim_id', item.expense_claim_id)
+      } else if (item.payment_request_id) {
+        await supabase
+          .from('accounting_expenses')
+          .update({ payment_date: date })
+          .eq('payment_request_id', item.payment_request_id)
+      }
+    }
+
+    // 3. Optimistic update: 更新本地 state
+    setConfirmations(prev => prev.map(c => ({
+      ...c,
+      payment_confirmation_items: c.payment_confirmation_items?.map(pci =>
+        pci.id === itemId ? { ...pci, payment_date: date } : pci
+      ),
+    })))
+
+    queryClient.invalidateQueries({ queryKey: ['accounting-expenses'] })
+    queryClient.invalidateQueries({ queryKey: ['monthly-settlement'] })
+  }, [setConfirmations, queryClient])
 
   // 操作函數
   const toggleExpansion = (id: string) => {
@@ -702,6 +749,7 @@ export default function ConfirmedPaymentsPage() {
           onUpdateSettings={handleOverviewSettingsChange}
           onSetPayrollPaymentDate={handlePayrollPaymentDate}
           onSetExpensePaymentDate={handleExpensePaymentDate}
+          onUpdateItemPaymentDate={handleItemPaymentDate}
           onRevertItem={handleRevertItem}
           isAdmin={hasRole('Admin')}
         />

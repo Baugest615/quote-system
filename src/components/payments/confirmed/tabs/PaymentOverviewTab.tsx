@@ -25,6 +25,7 @@ interface PaymentOverviewTabProps {
     onUpdateSettings?: (confirmationId: string, remittanceName: string, updates: Partial<RemittanceSettings[string]>) => void
     onSetPayrollPaymentDate?: (payrollIds: string[], date: string | null) => void
     onSetExpensePaymentDate?: (expenseIds: string[], date: string | null) => void
+    onUpdateItemPaymentDate?: (itemId: string, date: string | null) => void
     onRevertItem?: (itemId: string) => void
     isAdmin?: boolean
 }
@@ -37,6 +38,7 @@ export function PaymentOverviewTab({
     onUpdateSettings,
     onSetPayrollPaymentDate,
     onSetExpensePaymentDate,
+    onUpdateItemPaymentDate,
     onRevertItem,
     isAdmin,
 }: PaymentOverviewTabProps) {
@@ -139,19 +141,20 @@ export function PaymentOverviewTab({
                 }
             }
 
-            // KOL 項目：優先從 payment_requests.payment_date 讀取預設匯款日（FR-4/FR-5）
+            // Spec-007: 從 confirmation_items.payment_date 讀取預設匯款日
             // 若群組所有項目同一匯款日 → 預設為該日期；否則 fallback 到月份 10 日
             if (group.items.length > 0 && !inits[group.groupKey].paymentDate) {
-                const requestDates = Array.from(new Set(
+                const itemDates = Array.from(new Set(
                     group.items
-                        .map(i => i.payment_requests?.payment_date)
+                        .map(i => i.payment_date)
                         .filter((d): d is string => !!d)
                 ))
-                if (requestDates.length === 1) {
-                    inits[group.groupKey].paymentDate = requestDates[0]
-                } else {
+                if (itemDates.length === 1) {
+                    inits[group.groupKey].paymentDate = itemDates[0]
+                } else if (itemDates.length === 0) {
                     inits[group.groupKey].paymentDate = `${selectedMonth}-10`
                 }
+                // 多個不同日期時不預填群組日期，讓各項目保持各自的日期
             }
         }
         setLocalSettings(inits)
@@ -328,6 +331,7 @@ export function PaymentOverviewTab({
                                 group={group}
                                 settings={getSettings(group.groupKey)}
                                 onUpdateSettings={onUpdateSettings ? handleUpdateSettings : undefined}
+                                onUpdateItemPaymentDate={onUpdateItemPaymentDate}
                                 onRevertItem={onRevertItem}
                                 isAdmin={isAdmin}
                             />
@@ -350,6 +354,7 @@ export function PaymentOverviewTab({
                                 group={group}
                                 settings={getSettings(group.groupKey)}
                                 onUpdateSettings={onUpdateSettings ? handleUpdateSettings : undefined}
+                                onUpdateItemPaymentDate={onUpdateItemPaymentDate}
                                 onRevertItem={onRevertItem}
                                 isAdmin={isAdmin}
                             />
@@ -372,6 +377,7 @@ export function PaymentOverviewTab({
                                 group={group}
                                 settings={getSettings(group.groupKey)}
                                 onUpdateSettings={onUpdateSettings ? handleUpdateSettings : undefined}
+                                onUpdateItemPaymentDate={onUpdateItemPaymentDate}
                                 onRevertItem={onRevertItem}
                                 isAdmin={isAdmin}
                             />

@@ -26,10 +26,22 @@ interface PaymentRecordRowProps {
     item: PaymentConfirmationItem
     groupLabel?: string
     onRevertItem?: (itemId: string) => void
+    onUpdatePaymentDate?: (itemId: string, date: string | null) => void
     isCompanyAccount?: boolean
 }
 
-export const PaymentRecordRow = React.memo(function PaymentRecordRow({ item, groupLabel, onRevertItem, isCompanyAccount }: PaymentRecordRowProps) {
+export const PaymentRecordRow = React.memo(function PaymentRecordRow({ item, groupLabel, onRevertItem, onUpdatePaymentDate, isCompanyAccount }: PaymentRecordRowProps) {
+    const dateCell = (
+        <td className="px-3 py-3">
+            <input
+                type="date"
+                value={item.payment_date || ''}
+                onChange={(e) => onUpdatePaymentDate?.(item.id, e.target.value || null)}
+                className="bg-transparent border border-border rounded px-1.5 py-0.5 text-xs h-7 w-[120px] text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+            />
+        </td>
+    )
+
     const revertCell = onRevertItem ? (
         <td className="px-4 py-3 text-center">
             <button
@@ -66,6 +78,7 @@ export const PaymentRecordRow = React.memo(function PaymentRecordRow({ item, gro
                 <td className="px-4 py-3 text-foreground/70">{submitterName || claim?.vendor_name || '—'}</td>
                 <td className="px-4 py-3 text-foreground/70 text-xs">{claim?.invoice_number || '—'}</td>
                 <td className="px-4 py-3 text-foreground/70 max-w-40 truncate" title={claim?.note || ''}>{claim?.note || '—'}</td>
+                {dateCell}
                 <td className="px-4 py-3 text-right font-medium text-foreground">
                     NT$ {(item.amount_at_confirmation || claim?.total_amount || 0).toLocaleString()}
                 </td>
@@ -148,6 +161,7 @@ export const PaymentRecordRow = React.memo(function PaymentRecordRow({ item, gro
                 <td className="px-4 py-3 text-foreground/70">{remittanceName}</td>
                 <td className="px-4 py-3 text-foreground/70 text-xs">{qi?.invoice_number || '—'}</td>
                 <td className="px-4 py-3 text-foreground/70 max-w-40 truncate" title={remark || ''}>{remark || '—'}</td>
+                {dateCell}
                 <td className="px-4 py-3 text-right font-medium text-foreground">
                     NT$ {amount.toLocaleString()}
                 </td>
@@ -215,6 +229,7 @@ export const PaymentRecordRow = React.memo(function PaymentRecordRow({ item, gro
             <td className="px-4 py-3 text-foreground/70">{remittanceName}</td>
             <td className="px-4 py-3 text-foreground/70 text-xs">{request?.invoice_number || '—'}</td>
             <td className="px-4 py-3 text-foreground/70 max-w-40 truncate" title={remark || ''}>{remark || '—'}</td>
+            {dateCell}
             <td className="px-4 py-3 text-right font-medium text-foreground">
                 NT$ {amount.toLocaleString()}
             </td>

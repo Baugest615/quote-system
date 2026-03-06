@@ -13,6 +13,7 @@ interface RemittanceGroupCardProps {
     settings?: GroupSettings
     onUpdateSettings?: (remittanceName: string, updates: Partial<GroupSettings>) => void
     onRevertItem?: (itemId: string) => void
+    onUpdateItemPaymentDate?: (itemId: string, date: string | null) => void
     isAdmin?: boolean
 }
 
@@ -21,6 +22,7 @@ export function RemittanceGroupCard({
     settings,
     onUpdateSettings,
     onRevertItem,
+    onUpdateItemPaymentDate,
     isAdmin,
 }: RemittanceGroupCardProps) {
     const [isExpanded, setIsExpanded] = useState(false)
@@ -48,7 +50,7 @@ export function RemittanceGroupCard({
 
     // 是否顯示退回按鈕（僅 Admin + 有 handler + confirmation items）
     const showRevert = isAdmin && onRevertItem
-    const colSpan = showRevert ? 7 : 6
+    const colSpan = showRevert ? 8 : 7
 
     return (
         <div className="bg-card border border-border rounded-lg overflow-hidden">
@@ -154,13 +156,20 @@ export function RemittanceGroupCard({
                                         <div className="w-px h-5 bg-border" />
                                     </>
                                 )}
-                                {/* 匯款日期 */}
+                                {/* 統一設定匯款日期 */}
                                 <div className="flex items-center gap-2">
-                                    <label className="text-xs text-muted-foreground whitespace-nowrap">匯款日期</label>
+                                    <label className="text-xs text-muted-foreground whitespace-nowrap">統一設定匯款日</label>
                                     <input
                                         type="date"
                                         value={settings.paymentDate || ''}
-                                        onChange={(e) => onUpdateSettings(group.remittanceName, { paymentDate: e.target.value || undefined })}
+                                        onChange={(e) => {
+                                            const date = e.target.value || null
+                                            onUpdateSettings(group.remittanceName, { paymentDate: date || undefined })
+                                            // 批次更新群組內所有項目的匯款日期
+                                            if (onUpdateItemPaymentDate) {
+                                                group.items.forEach(item => onUpdateItemPaymentDate(item.id, date))
+                                            }
+                                        }}
                                         className="bg-card border border-border rounded px-2 py-0.5 text-xs h-7 focus:outline-none focus:ring-1 focus:ring-primary"
                                     />
                                 </div>
@@ -196,6 +205,7 @@ export function RemittanceGroupCard({
                                     <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">匯款戶名</th>
                                     <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">發票</th>
                                     <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">備註</th>
+                                    <th className="px-3 py-2 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">匯款日</th>
                                     <th className="px-4 py-2 text-right text-xs font-medium text-muted-foreground uppercase tracking-wider">匯款金額</th>
                                     {showRevert && (
                                         <th className="px-4 py-2 text-center text-xs font-medium text-muted-foreground uppercase tracking-wider w-16">操作</th>
@@ -212,6 +222,7 @@ export function RemittanceGroupCard({
                                             return mgId ? mergeGroupLabelMap.get(mgId) : undefined
                                         })()}
                                         onRevertItem={showRevert ? onRevertItem : undefined}
+                                        onUpdatePaymentDate={onUpdateItemPaymentDate}
                                         isCompanyAccount={group.isCompanyAccount}
                                     />
                                 ))}
@@ -228,6 +239,7 @@ export function RemittanceGroupCard({
                                         <td className="px-4 py-3 text-foreground/70">{group.remittanceName}</td>
                                         <td className="px-4 py-3 text-foreground/70 text-xs">{expense.invoice_number || '—'}</td>
                                         <td className="px-4 py-3 text-foreground/70 max-w-40 truncate" title={expense.note || ''}>{expense.note || '—'}</td>
+                                        <td className="px-3 py-3 text-xs text-muted-foreground">—</td>
                                         <td className="px-4 py-3 text-right font-medium text-foreground">
                                             NT$ {(expense.total_amount || expense.amount || 0).toLocaleString()}
                                         </td>
@@ -247,6 +259,7 @@ export function RemittanceGroupCard({
                                         <td className="px-4 py-3 text-foreground/70">{group.remittanceName}</td>
                                         <td className="px-4 py-3 text-foreground/70 text-xs">—</td>
                                         <td className="px-4 py-3 text-foreground/70 max-w-40 truncate" title={p.note || ''}>{p.note || '—'}</td>
+                                        <td className="px-3 py-3 text-xs text-muted-foreground">—</td>
                                         <td className="px-4 py-3 text-right font-medium text-foreground">
                                             NT$ {(p.net_salary || 0).toLocaleString()}
                                         </td>

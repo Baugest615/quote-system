@@ -131,6 +131,9 @@ export interface PaymentConfirmationItem {
     project_name_at_confirmation?: string
     service_at_confirmation?: string
 
+    // 匯款日期（Spec-007：逐筆管理）
+    payment_date: string | null
+
     // 關聯資料（專案請款，source_type='project'）
     payment_requests: {
         quotation_item_id: string
@@ -138,7 +141,6 @@ export interface PaymentConfirmationItem {
         invoice_number: string | null
         merge_group_id: string | null
         merge_color: string | null
-        payment_date: string | null
         quotation_items: BasePaymentItem
     } | null
 

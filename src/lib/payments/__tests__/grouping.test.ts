@@ -89,6 +89,7 @@ function makeConfirmationItem(overrides: Partial<PaymentConfirmationItem> = {}):
         created_at: '2026-01-01',
       },
     },
+    payment_date: null,
     expense_claims: null,
     quotation_items: null,
     ...overrides,
@@ -209,7 +210,6 @@ describe('groupItemsByAccount', () => {
         invoice_number: null,
         merge_group_id: null,
         merge_color: null,
-        payment_date: null,
         quotation_items: {
           ...makeConfirmationItem().payment_requests!.quotation_items,
           kols: {

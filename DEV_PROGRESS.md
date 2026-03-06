@@ -1,6 +1,6 @@
 # 開發進度追蹤
 
-> 最後更新：2026-03-06
+> 最後更新：2026-03-07
 > 分支：`main`
 > 詳細變更歷程請見 Git commit history（`git log --oneline`）
 
@@ -101,6 +101,18 @@
 - ✅ 匯款日期自動預填：KOL 群組在匯款總覽自動帶入該月 10 日作為預設值
 - ✅ SQL Migration：三個核准 RPC（`approve_quotation_item`、`approve_expense_claim`、`approve_payment_request`）建立 `accounting_expenses` 時補齊 `payment_confirmation_id`
 - ✅ `tsc --noEmit` 零錯誤、144 payment tests 全通過
+
+### Spec 007: 匯款日期逐筆管理（2026-03-07，取代 Spec 006）
+- ✅ DB Migration：`payment_confirmation_items` 新增 `payment_date` 欄位
+- ✅ TypeScript 型別更新：`PaymentConfirmationItem` 加入 `payment_date`，移除 `payment_requests.payment_date`
+- ✅ 移除工作台審核日期選擇器（ReviewSection）— 日期改在已確認清單逐筆管理
+- ✅ 簡化核准 hook（`useWorkbenchReview`）— 移除 `paymentDate` 參數和 UPDATE 邏輯
+- ✅ 移除 aggregation 日期分組邏輯 — 不再按日期拆分群組（Spec 006 架構移除）
+- ✅ PaymentRecordRow 新增匯款日期欄位（每筆項目可獨立設定匯款日）
+- ✅ RemittanceGroupCard 改造 — 群組「統一設定匯款日」批次更新所有項目
+- ✅ confirmed-payments page 串接 — `handleItemPaymentDate()` 寫入 DB + 同步 `accounting_expenses`
+- ✅ 測試更新：移除 Spec 006 日期分組測試、新增 Spec 007 行為驗證，164 tests 全通過
+- ✅ `tsc --noEmit` 零錯誤
 
 ## 待辦事項
 

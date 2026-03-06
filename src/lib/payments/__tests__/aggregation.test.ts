@@ -72,6 +72,7 @@ function makeConfirmationItem(overrides: Partial<PaymentConfirmationItem> = {}):
         created_at: '2026-01-01',
       },
     },
+    payment_date: null,
     expense_claims: null,
     quotation_items: null,
     ...overrides,
@@ -472,37 +473,28 @@ describe('aggregateMonthlyRemittanceGroups', () => {
     expect(kol!.totalTax).toBe(2500) // 照常扣稅
   })
 
-  // ==================== Spec 006: 匯款日期分日 ====================
+  // ==================== Spec 007: 匯款日期逐筆管理（取代 Spec 006 日期分組） ====================
 
-  it('AC-3: 同一匯款對象不同匯款日 → 分為不同群組', () => {
+  it('同一匯款對象不同 payment_date → 仍合併為同一組（不再按日期拆分）', () => {
     const item1 = makeConfirmationItem({
-      id: 'ci-1', amount_at_confirmation: 15000,
-      payment_requests: {
-        ...makeConfirmationItem().payment_requests!,
-        payment_date: '2026-03-10',
-      },
+      id: 'ci-1', amount_at_confirmation: 15000, payment_date: '2026-03-10',
     })
     const item2 = makeConfirmationItem({
-      id: 'ci-2', amount_at_confirmation: 20000,
-      payment_requests: {
-        ...makeConfirmationItem().payment_requests!,
-        payment_date: '2026-03-20',
-      },
+      id: 'ci-2', amount_at_confirmation: 20000, payment_date: '2026-03-20',
     })
     const confirmation = makeConfirmation({
       confirmation_date: '2026-03-05',
       payment_confirmation_items: [item1, item2],
     })
     const groups = aggregateMonthlyRemittanceGroups([confirmation], '2026-03', defaultRates)
-    // 同一匯款戶名但不同日期 → 2 組
-    expect(groups).toHaveLength(2)
-    const keys = groups.map(g => g.groupKey)
-    expect(keys.some(k => k.endsWith('_d2026-03-10'))).toBe(true)
-    expect(keys.some(k => k.endsWith('_d2026-03-20'))).toBe(true)
+    // Spec 007: 不再按日期分組，同一匯款戶名合併為 1 組
+    expect(groups).toHaveLength(1)
+    expect(groups[0].groupKey).not.toContain('_d')
+    expect(groups[0].totalAmount).toBe(35000)
   })
 
-  it('AC-4: 無匯款日的請款維持原行為（按月合併，key 不含日期後綴）', () => {
-    const item1 = makeConfirmationItem({ id: 'ci-1', amount_at_confirmation: 10000 }) // payment_date: null (default)
+  it('無 payment_date 的項目維持原行為（按月合併）', () => {
+    const item1 = makeConfirmationItem({ id: 'ci-1', amount_at_confirmation: 10000 })
     const item2 = makeConfirmationItem({ id: 'ci-2', amount_at_confirmation: 12000 })
     const confirmation = makeConfirmation({
       confirmation_date: '2026-03-05',
@@ -510,33 +502,7 @@ describe('aggregateMonthlyRemittanceGroups', () => {
     })
     const groups = aggregateMonthlyRemittanceGroups([confirmation], '2026-03', defaultRates)
     expect(groups).toHaveLength(1)
-    expect(groups[0].groupKey).not.toContain('_d')
     expect(groups[0].totalAmount).toBe(22000)
-  })
-
-  it('AC-8: 同一匯款對象同一日期的多筆 → 合併為一組', () => {
-    const item1 = makeConfirmationItem({
-      id: 'ci-1', amount_at_confirmation: 15000,
-      payment_requests: {
-        ...makeConfirmationItem().payment_requests!,
-        payment_date: '2026-03-15',
-      },
-    })
-    const item2 = makeConfirmationItem({
-      id: 'ci-2', amount_at_confirmation: 8000,
-      payment_requests: {
-        ...makeConfirmationItem().payment_requests!,
-        payment_date: '2026-03-15',
-      },
-    })
-    const confirmation = makeConfirmation({
-      confirmation_date: '2026-03-05',
-      payment_confirmation_items: [item1, item2],
-    })
-    const groups = aggregateMonthlyRemittanceGroups([confirmation], '2026-03', defaultRates)
-    expect(groups).toHaveLength(1)
-    expect(groups[0].groupKey).toContain('_d2026-03-15')
-    expect(groups[0].totalAmount).toBe(23000)
   })
 })
 
