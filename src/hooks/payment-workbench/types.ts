@@ -98,5 +98,6 @@ export interface WorkbenchFilters {
   search: string
   status: WorkbenchItemStatus | 'all'
   project: string | 'all'
+  client: string | 'all'
   month: string | 'all'
 }

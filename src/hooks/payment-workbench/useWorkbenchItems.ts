@@ -55,14 +55,19 @@ function filterItems(
     )
       return false
 
-    // 關鍵字搜尋
+    // 公司篩選
+    if (
+      filters.client !== 'all' &&
+      item.client_name !== filters.client
+    )
+      return false
+
+    // 關鍵字搜尋（人名/匯款戶名/發票/服務內容）
     if (filters.search) {
       const term = filters.search.toLowerCase()
       const searchable = [
         item.remittance_name,
         item.kol_name,
-        item.project_name,
-        item.client_name,
         item.service,
         item.invoice_number,
       ]
@@ -83,6 +88,7 @@ export function useWorkbenchItems() {
     search: '',
     status: 'all',
     project: 'all',
+    client: 'all',
     month: 'all',
   })
 
@@ -129,10 +135,14 @@ export function useWorkbenchItems() {
     [filteredItems]
   )
 
-  // 篩選後的總金額（含稅）
-  const filteredTotal = useMemo(
-    () => filteredItems.reduce((sum, item) => sum + calcItemTaxInfo(item).total, 0),
-    [filteredItems]
+  // 按 Tab 分別計算含稅總金額
+  const pendingTotal = useMemo(
+    () => pendingItems.reduce((sum, item) => sum + calcItemTaxInfo(item).total, 0),
+    [pendingItems]
+  )
+  const requestedTotal = useMemo(
+    () => requestedItems.reduce((sum, item) => sum + calcItemTaxInfo(item).total, 0),
+    [requestedItems]
   )
 
 
@@ -140,6 +150,11 @@ export function useWorkbenchItems() {
   const projectOptions = useMemo(() => {
     const projects = new Set(rawItems.map((i) => i.project_name).filter(Boolean))
     return Array.from(projects).sort() as string[]
+  }, [rawItems])
+
+  const clientOptions = useMemo(() => {
+    const clients = new Set(rawItems.map((i) => i.client_name).filter(Boolean))
+    return Array.from(clients).sort() as string[]
   }, [rawItems])
 
   const monthOptions = useMemo(() => {
@@ -168,7 +183,8 @@ export function useWorkbenchItems() {
     categorySections,
     pendingItems,
     requestedItems,
-    filteredTotal,
+    pendingTotal,
+    requestedTotal,
 
     // 狀態
     isLoading,
@@ -178,6 +194,7 @@ export function useWorkbenchItems() {
     filters,
     setFilters,
     projectOptions,
+    clientOptions,
     monthOptions,
 
     // 操作

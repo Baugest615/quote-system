@@ -15,6 +15,7 @@ interface WorkbenchFiltersProps {
   filters: FiltersType
   onFiltersChange: (filters: FiltersType) => void
   projectOptions: string[]
+  clientOptions: string[]
   monthOptions: string[]
   filteredTotal: number
   filteredCount: number
@@ -24,6 +25,7 @@ export function WorkbenchFilters({
   filters,
   onFiltersChange,
   projectOptions,
+  clientOptions,
   monthOptions,
   filteredTotal,
   filteredCount,
@@ -38,7 +40,7 @@ export function WorkbenchFilters({
       <div className="relative flex-1 min-w-[200px] max-w-[320px]">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
         <Input
-          placeholder="搜尋匯款對象、KOL、專案、公司、發票..."
+          placeholder="搜尋匯款對象、KOL、服務、發票..."
           value={filters.search}
           onChange={(e) => updateFilter('search', e.target.value)}
           className="pl-9 h-9"
@@ -58,6 +60,24 @@ export function WorkbenchFilters({
           {projectOptions.map((p) => (
             <SelectItem key={p} value={p}>
               {p}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+
+      {/* 公司篩選 */}
+      <Select
+        value={filters.client}
+        onValueChange={(v) => updateFilter('client', v)}
+      >
+        <SelectTrigger className="w-[180px] h-9">
+          <SelectValue placeholder="所有公司" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="all">所有公司</SelectItem>
+          {clientOptions.map((c) => (
+            <SelectItem key={c} value={c}>
+              {c}
             </SelectItem>
           ))}
         </SelectContent>

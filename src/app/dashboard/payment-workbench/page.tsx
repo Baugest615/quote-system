@@ -28,11 +28,13 @@ export default function PaymentWorkbenchPage() {
     remitteeGroups,
     pendingItems,
     requestedItems,
-    filteredTotal,
+    pendingTotal,
+    requestedTotal,
     isLoading,
     filters,
     setFilters,
     projectOptions,
+    clientOptions,
     monthOptions,
   } = useWorkbenchItems()
 
@@ -87,9 +89,10 @@ export default function PaymentWorkbenchPage() {
           filters={filters}
           onFiltersChange={setFilters}
           projectOptions={projectOptions}
+          clientOptions={clientOptions}
           monthOptions={monthOptions}
-          filteredTotal={filteredTotal}
-          filteredCount={filteredItems.length}
+          filteredTotal={activeTab === 'pending' ? pendingTotal : requestedTotal}
+          filteredCount={activeTab === 'pending' ? pendingItems.length : requestedItems.length}
         />
 
         {/* Tab 切換 */}
