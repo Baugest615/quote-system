@@ -28,6 +28,7 @@ export default function PaymentWorkbenchPage() {
     remitteeGroups,
     pendingItems,
     requestedItems,
+    filteredTotal,
     isLoading,
     filters,
     setFilters,
@@ -87,6 +88,8 @@ export default function PaymentWorkbenchPage() {
           onFiltersChange={setFilters}
           projectOptions={projectOptions}
           monthOptions={monthOptions}
+          filteredTotal={filteredTotal}
+          filteredCount={filteredItems.length}
         />
 
         {/* Tab 切換 */}

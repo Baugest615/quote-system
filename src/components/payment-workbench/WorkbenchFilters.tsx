@@ -16,6 +16,8 @@ interface WorkbenchFiltersProps {
   onFiltersChange: (filters: FiltersType) => void
   projectOptions: string[]
   monthOptions: string[]
+  filteredTotal: number
+  filteredCount: number
 }
 
 export function WorkbenchFilters({
@@ -23,6 +25,8 @@ export function WorkbenchFilters({
   onFiltersChange,
   projectOptions,
   monthOptions,
+  filteredTotal,
+  filteredCount,
 }: WorkbenchFiltersProps) {
   const updateFilter = (key: keyof FiltersType, value: string) => {
     onFiltersChange({ ...filters, [key]: value })
@@ -34,7 +38,7 @@ export function WorkbenchFilters({
       <div className="relative flex-1 min-w-[200px] max-w-[320px]">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
         <Input
-          placeholder="搜尋匯款對象、KOL、專案、發票..."
+          placeholder="搜尋匯款對象、KOL、專案、公司、發票..."
           value={filters.search}
           onChange={(e) => updateFilter('search', e.target.value)}
           className="pl-9 h-9"
@@ -76,6 +80,14 @@ export function WorkbenchFilters({
           ))}
         </SelectContent>
       </Select>
+
+      {/* 篩選合計 */}
+      <div className="ml-auto flex items-center gap-2 text-sm">
+        <span className="text-muted-foreground">{filteredCount} 筆</span>
+        <span className="font-semibold text-foreground">
+          NT$ {filteredTotal.toLocaleString()}
+        </span>
+      </div>
     </div>
   )
 }

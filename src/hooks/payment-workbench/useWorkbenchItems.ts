@@ -13,6 +13,7 @@ import type {
 import {
   groupByRemittee as groupByRemitteeUtil,
   groupByCategory as groupByCategoryUtil,
+  calcItemTaxInfo,
 } from './grouping'
 import { expenseMonthToYYYYMM, yyyymmToChinese } from '@/lib/payments/aggregation'
 
@@ -61,6 +62,7 @@ function filterItems(
         item.remittance_name,
         item.kol_name,
         item.project_name,
+        item.client_name,
         item.service,
         item.invoice_number,
       ]
@@ -127,6 +129,12 @@ export function useWorkbenchItems() {
     [filteredItems]
   )
 
+  // 篩選後的總金額（含稅）
+  const filteredTotal = useMemo(
+    () => filteredItems.reduce((sum, item) => sum + calcItemTaxInfo(item).total, 0),
+    [filteredItems]
+  )
+
 
   // 可用的篩選選項
   const projectOptions = useMemo(() => {
@@ -160,6 +168,7 @@ export function useWorkbenchItems() {
     categorySections,
     pendingItems,
     requestedItems,
+    filteredTotal,
 
     // 狀態
     isLoading,
