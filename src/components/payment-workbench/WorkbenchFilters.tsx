@@ -65,16 +65,16 @@ export function WorkbenchFilters({
         </SelectContent>
       </Select>
 
-      {/* 公司篩選 */}
+      {/* 匯款戶名篩選 */}
       <Select
         value={filters.client}
         onValueChange={(v) => updateFilter('client', v)}
       >
         <SelectTrigger className="w-[180px] h-9">
-          <SelectValue placeholder="所有公司" />
+          <SelectValue placeholder="所有匯款戶" />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value="all">所有公司</SelectItem>
+          <SelectItem value="all">所有匯款戶</SelectItem>
           {clientOptions.map((c) => (
             <SelectItem key={c} value={c}>
               {c}
