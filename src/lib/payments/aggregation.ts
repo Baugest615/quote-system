@@ -186,7 +186,7 @@ export function aggregateMonthlyRemittanceGroups(
     // - quotation_item_id: 報價單核准自動產生
     // - expense_claim_id: 個人報帳核准自動產生（已有對應 confirmation_item）
     const monthExpenses = expenses.filter(e => {
-      if (e.payment_confirmation_id || e.quotation_item_id || e.expense_claim_id) return false
+      if (e.payment_confirmation_id || e.quotation_item_id || e.expense_claim_id || e.payment_request_id) return false
       const m = expenseMonthToYYYYMM(e.expense_month || '')
       return m === month
     })
