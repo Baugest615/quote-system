@@ -209,6 +209,7 @@ describe('groupItemsByAccount', () => {
         invoice_number: null,
         merge_group_id: null,
         merge_color: null,
+        payment_date: null,
         quotation_items: {
           ...makeConfirmationItem().payment_requests!.quotation_items,
           kols: {

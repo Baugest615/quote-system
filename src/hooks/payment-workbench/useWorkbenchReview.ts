@@ -25,9 +25,9 @@ export function useWorkbenchReview() {
     })
   }, [queryClient])
 
-  /** 核准合併組（團進） */
+  /** 核准合併組（團進），可選填預計匯款日 */
   const approveMergeGroup = useCallback(
-    async (groupId: string) => {
+    async (groupId: string, paymentDate?: string | null) => {
       setIsApproving(true)
       try {
         const { error } = await supabase.rpc('approve_merge_group', {
@@ -35,6 +35,14 @@ export function useWorkbenchReview() {
         })
 
         if (error) throw error
+
+        // 寫入預計匯款日（FR-2）
+        if (paymentDate) {
+          await supabase
+            .from('payment_requests')
+            .update({ payment_date: paymentDate })
+            .eq('merge_group_id', groupId)
+        }
 
         toast.success('合併組已核准')
         await invalidateAll()
@@ -48,9 +56,9 @@ export function useWorkbenchReview() {
     [invalidateAll]
   )
 
-  /** 核准單筆項目 */
+  /** 核准單筆項目，可選填預計匯款日 */
   const approveSingleItem = useCallback(
-    async (itemId: string) => {
+    async (itemId: string, paymentDate?: string | null) => {
       setIsApproving(true)
       try {
         const { error } = await supabase.rpc('approve_quotation_item', {
@@ -58,6 +66,14 @@ export function useWorkbenchReview() {
         })
 
         if (error) throw error
+
+        // 寫入預計匯款日（FR-2）
+        if (paymentDate) {
+          await supabase
+            .from('payment_requests')
+            .update({ payment_date: paymentDate })
+            .eq('quotation_item_id', itemId)
+        }
 
         toast.success('已核准請款')
         await invalidateAll()

@@ -76,8 +76,8 @@ export function PaymentOverviewTab({
         for (const c of monthConfirmations) {
             const rs = c.remittance_settings
             if (!rs) continue
-            for (const [name, s] of Object.entries(rs)) {
-                if (!result[name]) result[name] = { ...s }
+            for (const [key, s] of Object.entries(rs)) {
+                if (!result[key]) result[key] = { ...s }
             }
         }
         return result
@@ -103,7 +103,8 @@ export function PaymentOverviewTab({
 
         const inits: Record<string, RemittanceSettings[string]> = {}
         for (const group of groups) {
-            const dbSettings = mergedSettingsFromDb[group.remittanceName]
+            // settings 查詢：先找含日期的 groupKey，再 fallback 到 remittanceName（向後相容）
+            const dbSettings = mergedSettingsFromDb[group.groupKey] || mergedSettingsFromDb[group.remittanceName]
             const applicability = checkWithholdingApplicability(group, withholdingRates)
 
             // hasTax/hasInsurance：永遠依據門檻自動判斷（忽略 DB 可能的過期值）
@@ -113,7 +114,7 @@ export function PaymentOverviewTab({
 
             if (dbSettings) {
                 // 已有 DB 設定：匯費/匯款日期用 DB 值，代扣重新計算
-                inits[group.remittanceName] = {
+                inits[group.groupKey] = {
                     hasTax,
                     hasInsurance,
                     hasRemittanceFee: dbSettings.hasRemittanceFee,
@@ -122,7 +123,7 @@ export function PaymentOverviewTab({
                 }
             } else {
                 // 新群組：根據類型預設
-                inits[group.remittanceName] = {
+                inits[group.groupKey] = {
                     hasTax,
                     hasInsurance,
                     hasRemittanceFee: !applicability.showWithholding && group.items.length > 0 && !group.isPersonalClaim,
@@ -131,53 +132,63 @@ export function PaymentOverviewTab({
             }
 
             // 薪資群組：從 payroll 記錄反推 paymentDate（不存在 remittance_settings 中）
-            if (group.payrollItems.length > 0 && !inits[group.remittanceName].paymentDate) {
+            if (group.payrollItems.length > 0 && !inits[group.groupKey].paymentDate) {
                 const dates = Array.from(new Set(group.payrollItems.map(p => p.payment_date).filter(Boolean)))
                 if (dates.length === 1) {
-                    inits[group.remittanceName].paymentDate = dates[0]!
+                    inits[group.groupKey].paymentDate = dates[0]!
                 }
             }
 
-            // KOL 項目：從 selectedMonth 預填匯款日期（10 日）
-            if (group.items.length > 0 && !inits[group.remittanceName].paymentDate) {
-                inits[group.remittanceName].paymentDate = `${selectedMonth}-10`
+            // KOL 項目：優先從 payment_requests.payment_date 讀取預設匯款日（FR-4/FR-5）
+            // 若群組所有項目同一匯款日 → 預設為該日期；否則 fallback 到月份 10 日
+            if (group.items.length > 0 && !inits[group.groupKey].paymentDate) {
+                const requestDates = Array.from(new Set(
+                    group.items
+                        .map(i => i.payment_requests?.payment_date)
+                        .filter((d): d is string => !!d)
+                ))
+                if (requestDates.length === 1) {
+                    inits[group.groupKey].paymentDate = requestDates[0]
+                } else {
+                    inits[group.groupKey].paymentDate = `${selectedMonth}-10`
+                }
             }
         }
         setLocalSettings(inits)
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [groups, mergedSettingsFromDb])
 
-    // 找到 remittanceName 對應的所有 confirmation IDs
-    const getConfirmationIdsForName = useCallback((remittanceName: string): string[] => {
+    // 找到 groupKey 對應的所有 confirmation IDs
+    const getConfirmationIdsForKey = useCallback((groupKey: string): string[] => {
         return groups
-            .filter(g => g.remittanceName === remittanceName)
+            .filter(g => g.groupKey === groupKey)
             .flatMap(g => g.confirmationBreakdowns.map(bd => bd.confirmationId))
     }, [groups])
 
-    const handleUpdateSettings = useCallback((remittanceName: string, updates: Partial<RemittanceSettings[string]>) => {
+    const handleUpdateSettings = useCallback((groupKey: string, updates: Partial<RemittanceSettings[string]>) => {
         let mergedSettings: RemittanceSettings[string] | undefined
 
         setLocalSettings(prev => {
-            const current = prev[remittanceName] || {
+            const current = prev[groupKey] || {
                 hasRemittanceFee: false,
                 remittanceFeeAmount: 30,
                 hasTax: false,
                 hasInsurance: false,
             }
             mergedSettings = { ...current, ...updates }
-            return { ...prev, [remittanceName]: mergedSettings }
+            return { ...prev, [groupKey]: mergedSettings }
         })
 
         // 傳完整 merged settings（含 auto-init 的 hasTax/hasInsurance），避免 DB 覆蓋
         if (onUpdateSettings && mergedSettings) {
-            const ids = getConfirmationIdsForName(remittanceName)
+            const ids = getConfirmationIdsForKey(groupKey)
             for (const cid of ids) {
-                onUpdateSettings(cid, remittanceName, mergedSettings)
+                onUpdateSettings(cid, groupKey, mergedSettings)
             }
 
             // 薪資項目：直接更新 accounting_payroll（薪資不經 RPC）
             if (updates.paymentDate !== undefined && onSetPayrollPaymentDate) {
-                const group = groups.find(g => g.remittanceName === remittanceName)
+                const group = groups.find(g => g.groupKey === groupKey)
                 if (group?.payrollItems.length) {
                     onSetPayrollPaymentDate(
                         group.payrollItems.map(p => p.id),
@@ -188,7 +199,7 @@ export function PaymentOverviewTab({
 
             // 進項 payment_date 更新：手動進項 + KOL請款 + 個人報帳（自動建立的 accounting_expenses）
             if (updates.paymentDate !== undefined && onSetExpensePaymentDate) {
-                const group = groups.find(g => g.remittanceName === remittanceName)
+                const group = groups.find(g => g.groupKey === groupKey)
                 const expenseIds: string[] = []
 
                 // 手動建立的進項（無 FK，直接在 expenseItems 中）
@@ -214,10 +225,10 @@ export function PaymentOverviewTab({
                 }
             }
         }
-    }, [onUpdateSettings, getConfirmationIdsForName, onSetPayrollPaymentDate, onSetExpensePaymentDate, expensesData, groups])
+    }, [onUpdateSettings, getConfirmationIdsForKey, onSetPayrollPaymentDate, onSetExpensePaymentDate, expensesData, groups])
 
-    const getSettings = useCallback((remittanceName: string) => {
-        return localSettings[remittanceName] || undefined
+    const getSettings = useCallback((groupKey: string) => {
+        return localSettings[groupKey] || undefined
     }, [localSettings])
 
     // 彙總數字（匯費使用 localSettings 即時計算，代扣從 group 取得）
@@ -228,7 +239,7 @@ export function PaymentOverviewTab({
         let totalInsurance = 0
 
         groups.forEach(g => {
-            const s = localSettings[g.remittanceName]
+            const s = localSettings[g.groupKey]
             totalAmount += g.totalAmount
             totalFee += s?.hasRemittanceFee ? (s.remittanceFeeAmount || 0) : g.totalFee
             totalTax += g.totalTax
@@ -313,9 +324,9 @@ export function PaymentOverviewTab({
                     <div className="space-y-3">
                         {individualGroups.map((group) => (
                             <RemittanceGroupCard
-                                key={group.remittanceName}
+                                key={group.groupKey}
                                 group={group}
-                                settings={getSettings(group.remittanceName)}
+                                settings={getSettings(group.groupKey)}
                                 onUpdateSettings={onUpdateSettings ? handleUpdateSettings : undefined}
                                 onRevertItem={onRevertItem}
                                 isAdmin={isAdmin}
@@ -335,9 +346,9 @@ export function PaymentOverviewTab({
                     <div className="space-y-3">
                         {companyGroups.map((group) => (
                             <RemittanceGroupCard
-                                key={group.remittanceName}
+                                key={group.groupKey}
                                 group={group}
-                                settings={getSettings(group.remittanceName)}
+                                settings={getSettings(group.groupKey)}
                                 onUpdateSettings={onUpdateSettings ? handleUpdateSettings : undefined}
                                 onRevertItem={onRevertItem}
                                 isAdmin={isAdmin}
@@ -357,9 +368,9 @@ export function PaymentOverviewTab({
                     <div className="space-y-3">
                         {employeeGroups.map((group) => (
                             <RemittanceGroupCard
-                                key={group.remittanceName}
+                                key={group.groupKey}
                                 group={group}
-                                settings={getSettings(group.remittanceName)}
+                                settings={getSettings(group.groupKey)}
                                 onUpdateSettings={onUpdateSettings ? handleUpdateSettings : undefined}
                                 onRevertItem={onRevertItem}
                                 isAdmin={isAdmin}

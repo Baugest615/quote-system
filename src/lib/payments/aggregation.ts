@@ -128,57 +128,75 @@ export function aggregateMonthlyRemittanceGroups(
     const savedSettings = confirmation.remittance_settings || {}
 
     for (const group of groups) {
-      // settings 查詢：優先用 groupKey，fallback 到 remittanceName（向下相容）
-      const settings = savedSettings[group.groupKey] || savedSettings[group.remittanceName] || {
-        hasRemittanceFee: false,
-        remittanceFeeAmount: 30,
-        hasTax: false,
-        hasInsurance: false,
+      // 按 payment_date 分拆：同一匯款對象 + 不同匯款日 → 不同群組（FR-3）
+      // 將 group.items 依 payment_date 分桶
+      const buckets = new Map<string | null, typeof group.items>()
+      for (const item of group.items) {
+        const pd = item.payment_requests?.payment_date ?? null
+        if (!buckets.has(pd)) buckets.set(pd, [])
+        buckets.get(pd)!.push(item)
       }
 
-      const subtotal = group.totalAmount
-      const fee = settings.hasRemittanceFee ? settings.remittanceFeeAmount : 0
+      for (const [paymentDate, bucketItems] of Array.from(buckets.entries())) {
+        // 含匯款日的 key 加上日期後綴（向後相容：無日期維持原 key）
+        const extendedKey = paymentDate
+          ? `${group.groupKey}_d${paymentDate}`
+          : group.groupKey
 
-      const isPersonalClaim = group.items.some(
-        item => item.source_type === 'personal' || item.expense_claim_id
-      )
+        // settings 查詢：先找含日期 key，再 fallback 到原 key、remittanceName
+        const settings =
+          savedSettings[extendedKey] ||
+          savedSettings[group.groupKey] ||
+          savedSettings[group.remittanceName] || {
+            hasRemittanceFee: false,
+            remittanceFeeAmount: 30,
+            hasTax: false,
+            hasInsurance: false,
+          }
 
-      // mergedMap key 改用 groupKey（帳號優先），確保同帳號跨確認清單也能合併
-      if (!mergedMap.has(group.groupKey)) {
-        mergedMap.set(group.groupKey, {
-          groupKey: group.groupKey,
-          remittanceName: group.remittanceName,
-          bankName: group.bankName,
-          branchName: group.branchName,
-          accountNumber: group.accountNumber,
-          isCompanyAccount: group.isCompanyAccount,
-          isWithholdingExempt: group.isWithholdingExempt,
-          isPersonalClaim,
-          items: [],
-          expenseItems: [],
-          payrollItems: [],
-          confirmationBreakdowns: [],
-          totalAmount: 0,
-          totalTax: 0,
-          totalInsurance: 0,
-          totalFee: 0,
-          netTotal: 0,
+        const subtotal = bucketItems.reduce((s: number, i: PaymentConfirmationItem) => s + i.amount, 0)
+        const fee = settings.hasRemittanceFee ? settings.remittanceFeeAmount : 0
+
+        const isPersonalClaim = bucketItems.some(
+          (item: PaymentConfirmationItem) => item.source_type === 'personal' || item.expense_claim_id
+        )
+
+        if (!mergedMap.has(extendedKey)) {
+          mergedMap.set(extendedKey, {
+            groupKey: extendedKey,
+            remittanceName: group.remittanceName,
+            bankName: group.bankName,
+            branchName: group.branchName,
+            accountNumber: group.accountNumber,
+            isCompanyAccount: group.isCompanyAccount,
+            isWithholdingExempt: group.isWithholdingExempt,
+            isPersonalClaim,
+            items: [],
+            expenseItems: [],
+            payrollItems: [],
+            confirmationBreakdowns: [],
+            totalAmount: 0,
+            totalTax: 0,
+            totalInsurance: 0,
+            totalFee: 0,
+            netTotal: 0,
+          })
+        }
+
+        const merged = mergedMap.get(extendedKey)!
+        merged.items.push(...bucketItems)
+        merged.confirmationBreakdowns.push({
+          confirmationId: confirmation.id,
+          confirmationDate: confirmation.confirmation_date,
+          subtotal,
+          tax: 0,
+          insurance: 0,
+          fee,
+          paymentDate: paymentDate ?? settings.paymentDate,
         })
+        merged.totalAmount += subtotal
+        merged.totalFee += fee
       }
-
-      const merged = mergedMap.get(group.groupKey)!
-      merged.items.push(...group.items)
-      merged.confirmationBreakdowns.push({
-        confirmationId: confirmation.id,
-        confirmationDate: confirmation.confirmation_date,
-        subtotal,
-        tax: 0,
-        insurance: 0,
-        fee,
-        paymentDate: settings.paymentDate,
-      })
-      merged.totalAmount += subtotal
-      merged.totalFee += fee
     }
   }
 
@@ -423,26 +441,34 @@ export function exportBankTransferCsv(
  *
  * 必須在代扣計算之前呼叫，確保合併後金額用於門檻判斷。
  */
+/** 從 groupKey 提取日期後綴（如 `_d2026-03-15` → `2026-03-15`，無則 ''） */
+function extractDateSuffix(key: string): string {
+  const match = key.match(/_d(\d{4}-\d{2}-\d{2})$/)
+  return match ? match[1] : ''
+}
+
 function consolidateEmployeeGroups(
   mergedMap: Map<string, MergedRemittanceGroup>
 ): void {
-  // 1. 找出所有已知員工名稱 → 對應的 primary groupKey
-  const employeePrimaryKey = new Map<string, string>()
+  // 1. 找出所有已知員工名稱 → 對應的 primary groupKey（以 (name, dateSuffix) 為複合鍵）
+  // 確保只合併同一匯款日期的群組（FR-3 不同日期 → 不同群組）
+  const employeePrimaryKey = new Map<string, string>() // key: `${name}::${dateSuffix}`
   mergedMap.forEach((group, key) => {
     if (group.payrollItems.length > 0 || group.isPersonalClaim) {
-      const name = group.remittanceName
-      if (!employeePrimaryKey.has(name)) {
-        employeePrimaryKey.set(name, key)
+      const compositeKey = `${group.remittanceName}::${extractDateSuffix(key)}`
+      if (!employeePrimaryKey.has(compositeKey)) {
+        employeePrimaryKey.set(compositeKey, key)
       }
     }
   })
 
   if (employeePrimaryKey.size === 0) return
 
-  // 2. 收集需要合併的 [sourceKey → targetKey]
+  // 2. 收集需要合併的 [sourceKey → targetKey]（同名 + 同日期才合併）
   const merges: [string, string][] = []
   mergedMap.forEach((group, key) => {
-    const targetKey = employeePrimaryKey.get(group.remittanceName)
+    const compositeKey = `${group.remittanceName}::${extractDateSuffix(key)}`
+    const targetKey = employeePrimaryKey.get(compositeKey)
     if (targetKey && targetKey !== key) {
       merges.push([key, targetKey])
     }

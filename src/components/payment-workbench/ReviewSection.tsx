@@ -28,6 +28,8 @@ export function ReviewSection({ items, isReviewer }: ReviewSectionProps) {
 
   const [rejectTarget, setRejectTarget] = useState<{ type: 'group' | 'single'; id: string } | null>(null)
   const [rejectReason, setRejectReason] = useState('')
+  // 每個匯款對象的預計匯款日（keyed by remittance_name）
+  const [paymentDates, setPaymentDates] = useState<Record<string, string>>({})
 
   // v1.1: 按帳戶類型分組
   const categorySections = useMemo(() => itemsToCategorySections(items), [items])
@@ -77,7 +79,22 @@ export function ReviewSection({ items, isReviewer }: ReviewSectionProps) {
 
           {section.groups.map((group) => (
             <div key={group.remittance_name} className="space-y-2 ml-1">
-              <h3 className="text-sm font-medium text-foreground px-1">{group.remittance_name}</h3>
+              <div className="flex items-center gap-3 px-1">
+                <h3 className="text-sm font-medium text-foreground">{group.remittance_name}</h3>
+                {isReviewer && (
+                  <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                    <span>匯款日</span>
+                    <input
+                      type="date"
+                      value={paymentDates[group.remittance_name] || ''}
+                      onChange={(e) =>
+                        setPaymentDates(prev => ({ ...prev, [group.remittance_name]: e.target.value }))
+                      }
+                      className="h-6 text-xs bg-secondary border border-border rounded px-1.5 text-foreground"
+                    />
+                  </div>
+                )}
+              </div>
 
               {/* 合併組 */}
               {group.merge_groups.map((mg) => (
@@ -86,7 +103,7 @@ export function ReviewSection({ items, isReviewer }: ReviewSectionProps) {
                   group={mg}
                   showReviewActions={isReviewer}
                   showWithdrawAction
-                  onApprove={approveMergeGroup}
+                  onApprove={(id) => approveMergeGroup(id, paymentDates[group.remittance_name] || null)}
                   onReject={(id) => setRejectTarget({ type: 'group', id })}
                   onWithdraw={withdrawMergeGroup}
                   isLoading={isLoading}
@@ -146,7 +163,7 @@ export function ReviewSection({ items, isReviewer }: ReviewSectionProps) {
                           variant="outline"
                           className="text-emerald-400 border-emerald-400/30 hover:bg-emerald-400/10"
                           disabled={isLoading}
-                          onClick={() => approveSingleItem(item.id)}
+                          onClick={() => approveSingleItem(item.id, paymentDates[group.remittance_name] || null)}
                         >
                           <Check className="w-3.5 h-3.5 mr-1" />
                           核准

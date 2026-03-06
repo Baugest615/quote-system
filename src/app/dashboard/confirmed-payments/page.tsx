@@ -87,6 +87,7 @@ export default function ConfirmedPaymentsPage() {
             invoice_number,
             merge_group_id,
             merge_color,
+            payment_date,
             quotation_items (
               id,
               quotation_id,
@@ -131,6 +132,7 @@ export default function ConfirmedPaymentsPage() {
             invoice_number,
             merge_group_id,
             merge_color,
+            payment_date,
             quotation_items (
               id,
               quotation_id,

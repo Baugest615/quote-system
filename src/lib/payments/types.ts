@@ -139,6 +139,7 @@ export interface PaymentConfirmationItem {
         invoice_number: string | null
         merge_group_id: string | null
         merge_color: string | null
+        payment_date: string | null
         quotation_items: BasePaymentItem
     } | null
 
