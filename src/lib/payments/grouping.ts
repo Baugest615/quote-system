@@ -5,10 +5,12 @@ import type {
     ProjectGroup,
     AccountGroup,
     PaymentAttachment,
-    PaymentConfirmationItem
+    PaymentConfirmationItem,
+    RemittanceGroup
 } from './types'
 import { isItemReady } from './validation'
 import { type KolBankInfo } from '@/types/schemas'
+import { deriveRemitteeInfo, derivePersonalClaimInfo } from './remittee'
 
 // ==================== 專案分組 ====================
 
@@ -161,126 +163,79 @@ export function groupItemsByAccount(items: PaymentConfirmationItem[]): AccountGr
  * @param items 已確認請款項目
  * @returns 匯款戶名分組列表
  */
-export function groupItemsByRemittance(items: PaymentConfirmationItem[]): import('./types').RemittanceGroup[] {
-    const remittanceMap = new Map<string, import('./types').RemittanceGroup>()
+export function groupItemsByRemittance(items: PaymentConfirmationItem[]): RemittanceGroup[] {
+    const remittanceMap = new Map<string, RemittanceGroup>()
 
-    /** 從 bank_info 推導統一顯示名稱（不依賴 remittance_name，避免同帳號不同名） */
-    function deriveDisplayName(
-        kol: { name: string; real_name?: string | null; bank_info?: unknown; withholding_exempt?: boolean | null } | null | undefined,
-        bankInfo: KolBankInfo,
-        fallbackName?: string | null
-    ): string {
-        if (kol) {
-            if (bankInfo.bankType === 'company') {
-                return bankInfo.companyAccountName || kol.name
-            }
-            return bankInfo.personalAccountName || kol.real_name || kol.name
-        }
-        return fallbackName || '未知匯款戶名'
-    }
+    // normalize + group 兩階段：每個 item 先推導 remitteeInfo，再按 groupKey 歸組
+    for (const item of items) {
+        let groupKey: string
+        let displayName: string
+        let bankName = ''
+        let branchName = ''
+        let accountNumber = ''
+        let isCompanyAccount = false
+        let isWithholdingExempt = false
+        let amount = item.amount || 0
 
-    /** 產生分組 key：有帳號用帳號（確保同帳號不分裂），無帳號用名稱 */
-    function makeGroupKey(accountNumber: string | undefined, displayName: string): string {
-        if (accountNumber) return `acct_${accountNumber}`
-        return `name_${displayName}`
-    }
-
-    items.forEach(item => {
-        // 個人報帳項目：依付款對象分組
+        // --- Phase 1: normalize（依 source_type 取得 KOL 和 bankInfo）---
         if (item.source_type === 'personal' || item.expense_claim_id) {
+            // 個人報帳：從 expense_claims 推導
             const claim = item.expense_claims
-            const submitterName = claim?.submitter?.full_name || null
-            const vendorName = claim?.vendor_name || null
-
-            // 判斷匯款對象：廠商名稱與提交人不同時，錢匯給廠商（如外包服務）
-            const isExternalVendor = vendorName && submitterName && vendorName !== submitterName
-            const displayName = isExternalVendor ? vendorName : (submitterName || vendorName || '個人報帳')
-            const groupKey = isExternalVendor
-                ? `vendor_${vendorName}`
-                : `personal_${claim?.submitted_by || displayName}`
-
-            if (!remittanceMap.has(groupKey)) {
-                remittanceMap.set(groupKey, {
-                    remittanceName: isExternalVendor ? vendorName : displayName,
-                    bankName: '',
-                    branchName: '',
-                    accountNumber: '',
-                    items: [],
-                    totalAmount: 0,
-                    isCompanyAccount: false,
-                    isWithholdingExempt: false,
-                })
-            }
-
-            const group = remittanceMap.get(groupKey)!
-            group.items.push(item)
-            group.totalAmount += item.amount || claim?.total_amount || 0
-            return
+            const info = derivePersonalClaimInfo(
+                claim?.submitter?.full_name || null,
+                claim?.vendor_name || null,
+                claim?.submitted_by || null
+            )
+            groupKey = info.groupKey
+            displayName = info.displayName
+            amount = item.amount || claim?.total_amount || 0
+        } else if (item.source_type === 'quotation' || item.quotation_item_id) {
+            // 報價單直接請款（新流程）
+            const kol = item.quotation_items?.kols
+            const info = deriveRemitteeInfo(kol)
+            groupKey = info.groupKey
+            displayName = info.displayName || item.kol_name_at_confirmation || '未知匯款戶名'
+            bankName = info.bankName
+            branchName = info.branchName
+            accountNumber = info.accountNumber
+            isCompanyAccount = info.isCompanyAccount
+            isWithholdingExempt = info.isWithholdingExempt
+            amount = item.amount_at_confirmation || item.quotation_items?.cost_amount || item.quotation_items?.cost || 0
+        } else {
+            // 專案請款（舊流程）
+            const quotationItem = item.payment_requests?.quotation_items
+            if (!quotationItem) continue
+            const kol = quotationItem.kols
+            const info = deriveRemitteeInfo(kol)
+            groupKey = info.groupKey
+            displayName = info.displayName
+            bankName = info.bankName
+            branchName = info.branchName
+            accountNumber = info.accountNumber
+            isCompanyAccount = info.isCompanyAccount
+            isWithholdingExempt = info.isWithholdingExempt
+            amount = item.amount || item.payment_requests?.cost_amount || 0
         }
 
-        // 報價單直接請款項目（新流程）
-        if (item.source_type === 'quotation' || item.quotation_item_id) {
-            const qi = item.quotation_items
-            const kol = qi?.kols
-            const bankInfo = (kol?.bank_info || {}) as KolBankInfo
-
-            // 一律從 bank_info 推導顯示名稱，避免 remittance_name 不一致導致同帳號被拆分
-            const remittanceName = deriveDisplayName(kol, bankInfo, item.kol_name_at_confirmation)
-            const groupKey = makeGroupKey(bankInfo.accountNumber, remittanceName)
-
-            if (!remittanceMap.has(groupKey)) {
-                remittanceMap.set(groupKey, {
-                    remittanceName,
-                    bankName: bankInfo.bankName || '',
-                    branchName: bankInfo.branchName || '',
-                    accountNumber: bankInfo.accountNumber || '',
-                    items: [],
-                    totalAmount: 0,
-                    isCompanyAccount: bankInfo.bankType === 'company',
-                    isWithholdingExempt: kol?.withholding_exempt === true,
-                })
-            }
-
-            const group = remittanceMap.get(groupKey)!
-            group.items.push(item)
-            group.totalAmount += item.amount_at_confirmation || qi?.cost_amount || qi?.cost || 0
-            return
-        }
-
-        // 專案請款項目：以匯款戶名分組（舊流程）
-        const paymentRequest = item.payment_requests
-        if (!paymentRequest) return
-
-        const quotationItem = paymentRequest.quotation_items
-        if (!quotationItem) return
-
-        const kol = quotationItem.kols
-        const bankInfo = (kol?.bank_info || {}) as KolBankInfo
-
-        // 一律從 bank_info 推導顯示名稱
-        const remittanceName = deriveDisplayName(kol, bankInfo)
-        const groupKey = makeGroupKey(bankInfo.accountNumber, remittanceName)
-
+        // --- Phase 2: group（按 groupKey 歸組）---
         if (!remittanceMap.has(groupKey)) {
             remittanceMap.set(groupKey, {
-                remittanceName,
-                bankName: bankInfo.bankName || '',
-                branchName: bankInfo.branchName || '',
-                accountNumber: bankInfo.accountNumber || '',
+                groupKey,
+                remittanceName: displayName,
+                bankName,
+                branchName,
+                accountNumber,
                 items: [],
                 totalAmount: 0,
-                isCompanyAccount: bankInfo.bankType === 'company',
-                isWithholdingExempt: kol?.withholding_exempt === true,
+                isCompanyAccount,
+                isWithholdingExempt,
             })
         }
 
         const group = remittanceMap.get(groupKey)!
         group.items.push(item)
-
-        // Fallback to cost_amount if amount is 0
-        const amount = item.amount || paymentRequest.cost_amount || 0
         group.totalAmount += amount
-    })
+    }
 
     return Array.from(remittanceMap.values()).sort((a, b) =>
         b.totalAmount - a.totalAmount

@@ -2,6 +2,7 @@
 // 工作台共用分組邏輯（v1.2: 帳戶類型分組 + 含稅計算）
 
 import { parseKolBankInfo } from '@/types/schemas'
+import { deriveRemitteeInfo } from '@/lib/payments/remittee'
 import type { WorkbenchItem, MergeGroupInfo, RemitteeGroup, AccountCategory, CategorySection } from './types'
 
 /** 固定營業稅率 5% */
@@ -15,19 +16,23 @@ export function calcItemTaxInfo(item: { cost_amount: number | null; kol_bank_inf
   return { cost, tax, total: cost + tax, isCompany }
 }
 
-/** 從 kol_bank_info 推導帳戶類型與戶名 */
-export function deriveAccountInfo(bankInfo: unknown): {
+/** 從工作台項目推導帳戶類型、戶名與 groupKey（改用共用 deriveRemitteeInfo） */
+export function deriveAccountInfo(bankInfo: unknown, kolName?: string | null, kolId?: string | null): {
   category: AccountCategory
   accountName: string
+  groupKey: string
 } {
-  const info = parseKolBankInfo(bankInfo)
-  if (info.bankType === 'individual' && info.personalAccountName) {
-    return { category: 'individual', accountName: info.personalAccountName }
+  const kol = kolName ? { id: kolId || undefined, name: kolName } : null
+  const info = deriveRemitteeInfo(kol, bankInfo)
+  const parsed = parseKolBankInfo(bankInfo)
+  // category 判斷：有 bankType 才能分類，否則 unknown
+  let category: AccountCategory = 'unknown'
+  if (parsed.bankType === 'company' && parsed.companyAccountName) {
+    category = 'company'
+  } else if (parsed.bankType === 'individual' && parsed.personalAccountName) {
+    category = 'individual'
   }
-  if (info.bankType === 'company' && info.companyAccountName) {
-    return { category: 'company', accountName: info.companyAccountName }
-  }
-  return { category: 'unknown', accountName: '未填寫匯款資訊' }
+  return { category, accountName: info.displayName, groupKey: info.groupKey }
 }
 
 /** 將項目清單提取合併組 */
@@ -60,23 +65,21 @@ export function extractMergeGroups(items: WorkbenchItem[], parentName?: string):
   })
 }
 
-/** 按帳戶類型 + 戶名分組 */
+/** 按帳戶類型 + 戶名分組（使用共用 groupKey，與確認清單一致） */
 export function groupByRemittee(items: WorkbenchItem[]): RemitteeGroup[] {
-  const groups = new Map<string, { items: WorkbenchItem[]; category: AccountCategory }>()
+  const groups = new Map<string, { items: WorkbenchItem[]; category: AccountCategory; displayName: string }>()
 
   for (const item of items) {
-    const { category, accountName } = deriveAccountInfo(item.kol_bank_info)
-    const key = `${category}::${accountName}`
-    if (!groups.has(key)) groups.set(key, { items: [], category })
-    groups.get(key)!.items.push(item)
+    const { category, accountName, groupKey } = deriveAccountInfo(item.kol_bank_info, item.kol_name, item.kol_id)
+    if (!groups.has(groupKey)) groups.set(groupKey, { items: [], category, displayName: accountName })
+    groups.get(groupKey)!.items.push(item)
   }
 
-  return Array.from(groups.entries()).map(([key, group]) => {
-    const name = key.split('::')[1]
-    const merge_groups = extractMergeGroups(group.items, name)
+  return Array.from(groups.entries()).map(([_key, group]) => {
+    const merge_groups = extractMergeGroups(group.items, group.displayName)
 
     return {
-      remittance_name: name,
+      remittance_name: group.displayName,
       bank_info: group.items[0]?.kol_bank_info || null,
       items: group.items,
       merge_groups,

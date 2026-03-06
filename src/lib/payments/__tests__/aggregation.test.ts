@@ -341,6 +341,7 @@ describe('aggregateMonthlyRemittanceGroups', () => {
 describe('splitRemittanceGroups', () => {
   function makeGroup(overrides: Partial<MergedRemittanceGroup> = {}): MergedRemittanceGroup {
     return {
+      groupKey: 'name_個人',
       remittanceName: '個人',
       bankName: '',
       branchName: '',
