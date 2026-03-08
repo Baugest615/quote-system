@@ -62,6 +62,15 @@ export function PaymentOverviewTab({
         [groups]
     )
 
+    // 計算哪些匯款戶名有多組（因日期不同而分開），用於決定是否在標題顯示日期
+    const duplicatedNames = useMemo(() => {
+        const nameCounts = new Map<string, number>()
+        groups.forEach(g => nameCounts.set(g.remittanceName, (nameCounts.get(g.remittanceName) || 0) + 1))
+        const result = new Set<string>()
+        nameCounts.forEach((count, name) => { if (count > 1) result.add(name) })
+        return result
+    }, [groups])
+
     // --- 聚合匯費設定：從各 confirmation 的 remittance_settings 合併 ---
     const [localSettings, setLocalSettings] = useState<Record<string, RemittanceSettings[string]>>({})
     const autoInitDone = useRef(false)
@@ -334,6 +343,7 @@ export function PaymentOverviewTab({
                                 onUpdateItemPaymentDate={onUpdateItemPaymentDate}
                                 onRevertItem={onRevertItem}
                                 isAdmin={isAdmin}
+                                showDateLabel={duplicatedNames.has(group.remittanceName)}
                             />
                         ))}
                     </div>
@@ -357,6 +367,7 @@ export function PaymentOverviewTab({
                                 onUpdateItemPaymentDate={onUpdateItemPaymentDate}
                                 onRevertItem={onRevertItem}
                                 isAdmin={isAdmin}
+                                showDateLabel={duplicatedNames.has(group.remittanceName)}
                             />
                         ))}
                     </div>
@@ -380,6 +391,7 @@ export function PaymentOverviewTab({
                                 onUpdateItemPaymentDate={onUpdateItemPaymentDate}
                                 onRevertItem={onRevertItem}
                                 isAdmin={isAdmin}
+                                showDateLabel={duplicatedNames.has(group.remittanceName)}
                             />
                         ))}
                     </div>

@@ -15,6 +15,7 @@ interface RemittanceGroupCardProps {
     onRevertItem?: (itemId: string) => void
     onUpdateItemPaymentDate?: (itemId: string, date: string | null) => void
     isAdmin?: boolean
+    showDateLabel?: boolean
 }
 
 export function RemittanceGroupCard({
@@ -24,6 +25,7 @@ export function RemittanceGroupCard({
     onRevertItem,
     onUpdateItemPaymentDate,
     isAdmin,
+    showDateLabel,
 }: RemittanceGroupCardProps) {
     const [isExpanded, setIsExpanded] = useState(false)
 
@@ -71,6 +73,12 @@ export function RemittanceGroupCard({
                     <div>
                         <div className="font-medium text-foreground flex items-center gap-2">
                             {group.remittanceName}
+                            {showDateLabel && (() => {
+                                const dateMatch = group.groupKey.match(/_d(\d{4}-(\d{2})-(\d{2}))$/)
+                                if (!dateMatch) return null
+                                const display = `${parseInt(dateMatch[2])}/${parseInt(dateMatch[3])}`
+                                return <span className="text-xs text-muted-foreground font-normal">({display})</span>
+                            })()}
                             {group.isCompanyAccount && (
                                 <span className="text-xs bg-success/20 text-success px-2 py-0.5 rounded inline-flex items-center gap-1">
                                     <ShieldCheck className="h-3 w-3" />
