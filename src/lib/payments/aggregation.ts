@@ -127,62 +127,73 @@ export function aggregateMonthlyRemittanceGroups(
     const groups = groupItemsByRemittance(monthItems)
     const savedSettings = confirmation.remittance_settings || {}
 
+    // 按 payment_date 再細分：同匯款戶名但不同日期 → 不同群組
     for (const group of groups) {
-      const groupKey = group.groupKey
-
-      const settings =
-        savedSettings[groupKey] ||
-        savedSettings[group.remittanceName] || {
-          hasRemittanceFee: false,
-          remittanceFeeAmount: 30,
-          hasTax: false,
-          hasInsurance: false,
-        }
-
-      const rawSubtotal = group.items.reduce((s: number, i: PaymentConfirmationItem) => s + (i.amount_at_confirmation || 0), 0)
-      // 公司行號：DB 存未稅成本，顯示時加 5% 營業稅（與工作台 calcItemTaxInfo 一致）
-      const subtotal = group.isCompanyAccount ? Math.round(rawSubtotal * 1.05) : rawSubtotal
-      const fee = settings.hasRemittanceFee ? settings.remittanceFeeAmount : 0
-
-      const isPersonalClaim = group.items.some(
-        (item: PaymentConfirmationItem) => item.source_type === 'personal' || item.expense_claim_id
-      )
-
-      if (!mergedMap.has(groupKey)) {
-        mergedMap.set(groupKey, {
-          groupKey,
-          remittanceName: group.remittanceName,
-          bankName: group.bankName,
-          branchName: group.branchName,
-          accountNumber: group.accountNumber,
-          isCompanyAccount: group.isCompanyAccount,
-          isWithholdingExempt: group.isWithholdingExempt,
-          isPersonalClaim,
-          items: [],
-          expenseItems: [],
-          payrollItems: [],
-          confirmationBreakdowns: [],
-          totalAmount: 0,
-          totalTax: 0,
-          totalInsurance: 0,
-          totalFee: 0,
-          netTotal: 0,
-        })
+      const buckets = new Map<string, PaymentConfirmationItem[]>()
+      for (const item of group.items) {
+        const dateSuffix = item.payment_date ? `_d${item.payment_date}` : ''
+        const bucketKey = `${group.groupKey}${dateSuffix}`
+        if (!buckets.has(bucketKey)) buckets.set(bucketKey, [])
+        buckets.get(bucketKey)!.push(item)
       }
 
-      const merged = mergedMap.get(groupKey)!
-      merged.items.push(...group.items)
-      merged.confirmationBreakdowns.push({
-        confirmationId: confirmation.id,
-        confirmationDate: confirmation.confirmation_date,
-        subtotal,
-        tax: 0,
-        insurance: 0,
-        fee,
-        paymentDate: settings.paymentDate,
-      })
-      merged.totalAmount += subtotal
-      merged.totalFee += fee
+      for (const [groupKey, bucketItems] of Array.from(buckets)) {
+        // 優先用細分後的 groupKey 找 settings，fallback 到原 groupKey / 匯款戶名
+        const settings =
+          savedSettings[groupKey] ||
+          savedSettings[group.groupKey] ||
+          savedSettings[group.remittanceName] || {
+            hasRemittanceFee: false,
+            remittanceFeeAmount: 30,
+            hasTax: false,
+            hasInsurance: false,
+          }
+
+        const rawSubtotal = bucketItems.reduce((s: number, i: PaymentConfirmationItem) => s + (i.amount_at_confirmation || 0), 0)
+        // 公司行號：DB 存未稅成本，顯示時加 5% 營業稅（與工作台 calcItemTaxInfo 一致）
+        const subtotal = group.isCompanyAccount ? Math.round(rawSubtotal * 1.05) : rawSubtotal
+        const fee = settings.hasRemittanceFee ? settings.remittanceFeeAmount : 0
+
+        const isPersonalClaim = bucketItems.some(
+          (item: PaymentConfirmationItem) => item.source_type === 'personal' || item.expense_claim_id
+        )
+
+        if (!mergedMap.has(groupKey)) {
+          mergedMap.set(groupKey, {
+            groupKey,
+            remittanceName: group.remittanceName,
+            bankName: group.bankName,
+            branchName: group.branchName,
+            accountNumber: group.accountNumber,
+            isCompanyAccount: group.isCompanyAccount,
+            isWithholdingExempt: group.isWithholdingExempt,
+            isPersonalClaim,
+            items: [],
+            expenseItems: [],
+            payrollItems: [],
+            confirmationBreakdowns: [],
+            totalAmount: 0,
+            totalTax: 0,
+            totalInsurance: 0,
+            totalFee: 0,
+            netTotal: 0,
+          })
+        }
+
+        const merged = mergedMap.get(groupKey)!
+        merged.items.push(...bucketItems)
+        merged.confirmationBreakdowns.push({
+          confirmationId: confirmation.id,
+          confirmationDate: confirmation.confirmation_date,
+          subtotal,
+          tax: 0,
+          insurance: 0,
+          fee,
+          paymentDate: bucketItems[0]?.payment_date || settings.paymentDate,
+        })
+        merged.totalAmount += subtotal
+        merged.totalFee += fee
+      }
     }
   }
 
@@ -430,22 +441,31 @@ export function exportBankTransferCsv(
 function consolidateEmployeeGroups(
   mergedMap: Map<string, MergedRemittanceGroup>
 ): void {
-  // 1. 找出所有已知員工名稱 → 對應的 primary groupKey
-  const employeePrimaryKey = new Map<string, string>() // key: remittanceName
+  // 輔助：提取 groupKey 的日期後綴（_d2026-03-10 → _d2026-03-10，無後綴 → ''）
+  const extractDateSuffix = (key: string) => {
+    const match = key.match(/(_d\d{4}-\d{2}-\d{2})$/)
+    return match ? match[1] : ''
+  }
+
+  // 1. 找出所有已知員工名稱+日期 → 對應的 primary groupKey
+  // 同名但不同日期的不合併（日期後綴不同視為不同群組）
+  const employeePrimaryKey = new Map<string, string>() // key: `${remittanceName}${dateSuffix}`
   mergedMap.forEach((group, key) => {
     if (group.payrollItems.length > 0 || group.isPersonalClaim) {
-      if (!employeePrimaryKey.has(group.remittanceName)) {
-        employeePrimaryKey.set(group.remittanceName, key)
+      const compositeKey = `${group.remittanceName}${extractDateSuffix(key)}`
+      if (!employeePrimaryKey.has(compositeKey)) {
+        employeePrimaryKey.set(compositeKey, key)
       }
     }
   })
 
   if (employeePrimaryKey.size === 0) return
 
-  // 2. 收集需要合併的 [sourceKey → targetKey]（同名合併）
+  // 2. 收集需要合併的 [sourceKey → targetKey]（同名+同日期合併）
   const merges: [string, string][] = []
   mergedMap.forEach((group, key) => {
-    const targetKey = employeePrimaryKey.get(group.remittanceName)
+    const compositeKey = `${group.remittanceName}${extractDateSuffix(key)}`
+    const targetKey = employeePrimaryKey.get(compositeKey)
     if (targetKey && targetKey !== key) {
       merges.push([key, targetKey])
     }
