@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useMemo } from 'react'
-import { Link2, Send, AlertTriangle, Inbox, User, Building2, AlertCircle, ChevronRight, ChevronLeft, Calendar, ChevronDown } from 'lucide-react'
+import { Link2, Send, AlertTriangle, Inbox, User, Building2, AlertCircle, ChevronDown } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Modal } from '@/components/ui/modal'
 import { useWorkbenchMerge, useWorkbenchSubmission } from '@/hooks/payment-workbench'
@@ -36,10 +36,7 @@ export function PendingSection({ items }: PendingSectionProps) {
   const { submitMergeGroup, submitSingleItem, isSubmitting } = useWorkbenchSubmission()
 
   const [showMergeDialog, setShowMergeDialog] = useState(false)
-  const [showCrossMonthWarning, setShowCrossMonthWarning] = useState(false)
   const [pendingMergeLeaderId, setPendingMergeLeaderId] = useState<string | null>(null)
-  const [mergeStep, setMergeStep] = useState<'leader' | 'month'>('leader')
-  const [pendingPaymentMonth, setPendingPaymentMonth] = useState('')
   const [expandedItemId, setExpandedItemId] = useState<string | null>(null)
 
   // v1.1: 按帳戶類型 + 戶名分組
@@ -50,57 +47,24 @@ export function PendingSection({ items }: PendingSectionProps) {
     [items, selectedIds]
   )
 
-  // 推算自動月份：所有選取項目月份一致則帶入
-  const autoMonth = useMemo(() => {
-    const months = new Set(
-      selectedItems.map((i) => i.expected_payment_month).filter(Boolean)
-    )
-    return months.size === 1 ? Array.from(months)[0]! : ''
-  }, [selectedItems])
-
   // 重置 dialog 狀態
   const resetMergeDialog = () => {
     setShowMergeDialog(false)
-    setMergeStep('leader')
     setPendingMergeLeaderId(null)
-    setPendingPaymentMonth('')
   }
 
   // 處理合併按鈕點擊
   const handleMergeClick = () => {
     const result = canMerge(items)
     if (!result.valid) return
-
-    if (result.hasCrossMonth) {
-      setShowCrossMonthWarning(true)
-    } else {
-      setMergeStep('leader')
-      setPendingMergeLeaderId(null)
-      setPendingPaymentMonth('')
-      setShowMergeDialog(true)
-    }
-  }
-
-  // 確認跨月合併後打開主項選擇
-  const handleCrossMonthConfirm = () => {
-    setShowCrossMonthWarning(false)
-    setMergeStep('leader')
     setPendingMergeLeaderId(null)
-    setPendingPaymentMonth('')
     setShowMergeDialog(true)
   }
 
-  // 選完主項 → 進入月份步驟
-  const handleLeaderNext = () => {
-    if (!pendingMergeLeaderId) return
-    setPendingPaymentMonth(autoMonth)
-    setMergeStep('month')
-  }
-
-  // 確認合併（含月份）
+  // 確認合併
   const handleConfirmMerge = async () => {
     if (!pendingMergeLeaderId) return
-    await createMergeGroup(pendingMergeLeaderId, pendingPaymentMonth || undefined)
+    await createMergeGroup(pendingMergeLeaderId)
     resetMergeDialog()
   }
 
@@ -221,7 +185,6 @@ export function PendingSection({ items }: PendingSectionProps) {
                           </span>
                         </div>
                         <div className="flex items-center gap-3 text-xs text-muted-foreground mt-0.5">
-                          <span>{item.expected_payment_month || '未指定月份'}</span>
                           {item.invoice_number && <span>發票: {item.invoice_number}</span>}
                           {(item.attachments?.length || 0) > 0 && (
                             <span>附件: {item.attachments.length}</span>
@@ -277,114 +240,52 @@ export function PendingSection({ items }: PendingSectionProps) {
         </div>
       ))}
 
-      {/* 跨月份警告 Modal */}
-      <Modal
-        isOpen={showCrossMonthWarning}
-        onClose={() => setShowCrossMonthWarning(false)}
-        title="跨月份合併提醒"
-      >
-        <div className="flex items-start gap-3 mb-4">
-          <AlertTriangle className="w-5 h-5 text-warning flex-shrink-0 mt-0.5" />
-          <p className="text-sm text-muted-foreground">
-            您選取的項目跨越不同的預計請款月份。合併後將以同一組進行請款，可能影響帳務月份歸屬。確定要繼續嗎？
-          </p>
-        </div>
-        <div className="flex justify-end gap-2">
-          <Button variant="outline" onClick={() => setShowCrossMonthWarning(false)}>取消</Button>
-          <Button onClick={handleCrossMonthConfirm}>確定合併</Button>
-        </div>
-      </Modal>
-
-      {/* 合併確認 Modal（步驟 1: 選主項 → 步驟 2: 選月份） */}
+      {/* 合併確認 Modal（選擇主項後直接合併） */}
       <Modal
         isOpen={showMergeDialog}
         onClose={resetMergeDialog}
-        title={mergeStep === 'leader' ? '步驟 1：選擇合併主項' : '步驟 2：指定請款月份'}
+        title="選擇合併主項"
       >
-        {mergeStep === 'leader' ? (
-          <>
-            <p className="text-sm text-muted-foreground mb-4">
-              主項將負責提供發票號碼和附件，其他項目會繼承主項的發票資訊。
-            </p>
-            <div className="space-y-2 max-h-[300px] overflow-y-auto">
-              {selectedItems.map((item) => (
-                <label
-                  key={item.id}
-                  className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
-                    pendingMergeLeaderId === item.id
-                      ? 'border-info bg-info/10'
-                      : 'border-border hover:bg-muted/50'
-                  }`}
-                >
-                  <input
-                    type="radio"
-                    name="merge-leader"
-                    checked={pendingMergeLeaderId === item.id}
-                    onChange={() => setPendingMergeLeaderId(item.id)}
-                    className="text-info"
-                  />
-                  <div className="flex-1">
-                    <span className="text-sm text-foreground">{item.project_name} — {item.service}</span>
-                    <div className="text-xs text-muted-foreground mt-0.5">
-                      ${calcItemTaxInfo(item).total.toLocaleString()} · {item.expected_payment_month || '未指定'}
-                    </div>
-                  </div>
-                </label>
-              ))}
-            </div>
-            <div className="flex justify-end gap-2 mt-4">
-              <Button variant="outline" onClick={resetMergeDialog}>取消</Button>
-              <Button
-                onClick={handleLeaderNext}
-                disabled={!pendingMergeLeaderId}
-              >
-                下一步
-                <ChevronRight className="w-4 h-4 ml-1" />
-              </Button>
-            </div>
-          </>
-        ) : (
-          <>
-            <p className="text-sm text-muted-foreground mb-4">
-              合併後的請款月份。所有項目將統一使用此月份。
-            </p>
-            <div className="space-y-3">
-              <div className="flex items-center gap-3">
-                <Calendar className="w-4 h-4 text-muted-foreground" />
-                <input
-                  type="month"
-                  value={pendingPaymentMonth}
-                  onChange={(e) => setPendingPaymentMonth(e.target.value)}
-                  className="flex-1 h-9 rounded-md border border-border bg-background px-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-                  placeholder="YYYY-MM"
-                />
+        <p className="text-sm text-muted-foreground mb-4">
+          主項將負責提供發票號碼和附件，其他項目會繼承主項的發票資訊。匯款日期將由審核人核准時填入。
+        </p>
+        <div className="space-y-2 max-h-[300px] overflow-y-auto">
+          {selectedItems.map((item) => (
+            <label
+              key={item.id}
+              className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
+                pendingMergeLeaderId === item.id
+                  ? 'border-info bg-info/10'
+                  : 'border-border hover:bg-muted/50'
+              }`}
+            >
+              <input
+                type="radio"
+                name="merge-leader"
+                checked={pendingMergeLeaderId === item.id}
+                onChange={() => setPendingMergeLeaderId(item.id)}
+                className="text-info"
+              />
+              <div className="flex-1">
+                <span className="text-sm text-foreground">{item.project_name} — {item.service}</span>
+                <div className="text-xs text-muted-foreground mt-0.5">
+                  ${calcItemTaxInfo(item).total.toLocaleString()}
+                  {item.invoice_number && ` · 發票: ${item.invoice_number}`}
+                </div>
               </div>
-              {autoMonth && pendingPaymentMonth === autoMonth && (
-                <p className="text-xs text-muted-foreground">
-                  已自動帶入所有項目的共同月份
-                </p>
-              )}
-              {!pendingPaymentMonth && (
-                <p className="text-xs text-warning">
-                  未指定月份時，各項目將保留原本的請款月份
-                </p>
-              )}
-            </div>
-            <div className="flex justify-between mt-4">
-              <Button variant="outline" onClick={() => setMergeStep('leader')}>
-                <ChevronLeft className="w-4 h-4 mr-1" />
-                上一步
-              </Button>
-              <Button
-                onClick={handleConfirmMerge}
-                disabled={isMerging}
-              >
-                <Link2 className="w-4 h-4 mr-1" />
-                確認合併
-              </Button>
-            </div>
-          </>
-        )}
+            </label>
+          ))}
+        </div>
+        <div className="flex justify-end gap-2 mt-4">
+          <Button variant="outline" onClick={resetMergeDialog}>取消</Button>
+          <Button
+            onClick={handleConfirmMerge}
+            disabled={!pendingMergeLeaderId || isMerging}
+          >
+            <Link2 className="w-4 h-4 mr-1" />
+            確認合併
+          </Button>
+        </div>
       </Modal>
     </div>
   )

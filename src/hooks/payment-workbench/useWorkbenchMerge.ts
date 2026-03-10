@@ -45,7 +45,7 @@ export function useWorkbenchMerge() {
 
   /** 檢查是否可合併（同銀行帳戶） */
   const canMerge = useCallback(
-    (items: WorkbenchItem[]): { valid: boolean; error?: string; hasCrossMonth?: boolean } => {
+    (items: WorkbenchItem[]): { valid: boolean; error?: string } => {
       const selected = items.filter((i) => selectedIds.has(i.id))
       if (selected.length < 2) {
         return { valid: false, error: '至少選擇 2 筆項目' }
@@ -71,20 +71,14 @@ export function useWorkbenchMerge() {
         return { valid: false, error: '所選項目的銀行帳戶不一致，無法合併' }
       }
 
-      // 檢查是否跨月
-      const months = new Set(
-        selected.map((i) => i.expected_payment_month).filter(Boolean)
-      )
-      const hasCrossMonth = months.size > 1
-
-      return { valid: true, hasCrossMonth }
+      return { valid: true }
     },
     [selectedIds]
   )
 
   /** 建立合併組 */
   const createMergeGroup = useCallback(
-    async (leaderId: string, paymentMonth?: string) => {
+    async (leaderId: string) => {
       setIsMerging(true)
       try {
         const itemIds = Array.from(selectedIds)
@@ -93,7 +87,6 @@ export function useWorkbenchMerge() {
           {
             p_item_ids: itemIds,
             p_leader_id: leaderId,
-            ...(paymentMonth ? { p_payment_month: paymentMonth } : {}),
           }
         )
 
