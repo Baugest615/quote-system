@@ -46,6 +46,16 @@ export function ConfirmationHistoryTab({
                     )
                 }
 
+                if (item.source_type === 'quotation' || item.quotation_item_id) {
+                    const qi = item.quotation_items
+                    return (
+                        (qi?.quotations?.project_name || item.project_name_at_confirmation || '').toLowerCase().includes(searchLower) ||
+                        (qi?.kols?.name || item.kol_name_at_confirmation || '').toLowerCase().includes(searchLower) ||
+                        (qi?.service || item.service_at_confirmation || '').toLowerCase().includes(searchLower) ||
+                        (item.kol_name_at_confirmation || '').toLowerCase().includes(searchLower)
+                    )
+                }
+
                 const request = item.payment_requests
                 const quotationItem = request?.quotation_items
                 const quotation = quotationItem?.quotations

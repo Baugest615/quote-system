@@ -93,59 +93,7 @@ export function ConfirmationDetails({ confirmation, settings, updateSettings, ge
         )
     }
 
-    // 確認紀錄 tab（有 onRevertItem）：平面列表 + 單筆退回
-    if (onRevertItem) {
-        const totalAmount = allItems.reduce((sum, item) => {
-            if (item.source_type === 'personal' || item.expense_claim_id) {
-                return sum + (item.amount_at_confirmation || item.expense_claims?.total_amount || 0)
-            }
-            return sum + (item.amount_at_confirmation || item.payment_requests?.cost_amount || 0)
-        }, 0)
-
-        return (
-            <div className="p-4">
-                <div className="border rounded-lg overflow-hidden shadow-none bg-card">
-                    <div className="overflow-x-auto">
-                        <table className="min-w-full">
-                            <thead className="bg-secondary">
-                                <tr>
-                                    <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">專案名稱</th>
-                                    <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">KOL/服務</th>
-                                    <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">執行內容</th>
-                                    <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">匯款戶名</th>
-                                    <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">發票</th>
-                                    <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">備註</th>
-                                    <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">匯款日</th>
-                                    <th className="px-4 py-3 text-right text-xs font-medium text-muted-foreground uppercase tracking-wider">匯款金額</th>
-                                    <th className="px-4 py-3 text-center text-xs font-medium text-muted-foreground uppercase tracking-wider w-16">退回</th>
-                                </tr>
-                            </thead>
-                            <tbody className="bg-card divide-y divide-border">
-                                {allItems.map((item) => (
-                                    <PaymentRecordRow
-                                        key={item.id}
-                                        item={item}
-                                        groupLabel={item.payment_requests?.merge_group_id ? mergeGroupLabelMap.get(item.payment_requests.merge_group_id) : undefined}
-                                        onRevertItem={onRevertItem}
-                                    />
-                                ))}
-                            </tbody>
-                            <tfoot className="bg-muted/20 font-medium text-sm">
-                                <tr>
-                                    <td colSpan={8} className="px-4 py-2 text-right text-muted-foreground">合計</td>
-                                    <td className="px-4 py-2 text-right text-foreground">
-                                        NT$ {totalAmount.toLocaleString()}
-                                    </td>
-                                </tr>
-                            </tfoot>
-                        </table>
-                    </div>
-                </div>
-            </div>
-        )
-    }
-
-    // 一般模式：按匯款戶名分組 + 代扣試算
+    // 按匯款戶名分組 + 代扣試算（有 onRevertItem 時各列顯示退回按鈕）
     return (
         <div className="space-y-6 p-4">
             {remittanceGroups.map((group, groupIndex) => {
@@ -171,7 +119,7 @@ export function ConfirmationDetails({ confirmation, settings, updateSettings, ge
                 const insurance = applicability.showWithholding && subtotal >= nhiThreshold
                     ? Math.floor(subtotal * nhiRate) : 0
                 const netTotal = subtotal - fee - tax - insurance
-                const colSpan = onRevertItem ? 6 : 5
+                const colSpan = onRevertItem ? 8 : 7
 
                 return (
                     <div key={groupIndex} className="border rounded-lg overflow-hidden shadow-none bg-card">
@@ -257,8 +205,11 @@ export function ConfirmationDetails({ confirmation, settings, updateSettings, ge
                                         <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">KOL/服務</th>
                                         <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">執行內容</th>
                                         <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">匯款戶名</th>
+                                        <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">發票</th>
                                         <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">備註</th>
+                                        <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">匯款日</th>
                                         <th className="px-4 py-3 text-right text-xs font-medium text-muted-foreground uppercase tracking-wider">匯款金額</th>
+                                        {onRevertItem && <th className="px-4 py-3 text-center text-xs font-medium text-muted-foreground uppercase tracking-wider w-16">退回</th>}
                                     </tr>
                                 </thead>
                                 <tbody className="bg-card divide-y divide-border">
@@ -268,6 +219,7 @@ export function ConfirmationDetails({ confirmation, settings, updateSettings, ge
                                             item={item}
                                             groupLabel={item.payment_requests?.merge_group_id ? mergeGroupLabelMap.get(item.payment_requests.merge_group_id) : undefined}
                                             isCompanyAccount={group.isCompanyAccount}
+                                            onRevertItem={onRevertItem}
                                         />
                                     ))}
                                 </tbody>
