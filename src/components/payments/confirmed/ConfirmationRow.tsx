@@ -10,9 +10,10 @@ interface ConfirmationRowProps {
     confirmation: PaymentConfirmation
     onToggleExpansion: (id: string) => void
     withholdingRates?: WithholdingSettings | null
+    onRevertItem?: (itemId: string) => void
 }
 
-export function ConfirmationRow({ confirmation, onToggleExpansion, withholdingRates }: ConfirmationRowProps) {
+export function ConfirmationRow({ confirmation, onToggleExpansion, withholdingRates, onRevertItem }: ConfirmationRowProps) {
     const { settings, getSettings } = useRemittanceSettings(
         confirmation.id,
         confirmation.remittance_settings,
@@ -63,6 +64,7 @@ export function ConfirmationRow({ confirmation, onToggleExpansion, withholdingRa
                     settings={settings}
                     getSettings={getSettings}
                     withholdingRates={withholdingRates}
+                    onRevertItem={onRevertItem}
                 />
             )}
         </div>

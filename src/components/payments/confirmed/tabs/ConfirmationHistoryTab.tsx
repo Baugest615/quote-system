@@ -13,12 +13,14 @@ interface ConfirmationHistoryTabProps {
     confirmations: PaymentConfirmation[]
     onToggleExpansion: (id: string) => void
     withholdingRates?: WithholdingSettings | null
+    onRevertItem?: (itemId: string) => void
 }
 
 export function ConfirmationHistoryTab({
     confirmations,
     onToggleExpansion,
     withholdingRates,
+    onRevertItem,
 }: ConfirmationHistoryTabProps) {
     const [searchTerm, setSearchTerm] = useState('')
     const [sortField, setSortField] = useState<'date' | 'amount' | 'items'>('date')
@@ -160,6 +162,7 @@ export function ConfirmationHistoryTab({
                             confirmation={confirmation}
                             onToggleExpansion={onToggleExpansion}
                             withholdingRates={withholdingRates}
+                            onRevertItem={onRevertItem}
                         />
                     ))}
                 </div>

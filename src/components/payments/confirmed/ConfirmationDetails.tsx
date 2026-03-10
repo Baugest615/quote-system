@@ -113,7 +113,9 @@ export function ConfirmationDetails({ confirmation, settings, updateSettings, ge
                                     <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">KOL/服務</th>
                                     <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">執行內容</th>
                                     <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">匯款戶名</th>
+                                    <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">發票</th>
                                     <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">備註</th>
+                                    <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">匯款日</th>
                                     <th className="px-4 py-3 text-right text-xs font-medium text-muted-foreground uppercase tracking-wider">匯款金額</th>
                                     <th className="px-4 py-3 text-center text-xs font-medium text-muted-foreground uppercase tracking-wider w-16">退回</th>
                                 </tr>
@@ -130,7 +132,7 @@ export function ConfirmationDetails({ confirmation, settings, updateSettings, ge
                             </tbody>
                             <tfoot className="bg-muted/20 font-medium text-sm">
                                 <tr>
-                                    <td colSpan={6} className="px-4 py-2 text-right text-muted-foreground">合計</td>
+                                    <td colSpan={8} className="px-4 py-2 text-right text-muted-foreground">合計</td>
                                     <td className="px-4 py-2 text-right text-foreground">
                                         NT$ {totalAmount.toLocaleString()}
                                     </td>

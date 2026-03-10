@@ -767,6 +767,7 @@ export default function ConfirmedPaymentsPage() {
           confirmations={confirmations}
           onToggleExpansion={toggleExpansion}
           withholdingRates={withholdingRates}
+          onRevertItem={handleRevertItem}
         />
       )}
     </div>
