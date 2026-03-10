@@ -559,22 +559,46 @@ export default function ConfirmedPaymentsPage() {
 
     // 報價單來源：使用 RPC 統一處理
     if (item.source_type === 'quotation' && item.quotation_item_id) {
+      // 檢查是否屬於合併組
+      const { data: qi } = await supabase
+        .from('quotation_items')
+        .select('id, merge_group_id')
+        .eq('id', item.quotation_item_id)
+        .single()
+
+      const mergeGroupId = qi?.merge_group_id
+
+      let targetItemIds: string[] = [item.quotation_item_id]
+      let confirmDescription = '此項目將駁回，進項記錄和確認記錄將被刪除，報價單項目狀態回到「待請款」。'
+
+      if (mergeGroupId) {
+        // 合併組：取得同組所有項目
+        const { data: groupItems } = await supabase
+          .from('quotation_items')
+          .select('id')
+          .eq('merge_group_id', mergeGroupId)
+        targetItemIds = (groupItems ?? []).map((i) => i.id)
+        confirmDescription = `此項目屬於合併組（共 ${targetItemIds.length} 筆），整組將一併駁回，進項記錄和確認記錄將全部刪除。`
+      }
+
       const ok = await confirm({
-        title: '確認駁回此項目',
-        description: '此項目將駁回，進項記錄和確認記錄將被刪除，報價單項目狀態回到「待請款」。',
+        title: mergeGroupId ? '確認駁回整組' : '確認駁回此項目',
+        description: confirmDescription,
         confirmLabel: '駁回',
         variant: 'destructive',
       })
       if (!ok) return
 
       try {
-        const { error } = await supabase.rpc('revert_quotation_item', {
-          p_item_id: item.quotation_item_id,
-          p_reason: '已確認請款清單駁回',
-        })
-        if (error) throw error
+        for (const qiId of targetItemIds) {
+          const { error } = await supabase.rpc('revert_quotation_item', {
+            p_item_id: qiId,
+            p_reason: '已確認請款清單駁回',
+          })
+          if (error) throw error
+        }
 
-        toast.success('已駁回此項目，報價單狀態已回到「待請款」')
+        toast.success(mergeGroupId ? `已駁回合併組（${targetItemIds.length} 筆）` : '已駁回此項目，報價單狀態已回到「待請款」')
         refresh()
         queryClient.invalidateQueries({ queryKey: [...queryKeys.dashboardStats] })
         queryClient.invalidateQueries({ queryKey: ['accounting-expenses'] })
