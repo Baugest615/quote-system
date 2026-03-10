@@ -164,9 +164,9 @@ export function RemittanceGroupCard({
                                         <div className="w-px h-5 bg-border" />
                                     </>
                                 )}
-                                {/* 統一設定匯款日期 */}
+                                {/* 批次調整匯款日期（Spec-008: 主要填入已移至審核工作台，此處作為事後調整用）*/}
                                 <div className="flex items-center gap-2">
-                                    <label className="text-xs text-muted-foreground whitespace-nowrap">統一設定匯款日</label>
+                                    <label className="text-xs text-muted-foreground whitespace-nowrap">批次調整匯款日</label>
                                     <input
                                         type="date"
                                         value={settings.paymentDate || ''}

@@ -1,6 +1,6 @@
 # 開發進度追蹤
 
-> 最後更新：2026-03-07
+> 最後更新：2026-03-10
 > 分支：`main`
 > 詳細變更歷程請見 Git commit history（`git log --oneline`）
 
@@ -119,6 +119,19 @@
 - ✅ 員工合併邏輯同步更新 — 同名但不同日期不會被錯誤合併
 - ✅ 卡片標題條件顯示日期 — 僅同名出現多組時才標註如「黃智宏 (3/11)」，避免資訊過載
 - ✅ 166 tests 全通過、`tsc --noEmit` 零錯誤
+
+### Spec 008: 匯款日期管理權責重設計（2026-03-10）
+- ✅ **核心設計**：匯款日期決定權移交審核人，請款人只需備妥請款資料
+- ✅ DB Migration：`approve_quotation_item` / `approve_merge_group` RPC v2.0 — 新增 `p_payment_date` 參數，建立 `payment_confirmation_items` 和 `accounting_expenses` 時直接帶入
+- ✅ 工作台審核 Modal：核准動作改為彈出確認 Modal，顯示匯款對象/金額/合併筆數，**匯款日期必填**後才可核准
+- ✅ 合併組同步：整組核准時所有成員的 `payment_confirmation_items.payment_date` 統一設為同一日期
+- ✅ `expense_month` 改為自然月份：移除 10 日切點補償邏輯，直接取 `payment_date` 的自然月（如 3月9日匯款 → "2026年3月"，不再歸入2月）
+- ✅ 進項管理自動填入：核准後 `accounting_expenses.payment_date` 和 `expense_month` 均自動帶入，無需手動填寫
+- ✅ `getItemBillingMonth()` 更新：優先使用 `payment_date` 自然月份，移除切點 fallback
+- ✅ 薪資月份同步：`accounting_payroll` 也改用自然月份篩選
+- ✅ 已確認清單「統一設定匯款日」降級為「批次調整匯款日」（事後微調用途）
+- ✅ 逐筆 `handleItemPaymentDate` 同步更新 `expense_month`（事後調整時同步）
+- ✅ DB 已套用至 Supabase 實例、TypeScript 零錯誤
 
 ## 待辦事項
 

@@ -27,11 +27,12 @@ export function useWorkbenchReview() {
 
   /** 核准合併組（團進） */
   const approveMergeGroup = useCallback(
-    async (groupId: string) => {
+    async (groupId: string, paymentDate: string) => {
       setIsApproving(true)
       try {
         const { error } = await supabase.rpc('approve_merge_group', {
           p_group_id: groupId,
+          p_payment_date: paymentDate,
         })
 
         if (error) throw error
@@ -50,11 +51,12 @@ export function useWorkbenchReview() {
 
   /** 核准單筆項目 */
   const approveSingleItem = useCallback(
-    async (itemId: string) => {
+    async (itemId: string, paymentDate: string) => {
       setIsApproving(true)
       try {
         const { error } = await supabase.rpc('approve_quotation_item', {
           p_item_id: itemId,
+          p_payment_date: paymentDate,
         })
 
         if (error) throw error

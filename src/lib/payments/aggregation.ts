@@ -30,13 +30,19 @@ export function yyyymmToChinese(month: string): string | null {
 
 /**
  * 取得單一 confirmation_item 的帳務月份（YYYY-MM）
- * 混合模式：優先使用 expected_payment_month / claim_month，無則 fallback 到確認日期 + 10 日切點
+ * Spec-008：優先使用 payment_date 的自然月份（審核人填入，最準確）
+ * 向後相容：若無 payment_date，fallback 到 expected_payment_month / claim_month / 確認日期
  */
 export function getItemBillingMonth(
   item: PaymentConfirmationItem,
   confirmationDate: string
 ): string {
-  // 1. 報價單直接請款（新流程）
+  // 0. Spec-008: payment_date（審核人填入的實際匯款日，取自然月份）
+  if (item.payment_date) {
+    const d = new Date(item.payment_date)
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+  }
+  // 1. 報價單直接請款（舊資料向後相容）
   if (item.quotation_items?.expected_payment_month) {
     const m = expenseMonthToYYYYMM(item.quotation_items.expected_payment_month)
     if (m) return m
@@ -51,8 +57,9 @@ export function getItemBillingMonth(
     const m = expenseMonthToYYYYMM(item.expense_claims.claim_month)
     if (m) return m
   }
-  // 4. Fallback: 確認日期 + 10 日切點
-  return getBillingMonthKey(confirmationDate)
+  // 4. Fallback: 確認日期自然月份（不再使用 10 日切點）
+  const d = new Date(confirmationDate)
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
 }
 
 /**
@@ -248,7 +255,9 @@ export function aggregateMonthlyRemittanceGroups(
   if (payroll) {
     const monthPayroll = payroll.filter(p => {
       if (!p.payment_date) return false
-      return getBillingMonthKey(p.payment_date) === month
+      // Spec-008: 薪資也改用自然月份（不使用 10 日切點）
+      const d = new Date(p.payment_date)
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}` === month
     })
 
     for (const p of monthPayroll) {

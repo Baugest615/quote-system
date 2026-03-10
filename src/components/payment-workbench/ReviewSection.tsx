@@ -29,6 +29,38 @@ export function ReviewSection({ items, isReviewer }: ReviewSectionProps) {
   const [rejectTarget, setRejectTarget] = useState<{ type: 'group' | 'single'; id: string } | null>(null)
   const [rejectReason, setRejectReason] = useState('')
 
+  // Spec-008: 核准確認 Modal
+  const [approveTarget, setApproveTarget] = useState<{
+    type: 'group' | 'single'
+    id: string
+    remittanceName: string
+    totalAmount: number
+    itemCount: number
+  } | null>(null)
+  const [approveDate, setApproveDate] = useState('')
+
+  const openApproveModal = (
+    type: 'group' | 'single',
+    id: string,
+    remittanceName: string,
+    totalAmount: number,
+    itemCount: number
+  ) => {
+    setApproveTarget({ type, id, remittanceName, totalAmount, itemCount })
+    setApproveDate(new Date().toISOString().slice(0, 10))
+  }
+
+  const handleApproveConfirm = async () => {
+    if (!approveTarget || !approveDate) return
+    if (approveTarget.type === 'group') {
+      await approveMergeGroup(approveTarget.id, approveDate)
+    } else {
+      await approveSingleItem(approveTarget.id, approveDate)
+    }
+    setApproveTarget(null)
+    setApproveDate('')
+  }
+
   // v1.1: 按帳戶類型分組
   const categorySections = useMemo(() => itemsToCategorySections(items), [items])
 
@@ -88,7 +120,7 @@ export function ReviewSection({ items, isReviewer }: ReviewSectionProps) {
                   group={mg}
                   showReviewActions={isReviewer}
                   showWithdrawAction
-                  onApprove={(id) => approveMergeGroup(id)}
+                  onApprove={(id) => openApproveModal('group', id, mg.remittance_name, mg.total_amount, mg.item_count)}
                   onReject={(id) => setRejectTarget({ type: 'group', id })}
                   onWithdraw={withdrawMergeGroup}
                   isLoading={isLoading}
@@ -148,7 +180,10 @@ export function ReviewSection({ items, isReviewer }: ReviewSectionProps) {
                           variant="outline"
                           className="text-emerald-400 border-emerald-400/30 hover:bg-emerald-400/10"
                           disabled={isLoading}
-                          onClick={() => approveSingleItem(item.id)}
+                          onClick={() => {
+                            const taxInfo = calcItemTaxInfo(item)
+                            openApproveModal('single', item.id, group.remittance_name, taxInfo.total, 1)
+                          }}
                         >
                           <Check className="w-3.5 h-3.5 mr-1" />
                           核准
@@ -172,6 +207,57 @@ export function ReviewSection({ items, isReviewer }: ReviewSectionProps) {
           ))}
         </div>
       ))}
+
+      {/* 核准確認 Modal（Spec-008：填入匯款日期後才能核准）*/}
+      <Modal
+        isOpen={!!approveTarget}
+        onClose={() => setApproveTarget(null)}
+        title="確認核准請款"
+      >
+        {approveTarget && (
+          <div className="space-y-4">
+            <div className="bg-secondary/50 rounded-md px-4 py-3 space-y-1 text-sm">
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">匯款對象</span>
+                <span className="font-medium text-foreground">{approveTarget.remittanceName}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">核准金額</span>
+                <span className="font-semibold text-foreground">NT$ {approveTarget.totalAmount.toLocaleString()}</span>
+              </div>
+              {approveTarget.itemCount > 1 && (
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">合併筆數</span>
+                  <span className="text-foreground">{approveTarget.itemCount} 筆</span>
+                </div>
+              )}
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium text-foreground">
+                匯款日期 <span className="text-destructive">*</span>
+              </label>
+              <input
+                type="date"
+                value={approveDate}
+                onChange={(e) => setApproveDate(e.target.value)}
+                className="w-full h-9 border border-border rounded-md px-3 py-1 text-sm bg-card text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+              />
+              <p className="text-xs text-muted-foreground">核准後將同步至已確認清單與進項管理的匯款日期和支出月份</p>
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setApproveTarget(null)}>取消</Button>
+              <Button
+                className="bg-emerald-600 hover:bg-emerald-700 text-white"
+                disabled={!approveDate || isApproving}
+                onClick={handleApproveConfirm}
+              >
+                <Check className="w-3.5 h-3.5 mr-1" />
+                確認核准
+              </Button>
+            </div>
+          </div>
+        )}
+      </Modal>
 
       {/* 駁回原因 Modal */}
       <Modal

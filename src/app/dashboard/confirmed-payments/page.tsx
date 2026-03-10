@@ -361,20 +361,26 @@ export default function ConfirmedPaymentsPage() {
       .eq('id', itemId)
       .single()
     if (item) {
+      // Spec-008: 同步更新 payment_date 和 expense_month（自然月份，無切點）
+      const expenseUpdates: { payment_date: string | null; expense_month?: string } = { payment_date: date }
+      if (date) {
+        const d = new Date(date)
+        expenseUpdates.expense_month = `${d.getFullYear()}年${d.getMonth() + 1}月`
+      }
       if (item.quotation_item_id) {
         await supabase
           .from('accounting_expenses')
-          .update({ payment_date: date })
+          .update(expenseUpdates)
           .eq('quotation_item_id', item.quotation_item_id)
       } else if (item.expense_claim_id) {
         await supabase
           .from('accounting_expenses')
-          .update({ payment_date: date })
+          .update(expenseUpdates)
           .eq('expense_claim_id', item.expense_claim_id)
       } else if (item.payment_request_id) {
         await supabase
           .from('accounting_expenses')
-          .update({ payment_date: date })
+          .update(expenseUpdates)
           .eq('payment_request_id', item.payment_request_id)
       }
     }
