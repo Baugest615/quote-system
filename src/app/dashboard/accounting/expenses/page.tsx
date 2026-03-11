@@ -164,8 +164,8 @@ export default function AccountingExpensesPage() {
   const handleAutoCalcExpenses = (row: Partial<AccountingExpense>) => {
     const amount = row.amount || 0
     const hasInvoice = !!(row.invoice_number?.trim())
-    const tax = hasInvoice ? Math.round(amount * 0.05 * 100) / 100 : 0
-    const total = Math.round((amount + tax) * 100) / 100
+    const tax = hasInvoice ? Math.round(amount * 0.05) : 0
+    const total = Math.round(amount + tax)
     return { tax_amount: tax, total_amount: total } as Partial<AccountingExpense>
   }
 
@@ -318,8 +318,8 @@ export default function AccountingExpensesPage() {
 
   const handleAmountChange = (value: number) => {
     const hasInvoice = !!(form.invoice_number?.trim())
-    const tax = hasInvoice ? Math.round(value * 0.05 * 100) / 100 : 0
-    const total = Math.round((value + tax) * 100) / 100
+    const tax = hasInvoice ? Math.round(value * 0.05) : 0
+    const total = Math.round(value + tax)
     setForm(f => ({ ...f, amount: value, tax_amount: tax, total_amount: total }))
   }
 
@@ -819,8 +819,8 @@ export default function AccountingExpensesPage() {
                     const invoiceNumber = e.target.value
                     const hasInvoice = !!(invoiceNumber.trim())
                     const amount = form.amount || 0
-                    const tax = hasInvoice ? Math.round(amount * 0.05 * 100) / 100 : 0
-                    const total = Math.round((amount + tax) * 100) / 100
+                    const tax = hasInvoice ? Math.round(amount * 0.05) : 0
+                    const total = Math.round(amount + tax)
                     setForm(f => ({ ...f, invoice_number: invoiceNumber, tax_amount: tax, total_amount: total }))
                   }}
                     className="w-full border border-border rounded-lg px-3 py-2 text-sm font-mono bg-card focus:outline-none focus:ring-2 focus:ring-ring" placeholder="如 AB-12345678" />

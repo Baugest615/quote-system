@@ -148,6 +148,14 @@
 - ✅ **已確認請款清單員工分組修正**：`payment_target_type === 'employee'` 的手動進項正確歸入員工群組（修復如「吳健安」被錯誤歸到勞報區的問題）
 - ✅ `tsc --noEmit` 零新增錯誤、332 tests 全通過
 
+### 營業稅金額四捨五入到整數（2026-03-11）
+- ✅ **全站金額統一整數化**：台灣發票以「元」為單位，所有營業稅計算改為 `Math.round(amt * 0.05)`（無小數）
+  - 銷項管理（`accounting/sales/page.tsx`）— 4 處計算修正
+  - 進項管理（`accounting/expenses/page.tsx`）— 4 處計算修正
+  - 個人請款 Modal（`ExpenseClaimModal.tsx`）— 稅額 + 總額計算修正
+- ✅ DB Migration：`20260311110000_fix_tax_rounding_to_integer.sql` — `create_accounting_sale_from_quotation` RPC 稅額改為 `ROUND(v_sales_amount * 0.05)`（整數）
+- ✅ DB 已套用至 Supabase 實例、TypeScript 零新增錯誤
+
 ## 待辦事項
 
 ### 優先

@@ -108,8 +108,8 @@ export default function AccountingSalesPage() {
   })
 
   const handleAutoCalcSales = (row: Partial<AccountingSale>) => {
-    const tax = Math.round((row.sales_amount || 0) * 0.05 * 100) / 100
-    const total = Math.round(((row.sales_amount || 0) + tax) * 100) / 100
+    const tax = Math.round((row.sales_amount || 0) * 0.05)
+    const total = Math.round((row.sales_amount || 0) + tax)
     return { tax_amount: tax, total_amount: total } as Partial<AccountingSale>
   }
 
@@ -204,8 +204,8 @@ export default function AccountingSalesPage() {
   }
 
   const handleSalesAmountChange = (value: number) => {
-    const tax = Math.round(value * 0.05 * 100) / 100
-    const total = Math.round((value + tax) * 100) / 100
+    const tax = Math.round(value * 0.05)
+    const total = Math.round(value + tax)
     setForm(f => ({ ...f, sales_amount: value, tax_amount: tax, total_amount: total }))
   }
 

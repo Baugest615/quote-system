@@ -142,8 +142,8 @@ export default function ExpenseClaimModal({
   useEffect(() => {
     const hasInvoice = !!(watchedInvoiceNumber && watchedInvoiceNumber.trim())
     const amt = Number(watchedAmount) || 0
-    const tax = hasInvoice ? Math.round(amt * 0.05 * 100) / 100 : 0
-    const total = Math.round((amt + tax) * 100) / 100
+    const tax = hasInvoice ? Math.round(amt * 0.05) : 0
+    const total = Math.round(amt + tax)
     setValue('tax_amount', tax)
     setValue('total_amount', total)
   }, [watchedAmount, watchedInvoiceNumber, setValue])
