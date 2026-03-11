@@ -1,6 +1,6 @@
 # 開發進度追蹤
 
-> 最後更新：2026-03-10
+> 最後更新：2026-03-11
 > 分支：`main`
 > 詳細變更歷程請見 Git commit history（`git log --oneline`）
 
@@ -132,6 +132,20 @@
 - ✅ 已確認清單「統一設定匯款日」降級為「批次調整匯款日」（事後微調用途）
 - ✅ 逐筆 `handleItemPaymentDate` 同步更新 `expense_month`（事後調整時同步）
 - ✅ DB 已套用至 Supabase 實例、TypeScript 零錯誤
+
+### 個人請款審核 UI + 全站專案編號搜尋（2026-03-11）
+- ✅ **個人請款核准/駁回 UI**：前端串接 `approve_expense_claim` / `reject_expense_claim` RPC，Admin/Editor 可直接在個人請款頁面審核
+  - 核准：自動建立 `payment_confirmation_items` + `accounting_expenses`（併入已確認清單）
+  - 駁回：展開駁回原因輸入列，支援 Enter 快速確認
+  - 送出：草稿可批次送出審核
+- ✅ **全站 quote_number 搜尋擴展**：5 個頁面新增專案編號搜尋支援
+  - 專案進度管理（`projects/page.tsx`）
+  - 個人請款申請（`expense-claims/page.tsx`）
+  - 銷項管理（`accounting/sales/page.tsx`）
+  - 進項管理（`accounting/expenses/page.tsx`）— 擴展 select join 取得 quote_number
+  - 請款工作台（`payment-workbench`）— 新增 migration 擴展 RPC 回傳 quote_number + 前端同步搜尋 project_name
+- ✅ DB Migration 已套用：`20260311100000_workbench_add_quote_number.sql`
+- ✅ `tsc --noEmit` 零新增錯誤
 
 ## 待辦事項
 

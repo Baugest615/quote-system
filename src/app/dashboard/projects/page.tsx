@@ -75,7 +75,8 @@ export default function ProjectsPage() {
         (p) =>
           p.client_name.toLowerCase().includes(term) ||
           p.project_name.toLowerCase().includes(term) ||
-          (p.notes && p.notes.toLowerCase().includes(term))
+          (p.notes && p.notes.toLowerCase().includes(term)) ||
+          ((p as { quotations?: { quote_number: string | null } | null }).quotations?.quote_number || '').toLowerCase().includes(term)
       )
     }
     return result
@@ -136,7 +137,7 @@ export default function ProjectsPage() {
             <Input
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="搜尋廠商或專案..."
+              placeholder="搜尋編號、廠商或專案..."
               className="pl-9 w-[220px]"
             />
           </div>

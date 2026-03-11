@@ -41,6 +41,7 @@ export interface WorkbenchItemRaw {
   client_name: string | null
   kol_name: string | null
   kol_bank_info: KolBankInfo | null
+  quote_number: string | null
 }
 
 /** 加上 UI 狀態的工作台項目 */

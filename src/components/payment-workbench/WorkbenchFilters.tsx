@@ -40,7 +40,7 @@ export function WorkbenchFilters({
       <div className="relative flex-1 min-w-[200px] max-w-[320px]">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
         <Input
-          placeholder="搜尋匯款對象、KOL、服務、發票..."
+          placeholder="搜尋編號、專案、匯款對象、KOL、發票..."
           value={filters.search}
           onChange={(e) => updateFilter('search', e.target.value)}
           className="pl-9 h-9"

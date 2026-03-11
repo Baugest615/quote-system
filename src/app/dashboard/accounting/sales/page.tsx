@@ -151,7 +151,8 @@ export default function AccountingSalesPage() {
       ? records.filter(r =>
           r.project_name.toLowerCase().includes(q) ||
           (r.client_name || '').toLowerCase().includes(q) ||
-          (r.invoice_number || '').toLowerCase().includes(q)
+          (r.invoice_number || '').toLowerCase().includes(q) ||
+          ((r as { quotations?: { quote_number: string } | null }).quotations?.quote_number || '').toLowerCase().includes(q)
         )
       : [...records]
     // 欄位篩選
@@ -294,7 +295,7 @@ export default function AccountingSalesPage() {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground/60" />
           <input
             type="text"
-            placeholder="搜尋案件名稱、客戶、發票號碼..."
+            placeholder="搜尋編號、案件名稱、客戶、發票號碼..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="w-full pl-9 pr-4 py-2 border border-border rounded-lg text-sm bg-card focus:outline-none focus:ring-2 focus:ring-ring"

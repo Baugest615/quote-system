@@ -152,7 +152,7 @@ export default function AccountingExpensesPage() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('accounting_expenses')
-        .select('*, payment_requests(merge_group_id, merge_color), quotation_items!accounting_expenses_quotation_item_id_fkey(merge_group_id, merge_color, is_merge_leader)')
+        .select('*, payment_requests(merge_group_id, merge_color), quotation_items!accounting_expenses_quotation_item_id_fkey(merge_group_id, merge_color, is_merge_leader, quotations(quote_number)), expense_claims!accounting_expenses_expense_claim_id_fkey(quotation_id, quotations:quotation_id(quote_number))')
         .eq('year', year)
         .order('created_at', { ascending: false })
       if (error) throw error
@@ -237,11 +237,16 @@ export default function AccountingExpensesPage() {
       const matchesType = typeFilter === 'all' || r.expense_type === typeFilter
       const matchesTarget = targetFilter === 'all' || r.payment_target_type === targetFilter
       const matchesPaymentStatus = paymentStatusFilter === 'all' || r.payment_status === paymentStatusFilter
+      // 從 join 的資料取得 quote_number
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const ra = r as any
+      const quoteNumber: string = ra.quotation_items?.quotations?.quote_number || ra.expense_claims?.quotations?.quote_number || ''
       const matchesSearch = !q ||
         (r.project_name || '').toLowerCase().includes(q) ||
         (r.vendor_name || '').toLowerCase().includes(q) ||
         (r.invoice_number || '').toLowerCase().includes(q) ||
-        (r.accounting_subject || '').toLowerCase().includes(q)
+        (r.accounting_subject || '').toLowerCase().includes(q) ||
+        quoteNumber.toLowerCase().includes(q)
       return matchesType && matchesTarget && matchesPaymentStatus && matchesSearch
     })
     // 欄位篩選
@@ -498,7 +503,7 @@ export default function AccountingExpensesPage() {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground/60" />
           <input
             type="text"
-            placeholder="搜尋專案、廠商、發票號碼..."
+            placeholder="搜尋編號、專案、廠商、發票號碼..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="w-full pl-9 pr-4 py-2 border border-border rounded-lg text-sm bg-card focus:outline-none focus:ring-2 focus:ring-ring"

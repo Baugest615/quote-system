@@ -164,6 +164,70 @@ export default function ExpenseClaimsPage() {
     onError: (err: Error) => toast.error(`刪除失敗：${err.message}`),
   })
 
+  // 送出審核（草稿 → submitted）
+  const [actionLoading, setActionLoading] = useState<Set<string>>(new Set())
+  const submitMutation = useMutation({
+    mutationFn: async (ids: string[]) => {
+      setActionLoading(prev => { const next = new Set(Array.from(prev)); ids.forEach(id => next.add(id)); return next })
+      const { error } = await supabase
+        .from('expense_claims')
+        .update({ status: 'submitted', submitted_at: new Date().toISOString() })
+        .in('id', ids)
+      if (error) throw error
+    },
+    onSuccess: (_data, ids) => {
+      invalidateCaches()
+      toast.success(`已送出 ${ids.length} 筆報帳項目`)
+      setActionLoading(prev => { const next = new Set(prev); ids.forEach(id => next.delete(id)); return next })
+    },
+    onError: (err: Error, ids) => {
+      toast.error(`送出失敗：${err.message}`)
+      setActionLoading(prev => { const next = new Set(prev); ids.forEach(id => next.delete(id)); return next })
+    },
+  })
+
+  // 核准（submitted → approved，呼叫 RPC 同時建立確認清單 + 進項帳務）
+  const approveMutation = useMutation({
+    mutationFn: async (claimId: string) => {
+      setActionLoading(prev => { const next = new Set(Array.from(prev)); next.add(claimId); return next })
+      const { error } = await supabase.rpc('approve_expense_claim', { claim_id: claimId })
+      if (error) throw error
+    },
+    onSuccess: (_data, claimId) => {
+      invalidateCaches()
+      queryClient.invalidateQueries({ queryKey: [...queryKeys.confirmedPayments] })
+      queryClient.invalidateQueries({ queryKey: ['accounting-expenses'] })
+      toast.success('已核准，自動併入已確認請款清單')
+      setActionLoading(prev => { const next = new Set(prev); next.delete(claimId); return next })
+    },
+    onError: (err: Error, claimId) => {
+      toast.error(`核准失敗：${err.message}`)
+      setActionLoading(prev => { const next = new Set(prev); next.delete(claimId); return next })
+    },
+  })
+
+  // 駁回
+  const rejectMutation = useMutation({
+    mutationFn: async ({ claimId, reason }: { claimId: string; reason: string }) => {
+      setActionLoading(prev => { const next = new Set(Array.from(prev)); next.add(claimId); return next })
+      const { error } = await supabase.rpc('reject_expense_claim', {
+        claim_id: claimId,
+        rejector_id: null,
+        reason,
+      })
+      if (error) throw error
+    },
+    onSuccess: (_data, { claimId }) => {
+      invalidateCaches()
+      toast.success('已駁回報帳項目')
+      setActionLoading(prev => { const next = new Set(prev); next.delete(claimId); return next })
+    },
+    onError: (err: Error, { claimId }) => {
+      toast.error(`駁回失敗：${err.message}`)
+      setActionLoading(prev => { const next = new Set(prev); next.delete(claimId); return next })
+    },
+  })
+
   // ==================== Handlers ====================
 
   const handleOpenModal = useCallback((claim?: ExpenseClaim) => {
@@ -186,6 +250,30 @@ export default function ExpenseClaimsPage() {
     deleteMutation.mutate(id)
   }, [deleteMutation, confirm])
 
+  const handleSubmit = useCallback(async (ids: string[]) => {
+    const ok = await confirm({
+      title: '送出審核',
+      description: `確定要送出 ${ids.length} 筆報帳項目嗎？送出後將無法編輯。`,
+      confirmLabel: '送出',
+    })
+    if (!ok) return
+    submitMutation.mutate(ids)
+  }, [submitMutation, confirm])
+
+  const handleApprove = useCallback(async (claimId: string) => {
+    const ok = await confirm({
+      title: '核准報帳',
+      description: '核准後將自動建立已確認請款清單項目及進項帳務記錄。',
+      confirmLabel: '核准',
+    })
+    if (!ok) return
+    approveMutation.mutate(claimId)
+  }, [approveMutation, confirm])
+
+  const handleReject = useCallback((claimId: string, reason: string) => {
+    rejectMutation.mutate({ claimId, reason })
+  }, [rejectMutation])
+
   // ==================== Filtering ====================
 
   const filtered = useMemo(() => {
@@ -196,7 +284,8 @@ export default function ExpenseClaimsPage() {
         (r.project_name || '').toLowerCase().includes(q) ||
         (r.vendor_name || '').toLowerCase().includes(q) ||
         (r.invoice_number || '').toLowerCase().includes(q) ||
-        (r.accounting_subject || '').toLowerCase().includes(q)
+        (r.accounting_subject || '').toLowerCase().includes(q) ||
+        (r.quotations?.quote_number || '').toLowerCase().includes(q)
       return matchesStatus && matchesSearch
     })
   }, [search, statusFilter, records])
@@ -300,7 +389,7 @@ export default function ExpenseClaimsPage() {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground/60" />
           <input
             type="text"
-            placeholder="搜尋專案、廠商、發票號碼..."
+            placeholder="搜尋編號、專案、廠商、發票號碼..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="w-full pl-9 pr-4 py-2 border border-border rounded-lg text-sm bg-card focus:outline-none focus:ring-2 focus:ring-ring"
@@ -337,6 +426,10 @@ export default function ExpenseClaimsPage() {
         nameMap={nameMap}
         onEdit={handleOpenModal}
         onDelete={handleDelete}
+        onSubmit={handleSubmit}
+        onApprove={isEditor ? handleApprove : undefined}
+        onReject={isEditor ? handleReject : undefined}
+        actionLoading={actionLoading}
       />
 
       {/* Modal */}

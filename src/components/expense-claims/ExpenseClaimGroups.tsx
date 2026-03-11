@@ -3,7 +3,7 @@
 import { useState, useMemo } from 'react'
 import {
   ChevronDown, ChevronRight, Receipt,
-  Pencil, Trash2,
+  Pencil, Trash2, CheckCircle, XCircle, Send, Loader2,
 } from 'lucide-react'
 import type { ExpenseClaim } from '@/types/custom.types'
 
@@ -235,8 +235,11 @@ export function ExpenseClaimGroups({
                           key={claim.id}
                           claim={claim}
                           isLoading={actionLoading.has(claim.id)}
+                          isEditor={isEditor}
                           onEdit={onEdit}
                           onDelete={onDelete}
+                          onApprove={onApprove}
+                          onReject={onReject}
                         />
                       ))}
                     </tbody>
@@ -266,113 +269,194 @@ export function ExpenseClaimGroups({
 function ClaimRow({
   claim,
   isLoading,
+  isEditor,
   onEdit,
   onDelete,
+  onApprove,
+  onReject,
 }: {
   claim: ExpenseClaimWithQuotation
   isLoading: boolean
+  isEditor: boolean
   onEdit: (claim: ExpenseClaimWithQuotation) => void
   onDelete: (id: string) => void
+  onApprove?: (claimId: string) => void
+  onReject?: (claimId: string, reason: string) => void
 }) {
+  const [rejectReason, setRejectReason] = useState('')
+  const [showRejectInput, setShowRejectInput] = useState(false)
   const canEdit = claim.status === 'draft' || claim.status === 'rejected'
+  const canReview = isEditor && claim.status === 'submitted'
 
   return (
-    <tr className="text-sm hover:bg-secondary group">
-      {/* 報帳月份 */}
-      <td className="px-3 py-2.5 text-muted-foreground whitespace-nowrap">
-        {claim.claim_month || '—'}
-      </td>
+    <>
+      <tr className="text-sm hover:bg-secondary group">
+        {/* 報帳月份 */}
+        <td className="px-3 py-2.5 text-muted-foreground whitespace-nowrap">
+          {claim.claim_month || '—'}
+        </td>
 
-      {/* 支出種類 */}
-      <td className="px-3 py-2.5 whitespace-nowrap">
-        <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-muted text-foreground">
-          {claim.expense_type}
-        </span>
-      </td>
-
-      {/* 廠商/對象 */}
-      <td className="px-3 py-2.5 text-foreground font-medium whitespace-nowrap">
-        {claim.vendor_name || '—'}
-      </td>
-
-      {/* 金額 */}
-      <td className="px-3 py-2.5 text-right whitespace-nowrap">
-        {fmt(claim.amount || 0)}
-      </td>
-
-      {/* 稅額 */}
-      <td className="px-3 py-2.5 text-right text-muted-foreground whitespace-nowrap">
-        {fmt(claim.tax_amount || 0)}
-      </td>
-
-      {/* 總額 */}
-      <td className="px-3 py-2.5 text-right font-medium whitespace-nowrap">
-        NT$ {fmt(claim.total_amount || 0)}
-      </td>
-
-      {/* 專案名稱 */}
-      <td className="px-3 py-2.5 text-muted-foreground max-w-32">
-        <div className="truncate" title={claim.project_name || ''}>
-          {claim.quotations?.quote_number && <span className="text-xs font-mono text-muted-foreground mr-1.5">{claim.quotations.quote_number}</span>}
-          {claim.project_name || '—'}
-        </div>
-      </td>
-
-      {/* 發票號碼 */}
-      <td className="px-3 py-2.5 text-muted-foreground font-mono text-xs whitespace-nowrap">
-        {claim.invoice_number || '—'}
-      </td>
-
-      {/* 備註 */}
-      <td className="px-3 py-2.5 text-muted-foreground max-w-28">
-        <div className="truncate" title={claim.note || ''}>
-          {claim.note || '—'}
-        </div>
-      </td>
-
-      {/* ===== 請款管理欄位 ===== */}
-
-      {/* 狀態 */}
-      <td className="px-2 py-2.5 text-center border-l-2 border-border">
-        <div>
-          <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium ${CLAIM_STATUS_COLORS[claim.status]}`}>
-            {CLAIM_STATUS_LABELS[claim.status]}
+        {/* 支出種類 */}
+        <td className="px-3 py-2.5 whitespace-nowrap">
+          <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-muted text-foreground">
+            {claim.expense_type}
           </span>
-          {claim.status === 'approved' && claim.payment_status && (
-            <span className={`ml-1 inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium ${PAYMENT_STATUS_COLORS[claim.payment_status]}`}>
-              {PAYMENT_STATUS_LABELS[claim.payment_status]}
-            </span>
-          )}
-        </div>
-        {claim.rejection_reason && (
-          <p className="text-[10px] text-destructive mt-0.5 max-w-20 truncate" title={claim.rejection_reason}>
-            {claim.rejection_reason}
-          </p>
-        )}
-      </td>
+        </td>
 
+        {/* 廠商/對象 */}
+        <td className="px-3 py-2.5 text-foreground font-medium whitespace-nowrap">
+          {claim.vendor_name || '—'}
+        </td>
 
-      {/* 操作 */}
-      <td className="px-2 py-2.5 text-center">
-        {canEdit && (
-          <div className="flex items-center justify-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
-            <button
-              onClick={() => onEdit(claim)}
-              className="p-1 text-muted-foreground hover:text-info hover:bg-info/10 rounded transition-colors"
-              title="編輯"
-            >
-              <Pencil className="h-3.5 w-3.5" />
-            </button>
-            <button
-              onClick={() => onDelete(claim.id)}
-              className="p-1 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded transition-colors"
-              title="刪除"
-            >
-              <Trash2 className="h-3.5 w-3.5" />
-            </button>
+        {/* 金額 */}
+        <td className="px-3 py-2.5 text-right whitespace-nowrap">
+          {fmt(claim.amount || 0)}
+        </td>
+
+        {/* 稅額 */}
+        <td className="px-3 py-2.5 text-right text-muted-foreground whitespace-nowrap">
+          {fmt(claim.tax_amount || 0)}
+        </td>
+
+        {/* 總額 */}
+        <td className="px-3 py-2.5 text-right font-medium whitespace-nowrap">
+          NT$ {fmt(claim.total_amount || 0)}
+        </td>
+
+        {/* 專案名稱 */}
+        <td className="px-3 py-2.5 text-muted-foreground max-w-32">
+          <div className="truncate" title={claim.project_name || ''}>
+            {claim.quotations?.quote_number && <span className="text-xs font-mono text-muted-foreground mr-1.5">{claim.quotations.quote_number}</span>}
+            {claim.project_name || '—'}
           </div>
-        )}
-      </td>
-    </tr>
+        </td>
+
+        {/* 發票號碼 */}
+        <td className="px-3 py-2.5 text-muted-foreground font-mono text-xs whitespace-nowrap">
+          {claim.invoice_number || '—'}
+        </td>
+
+        {/* 備註 */}
+        <td className="px-3 py-2.5 text-muted-foreground max-w-28">
+          <div className="truncate" title={claim.note || ''}>
+            {claim.note || '—'}
+          </div>
+        </td>
+
+        {/* ===== 請款管理欄位 ===== */}
+
+        {/* 狀態 */}
+        <td className="px-2 py-2.5 text-center border-l-2 border-border">
+          <div>
+            <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium ${CLAIM_STATUS_COLORS[claim.status]}`}>
+              {CLAIM_STATUS_LABELS[claim.status]}
+            </span>
+            {claim.status === 'approved' && claim.payment_status && (
+              <span className={`ml-1 inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium ${PAYMENT_STATUS_COLORS[claim.payment_status]}`}>
+                {PAYMENT_STATUS_LABELS[claim.payment_status]}
+              </span>
+            )}
+          </div>
+          {claim.rejection_reason && (
+            <p className="text-[10px] text-destructive mt-0.5 max-w-20 truncate" title={claim.rejection_reason}>
+              {claim.rejection_reason}
+            </p>
+          )}
+        </td>
+
+        {/* 操作 */}
+        <td className="px-2 py-2.5 text-center">
+          {isLoading ? (
+            <Loader2 className="h-3.5 w-3.5 animate-spin mx-auto text-muted-foreground" />
+          ) : (
+            <div className="flex items-center justify-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+              {/* 審核操作（Admin/Editor 對已送出項目） */}
+              {canReview && onApprove && (
+                <button
+                  onClick={() => onApprove(claim.id)}
+                  className="p-1 text-muted-foreground hover:text-success hover:bg-success/10 rounded transition-colors"
+                  title="核准"
+                >
+                  <CheckCircle className="h-3.5 w-3.5" />
+                </button>
+              )}
+              {canReview && onReject && (
+                <button
+                  onClick={() => setShowRejectInput(!showRejectInput)}
+                  className="p-1 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded transition-colors"
+                  title="駁回"
+                >
+                  <XCircle className="h-3.5 w-3.5" />
+                </button>
+              )}
+              {/* 編輯/刪除（草稿或被駁回） */}
+              {canEdit && (
+                <>
+                  <button
+                    onClick={() => onEdit(claim)}
+                    className="p-1 text-muted-foreground hover:text-info hover:bg-info/10 rounded transition-colors"
+                    title="編輯"
+                  >
+                    <Pencil className="h-3.5 w-3.5" />
+                  </button>
+                  <button
+                    onClick={() => onDelete(claim.id)}
+                    className="p-1 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded transition-colors"
+                    title="刪除"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
+                </>
+              )}
+            </div>
+          )}
+        </td>
+      </tr>
+      {/* 駁回原因輸入列 */}
+      {showRejectInput && onReject && (
+        <tr className="bg-destructive/5">
+          <td colSpan={11} className="px-4 py-2">
+            <div className="flex items-center gap-2">
+              <input
+                type="text"
+                value={rejectReason}
+                onChange={e => setRejectReason(e.target.value)}
+                placeholder="請輸入駁回原因..."
+                className="flex-1 px-3 py-1.5 text-sm border border-border rounded-lg bg-card focus:outline-none focus:ring-2 focus:ring-ring"
+                onKeyDown={e => {
+                  if (e.key === 'Enter' && rejectReason.trim()) {
+                    onReject(claim.id, rejectReason.trim())
+                    setShowRejectInput(false)
+                    setRejectReason('')
+                  }
+                }}
+                autoFocus
+              />
+              <Button
+                variant="destructive"
+                size="sm"
+                className="text-xs h-7"
+                disabled={!rejectReason.trim()}
+                onClick={() => {
+                  onReject(claim.id, rejectReason.trim())
+                  setShowRejectInput(false)
+                  setRejectReason('')
+                }}
+              >
+                確認駁回
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-xs h-7"
+                onClick={() => { setShowRejectInput(false); setRejectReason('') }}
+              >
+                取消
+              </Button>
+            </div>
+          </td>
+        </tr>
+      )}
+    </>
   )
 }

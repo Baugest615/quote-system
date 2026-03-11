@@ -70,6 +70,8 @@ function filterItems(
         item.kol_name,
         item.service,
         item.invoice_number,
+        item.quote_number,
+        item.project_name,
       ]
         .filter(Boolean)
         .join(' ')
