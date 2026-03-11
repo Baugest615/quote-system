@@ -220,6 +220,7 @@ export function aggregateMonthlyRemittanceGroups(
     for (const expense of monthExpenses) {
       const vendorName = expense.vendor_name || '未命名支出'
       const isCompany = expense.payment_target_type === 'vendor'
+      const isEmployee = expense.payment_target_type === 'employee'
       const expenseKey = `vendor_${vendorName}`
 
       if (!mergedMap.has(expenseKey)) {
@@ -231,7 +232,7 @@ export function aggregateMonthlyRemittanceGroups(
           accountNumber: '',
           isCompanyAccount: isCompany,
           isWithholdingExempt: false,
-          isPersonalClaim: false,
+          isPersonalClaim: isEmployee,
           items: [],
           expenseItems: [],
           payrollItems: [],
@@ -248,6 +249,8 @@ export function aggregateMonthlyRemittanceGroups(
       group.expenseItems.push(expense)
       group.totalAmount += expense.total_amount || expense.amount || 0
       group.totalFee += expense.remittance_fee || 0
+      // 員工類型進項也應標記為員工群組（用於 splitRemittanceGroups 分類）
+      if (isEmployee) group.isPersonalClaim = true
     }
   }
 
