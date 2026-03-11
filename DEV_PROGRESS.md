@@ -145,7 +145,8 @@
   - 進項管理（`accounting/expenses/page.tsx`）— 擴展 select join 取得 quote_number
   - 請款工作台（`payment-workbench`）— 新增 migration 擴展 RPC 回傳 quote_number + 前端同步搜尋 project_name
 - ✅ DB Migration 已套用：`20260311100000_workbench_add_quote_number.sql`
-- ✅ `tsc --noEmit` 零新增錯誤
+- ✅ **已確認請款清單員工分組修正**：`payment_target_type === 'employee'` 的手動進項正確歸入員工群組（修復如「吳健安」被錯誤歸到勞報區的問題）
+- ✅ `tsc --noEmit` 零新增錯誤、332 tests 全通過
 
 ## 待辦事項
 
